@@ -57,7 +57,13 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
         "links_created": run.links_created,
         "embedding_model": run.embedding_model,
         "scope": run.scope_json,
-        "progress": round(100 * (run.scope_json or {}).get("processed_items", 0) / max(1, (run.scope_json or {}).get("total_items", 1))) if (run.scope_json or {}).get("total_items") else None,
+        "progress": round(
+            100
+            * (run.scope_json or {}).get("processed_items", 0)
+            / max(1, (run.scope_json or {}).get("total_items", 1))
+        )
+        if (run.scope_json or {}).get("total_items")
+        else None,
     }
 
 
@@ -256,7 +262,9 @@ def estimate_link_computation_scope(
             f"({dirty_entities} geänderte Entitäten, {dirty_chunks} geänderte Dokumente)."
         )
     else:
-        cost_notice = "Keine neuen Änderungen ausstehend. Ein erneuter Lauf prüft bestehende Kandidaten."
+        cost_notice = (
+            "Keine neuen Änderungen ausstehend. Ein erneuter Lauf prüft bestehende Kandidaten."
+        )
 
     return {
         "project_id": project_id,
@@ -290,18 +298,63 @@ def trigger_link_computation(
         max_length=255,
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
-    max_items: int = Query(200, ge=1, le=5000, description="Maximale Zahl Code-Entitäten pro Lauf; ein begrenzter Lauf kann fortgesetzt werden."),
-    top_k_semantic: Optional[int] = Query(None, ge=1, le=200, description="Semantische Kandidaten je Entität (Standard 20)."),
-    top_k_keyword: Optional[int] = Query(None, ge=1, le=500, description="Stichwort-Kandidaten je Entität (Standard 50)."),
-    min_score_semantic: Optional[float] = Query(None, ge=0.0, le=1.0, description="Mindest-Ähnlichkeit der semantischen Suche (Standard 0,45)."),
-    min_score_keyword: Optional[float] = Query(None, ge=0.0, le=1.0, description="Mindest-Trefferanteil der Stichwortsuche (Standard 0,30)."),
-    merge_threshold: Optional[float] = Query(None, ge=0.0, le=1.0, description="Mindest-Score eines zusammengeführten Kandidaten vor der Modellbewertung (Standard 0,90)."),
-    dedupe_by_chunk: Optional[bool] = Query(None, description="true: jeder Abschnitt ist ein eigener Kandidat; false: eine Seite oder Datei ist ein Kandidat (Standard)."),
-    review_batch_size: Optional[int] = Query(None, ge=0, le=50, description="Kandidaten je Modellaufruf; 0 = alle einer Entität in einem Aufruf (Standard)."),
-    review_concurrency: Optional[int] = Query(None, ge=1, le=8, description="Entitäten, deren Bewertung gleichzeitig läuft (Standard 1)."),
-    embed_window: Optional[int] = Query(None, ge=1, le=20, description="Kontexte je gebündeltem Embedding-Aufruf (Standard 16)."),
-    max_review_candidates: Optional[int] = Query(None, ge=0, le=100, description="Obergrenze der Kandidaten je Entität vor der Modellbewertung, nach Score absteigend; 0 = keine. Ohne Angabe: 8 bei lokalem KI-Profil, sonst keine."),
-    keyword_selection: Optional[str] = Query(None, pattern="^(best|first)$", description="Stichwortsuche bei mehr Treffern als `top_k_keyword`: `best` = höchster Trefferanteil zuerst (Standard), `first` = die ersten Treffer nach Chunk-ID (früheres Verhalten)."),
+    max_items: int = Query(
+        200,
+        ge=1,
+        le=5000,
+        description="Maximale Zahl Code-Entitäten pro Lauf; ein begrenzter Lauf kann fortgesetzt werden.",
+    ),
+    top_k_semantic: Optional[int] = Query(
+        None, ge=1, le=200, description="Semantische Kandidaten je Entität (Standard 20)."
+    ),
+    top_k_keyword: Optional[int] = Query(
+        None, ge=1, le=500, description="Stichwort-Kandidaten je Entität (Standard 50)."
+    ),
+    min_score_semantic: Optional[float] = Query(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Mindest-Ähnlichkeit der semantischen Suche (Standard 0,45).",
+    ),
+    min_score_keyword: Optional[float] = Query(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Mindest-Trefferanteil der Stichwortsuche (Standard 0,30).",
+    ),
+    merge_threshold: Optional[float] = Query(
+        None,
+        ge=0.0,
+        le=1.0,
+        description="Mindest-Score eines zusammengeführten Kandidaten vor der Modellbewertung (Standard 0,90).",
+    ),
+    dedupe_by_chunk: Optional[bool] = Query(
+        None,
+        description="true: jeder Abschnitt ist ein eigener Kandidat; false: eine Seite oder Datei ist ein Kandidat (Standard).",
+    ),
+    review_batch_size: Optional[int] = Query(
+        None,
+        ge=0,
+        le=50,
+        description="Kandidaten je Modellaufruf; 0 = alle einer Entität in einem Aufruf (Standard).",
+    ),
+    review_concurrency: Optional[int] = Query(
+        None, ge=1, le=8, description="Entitäten, deren Bewertung gleichzeitig läuft (Standard 1)."
+    ),
+    embed_window: Optional[int] = Query(
+        None, ge=1, le=20, description="Kontexte je gebündeltem Embedding-Aufruf (Standard 16)."
+    ),
+    max_review_candidates: Optional[int] = Query(
+        None,
+        ge=0,
+        le=100,
+        description="Obergrenze der Kandidaten je Entität vor der Modellbewertung, nach Score absteigend; 0 = keine. Ohne Angabe: 8 bei lokalem KI-Profil, sonst keine.",
+    ),
+    keyword_selection: Optional[str] = Query(
+        None,
+        pattern="^(best|first)$",
+        description="Stichwortsuche bei mehr Treffern als `top_k_keyword`: `best` = höchster Trefferanteil zuerst (Standard), `first` = die ersten Treffer nach Chunk-ID (früheres Verhalten).",
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -339,11 +392,16 @@ def trigger_link_computation(
     run_params = {
         name: value
         for name, value in {
-            "top_k_semantic": top_k_semantic, "top_k_keyword": top_k_keyword,
-            "min_score_semantic": min_score_semantic, "min_score_keyword": min_score_keyword,
-            "merge_threshold": merge_threshold, "dedupe_by_chunk": dedupe_by_chunk,
-            "review_batch_size": review_batch_size, "review_concurrency": review_concurrency,
-            "embed_window": embed_window, "max_review_candidates": max_review_candidates,
+            "top_k_semantic": top_k_semantic,
+            "top_k_keyword": top_k_keyword,
+            "min_score_semantic": min_score_semantic,
+            "min_score_keyword": min_score_keyword,
+            "merge_threshold": merge_threshold,
+            "dedupe_by_chunk": dedupe_by_chunk,
+            "review_batch_size": review_batch_size,
+            "review_concurrency": review_concurrency,
+            "embed_window": embed_window,
+            "max_review_candidates": max_review_candidates,
             "keyword_selection": keyword_selection,
         }.items()
         if value is not None
@@ -490,13 +548,22 @@ async def llm_review_link(
             detail="Kein Dokument-Inhalt zu diesem Link vorhanden — manuell angelegte Links können nicht geprüft werden",
         )
 
-    code_chunk = db.query(DocumentChunk).filter(
-        DocumentChunk.project_id == link.project_id,
-        DocumentChunk.file_path == entity.file_path,
-        DocumentChunk.start_line <= entity.start_line,
-        DocumentChunk.end_line >= entity.start_line,
-    ).order_by(DocumentChunk.start_line.desc()).first()
-    code_excerpt = (code_chunk.content or "")[:900] if code_chunk else "(kein indexierter Codeauszug verfügbar)"
+    code_chunk = (
+        db.query(DocumentChunk)
+        .filter(
+            DocumentChunk.project_id == link.project_id,
+            DocumentChunk.file_path == entity.file_path,
+            DocumentChunk.start_line <= entity.start_line,
+            DocumentChunk.end_line >= entity.start_line,
+        )
+        .order_by(DocumentChunk.start_line.desc())
+        .first()
+    )
+    code_excerpt = (
+        (code_chunk.content or "")[:900]
+        if code_chunk
+        else "(kein indexierter Codeauszug verfügbar)"
+    )
 
     prompt = (
         "Du bist ein Programmier- und Code-Dokumentations-Experte.\n"
@@ -605,7 +672,9 @@ def search_doc_chunks(
             KnowledgeSource.project_id == project_id,
             or_(
                 KnowledgeSource.type != "Git",
-                DocumentChunk.metadata_json["language"].as_string().in_(("asciidoc", "markdown", "text")),
+                DocumentChunk.metadata_json["language"]
+                .as_string()
+                .in_(("asciidoc", "markdown", "text")),
             ),
         )
     )

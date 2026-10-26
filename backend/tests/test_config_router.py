@@ -3,7 +3,6 @@ Tests für backend/api/config_router.py — System- und SSO-Konfigurations-Endpo
 """
 
 
-
 def test_get_features_unauthenticated(unauthenticated_client):
     res = unauthenticated_client.get("/config/features")
     assert res.status_code == 200
@@ -96,7 +95,9 @@ def test_test_oidc_connection_successful(client, monkeypatch):
 def test_simulate_oidc_mapping(client, monkeypatch):
     monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-admin")
     monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "Default Team")
-    monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", '{"dev": "Default Team", "special": "NonExistentTeam"}')
+    monkeypatch.setattr(
+        "core.config.OIDC_TEAM_MAPPING", '{"dev": "Default Team", "special": "NonExistentTeam"}'
+    )
 
     # Simulation with admin role and dev group
     res = client.post(

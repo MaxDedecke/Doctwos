@@ -23,7 +23,10 @@ Details.
 def test_outline_ignores_code_fences_and_captures_levels():
     outline = markdown_outline(MD)
     assert outline == [
-        (1, 1, "Autorisierung"), (5, 2, "Entscheidung"), (13, 3, "Kreditprüfung"), (17, 2, "Antwort"),
+        (1, 1, "Autorisierung"),
+        (5, 2, "Entscheidung"),
+        (13, 3, "Kreditprüfung"),
+        (17, 2, "Antwort"),
     ]
     assert boundary_lines(outline) == frozenset({1, 5, 13, 17})
 

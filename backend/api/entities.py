@@ -132,11 +132,13 @@ def _definition(entity: CodeEntity, db: Session) -> dict | None:
         "content": chunk.content,
         "start_line": chunk.start_line,
         "end_line": chunk.end_line,
-        "source_ranges": [{
-            "chunk_id": chunk.id,
-            "start_line": chunk.start_line,
-            "end_line": chunk.end_line,
-        }],
+        "source_ranges": [
+            {
+                "chunk_id": chunk.id,
+                "start_line": chunk.start_line,
+                "end_line": chunk.end_line,
+            }
+        ],
         "next_start_line": chunks[1].start_line if len(chunks) > 1 else None,
         "next_chunk_id": chunks[1].id if len(chunks) > 1 else None,
     }
@@ -313,8 +315,15 @@ def get_drop(
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(entity, user, db, project_id)
     return drop_view.drop(
-        db, user, entity.project_id, entity, direction=direction, layers=layers,
-        kinds=[k for item in kinds for k in item.split(",")], expand=expand, include_tests=include_tests,
+        db,
+        user,
+        entity.project_id,
+        entity,
+        direction=direction,
+        layers=layers,
+        kinds=[k for item in kinds for k in item.split(",")],
+        expand=expand,
+        include_tests=include_tests,
     )
 
 
@@ -371,10 +380,16 @@ def get_neighbors(
     # Code<->Code-Beziehungen: Größe je Gruppe (Typ, Richtung) in einer Abfrage, die Einträge selbst
     # je Gruppe seitenweise per Kanten-ID-Cursor (kein Offset: neue Kanten verschieben nichts).
     edge_direction = case((CodeEdge.src_entity_id == entity_id, "out"), else_="in")
-    size_query = db.query(CodeEdge.type, edge_direction.label("d"), func.count(CodeEdge.id)).filter(edge_filter)
+    size_query = db.query(CodeEdge.type, edge_direction.label("d"), func.count(CodeEdge.id)).filter(
+        edge_filter
+    )
     if type_filter is not None:
         size_query = size_query.filter(type_filter)
-    group_sizes = size_query.group_by(CodeEdge.type, edge_direction).order_by(CodeEdge.type, edge_direction).all()
+    group_sizes = (
+        size_query.group_by(CodeEdge.type, edge_direction)
+        .order_by(CodeEdge.type, edge_direction)
+        .all()
+    )
     for edge_type, edge_dir, size in group_sizes:
         key = f"{edge_type}:{edge_dir}"
         if not wants(key):
@@ -393,7 +408,10 @@ def get_neighbors(
             rows = rows[:limit]
         related_ids = {i for edge in rows for i in (edge.src_entity_id, edge.dst_entity_id) if i}
         related = (
-            {item.id: item for item in db.query(CodeEntity).filter(CodeEntity.id.in_(related_ids)).all()}
+            {
+                item.id: item
+                for item in db.query(CodeEntity).filter(CodeEntity.id.in_(related_ids)).all()
+            }
             if related_ids
             else {}
         )
@@ -419,12 +437,21 @@ def get_neighbors(
             )
         groups[key] = items
         if paged:
-            page[key] = {"total": size, "has_more": has_more, "next_after": rows[-1].id if rows else None}
+            page[key] = {
+                "total": size,
+                "has_more": has_more,
+                "next_after": rows[-1].id if rows else None,
+            }
 
     # CONTAINS is derived from the bounded parent chain rather than persisted
     # as a second edge row.  We expose ancestors only: selecting a broad
     # program must not expand into every paragraph/data item in the project.
-    if direction in {"in", "both"} and (not requested or "CONTAINS" in requested) and wants("CONTAINS:in") and after is None:
+    if (
+        direction in {"in", "both"}
+        and (not requested or "CONTAINS" in requested)
+        and wants("CONTAINS:in")
+        and after is None
+    ):
         parent_id = entity.parent_id
         contains_count = 0
         while parent_id is not None and contains_count < 32:
@@ -453,7 +480,11 @@ def get_neighbors(
             contains_count += 1
             parent_id = parent.parent_id
         if paged and "CONTAINS:in" in groups:
-            page["CONTAINS:in"] = {"total": len(groups["CONTAINS:in"]), "has_more": False, "next_after": None}
+            page["CONTAINS:in"] = {
+                "total": len(groups["CONTAINS:in"]),
+                "has_more": False,
+                "next_after": None,
+            }
 
     # Dokument-Verknüpfungen dieser Entity (EntityDocLink) als eigene Gruppe --
     # CodeEdge bildet nur Code<->Code-Beziehungen ab, die Graph-View (api/graph.py)
@@ -484,13 +515,23 @@ def get_neighbors(
                 break
             chunk_ids = {lnk.chunk_id for lnk in links if lnk.chunk_id is not None}
             chunks = (
-                {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+                {
+                    c.id: c
+                    for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()
+                }
                 if chunk_ids
                 else {}
             )
-            source_ids = {chunk.source_id for chunk in chunks.values() if chunk.source_id is not None}
+            source_ids = {
+                chunk.source_id for chunk in chunks.values() if chunk.source_id is not None
+            }
             sources = (
-                {src.id: src for src in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()}
+                {
+                    src.id: src
+                    for src in db.query(KnowledgeSource)
+                    .filter(KnowledgeSource.id.in_(source_ids))
+                    .all()
+                }
                 if source_ids
                 else {}
             )
@@ -511,7 +552,11 @@ def get_neighbors(
         if items:
             groups["DOC:out"] = items
         if paged and (items or after is not None):
-            page["DOC:out"] = {"total": None, "has_more": has_more, "next_after": item_link_ids[-1] if item_link_ids else None}
+            page["DOC:out"] = {
+                "total": None,
+                "has_more": has_more,
+                "next_after": item_link_ids[-1] if item_link_ids else None,
+            }
 
     response: dict = {"entity": entity_json(entity), "groups": groups}
     if paged:

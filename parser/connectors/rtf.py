@@ -13,16 +13,61 @@ import re
 
 # Gruppen, deren Inhalt kein Fließtext ist.
 _SKIP_DESTINATIONS = {
-    "fonttbl", "colortbl", "stylesheet", "info", "pict", "header", "footer", "headerl", "headerr", "headerf",
-    "footerl", "footerr", "footerf", "fldinst", "generator", "themedata", "colorschememapping", "latentstyles",
-    "datastore", "listtable", "listoverridetable", "rsidtbl", "xmlnstbl", "object", "objdata", "bkmkstart",
-    "bkmkend", "revtbl", "pgptbl", "template", "mmathPr", "shpinst", "nonshppict", "wgrffmtfilter", "private",
+    "fonttbl",
+    "colortbl",
+    "stylesheet",
+    "info",
+    "pict",
+    "header",
+    "footer",
+    "headerl",
+    "headerr",
+    "headerf",
+    "footerl",
+    "footerr",
+    "footerf",
+    "fldinst",
+    "generator",
+    "themedata",
+    "colorschememapping",
+    "latentstyles",
+    "datastore",
+    "listtable",
+    "listoverridetable",
+    "rsidtbl",
+    "xmlnstbl",
+    "object",
+    "objdata",
+    "bkmkstart",
+    "bkmkend",
+    "revtbl",
+    "pgptbl",
+    "template",
+    "mmathPr",
+    "shpinst",
+    "nonshppict",
+    "wgrffmtfilter",
+    "private",
 }
 
 _SYMBOLS = {
-    "emdash": "\u2014", "endash": "\u2013", "bullet": "\u2022", "lquote": "\u2018", "rquote": "\u2019",
-    "ldblquote": "\u201c", "rdblquote": "\u201d", "emspace": " ", "enspace": " ", "tab": "\t",
-    "par": "\n", "line": "\n", "row": "\n", "page": "\n\n", "sect": "\n\n", "cell": " | ", "nestcell": " | ",
+    "emdash": "\u2014",
+    "endash": "\u2013",
+    "bullet": "\u2022",
+    "lquote": "\u2018",
+    "rquote": "\u2019",
+    "ldblquote": "\u201c",
+    "rdblquote": "\u201d",
+    "emspace": " ",
+    "enspace": " ",
+    "tab": "\t",
+    "par": "\n",
+    "line": "\n",
+    "row": "\n",
+    "page": "\n\n",
+    "sect": "\n\n",
+    "cell": " | ",
+    "nestcell": " | ",
 }
 
 _CONTROL = re.compile(rb"\\([a-zA-Z]+)(-?\d+)? ?")
@@ -49,7 +94,9 @@ def rtf_to_text(data: bytes) -> str:
     out: list[str] = []
     pending = bytearray()
     codepage = 1252
-    stack: list[tuple[bool, int]] = []  # (überspringen, Anzahl zu überspringender Ersatzzeichen nach \u)
+    stack: list[
+        tuple[bool, int]
+    ] = []  # (überspringen, Anzahl zu überspringender Ersatzzeichen nach \u)
     skip = False
     uc_skip = 1
     skip_chars = 0  # nach \uN: so viele Ersatzzeichen noch verwerfen
@@ -142,5 +189,7 @@ def rtf_to_text(data: bytes) -> str:
             index += 1
     flush()
 
-    lines = [re.sub(r"[ \t]+$", "", re.sub(r"\s*\|\s*$", "", line)) for line in "".join(out).split("\n")]
+    lines = [
+        re.sub(r"[ \t]+$", "", re.sub(r"\s*\|\s*$", "", line)) for line in "".join(out).split("\n")
+    ]
     return re.sub(r"\n{3,}", "\n\n", "\n".join(lines)).strip()

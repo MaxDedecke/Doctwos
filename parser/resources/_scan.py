@@ -4,14 +4,21 @@ Kein Ausführen, kein Auflösen: Kommentare und Zeichenketten werden durch
 Leerzeichen gleicher Länge ersetzt (Zeilenumbrüche bleiben), damit Muster und
 Klammerzählung nie in Text greifen und Zeilennummern wahr bleiben.
 """
+
 from __future__ import annotations
 
 import bisect
 import re
 
 
-def mask(source: str, *, line_comments: tuple[str, ...], block: bool = True,
-         quotes: str = "'\"", triple: bool = False) -> str:
+def mask(
+    source: str,
+    *,
+    line_comments: tuple[str, ...],
+    block: bool = True,
+    quotes: str = "'\"",
+    triple: bool = False,
+) -> str:
     out: list[str] = []
     i, n = 0, len(source)
 

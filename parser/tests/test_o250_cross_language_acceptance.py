@@ -91,8 +91,7 @@ public class Main {
         language: {
             entity.file_path
             for entity in entities
-            if entity.meta_json.get("is_file_root")
-            and entity.meta_json.get("language") == language
+            if entity.meta_json.get("is_file_root") and entity.meta_json.get("language") == language
         }
         for language in ("shell", "java", "xslt", "xml", "jsp")
     }
@@ -107,14 +106,14 @@ public class Main {
         },
     }
     assert all(
-        entity.start_line == 1
-        for entity in entities
-        if entity.meta_json.get("is_file_root")
+        entity.start_line == 1 for entity in entities if entity.meta_json.get("is_file_root")
     )
 
     resolve_resource_edges(entities, edges)
 
-    by_path = {entity.file_path: entity for entity in entities if entity.meta_json.get("is_file_root")}
+    by_path = {
+        entity.file_path: entity for entity in entities if entity.meta_json.get("is_file_root")
+    }
     by_id = {entity.id: entity for entity in entities}
     main = next(
         entity
@@ -150,15 +149,12 @@ public class Main {
     ]
     assert all(edge.meta_json["relationship_kind"] == "resource" for edge in resource_edges)
     assert all(
-        edge.meta_json["evidence"]["source"]["file_path"]
-        == by_id[edge.src_entity_id].file_path
+        edge.meta_json["evidence"]["source"]["file_path"] == by_id[edge.src_entity_id].file_path
         for edge in resource_edges
     )
 
     dynamic = next(
-        edge
-        for edge in edges
-        if edge.type == "USES_RESOURCE" and edge.resolution == "dynamic"
+        edge for edge in edges if edge.type == "USES_RESOURCE" and edge.resolution == "dynamic"
     )
     assert dynamic.dst_entity_id is None
     assert dynamic.meta_json["resolution_reason"] == "dynamic_resource_expression"

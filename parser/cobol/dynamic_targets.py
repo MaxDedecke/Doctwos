@@ -40,24 +40,36 @@ def literal_assignments(tokens: list[Token]) -> dict[str, list[tuple[str, int, s
             level = int(token.value)
             following = tokens[index + 1]
             if (1 <= level <= 49 or level == 77) and following.kind == "WORD":
-                current_item = None if following.value.upper() == "FILLER" else following.value.upper()
+                current_item = (
+                    None if following.value.upper() == "FILLER" else following.value.upper()
+                )
             continue
         if token.kind != "WORD":
             continue
         word = token.value.upper()
         if word == "VALUE" and current_item and index + 1 < count:
             nxt = index + 1
-            if tokens[nxt].kind == "WORD" and tokens[nxt].value.upper() in {"IS", "ARE"} and nxt + 1 < count:
+            if (
+                tokens[nxt].kind == "WORD"
+                and tokens[nxt].value.upper() in {"IS", "ARE"}
+                and nxt + 1 < count
+            ):
                 nxt += 1
             literal = _literal(tokens[nxt].value) if tokens[nxt].kind == "LITERAL" else None
             if literal:
                 found[current_item].append((literal, tokens[nxt].phys_line, "value"))
         elif word == "MOVE" and index + 3 < count and tokens[index + 1].kind == "LITERAL":
             literal = _literal(tokens[index + 1].value)
-            if literal and tokens[index + 2].kind == "WORD" and tokens[index + 2].value.upper() == "TO":
+            if (
+                literal
+                and tokens[index + 2].kind == "WORD"
+                and tokens[index + 2].value.upper() == "TO"
+            ):
                 receiver = tokens[index + 3]
                 if receiver.kind == "WORD":
-                    found[receiver.value.upper()].append((literal, tokens[index + 1].phys_line, "move"))
+                    found[receiver.value.upper()].append(
+                        (literal, tokens[index + 1].phys_line, "move")
+                    )
     return found
 
 
@@ -74,7 +86,9 @@ def annotate(edges: list[ParsedEdge], tokens: list[Token], first_line: int, last
             continue
         merged: dict[str, dict] = {}
         for literal, line, source in entries:
-            item = merged.setdefault(literal.upper(), {"name": literal, "line": line, "source": source, "count": 0})
+            item = merged.setdefault(
+                literal.upper(), {"name": literal, "line": line, "source": source, "count": 0}
+            )
             item["count"] += 1
         edge.meta["candidate_targets"] = list(merged.values())[:_MAX_CANDIDATES]
         edge.meta["candidate_basis"] = "literal_assignments_in_program"

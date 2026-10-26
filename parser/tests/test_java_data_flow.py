@@ -44,7 +44,9 @@ public class Account {
 
 def _flows():
     result = parse_java_file(SOURCE, "src/main/java/demo/Account.java")
-    return result, {entity.qualified_name: entity.meta.get("data_flow", []) for entity in result.entities}
+    return result, {
+        entity.qualified_name: entity.meta.get("data_flow", []) for entity in result.entities
+    }
 
 
 def _row(flow, line, operation):
@@ -66,11 +68,21 @@ def test_assignments_and_initializers_name_target_and_sources_by_kind():
     net = _row(deposit, 16, "init")
     assert (net["target"]["kind"], net["target"]["name"]) == ("local_variable", "net")
     assert net["target"]["qualified_name"].endswith("@local:net:16:13")
-    assert ("parameter", "amount", None) in _sources(net) and ("call", "fee.rate", None) in _sources(net)
+    assert ("parameter", "amount", None) in _sources(net) and (
+        "call",
+        "fee.rate",
+        None,
+    ) in _sources(net)
     checked = _row(deposit, 17, "init")
-    assert _sources(checked) == [("call", "validate", None), ("local_variable", "net", "call:validate")]
+    assert _sources(checked) == [
+        ("call", "validate", None),
+        ("local_variable", "net", "call:validate"),
+    ]
     assert _row(deposit, 18, "compound_assign")["target"] == {
-        "kind": "field", "name": "balance", "qualified_name": "demo.Account#balance"}
+        "kind": "field",
+        "name": "balance",
+        "qualified_name": "demo.Account#balance",
+    }
     assert ("field", "owner", None) in _sources(_row(deposit, 19, "init"))
     assert _row(deposit, 21, "increment")["target"]["name"] == "balance"
     assert _sources(_row(deposit, 22, "return")) == [("field", "balance", None)]

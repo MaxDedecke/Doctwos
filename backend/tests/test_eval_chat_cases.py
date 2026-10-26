@@ -6,7 +6,9 @@ from pathlib import Path
 
 import pytest
 
-CASES = json.loads((Path(__file__).parent / "fixtures" / "eval_chat_cases.json").read_text())["cases"]
+CASES = json.loads((Path(__file__).parent / "fixtures" / "eval_chat_cases.json").read_text())[
+    "cases"
+]
 
 
 def test_ids_are_unique_and_cover_both_projects():
@@ -20,7 +22,11 @@ def test_every_case_has_checkable_and_valid_checks(case):
     assert case["question"].strip() and case["label"]
     checks = case["checks"]
     assert checks.get("answer_all") or checks.get("cites")
-    for pattern in checks.get("answer_all", []) + checks.get("answer_any", []) + ([checks["no_claim"]] if checks.get("no_claim") else []):
+    for pattern in (
+        checks.get("answer_all", [])
+        + checks.get("answer_any", [])
+        + ([checks["no_claim"]] if checks.get("no_claim") else [])
+    ):
         re.compile(pattern)
     for want in checks.get("cites", []):
         assert want["file"] and want["lines"][0] <= want["lines"][1]

@@ -30,7 +30,6 @@ def test_local_benchmark_covers_five_languages_without_model_calls(tmp_path):
         "shell": 1,
     }
     assert all(
-        next(iter(data["parse_outcomes"].values())) == 1
-        for data in report["languages"].values()
+        next(iter(data["parse_outcomes"].values())) == 1 for data in report["languages"].values()
     )
     assert "no build, embedding, retrieval, or chat request" in report["limits"][0]

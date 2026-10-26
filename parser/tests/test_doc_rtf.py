@@ -96,7 +96,10 @@ def test_truncated_doc_is_reported_not_crashing(tmp_path):
 
 
 def test_field_codes_are_reduced_to_their_result_and_table_marks_become_columns():
-    assert _strip_fields('Siehe \x13 HYPERLINK "http://x" \x14Handbuch\x15 Seite 3') == "Siehe Handbuch Seite 3"
+    assert (
+        _strip_fields('Siehe \x13 HYPERLINK "http://x" \x14Handbuch\x15 Seite 3')
+        == "Siehe Handbuch Seite 3"
+    )
     assert _strip_fields("a\x13 PAGE \x15b") == "ab"  # Feld ohne Ergebnis
     assert _strip_fields("\x13 IF \x13 INNER \x14x\x15 \x14außen\x15") == "außen"  # verschachtelt
     assert _clean("A\x07B\x07\x07C\x07D\x07\x07") == "A | B\nC | D"
@@ -105,13 +108,16 @@ def test_field_codes_are_reduced_to_their_result_and_table_marks_become_columns(
 
 # --- RTF -------------------------------------------------------------------------------------
 
+
 def _rtf(text: bytes) -> str:
     """Platzhalter ``@u`` steht für den RTF-Unicode-Escape (Backslash + u)."""
     return rtf_to_text(text.replace(b"@u", b"\\u"))
 
 
 def test_rtf_escapes_codepages_and_unicode():
-    text = _rtf(rb"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0 Arial;}}Gr\'fc\'dfe @u8364? und @u-3841?x\par Zeile 2}")
+    text = _rtf(
+        rb"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0 Arial;}}Gr\'fc\'dfe @u8364? und @u-3841?x\par Zeile 2}"
+    )
     assert text.startswith("Grüße € und ") and text.endswith("Zeile 2")
     assert "Arial" not in text
 
@@ -134,7 +140,9 @@ def test_rtf_skips_non_text_groups_and_keeps_field_results():
 
 
 def test_rtf_tables_and_structure_marks():
-    text = rtf_to_text(rb"{\rtf1 A\cell B\cell\row C\cell D\cell\row\par Absatz\tab Tab \emdash  Strich}")
+    text = rtf_to_text(
+        rb"{\rtf1 A\cell B\cell\row C\cell D\cell\row\par Absatz\tab Tab \emdash  Strich}"
+    )
     assert text == "A | B\nC | D\n\nAbsatz\tTab — Strich" or text.startswith("A | B\nC | D")
     assert "Absatz\tTab" in text and "—" in text
 
@@ -146,6 +154,12 @@ def test_rtf_input_that_is_not_rtf_is_rejected():
 
 def test_confluence_attachments_read_word_97_and_rtf():
     assert _is_supported_mime("application/rtf") and _is_supported_mime("application/msword")
-    assert _extract_attachment_text((FIXTURES / "beispiel.doc").read_bytes(), "application/msword") == EXPECTED
-    assert _extract_attachment_text((FIXTURES / "beispiel.rtf").read_bytes(), "application/rtf") == EXPECTED
+    assert (
+        _extract_attachment_text((FIXTURES / "beispiel.doc").read_bytes(), "application/msword")
+        == EXPECTED
+    )
+    assert (
+        _extract_attachment_text((FIXTURES / "beispiel.rtf").read_bytes(), "application/rtf")
+        == EXPECTED
+    )
     assert _extract_attachment_text(b"nichts Lesbares", "application/msword") is None

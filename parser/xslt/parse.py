@@ -131,7 +131,9 @@ def _line_at(source: str, offset: int) -> int:
     return source.count("\n", 0, max(0, offset)) + 1
 
 
-def _split_range(lines: list[str], start: int, end: int, limit: int = 1200) -> list[tuple[str, int, int]]:
+def _split_range(
+    lines: list[str], start: int, end: int, limit: int = 1200
+) -> list[tuple[str, int, int]]:
     pieces: list[tuple[str, int, int]] = []
     start = max(1, start)
     end = min(len(lines), max(start, end))
@@ -197,7 +199,9 @@ def _unique_qname(base: str, used: set[str]) -> str:
     return result
 
 
-def _template_label(element: ET.Element, ordinal: int) -> tuple[str, str | None, str | None, str | None]:
+def _template_label(
+    element: ET.Element, ordinal: int
+) -> tuple[str, str | None, str | None, str | None]:
     name = element.attrib.get("name")
     match = element.attrib.get("match")
     mode = element.attrib.get("mode")
@@ -226,7 +230,7 @@ def _xpath_edge(
     xpath: str | None,
     meta: dict,
     resolution: str = "unresolved",
-    ) -> ParsedEdge:
+) -> ParsedEdge:
     return ParsedEdge(
         type=edge_type,
         src_name=source.qualified_name or source.name,
@@ -258,7 +262,9 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
         root = ET.fromstring(source)
     except ET.ParseError as exc:
         position = getattr(exc, "position", (1, 0))
-        return _parse_failure(source, path, "XSLT_PARSE_ERROR", f"XSLT ist nicht gültig: {exc}", position[0])
+        return _parse_failure(
+            source, path, "XSLT_PARSE_ERROR", f"XSLT ist nicht gültig: {exc}", position[0]
+        )
 
     if _local_name(root.tag) not in {"stylesheet", "transform"} or (
         _namespace(root.tag) not in XSLT_NAMESPACES and _namespace(root.tag) is not None
@@ -275,8 +281,7 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
     root_opening = _TAG_RE.search(source)
     root_end_offset = source.find(">", root_opening.start()) + 1 if root_opening else 0
     ns_map = {
-        prefix or "": uri
-        for prefix, _, uri in _XSL_PREFIX_RE.findall(source[:root_end_offset])
+        prefix or "": uri for prefix, _, uri in _XSL_PREFIX_RE.findall(source[:root_end_offset])
     }
     root_qname = normalized_path
     root_entity = Entity(
@@ -450,7 +455,9 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
         local = _local_name(element.tag)
         if not _is_xsl(element):
             continue
-        source_entity = _containing_template(element, parent_by_id, template_entities) or root_entity
+        source_entity = (
+            _containing_template(element, parent_by_id, template_entities) or root_entity
+        )
         start_line = ranges.get(id(element), (root_start, root_start))[0]
         if local == "call-template":
             name = element.attrib.get("name", "").strip()
@@ -461,9 +468,9 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
                 "template_name": name or None,
                 "target_qualified_name": target_qname,
                 "source_file_path": normalized_path,
-                "resolution_reason": "named_template" if target_qname else (
-                    "ambiguous_template" if len(candidates) > 1 else "dynamic_template_name"
-                ),
+                "resolution_reason": "named_template"
+                if target_qname
+                else ("ambiguous_template" if len(candidates) > 1 else "dynamic_template_name"),
             }
             edges.append(
                 _xpath_edge(
@@ -473,18 +480,25 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
                     line=start_line,
                     xpath=None,
                     meta=meta,
-                    resolution="resolved" if target_qname else (
-                        "dynamic" if not static_name else "unresolved"
-                    ),
+                    resolution="resolved"
+                    if target_qname
+                    else ("dynamic" if not static_name else "unresolved"),
                 )
             )
         elif local == "apply-templates":
             select = element.attrib.get("select")
             mode = element.attrib.get("mode") or "#default"
-            static_selection = not select or _is_static_qname(select.strip()) or \
-                (select and not any(token in select for token in ("$", "{", "}", "(", ")")))
+            static_selection = (
+                not select
+                or _is_static_qname(select.strip())
+                or (select and not any(token in select for token in ("$", "{", "}", "(", ")")))
+            )
             static_mode = _is_static_qname(mode) or mode in {"#default", "#all", "#current"}
-            candidates = templates_by_mode.get(mode, []) if static_mode and mode not in {"#all", "#current"} else []
+            candidates = (
+                templates_by_mode.get(mode, [])
+                if static_mode and mode not in {"#all", "#current"}
+                else []
+            )
             normalized_select = (select or "").strip()
             exact = [
                 candidate
@@ -494,19 +508,24 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
                     candidate.meta["match"] == normalized_select
                     or candidate.meta["match"] == normalized_select.lstrip("./")
                     or candidate.meta["match"] == normalized_select.rsplit("/", 1)[-1]
-                    )
-                ]
+                )
+            ]
             target_qname = (
-                exact[0].qualified_name if len(exact) == 1
-                else candidates[0].qualified_name if not normalized_select and len(candidates) == 1
+                exact[0].qualified_name
+                if len(exact) == 1
+                else candidates[0].qualified_name
+                if not normalized_select and len(candidates) == 1
                 else None
             )
             candidates_qnames = [candidate.qualified_name for candidate in candidates]
             reason = (
-                "exact_match" if len(exact) == 1 else
-                "single_mode_match" if target_qname else
-                "ambiguous_match" if len(exact) > 1 or len(candidates) > 1 else
-                "dynamic_selection"
+                "exact_match"
+                if len(exact) == 1
+                else "single_mode_match"
+                if target_qname
+                else "ambiguous_match"
+                if len(exact) > 1 or len(candidates) > 1
+                else "dynamic_selection"
             )
             edges.append(
                 _xpath_edge(
@@ -524,8 +543,10 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
                         "resolution_reason": reason,
                     },
                     resolution=(
-                        "resolved" if target_qname
-                        else "dynamic" if not static_selection or not static_mode
+                        "resolved"
+                        if target_qname
+                        else "dynamic"
+                        if not static_selection or not static_mode
                         else "unresolved"
                     ),
                 )
@@ -588,7 +609,9 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
     # dynamic relationships.  They must remain visible without being turned
     # into a guessed repository path.
     for match in _DOCUMENT_ANY_CALL_RE.finditer(source):
-        if any(match.start() >= start and match.end() <= end for start, end in literal_document_spans):
+        if any(
+            match.start() >= start and match.end() <= end for start, end in literal_document_spans
+        ):
             continue
         argument = match.group(1).strip()
         line = _line_at(source, match.start())
@@ -619,8 +642,7 @@ def parse_xslt_file(source: str, path: str, **_: object) -> ParseResult:
             )
         )
     template_ranges = [
-        (entity.start_line, entity.end_line, entity)
-        for entity in template_entities.values()
+        (entity.start_line, entity.end_line, entity) for entity in template_entities.values()
     ]
     lines = source.splitlines()
     covered: set[int] = set()

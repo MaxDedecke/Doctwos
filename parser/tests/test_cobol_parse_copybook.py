@@ -115,7 +115,8 @@ def test_comment_mentioning_procedure_division_does_not_hide_the_missing_header(
     result = parse_copybook(text, "/repo/cpy/CSUTLDPY.cpy")
     assert not _error_diagnostics(result)
     assert {e.name for e in result.entities if e.type == "paragraph"} == {
-        "EDIT-DATE-CCYYMMDD", "EDIT-YEAR-CCYY",
+        "EDIT-DATE-CCYYMMDD",
+        "EDIT-YEAR-CCYY",
     }
 
 

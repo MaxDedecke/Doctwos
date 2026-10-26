@@ -54,13 +54,17 @@ def test_eval_case_never_substitutes_a_neighbouring_file(monkeypatch, tmp_path, 
     assert "nicht belastbar belegt" in fallback
 
 
-@pytest.mark.parametrize("case", [case for case in CASES if "edge" in case], ids=lambda case: case["id"])
+@pytest.mark.parametrize(
+    "case", [case for case in CASES if "edge" in case], ids=lambda case: case["id"]
+)
 def test_eval_call_claims_require_the_ground_truth_edge(case):
     source, target = case["edge"]
     _, accepted = _validate_answer_sources(
         f"{source} ruft {target} auf.", [], {(source.casefold(), target.casefold())}
     )
-    _, rejected = _validate_answer_sources(f"{source} ruft UNKNOWN auf.", [], {(source.casefold(), target.casefold())})
+    _, rejected = _validate_answer_sources(
+        f"{source} ruft UNKNOWN auf.", [], {(source.casefold(), target.casefold())}
+    )
 
     assert accepted
     assert not rejected

@@ -255,13 +255,8 @@ def mask_for_grammar(
             if current_division == "PROCEDURE":
                 placeholder_text = "CONTINUE"
                 dot = _ends_with_period(line)
-            elif (
-                copybook
-                or (
-                    current_division == "DATA"
-                    and current_data_section != "FILE"
-                    and in_data_section
-                )
+            elif copybook or (
+                current_division == "DATA" and current_data_section != "FILE" and in_data_section
             ):
                 placeholder_text = f"01 {EXEC_PLACEHOLDER_NAME} PIC X"
                 dot = True
@@ -344,9 +339,7 @@ def _ends_with_period(line: LogicalLine) -> bool:
     return any(t.kind == "PERIOD" for t in lexer_mod.tokenize([line]))
 
 
-def _placeholder(
-    first: LogicalLine, last: LogicalLine, text: str, dot: bool = True
-) -> LogicalLine:
+def _placeholder(first: LogicalLine, last: LogicalLine, text: str, dot: bool = True) -> LogicalLine:
     start = first.phys_start_line
     end = last.phys_end_line
     suffix = "." if dot else ""
@@ -495,7 +488,9 @@ def build_tree(
         masked_lines,
         copybook=header is not None,
         initial_division=(
-            "PROCEDURE" if header and header.rstrip().upper().endswith("PROCEDURE DIVISION.") else None
+            "PROCEDURE"
+            if header and header.rstrip().upper().endswith("PROCEDURE DIVISION.")
+            else None
         ),
     )
     text = _blank_separators(_reconstruct_text(grammar_lines))

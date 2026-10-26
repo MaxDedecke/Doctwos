@@ -80,7 +80,9 @@ async def _llm_review_pair(
         reason = str(data.get("reason") or "").strip()
         keep = bool(data.get("keep", False)) and confidence >= min_confidence
         if keep and len(reason) < 40:
-            raise ValueError("LLM lieferte für einen bestätigten Kandidaten keine konkrete Begründung")
+            raise ValueError(
+                "LLM lieferte für einen bestätigten Kandidaten keine konkrete Begründung"
+            )
         return {"keep": keep, "score": confidence / 100.0, "context": reason or None}
     except Exception as e:
         raise RuntimeError(f"LLM-Prüfung für Cross-Source-Kandidat fehlgeschlagen: {e}") from e
@@ -148,18 +150,26 @@ async def compute_knowledge_links_async(
         # We process chunks that have embeddings
         # For efficiency in a real system, we'd only process "new" or "dirty" chunks
         model_filter = _embedding_model_filter(selected_embedding_model)
-        chunks = db.query(DocumentChunk).filter(
-            DocumentChunk.project_id == selected_project_id,
-            DocumentChunk.source_id.in_(selected_source_ids),
-            DocumentChunk.embedding.isnot(None), model_filter
-        ).order_by(DocumentChunk.id).all()
+        chunks = (
+            db.query(DocumentChunk)
+            .filter(
+                DocumentChunk.project_id == selected_project_id,
+                DocumentChunk.source_id.in_(selected_source_ids),
+                DocumentChunk.embedding.isnot(None),
+                model_filter,
+            )
+            .order_by(DocumentChunk.id)
+            .all()
+        )
 
         scope = dict(run.scope_json or {})
         resume_after_id = int(scope.get("resume_after_id") or 0)
         chunks = [chunk for chunk in chunks if chunk.id > resume_after_id]
         processed_before = int(scope.get("processed_items") or 0) if resume_after_id else 0
         max_items = max(1, min(5000, int(scope.get("max_items") or 200)))
-        total_items = int(scope.get("total_items") or len(chunks)) if resume_after_id else len(chunks)
+        total_items = (
+            int(scope.get("total_items") or len(chunks)) if resume_after_id else len(chunks)
+        )
         scope.update(total_items=total_items, processed_items=processed_before, max_items=max_items)
         run.scope_json = scope
         run.progress_message = f"{processed_before} von {total_items} Dokument-Abschnitten geprüft (Budget: {max_items})."

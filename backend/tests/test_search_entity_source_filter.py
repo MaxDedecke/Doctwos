@@ -61,16 +61,28 @@ def test_entity_search_with_explicit_project_respects_visibility(db_session, tes
     team_id = db_session.query(Project.team_id).filter(Project.id == test_project).scalar()
     try:
         _, hidden = search_nodes(
-            db_session, q="COPAUA0C", types="entity", project_id=test_project,
-            visible_team_ids=[team_id + 1000], visible_project_ids=[],
+            db_session,
+            q="COPAUA0C",
+            types="entity",
+            project_id=test_project,
+            visible_team_ids=[team_id + 1000],
+            visible_project_ids=[],
         )
         _, other_project = search_nodes(
-            db_session, q="COPAUA0C", types="entity", project_id=test_project,
-            visible_team_ids=[team_id], visible_project_ids=[test_project + 1000],
+            db_session,
+            q="COPAUA0C",
+            types="entity",
+            project_id=test_project,
+            visible_team_ids=[team_id],
+            visible_project_ids=[test_project + 1000],
         )
         _, visible = search_nodes(
-            db_session, q="COPAUA0C", types="entity", project_id=test_project,
-            visible_team_ids=[team_id], visible_project_ids=[test_project],
+            db_session,
+            q="COPAUA0C",
+            types="entity",
+            project_id=test_project,
+            visible_team_ids=[team_id],
+            visible_project_ids=[test_project],
         )
         _, admin = search_nodes(db_session, q="COPAUA0C", types="entity", project_id=test_project)
         assert hidden["entity"] == 0 and other_project["entity"] == 0

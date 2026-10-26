@@ -37,7 +37,9 @@ def test_analysis_dependency_paths_targeted_sql_join():
 
     # Edges:
     # 1. PROGA -> PROGB via dst_entity_id
-    edge1 = CodeEdge(id=1, source_id=1, src_entity_id=1, dst_entity_id=2, dst_name="PROGB", type="CALL")
+    edge1 = CodeEdge(
+        id=1, source_id=1, src_entity_id=1, dst_entity_id=2, dst_name="PROGB", type="CALL"
+    )
     # 2. PROGA -> PROGC via meta_json target_file_path
     edge2 = CodeEdge(
         id=2,
@@ -49,9 +51,13 @@ def test_analysis_dependency_paths_targeted_sql_join():
         meta_json={"target_file_path": "src/PROGC.cbl"},
     )
     # 3. PROGA -> PROGA (internal paragraph perform in same file, should be filtered)
-    edge3 = CodeEdge(id=3, source_id=1, src_entity_id=1, dst_entity_id=4, dst_name="SEC1", type="PERFORM")
+    edge3 = CodeEdge(
+        id=3, source_id=1, src_entity_id=1, dst_entity_id=4, dst_name="SEC1", type="PERFORM"
+    )
     # 4. Source 2 edge
-    edge4 = CodeEdge(id=4, source_id=2, src_entity_id=5, dst_entity_id=None, dst_name="EXT", type="CALL")
+    edge4 = CodeEdge(
+        id=4, source_id=2, src_entity_id=5, dst_entity_id=None, dst_name="EXT", type="CALL"
+    )
 
     db.add_all([e1, e2, e3, e4, e5, edge1, edge2, edge3, edge4])
     db.commit()

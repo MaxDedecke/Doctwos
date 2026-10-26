@@ -47,7 +47,9 @@ def _read_pieces(word: bytes, table: bytes) -> tuple[str, int, int]:
     while pos < len(clx) and clx[pos] == 0x01:  # Prc: Formatierungen überspringen
         pos += 3 + _u16(clx, pos + 1)
     if pos >= len(clx) or clx[pos] != 0x02:
-        raise UnsupportedFormat("Die Textstruktur der .doc-Datei ist nicht lesbar. Bitte in Word als .docx speichern.")
+        raise UnsupportedFormat(
+            "Die Textstruktur der .doc-Datei ist nicht lesbar. Bitte in Word als .docx speichern."
+        )
     plc_len = _u32(clx, pos + 1)
     plc = clx[pos + 5 : pos + 5 + plc_len]
     pieces = (plc_len - 4) // 12  # n+1 Positionen (4 Byte) + n Stücke (8 Byte)
@@ -104,23 +106,35 @@ def extract_doc_text(file_path: str) -> str:
     import olefile
 
     if not olefile.isOleFile(file_path):
-        raise UnsupportedFormat("Die Datei ist kein Word-97–2003-Dokument. Bitte in Word als .docx speichern.")
+        raise UnsupportedFormat(
+            "Die Datei ist kein Word-97–2003-Dokument. Bitte in Word als .docx speichern."
+        )
     try:
         with olefile.OleFileIO(file_path) as ole:
             if not ole.exists("WordDocument"):
-                raise UnsupportedFormat("Die OLE-Datei enthält kein Word-Dokument. Bitte in Word als .docx speichern.")
+                raise UnsupportedFormat(
+                    "Die OLE-Datei enthält kein Word-Dokument. Bitte in Word als .docx speichern."
+                )
             word = ole.openstream("WordDocument").read()
             if len(word) < 0x1A8 or _u16(word, 0) != _WORD_MAGIC:
-                raise UnsupportedFormat("Beschädigte oder unbekannte .doc-Datei. Bitte in Word als .docx speichern.")
+                raise UnsupportedFormat(
+                    "Beschädigte oder unbekannte .doc-Datei. Bitte in Word als .docx speichern."
+                )
             n_fib = _u16(word, 2)
             flags = _u16(word, 0x0A)
             if flags & 0x0100:
-                raise UnsupportedFormat("Das Word-Dokument ist passwortgeschützt und kann nicht gelesen werden.")
+                raise UnsupportedFormat(
+                    "Das Word-Dokument ist passwortgeschützt und kann nicht gelesen werden."
+                )
             if n_fib < 0x00C1:
-                raise UnsupportedFormat("Word 6/95-Dokumente (.doc) werden nicht unterstützt. Bitte in Word als .docx speichern.")
+                raise UnsupportedFormat(
+                    "Word 6/95-Dokumente (.doc) werden nicht unterstützt. Bitte in Word als .docx speichern."
+                )
             table_name = "1Table" if flags & 0x0200 else "0Table"
             if not ole.exists(table_name):
-                raise UnsupportedFormat("Beschädigte .doc-Datei (Tabellenstrom fehlt). Bitte in Word als .docx speichern.")
+                raise UnsupportedFormat(
+                    "Beschädigte .doc-Datei (Tabellenstrom fehlt). Bitte in Word als .docx speichern."
+                )
             table = ole.openstream(table_name).read()
             text, ccp_text, _ccp_ftn = _read_pieces(word, table)
     except UnsupportedFormat:

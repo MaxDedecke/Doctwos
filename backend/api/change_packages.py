@@ -36,11 +36,18 @@ def get_change_package(
     assert_project_visible(project_id, user, db)
     diff_requested = base_ref is not None or head_ref is not None
     if diff_requested and (not base_ref or not head_ref):
-        raise HTTPException(status_code=422, detail="base_ref und head_ref müssen zusammen angegeben werden")
+        raise HTTPException(
+            status_code=422, detail="base_ref und head_ref müssen zusammen angegeben werden"
+        )
     if diff_requested and (entity_id is not None or file_path is not None):
-        raise HTTPException(status_code=422, detail="Diff-Eingabe kann nicht mit entity_id oder file_path kombiniert werden")
+        raise HTTPException(
+            status_code=422,
+            detail="Diff-Eingabe kann nicht mit entity_id oder file_path kombiniert werden",
+        )
     if not diff_requested and (entity_id is None and file_path is None):
-        raise HTTPException(status_code=422, detail="entity_id, file_path oder ein Git-Diff ist erforderlich")
+        raise HTTPException(
+            status_code=422, detail="entity_id, file_path oder ein Git-Diff ist erforderlich"
+        )
 
     result = inspect_change_package(
         db,

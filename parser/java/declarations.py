@@ -71,8 +71,12 @@ class JavaDeclarationVisitor(JavaParserVisitor):
 
     def _lexical_scope(self, context: ParserRuleContext) -> dict:
         scope_rules = {
-            "block", "forStatement", "enhancedForStatement", "catchClause",
-            "lambdaExpression", "tryStatement",
+            "block",
+            "forStatement",
+            "enhancedForStatement",
+            "catchClause",
+            "lambdaExpression",
+            "tryStatement",
         }
         current = context
         if JavaParser.ruleNames[current.getRuleIndex()] not in scope_rules:
@@ -86,8 +90,7 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     "scope_start_column": start.column if start else 0,
                     "scope_end_line": stop.line if stop else (start.line if start else 1),
                     "scope_end_column": (
-                        stop.column + len(stop.text)
-                        if stop and stop.text else 1_000_000
+                        stop.column + len(stop.text) if stop and stop.text else 1_000_000
                     ),
                 }
             current = current.parentCtx
@@ -192,11 +195,13 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     key = identifier.getText() if identifier is not None else "value"
                     value = item.annotationValue()
                     values[key] = value.getText()[:500] if value is not None else ""
-            result.append({
-                "name": annotation.qualifiedName().getText(),
-                "values": values,
-                "source": annotation.getText()[:1000],
-            })
+            result.append(
+                {
+                    "name": annotation.qualifiedName().getText(),
+                    "values": values,
+                    "source": annotation.getText()[:1000],
+                }
+            )
         return result
 
     @staticmethod
@@ -218,9 +223,14 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         """
         items: list[dict] = []
         stop_rules = {
-            "methodDeclaration", "constructorDeclaration", "lambdaExpression",
-            "classDeclaration", "interfaceDeclaration", "enumDeclaration",
-            "recordDeclaration", "annotationTypeDeclaration",
+            "methodDeclaration",
+            "constructorDeclaration",
+            "lambdaExpression",
+            "classDeclaration",
+            "interfaceDeclaration",
+            "enumDeclaration",
+            "recordDeclaration",
+            "annotationTypeDeclaration",
         }
 
         def lines(node: ParserRuleContext) -> dict:
@@ -241,10 +251,14 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                 items.append({"kind": "finally", **lines(node)})
                 region = "finally"
             elif rule == "resource":
-                items.append({
-                    "kind": "try_resource", "resource": self._source_text(node)[:200],
-                    "implicit_close": True, **lines(node),
-                })
+                items.append(
+                    {
+                        "kind": "try_resource",
+                        "resource": self._source_text(node)[:200],
+                        "implicit_close": True,
+                        **lines(node),
+                    }
+                )
             elif rule == "statement" and node.getChildCount():
                 first = node.getChild(0)
                 keyword = first.getText() if getattr(first, "symbol", None) is not None else ""
@@ -253,18 +267,27 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     expression = expression[0] if isinstance(expression, list) else expression
                     text = self._source_text(expression)[:300] if expression is not None else ""
                     created = re.match(r"new\s+([\w.$]+)", text)
-                    items.append({
-                        "kind": "throw", "expression": text,
-                        "exception_type": created.group(1) if created else None,
-                        "control_context": region, **lines(node),
-                    })
+                    items.append(
+                        {
+                            "kind": "throw",
+                            "expression": text,
+                            "exception_type": created.group(1) if created else None,
+                            "control_context": region,
+                            **lines(node),
+                        }
+                    )
                 elif keyword == "try":
                     region = "try"
             for child in getattr(node, "children", ()) or ():
                 if isinstance(child, ParserRuleContext):
                     # catch/finally are siblings of the try body, not part of it
                     child_rule = JavaParser.ruleNames[child.getRuleIndex()]
-                    walk(child, region if child_rule not in {"catchClause", "finallyBlock"} or rule != "statement" else None)
+                    walk(
+                        child,
+                        region
+                        if child_rule not in {"catchClause", "finallyBlock"} or rule != "statement"
+                        else None,
+                    )
 
         walk(context, None, root=True)
         return items[:48]
@@ -275,25 +298,36 @@ class JavaDeclarationVisitor(JavaParserVisitor):
         def walk(node: ParserRuleContext, *, root: bool = False) -> None:
             rule = JavaParser.ruleNames[node.getRuleIndex()]
             if not root and rule in {
-                "methodDeclaration", "constructorDeclaration", "lambdaExpression",
-                "classDeclaration", "interfaceDeclaration", "enumDeclaration",
-                "recordDeclaration", "annotationTypeDeclaration",
+                "methodDeclaration",
+                "constructorDeclaration",
+                "lambdaExpression",
+                "classDeclaration",
+                "interfaceDeclaration",
+                "enumDeclaration",
+                "recordDeclaration",
+                "annotationTypeDeclaration",
             }:
                 return
             # The grammar has no returnStatement rule: `return x;` is a `statement`
             # whose first token is RETURN.
             first = node.getChild(0) if rule == "statement" and node.getChildCount() else None
-            if first is not None and getattr(first, "symbol", None) is not None and first.getText() == "return":
+            if (
+                first is not None
+                and getattr(first, "symbol", None) is not None
+                and first.getText() == "return"
+            ):
                 expression = node.expression()
                 if isinstance(expression, list):
                     # A bare `return;` yields an empty list, not None.
                     expression = expression[0] if expression else None
                 if expression is not None:
-                    returns.append({
-                        "expression": self._source_text(expression)[:500],
-                        "start_line": node.start.line if node.start else None,
-                        "end_line": node.stop.line if node.stop else None,
-                    })
+                    returns.append(
+                        {
+                            "expression": self._source_text(expression)[:500],
+                            "start_line": node.start.line if node.start else None,
+                            "end_line": node.stop.line if node.stop else None,
+                        }
+                    )
                 return
             for child in getattr(node, "children", ()) or ():
                 if isinstance(child, ParserRuleContext):
@@ -484,7 +518,8 @@ class JavaDeclarationVisitor(JavaParserVisitor):
     def visitClassDeclaration(self, context):
         entity_type = (
             "local_class"
-            if self.parent.type in {"method", "constructor", "lambda", "anonymous_class", "local_class"}
+            if self.parent.type
+            in {"method", "constructor", "lambda", "anonymous_class", "local_class"}
             else "class"
         )
         return self._type(context, entity_type, context.classBody())
@@ -682,17 +717,20 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     parent_name=owner.name,
                     qualified_name=f"{owner.qualified_name}@param:{name}",
                     parent_qualified_name=owner.qualified_name,
-                    meta=self._java_meta({
-                        "parameter_type": parameter_type,
-                        "index": index,
-                        "scope_start_line": owner.start_line or 1,
-                        "scope_start_column": 0,
-                        "scope_end_line": owner.end_line or 1_000_000,
-                        "scope_end_column": 1_000_000,
-                        "declaration_line": identifier.start.line,
-                        "declaration_column": identifier.stop.column + len(identifier.stop.text),
-                        **({"lambda": True} if lambda_parameter else {}),
-                    }),
+                    meta=self._java_meta(
+                        {
+                            "parameter_type": parameter_type,
+                            "index": index,
+                            "scope_start_line": owner.start_line or 1,
+                            "scope_start_column": 0,
+                            "scope_end_line": owner.end_line or 1_000_000,
+                            "scope_end_column": 1_000_000,
+                            "declaration_line": identifier.start.line,
+                            "declaration_column": identifier.stop.column
+                            + len(identifier.stop.text),
+                            **({"lambda": True} if lambda_parameter else {}),
+                        }
+                    ),
                 )
             )
 
@@ -716,10 +754,12 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                     parent_name=owner.name,
                     qualified_name=f"{owner.qualified_name}#component:{name}",
                     parent_qualified_name=owner.qualified_name,
-                    meta=self._java_meta({
-                        "component_type": component_type,
-                        "index": index,
-                    }),
+                    meta=self._java_meta(
+                        {
+                            "component_type": component_type,
+                            "index": index,
+                        }
+                    ),
                 )
             )
 
@@ -757,13 +797,16 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                             f"{start_line}:{identifier.start.column}"
                         ),
                         parent_qualified_name=self.parent.qualified_name,
-                        meta=self._java_meta({
-                            "variable_type": variable_type,
-                            **self._lexical_scope(context),
-                            "declaration_line": identifier.start.line,
-                            "declaration_column": identifier.stop.column + len(identifier.stop.text),
-                            **({"inferred_type": inferred_type} if inferred_type else {}),
-                        }),
+                        meta=self._java_meta(
+                            {
+                                "variable_type": variable_type,
+                                **self._lexical_scope(context),
+                                "declaration_line": identifier.start.line,
+                                "declaration_column": identifier.stop.column
+                                + len(identifier.stop.text),
+                                **({"inferred_type": inferred_type} if inferred_type else {}),
+                            }
+                        ),
                     )
                 )
         return self.visitChildren(context)
@@ -771,52 +814,74 @@ class JavaDeclarationVisitor(JavaParserVisitor):
     def visitCatchClause(self, context):
         identifier = context.identifier()
         if identifier is not None and self.parent.type in {
-            "method", "constructor", "lambda", "initializer", "local_class", "anonymous_class",
+            "method",
+            "constructor",
+            "lambda",
+            "initializer",
+            "local_class",
+            "anonymous_class",
         }:
             start_line, end_line = self._span(context)
             name = identifier.getText()
-            self.entities.append(Entity(
-                type="parameter",
-                name=name,
-                start_line=start_line,
-                end_line=end_line,
-                parent_name=self.parent.name,
-                qualified_name=f"{self.parent.qualified_name}@catch:{name}:{start_line}:{identifier.start.column}",
-                parent_qualified_name=self.parent.qualified_name,
-                meta=self._java_meta({
-                    "parameter_type": context.catchType().getText(),
-                    "catch_parameter": True,
-                    **self._lexical_scope(context),
-                    "declaration_line": identifier.start.line,
-                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
-                }),
-            ))
+            self.entities.append(
+                Entity(
+                    type="parameter",
+                    name=name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    parent_name=self.parent.name,
+                    qualified_name=f"{self.parent.qualified_name}@catch:{name}:{start_line}:{identifier.start.column}",
+                    parent_qualified_name=self.parent.qualified_name,
+                    meta=self._java_meta(
+                        {
+                            "parameter_type": context.catchType().getText(),
+                            "catch_parameter": True,
+                            **self._lexical_scope(context),
+                            "declaration_line": identifier.start.line,
+                            "declaration_column": identifier.stop.column
+                            + len(identifier.stop.text),
+                        }
+                    ),
+                )
+            )
         return self.visitChildren(context)
 
     def visitEnhancedForControl(self, context):
         variable = context.variableDeclaratorId()
         identifier = variable.identifier() if variable is not None else None
         if identifier is not None and self.parent.type in {
-            "method", "constructor", "lambda", "initializer", "local_class", "anonymous_class",
+            "method",
+            "constructor",
+            "lambda",
+            "initializer",
+            "local_class",
+            "anonymous_class",
         }:
             start_line, end_line = self._span(variable)
             name = identifier.getText()
-            variable_type = context.typeType().getText() if context.typeType() is not None else "var"
-            self.entities.append(Entity(
-                type="local_variable",
-                name=name,
-                start_line=start_line,
-                end_line=end_line,
-                parent_name=self.parent.name,
-                qualified_name=f"{self.parent.qualified_name}@foreach:{name}:{start_line}:{identifier.start.column}",
-                parent_qualified_name=self.parent.qualified_name,
-                meta=self._java_meta({
-                    "variable_type": variable_type,
-                    **self._lexical_scope(context),
-                    "declaration_line": identifier.start.line,
-                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
-                }),
-            ))
+            variable_type = (
+                context.typeType().getText() if context.typeType() is not None else "var"
+            )
+            self.entities.append(
+                Entity(
+                    type="local_variable",
+                    name=name,
+                    start_line=start_line,
+                    end_line=end_line,
+                    parent_name=self.parent.name,
+                    qualified_name=f"{self.parent.qualified_name}@foreach:{name}:{start_line}:{identifier.start.column}",
+                    parent_qualified_name=self.parent.qualified_name,
+                    meta=self._java_meta(
+                        {
+                            "variable_type": variable_type,
+                            **self._lexical_scope(context),
+                            "declaration_line": identifier.start.line,
+                            "declaration_column": identifier.stop.column
+                            + len(identifier.stop.text),
+                        }
+                    ),
+                )
+            )
         return self.visitChildren(context)
 
     def visitCreator(self, context):
@@ -878,7 +943,8 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                                     "scope_end_line": entity.end_line or 1_000_000,
                                     "scope_end_column": 1_000_000,
                                     "declaration_line": identifier.start.line,
-                                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
+                                    "declaration_column": identifier.stop.column
+                                    + len(identifier.stop.text),
                                 }
                             ),
                         )
@@ -897,17 +963,20 @@ class JavaDeclarationVisitor(JavaParserVisitor):
                                 parent_name=entity.name,
                                 qualified_name=f"{entity.qualified_name}@param:{identifier.getText()}",
                                 parent_qualified_name=entity.qualified_name,
-                                meta=self._java_meta({
-                                    "parameter_type": "var",
-                                    "index": index,
-                                    "lambda": True,
-                                    "scope_start_line": entity.start_line or 1,
-                                    "scope_start_column": 0,
-                                    "scope_end_line": entity.end_line or 1_000_000,
-                                    "scope_end_column": 1_000_000,
-                                    "declaration_line": identifier.start.line,
-                                    "declaration_column": identifier.stop.column + len(identifier.stop.text),
-                                }),
+                                meta=self._java_meta(
+                                    {
+                                        "parameter_type": "var",
+                                        "index": index,
+                                        "lambda": True,
+                                        "scope_start_line": entity.start_line or 1,
+                                        "scope_start_column": 0,
+                                        "scope_end_line": entity.end_line or 1_000_000,
+                                        "scope_end_column": 1_000_000,
+                                        "declaration_line": identifier.start.line,
+                                        "declaration_column": identifier.stop.column
+                                        + len(identifier.stop.text),
+                                    }
+                                ),
                             )
                         )
         self._parents.append(entity)

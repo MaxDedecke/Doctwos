@@ -21,14 +21,21 @@ def upgrade() -> None:
         sa.Column("evidence_json", sa.JSON(), nullable=False),
         sa.Column("status", sa.String(length=20), nullable=False, server_default="draft"),
         sa.Column("created_by_id", sa.Integer(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("verified_by_id", sa.Integer(), nullable=True),
         sa.Column("verified_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["project_id"], ["projects.id"], ondelete="CASCADE"),
         sa.ForeignKeyConstraint(["created_by_id"], ["users.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["verified_by_id"], ["users.id"], ondelete="RESTRICT"),
         sa.PrimaryKeyConstraint("id"),
-        sa.CheckConstraint("origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"),
+        sa.CheckConstraint(
+            "origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"
+        ),
         sa.CheckConstraint("status IN ('draft', 'verified')", name="ck_insights_status"),
         sa.CheckConstraint(
             "(status = 'draft' AND verified_by_id IS NULL AND verified_at IS NULL) OR "

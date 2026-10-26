@@ -6,7 +6,7 @@ PUBLIC = (
     '<?xml version="1.0"?>\n'
     '<!DOCTYPE module PUBLIC "-//Puppy Crawl//DTD Check Configuration 1.3//EN"\n'
     '    "https://checkstyle.org/dtds/configuration_1_3.dtd">\n'
-    "<module name=\"Checker\"/>\n"
+    '<module name="Checker"/>\n'
 )
 
 
@@ -14,7 +14,12 @@ def test_doctype_with_external_id_is_parsed_and_line_numbers_stay_true():
     result = parse_xml_document(PUBLIC, "checkstyle.xml")
     assert result.diagnostics == []
     root = result.entities[0]
-    assert (root.type, root.name, root.start_line, root.end_line) == ("xml_document", "module", 4, 4)
+    assert (root.type, root.name, root.start_line, root.end_line) == (
+        "xml_document",
+        "module",
+        4,
+        4,
+    )
     assert "PUBLIC" in "".join(chunk.content for chunk in result.chunks)  # Originaltext bleibt
 
 
@@ -37,7 +42,10 @@ def test_doctype_with_internal_entity_subset_stays_blocked():
 
 def test_external_doctype_next_to_entity_declaration_stays_blocked():
     source = '<!DOCTYPE a SYSTEM "a.dtd">\n<!-- <!ENTITY x "y"> -->\n<a/>'
-    assert parse_xml_document(source, "a.xml").diagnostics[0].code == "XML_EXTERNAL_DECLARATION_BLOCKED"
+    assert (
+        parse_xml_document(source, "a.xml").diagnostics[0].code
+        == "XML_EXTERNAL_DECLARATION_BLOCKED"
+    )
 
 
 def test_html_named_entities_without_dtd_do_not_abort_the_file():

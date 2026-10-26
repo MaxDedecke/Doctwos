@@ -51,7 +51,10 @@ def test_maven_parser_extracts_project_modules_dependencies_and_plugins() -> Non
     assert by_type["maven_plugin"].name == "org.apache.maven.plugins:maven-compiler-plugin"
     roots = [entity for entity in result.entities if entity.type == "maven_source_root"]
     assert {(root.meta["source_set"], root.meta["source_kind"]) for root in roots} >= {
-        ("main", "source"), ("test", "source"), ("main", "resource"), ("test", "resource")
+        ("main", "source"),
+        ("test", "source"),
+        ("main", "resource"),
+        ("test", "resource"),
     }
     assert {edge.type for edge in result.edges} == {
         "CONTAINS_MODULE",

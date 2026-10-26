@@ -76,7 +76,10 @@ def _refresh_worker_ai_settings() -> None:
         settings = _load_server_settings()
         if settings:
             config.EMBED_MODEL = settings["embedding_model"]
-            if os.getenv("LLM_MODEL", "disabled") == config.LLM_MODEL or config.LLM_MODEL == "disabled":
+            if (
+                os.getenv("LLM_MODEL", "disabled") == config.LLM_MODEL
+                or config.LLM_MODEL == "disabled"
+            ):
                 config.LLM_MODEL = settings["llm_model"]
     except Exception:
         logging.getLogger(__name__).debug("Could not refresh worker AI settings", exc_info=True)

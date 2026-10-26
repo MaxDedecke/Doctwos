@@ -32,8 +32,12 @@ MAX_DIFF_FILES = 20
 MAX_DIFF_OUTPUT_BYTES = 64_000
 MAX_DIFF_REPORTED_FILES = 100
 _TEST_PATH = re.compile(r"(?:^|[/_.-])(?:test|tests|spec|specs)(?:[/_.-]|$)", re.IGNORECASE)
-_BUG_WORD = re.compile(r"\b(?:bug|defect|incident|regression|fehler|störung|stoerung)\b", re.IGNORECASE)
-_RULE_WORD = re.compile(r"\b(?:fachregel|business rule|geschäftsregel|geschaeftsregel|regelwerk)\b", re.IGNORECASE)
+_BUG_WORD = re.compile(
+    r"\b(?:bug|defect|incident|regression|fehler|störung|stoerung)\b", re.IGNORECASE
+)
+_RULE_WORD = re.compile(
+    r"\b(?:fachregel|business rule|geschäftsregel|geschaeftsregel|regelwerk)\b", re.IGNORECASE
+)
 
 
 def _chunk_document(
@@ -85,7 +89,9 @@ def _source_type(db: Session, chunk: DocumentChunk | None, preferred: str | None
     if metadata_type:
         return str(metadata_type)
     if chunk.source_id:
-        value = db.query(KnowledgeSource.type).filter(KnowledgeSource.id == chunk.source_id).scalar()
+        value = (
+            db.query(KnowledgeSource.type).filter(KnowledgeSource.id == chunk.source_id).scalar()
+        )
         return str(value) if value else None
     return "Git" if chunk.project_id is not None else "Local"
 
@@ -96,7 +102,9 @@ def _excerpt(chunk: DocumentChunk | None) -> str | None:
     return " ".join(str(chunk.content).split())[:360]
 
 
-def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tuple[list[dict], bool]:
+def _linked_documents(
+    db: Session, project_id: int, entity_ids: set[int]
+) -> tuple[list[dict], bool]:
     if not entity_ids:
         return [], False
 
@@ -128,7 +136,9 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
         item = {
             "kind": "approved_entity_document_link",
             "entity_id": link.entity_id,
-            "title": link.doc_title or metadata.get("title") or (chunk.file_path if chunk else "Linked document"),
+            "title": link.doc_title
+            or metadata.get("title")
+            or (chunk.file_path if chunk else "Linked document"),
             "url": link.doc_url or metadata.get("url"),
             "source_type": source_type,
             "evidence": {
@@ -154,7 +164,8 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
                     verification_status="unverified" if source else "unavailable",
                     detail=(
                         "Freigegebene Code-Dokument-Verknüpfung; der Inhalt ist dadurch nicht fachlich verifiziert."
-                        if source else "Für dieses Dokument sind keine Quellenmetadaten verfügbar."
+                        if source
+                        else "Für dieses Dokument sind keine Quellenmetadaten verfügbar."
                     ),
                     locator={
                         "file_path": chunk.file_path if chunk else None,
@@ -167,7 +178,9 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
                     },
                     metadata=_provenance_metadata(chunk),
                     association_status=link.status,
-                    association_reviewed_at=link.reviewed_at.isoformat() if link.reviewed_at else None,
+                    association_reviewed_at=link.reviewed_at.isoformat()
+                    if link.reviewed_at
+                    else None,
                 ),
             },
             "issue_key": metadata.get("issue_key") or _issue_key(link.doc_title),
@@ -200,10 +213,28 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
 
     for link in knowledge_links:
         sides = (
-            ("a", link.source_a_type, link.source_a_entity_id, link.source_a_chunk_id, link.source_a_title, link.source_a_url, link.source_a_source_type),
-            ("b", link.source_b_type, link.source_b_entity_id, link.source_b_chunk_id, link.source_b_title, link.source_b_url, link.source_b_source_type),
+            (
+                "a",
+                link.source_a_type,
+                link.source_a_entity_id,
+                link.source_a_chunk_id,
+                link.source_a_title,
+                link.source_a_url,
+                link.source_a_source_type,
+            ),
+            (
+                "b",
+                link.source_b_type,
+                link.source_b_entity_id,
+                link.source_b_chunk_id,
+                link.source_b_title,
+                link.source_b_url,
+                link.source_b_source_type,
+            ),
         )
-        entity_side = next((side for side in sides if side[1] == "entity" and side[2] in entity_ids), None)
+        entity_side = next(
+            (side for side in sides if side[1] == "entity" and side[2] in entity_ids), None
+        )
         document_side = next((side for side in sides if side[1] == "document"), None)
         if not entity_side or not document_side:
             continue
@@ -246,7 +277,8 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
                     verification_status="unverified" if source else "unavailable",
                     detail=(
                         "Freigegebene Wissensverknüpfung; der Dokumentinhalt ist dadurch nicht fachlich verifiziert."
-                        if source else "Für dieses Dokument sind keine Quellenmetadaten verfügbar."
+                        if source
+                        else "Für dieses Dokument sind keine Quellenmetadaten verfügbar."
                     ),
                     locator={
                         "file_path": chunk.file_path,
@@ -259,7 +291,9 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
                     },
                     metadata=_provenance_metadata(chunk),
                     association_status=link.status,
-                    association_reviewed_at=link.reviewed_at.isoformat() if link.reviewed_at else None,
+                    association_reviewed_at=link.reviewed_at.isoformat()
+                    if link.reviewed_at
+                    else None,
                 ),
             },
             "issue_key": metadata.get("issue_key") or _issue_key(document_side[4]),
@@ -269,7 +303,13 @@ def _linked_documents(db: Session, project_id: int, entity_ids: set[int]) -> tup
             records.append(item)
             seen.add(key)
 
-    records.sort(key=lambda item: (item["title"].casefold(), item["kind"], str(item["evidence"].get("link_id"))))
+    records.sort(
+        key=lambda item: (
+            item["title"].casefold(),
+            item["kind"],
+            str(item["evidence"].get("link_id")),
+        )
+    )
     return records[:MAX_PACKAGE_LINKS], truncated or len(records) > MAX_PACKAGE_LINKS
 
 
@@ -280,7 +320,11 @@ def _issue_key(title: str | None) -> str | None:
 
 def _relationship_paths(impact: dict) -> dict[int, dict]:
     """Return shortest, line-backed paths from changed entities to impacted nodes."""
-    nodes = {node["id"]: node for node in impact.get("nodes", []) if isinstance(node, dict) and isinstance(node.get("id"), int)}
+    nodes = {
+        node["id"]: node
+        for node in impact.get("nodes", [])
+        if isinstance(node, dict) and isinstance(node.get("id"), int)
+    }
     target = impact.get("target") or {}
     starts = [entity_id for entity_id in target.get("entity_ids", []) if entity_id in nodes]
     direction = impact.get("direction", "incoming")
@@ -301,7 +345,9 @@ def _relationship_paths(impact: dict) -> dict[int, dict]:
         queue.append(entity_id)
     while queue:
         current = queue.pop(0)
-        for neighbor, edge, reverse in sorted(adjacency.get(current, []), key=lambda row: row[1].get("id", 0)):
+        for neighbor, edge, reverse in sorted(
+            adjacency.get(current, []), key=lambda row: row[1].get("id", 0)
+        ):
             if neighbor in paths:
                 continue
             step = {
@@ -353,31 +399,35 @@ def _test_evidence(db: Session, project_id: int, impacted_ids: set[int]) -> dict
     items = []
     seen = set()
     for edge, test_entity in candidates:
-        if not _TEST_PATH.search(test_entity.file_path or "") and not _TEST_PATH.search(test_entity.name or ""):
+        if not _TEST_PATH.search(test_entity.file_path or "") and not _TEST_PATH.search(
+            test_entity.name or ""
+        ):
             continue
         key = (test_entity.id, edge.dst_entity_id)
         if key in seen:
             continue
         seen.add(key)
-        items.append({
-            "entity": {
-                "id": test_entity.id,
-                "name": test_entity.qualified_name or test_entity.name,
-                "file_path": test_entity.file_path,
-                "source_id": test_entity.source_id,
-                "start_line": test_entity.start_line,
-                "end_line": test_entity.end_line,
-            },
-            "related_entity_id": edge.dst_entity_id,
-            "relationship": edge.type,
-            "evidence": {
-                "edge_id": edge.id,
-                "resolution": edge.resolution,
-                "file_path": test_entity.file_path,
-                "start_line": edge.src_start_line,
-                "end_line": edge.src_end_line,
-            },
-        })
+        items.append(
+            {
+                "entity": {
+                    "id": test_entity.id,
+                    "name": test_entity.qualified_name or test_entity.name,
+                    "file_path": test_entity.file_path,
+                    "source_id": test_entity.source_id,
+                    "start_line": test_entity.start_line,
+                    "end_line": test_entity.end_line,
+                },
+                "related_entity_id": edge.dst_entity_id,
+                "relationship": edge.type,
+                "evidence": {
+                    "edge_id": edge.id,
+                    "resolution": edge.resolution,
+                    "file_path": test_entity.file_path,
+                    "start_line": edge.src_start_line,
+                    "end_line": edge.src_end_line,
+                },
+            }
+        )
         if len(items) >= MAX_PACKAGE_TESTS:
             break
     return {
@@ -387,7 +437,8 @@ def _test_evidence(db: Session, project_id: int, impacted_ids: set[int]) -> dict
         "coverage_claim": "none",
         "note": (
             "Only statically resolved indexed relationships from conventionally named test/spec paths are listed."
-            if items else "No test mapping was found in the bounded indexed relationships; this does not mean there are no tests."
+            if items
+            else "No test mapping was found in the bounded indexed relationships; this does not mean there are no tests."
         ),
     }
 
@@ -427,10 +478,14 @@ def _codeowners_regex(pattern: str) -> re.Pattern | None:
     return re.compile(r"^" + body + r"$")
 
 
-def _load_codeowners(repo_root: Path) -> tuple[list[tuple[re.Pattern, list[str]]], str | None, bool]:
+def _load_codeowners(
+    repo_root: Path,
+) -> tuple[list[tuple[re.Pattern, list[str]]], str | None, bool]:
     for relative in (".github/CODEOWNERS", "CODEOWNERS", "docs/CODEOWNERS"):
         candidate = (repo_root / relative).resolve()
-        if os.path.commonpath((str(repo_root.resolve()), str(candidate))) != str(repo_root.resolve()):
+        if os.path.commonpath((str(repo_root.resolve()), str(candidate))) != str(
+            repo_root.resolve()
+        ):
             continue
         if not candidate.exists():
             continue
@@ -477,20 +532,33 @@ def _ownership(db: Session, project_id: int, nodes: list[dict]) -> dict:
     assignments: dict[tuple[int, str, tuple[str, ...]], set[str]] = {}
     unassigned: list[dict] = []
     partial = False
-    sources = {
-        source.id: source
-        for source in db.query(KnowledgeSource).filter(
-            KnowledgeSource.id.in_(source_ids),
-            KnowledgeSource.project_id == project_id,
-            KnowledgeSource.type.ilike("git"),
-        ).all()
-    } if source_ids else {}
+    sources = (
+        {
+            source.id: source
+            for source in db.query(KnowledgeSource)
+            .filter(
+                KnowledgeSource.id.in_(source_ids),
+                KnowledgeSource.project_id == project_id,
+                KnowledgeSource.type.ilike("git"),
+            )
+            .all()
+        }
+        if source_ids
+        else {}
+    )
     repos_root = Path(getattr(cfg, "REPOS_ROOT", "/repos")).resolve()
     for source_id, paths in by_source.items():
         source = sources.get(source_id)
         repo_root = (repos_root / "wt" / f"ks_{source_id}").resolve()
-        if not source or os.path.commonpath((str(repos_root), str(repo_root))) != str(repos_root) or not repo_root.is_dir():
-            unassigned.extend({"source_id": source_id, "file_path": path, "status": "unknown"} for path in sorted(paths))
+        if (
+            not source
+            or os.path.commonpath((str(repos_root), str(repo_root))) != str(repos_root)
+            or not repo_root.is_dir()
+        ):
+            unassigned.extend(
+                {"source_id": source_id, "file_path": path, "status": "unknown"}
+                for path in sorted(paths)
+            )
             continue
         rules, codeowners_file, unsupported = _load_codeowners(repo_root)
         partial = partial or unsupported
@@ -500,7 +568,9 @@ def _ownership(db: Session, project_id: int, nodes: list[dict]) -> dict:
                 if expression.fullmatch(path):
                     owners = rule_owners
             if owners:
-                assignments.setdefault((source_id, codeowners_file or "CODEOWNERS", tuple(owners)), set()).add(path)
+                assignments.setdefault(
+                    (source_id, codeowners_file or "CODEOWNERS", tuple(owners)), set()
+                ).add(path)
             else:
                 unassigned.append({"source_id": source_id, "file_path": path, "status": "unknown"})
     items = [
@@ -508,8 +578,14 @@ def _ownership(db: Session, project_id: int, nodes: list[dict]) -> dict:
             "source_id": source_id,
             "owners": list(owners),
             "files": sorted(paths)[:20],
-            "source": {"type": "CODEOWNERS", "file_path": codeowners_file, "matching": "last matching supported rule"},
-            "indexed_source_last_synced_at": sources[source_id].last_synced_at.isoformat() if sources.get(source_id) and sources[source_id].last_synced_at else None,
+            "source": {
+                "type": "CODEOWNERS",
+                "file_path": codeowners_file,
+                "matching": "last matching supported rule",
+            },
+            "indexed_source_last_synced_at": sources[source_id].last_synced_at.isoformat()
+            if sources.get(source_id) and sources[source_id].last_synced_at
+            else None,
         }
         for (source_id, codeowners_file, owners), paths in sorted(assignments.items())
     ]
@@ -518,7 +594,9 @@ def _ownership(db: Session, project_id: int, nodes: list[dict]) -> dict:
         "items": items[:MAX_PACKAGE_TESTS],
         "unknown_files": unassigned[:MAX_PACKAGE_TESTS],
         "partial": partial or len(items) > MAX_PACKAGE_TESTS or len(unassigned) > MAX_PACKAGE_TESTS,
-        "note": "Owners come from the local Git worktree CODEOWNERS file using the supported glob subset; this is a routing hint, not verified business ownership." if items else "No CODEOWNERS owner could be read for the impacted files.",
+        "note": "Owners come from the local Git worktree CODEOWNERS file using the supported glob subset; this is a routing hint, not verified business ownership."
+        if items
+        else "No CODEOWNERS owner could be read for the impacted files.",
     }
 
 
@@ -528,25 +606,33 @@ def _classify_knowledge(records: list[dict]) -> tuple[list[dict], list[dict]]:
     for record in records:
         title = str(record.get("title") or "")
         evidence = record.get("evidence") or {}
-        content = " ".join((title, str(evidence.get("context") or ""), str(evidence.get("excerpt") or "")))
+        content = " ".join(
+            (title, str(evidence.get("context") or ""), str(evidence.get("excerpt") or ""))
+        )
         rule_match = _RULE_WORD.search(content)
         linked_record = {
             **record,
             "classification": "possible_domain_rule" if rule_match else "linked_document",
-            "classification_basis": "title_or_excerpt_keyword" if rule_match else "approved_link_only",
+            "classification_basis": "title_or_excerpt_keyword"
+            if rule_match
+            else "approved_link_only",
             "classification_keyword": rule_match.group(0) if rule_match else None,
         }
         linked.append(linked_record)
         if str(record.get("source_type") or "").casefold() == "jira" or record.get("issue_key"):
             bug_match = _BUG_WORD.search(content)
-            history.append({
-                **record,
-                "record_type": "jira_issue",
-                "issue_key": record.get("issue_key"),
-                "bug_candidate": bool(bug_match),
-                "classification_keyword": bug_match.group(0) if bug_match else None,
-                "classification_basis": f"keyword:{bug_match.group(0)}" if bug_match else "Jira source; issue type unavailable",
-            })
+            history.append(
+                {
+                    **record,
+                    "record_type": "jira_issue",
+                    "issue_key": record.get("issue_key"),
+                    "bug_candidate": bool(bug_match),
+                    "classification_keyword": bug_match.group(0) if bug_match else None,
+                    "classification_basis": f"keyword:{bug_match.group(0)}"
+                    if bug_match
+                    else "Jira source; issue type unavailable",
+                }
+            )
     return linked, history
 
 
@@ -564,7 +650,12 @@ def _git_commit(worktree: Path, revision: str) -> tuple[str | None, str | None]:
     try:
         result = subprocess.run(
             [
-                "git", "-C", str(worktree), "rev-parse", "--verify", "--end-of-options",
+                "git",
+                "-C",
+                str(worktree),
+                "rev-parse",
+                "--verify",
+                "--end-of-options",
                 f"{revision}^{{commit}}",
             ],
             capture_output=True,
@@ -593,12 +684,16 @@ def _diff_targets(
     if not sources:
         return {"error": "No matching Git source is available in the current project."}
     if source_id is None and len(sources) > 1:
-        return {"error": "source_id is required for diff analysis when the project has multiple Git sources."}
+        return {
+            "error": "source_id is required for diff analysis when the project has multiple Git sources."
+        }
     source = sources[0]
     repos_root = Path(getattr(cfg, "REPOS_ROOT", "/repos")).resolve()
     worktree = _git_worktree(repos_root, source.id)
     if not worktree:
-        return {"error": "The local Git worktree for this source is unavailable; diff analysis needs a synced worktree."}
+        return {
+            "error": "The local Git worktree for this source is unavailable; diff analysis needs a synced worktree."
+        }
     base_commit, error = _git_commit(worktree, base_ref)
     if error:
         return {"error": error}
@@ -608,17 +703,31 @@ def _diff_targets(
     cursor = source.sync_cursor if isinstance(source.sync_cursor, dict) else {}
     indexed_commit = cursor.get("last_commit")
     if source.sync_status != "completed" or not indexed_commit:
-        return {"error": "Diff analysis requires a completed Git source sync with a recorded indexed commit."}
+        return {
+            "error": "Diff analysis requires a completed Git source sync with a recorded indexed commit."
+        }
     if indexed_commit != head_commit:
-        return {"error": "The requested head revision differs from the indexed source revision; sync that revision before analyzing its impact."}
+        return {
+            "error": "The requested head revision differs from the indexed source revision; sync that revision before analyzing its impact."
+        }
     worktree_commit, error = _git_commit(worktree, "HEAD")
     if error or worktree_commit != head_commit:
-        return {"error": "The local Git worktree differs from the indexed head revision; sync the source before analyzing its impact."}
+        return {
+            "error": "The local Git worktree differs from the indexed head revision; sync the source before analyzing its impact."
+        }
     try:
         result = subprocess.run(
             [
-                "git", "-C", str(worktree), "diff", "--name-only", "--no-ext-diff",
-                "-z", base_commit, head_commit, "--",
+                "git",
+                "-C",
+                str(worktree),
+                "diff",
+                "--name-only",
+                "--no-ext-diff",
+                "-z",
+                base_commit,
+                head_commit,
+                "--",
             ],
             capture_output=True,
             timeout=10,
@@ -635,13 +744,20 @@ def _diff_targets(
         bounded_bytes = bounded_bytes.rsplit(b"\0", 1)[0] + b"\0" if b"\0" in bounded_bytes else b""
     raw_paths = bounded_bytes.decode("utf-8", errors="replace").split("\0")
     paths = [PurePosixPath(path).as_posix() for path in raw_paths if _safe_diff_path(path)]
-    indexed_paths = {
-        path for (path,) in db.query(CodeEntity.file_path).filter(
-            CodeEntity.project_id == project_id,
-            CodeEntity.source_id == source.id,
-            CodeEntity.file_path.in_(paths),
-        ).distinct()
-    } if paths else set()
+    indexed_paths = (
+        {
+            path
+            for (path,) in db.query(CodeEntity.file_path)
+            .filter(
+                CodeEntity.project_id == project_id,
+                CodeEntity.source_id == source.id,
+                CodeEntity.file_path.in_(paths),
+            )
+            .distinct()
+        }
+        if paths
+        else set()
+    )
     selected = [path for path in paths if path in indexed_paths][:MAX_DIFF_FILES]
     return {
         "source_id": source.id,
@@ -650,11 +766,12 @@ def _diff_targets(
         "changed_files": paths[:MAX_DIFF_REPORTED_FILES],
         "changed_file_count": len(paths) if not output_truncated else None,
         "indexed_files": selected,
-        "unindexed_files": [
-            path for path in paths if path not in indexed_paths
-        ][:MAX_DIFF_REPORTED_FILES],
+        "unindexed_files": [path for path in paths if path not in indexed_paths][
+            :MAX_DIFF_REPORTED_FILES
+        ],
         "truncated": (
-            output_truncated or len(paths) > MAX_DIFF_REPORTED_FILES
+            output_truncated
+            or len(paths) > MAX_DIFF_REPORTED_FILES
             or len([path for path in paths if path in indexed_paths]) > MAX_DIFF_FILES
         ),
     }
@@ -662,7 +779,9 @@ def _diff_targets(
 
 def _safe_diff_path(value: str) -> bool:
     path = PurePosixPath(value.replace("\\", "/"))
-    return bool(value) and not path.is_absolute() and ".." not in path.parts and path.as_posix() != "."
+    return (
+        bool(value) and not path.is_absolute() and ".." not in path.parts and path.as_posix() != "."
+    )
 
 
 def _diff_impact(
@@ -681,8 +800,13 @@ def _diff_impact(
         return target
     impacts = [
         inspect_change_impact(
-            db, project_id=project_id, file_path=path, source_id=target["source_id"],
-            direction=direction, hops=hops, limit=limit
+            db,
+            project_id=project_id,
+            file_path=path,
+            source_id=target["source_id"],
+            direction=direction,
+            hops=hops,
+            limit=limit,
         )
         for path in target["indexed_files"]
     ]
@@ -705,29 +829,53 @@ def _diff_impact(
         if isinstance(edge, dict) and "id" in edge
     }
     visible_nodes = dict(list(nodes.items())[:limit])
-    visible_edges = [edge for edge in edges.values() if edge.get("source") in visible_nodes and edge.get("target") in visible_nodes][:limit]
-    visible_unknown_edges = [edge for edge in unknown_edges.values() if edge.get("source_entity_id") in visible_nodes][:limit]
+    visible_edges = [
+        edge
+        for edge in edges.values()
+        if edge.get("source") in visible_nodes and edge.get("target") in visible_nodes
+    ][:limit]
+    visible_unknown_edges = [
+        edge for edge in unknown_edges.values() if edge.get("source_entity_id") in visible_nodes
+    ][:limit]
     return {
         "status": "ok" if nodes else "no_indexed_impact",
-        "target": {"kind": "diff", "source_id": target["source_id"], "base_ref": base_ref, "head_ref": head_ref,
-                   "base_commit": target["base_commit"], "head_commit": target["head_commit"],
-                   "changed_files": target["changed_files"], "indexed_files": target["indexed_files"],
-                   "unindexed_files": target["unindexed_files"], "changed_file_count": target["changed_file_count"],
-                   "entity_ids": sorted({
-                       entity_id for impact in impacts
-                       for entity_id in impact.get("target", {}).get("entity_ids", [])
-                       if entity_id in visible_nodes
-                   })},
-        "direction": direction, "hops": hops,
-        "nodes": list(visible_nodes.values()), "edges": visible_edges,
+        "target": {
+            "kind": "diff",
+            "source_id": target["source_id"],
+            "base_ref": base_ref,
+            "head_ref": head_ref,
+            "base_commit": target["base_commit"],
+            "head_commit": target["head_commit"],
+            "changed_files": target["changed_files"],
+            "indexed_files": target["indexed_files"],
+            "unindexed_files": target["unindexed_files"],
+            "changed_file_count": target["changed_file_count"],
+            "entity_ids": sorted(
+                {
+                    entity_id
+                    for impact in impacts
+                    for entity_id in impact.get("target", {}).get("entity_ids", [])
+                    if entity_id in visible_nodes
+                }
+            ),
+        },
+        "direction": direction,
+        "hops": hops,
+        "nodes": list(visible_nodes.values()),
+        "edges": visible_edges,
         "unknown_edges": visible_unknown_edges,
-        "truncated": target["truncated"] or len(nodes) > limit or len(edges) > limit
-        or len(unknown_edges) > limit or any(impact.get("truncated") for impact in impacts),
-        "impact_summary": {"limitations": [
-            "The diff is read from the local synced Git worktree; it can only include revisions available there.",
-            "The analysis uses the indexed head revision and reports changed files, not changed lines or historical graph states.",
-            "Only changed files with indexed code entities are analyzed. Deleted, renamed-only, unindexed and non-code files are listed but have no code impact graph.",
-        ]},
+        "truncated": target["truncated"]
+        or len(nodes) > limit
+        or len(edges) > limit
+        or len(unknown_edges) > limit
+        or any(impact.get("truncated") for impact in impacts),
+        "impact_summary": {
+            "limitations": [
+                "The diff is read from the local synced Git worktree; it can only include revisions available there.",
+                "The analysis uses the indexed head revision and reports changed files, not changed lines or historical graph states.",
+                "Only changed files with indexed code entities are analyzed. Deleted, renamed-only, unindexed and non-code files are listed but have no code impact graph.",
+            ]
+        },
     }
 
 
@@ -752,8 +900,14 @@ def inspect_change_package(
         if not base_ref or not head_ref:
             return {"error": "Diff analysis requires both base_ref and head_ref."}
         impact = _diff_impact(
-            db, project_id=project_id, source_id=source_id, base_ref=base_ref, head_ref=head_ref,
-            direction=direction, hops=hops, limit=limit,
+            db,
+            project_id=project_id,
+            source_id=source_id,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            direction=direction,
+            hops=hops,
+            limit=limit,
         )
     else:
         if source_id is not None:
@@ -771,18 +925,27 @@ def inspect_change_package(
         return impact
 
     nodes = impact.get("nodes", [])
-    node_ids = {node["id"] for node in nodes if isinstance(node, dict) and isinstance(node.get("id"), int)}
+    node_ids = {
+        node["id"] for node in nodes if isinstance(node, dict) and isinstance(node.get("id"), int)
+    }
     source_ids = {
-        node.get("source_id") for node in nodes
+        node.get("source_id")
+        for node in nodes
         if isinstance(node, dict) and isinstance(node.get("source_id"), int)
     }
-    source_by_id = {
-        source.id: source
-        for source in db.query(KnowledgeSource).filter(
-            KnowledgeSource.id.in_(source_ids),
-            KnowledgeSource.project_id == project_id,
-        ).all()
-    } if source_ids else {}
+    source_by_id = (
+        {
+            source.id: source
+            for source in db.query(KnowledgeSource)
+            .filter(
+                KnowledgeSource.id.in_(source_ids),
+                KnowledgeSource.project_id == project_id,
+            )
+            .all()
+        }
+        if source_ids
+        else {}
+    )
     for node in nodes:
         source = source_by_id.get(node.get("source_id")) if isinstance(node, dict) else None
         if isinstance(node, dict):
@@ -792,7 +955,8 @@ def inspect_change_package(
                 verification_status="indexed_unreviewed" if source else "unavailable",
                 detail=(
                     "Aus dem statischen Codeindex; keine fachliche Freigabe ist hinterlegt."
-                    if source else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+                    if source
+                    else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
                 ),
                 locator={
                     "file_path": node.get("file_path"),
@@ -811,13 +975,17 @@ def inspect_change_package(
     }
     missing_test_source_ids = test_source_ids - source_by_id.keys()
     if missing_test_source_ids:
-        source_by_id.update({
-            source.id: source
-            for source in db.query(KnowledgeSource).filter(
-                KnowledgeSource.id.in_(missing_test_source_ids),
-                KnowledgeSource.project_id == project_id,
-            ).all()
-        })
+        source_by_id.update(
+            {
+                source.id: source
+                for source in db.query(KnowledgeSource)
+                .filter(
+                    KnowledgeSource.id.in_(missing_test_source_ids),
+                    KnowledgeSource.project_id == project_id,
+                )
+                .all()
+            }
+        )
     for test_item in tests.get("items", []):
         entity = test_item.get("entity") or {}
         source = source_by_id.get(entity.get("source_id"))
@@ -851,56 +1019,74 @@ def inspect_change_package(
             for edge in impact.get("unknown_edges", [])
             if edge.get("source_entity_id") == node.get("id")
         ]
-        explained_nodes.append({
-            **node,
-            "relationship_path": relationship_path,
-            "evidence": {
-                "kind": "indexed_code_entity" if relationship_path else "unresolved_dynamic_name_match" if unknown_candidates else "indexed_target",
-                "file_path": node.get("file_path"),
-                "start_line": node.get("start_line"),
-                "end_line": node.get("end_line"),
-                "provenance": build_provenance(
-                    source_by_id.get(node.get("source_id")),
-                    kind="code_fact" if source_by_id.get(node.get("source_id")) else "unknown",
-                    verification_status="indexed_unreviewed" if source_by_id.get(node.get("source_id")) else "unavailable",
-                    detail=(
-                        "Aus dem statischen Codeindex; keine fachliche Freigabe ist hinterlegt."
+        explained_nodes.append(
+            {
+                **node,
+                "relationship_path": relationship_path,
+                "evidence": {
+                    "kind": "indexed_code_entity"
+                    if relationship_path
+                    else "unresolved_dynamic_name_match"
+                    if unknown_candidates
+                    else "indexed_target",
+                    "file_path": node.get("file_path"),
+                    "start_line": node.get("start_line"),
+                    "end_line": node.get("end_line"),
+                    "provenance": build_provenance(
+                        source_by_id.get(node.get("source_id")),
+                        kind="code_fact" if source_by_id.get(node.get("source_id")) else "unknown",
+                        verification_status="indexed_unreviewed"
                         if source_by_id.get(node.get("source_id"))
-                        else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+                        else "unavailable",
+                        detail=(
+                            "Aus dem statischen Codeindex; keine fachliche Freigabe ist hinterlegt."
+                            if source_by_id.get(node.get("source_id"))
+                            else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+                        ),
+                        locator={
+                            "file_path": node.get("file_path"),
+                            "start_line": node.get("start_line"),
+                            "end_line": node.get("end_line"),
+                        },
+                        origin="CodeEntity"
+                        if not relationship_path
+                        else "CodeEntity + Beziehungspfad",
                     ),
-                    locator={
-                        "file_path": node.get("file_path"),
-                        "start_line": node.get("start_line"),
-                        "end_line": node.get("end_line"),
-                    },
-                    origin="CodeEntity" if not relationship_path else "CodeEntity + Beziehungspfad",
-                ),
-                "unresolved_candidates": [
-                    {
-                        "edge_id": edge.get("id"),
-                        "relationship": edge.get("type"),
-                        "target_name": edge.get("target_name"),
-                        "resolution": edge.get("resolution"),
-                        "start_line": edge.get("start_line"),
-                    }
-                    for edge in unknown_candidates[:5]
-                ],
-            },
-        })
+                    "unresolved_candidates": [
+                        {
+                            "edge_id": edge.get("id"),
+                            "relationship": edge.get("type"),
+                            "target_name": edge.get("target_name"),
+                            "resolution": edge.get("resolution"),
+                            "start_line": edge.get("start_line"),
+                        }
+                        for edge in unknown_candidates[:5]
+                    ],
+                },
+            }
+        )
 
     gaps = [
         "No versioned, reviewed domain-rule objects are available yet; possible rule labels are keyword-based linked-document candidates."
     ]
     if not linked_knowledge:
-        gaps.append("No approved code-to-document links were found for the returned code objects; pending semantic suggestions are excluded.")
+        gaps.append(
+            "No approved code-to-document links were found for the returned code objects; pending semantic suggestions are excluded."
+        )
     if not issue_history:
-        gaps.append("No linked Jira history was found. Earlier bugs may exist outside the indexed or approved linked records.")
+        gaps.append(
+            "No linked Jira history was found. Earlier bugs may exist outside the indexed or approved linked records."
+        )
     if tests["status"] == "unknown":
-        gaps.append("Test mapping is unknown. The result does not establish test coverage or the absence of tests.")
+        gaps.append(
+            "Test mapping is unknown. The result does not establish test coverage or the absence of tests."
+        )
     if ownership["status"] == "unknown":
         gaps.append("No CODEOWNERS assignment could be established for the impacted files.")
     elif ownership["partial"] or ownership["unknown_files"]:
-        gaps.append("Some CODEOWNERS patterns or impacted files could not be resolved by the bounded matcher.")
+        gaps.append(
+            "Some CODEOWNERS patterns or impacted files could not be resolved by the bounded matcher."
+        )
     if tests.get("truncated"):
         gaps.append("The linked test/spec list was truncated at its relationship limit.")
     if documents_truncated:

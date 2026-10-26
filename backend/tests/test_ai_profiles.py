@@ -186,9 +186,7 @@ def test_profile_test_rejects_reachable_endpoint_without_configured_model(
             return _ReachableResponse({"data": [{"id": "a-different-model"}]})
 
     calls = []
-    monkeypatch.setattr(
-        "api.system.httpx.AsyncClient", lambda **_kwargs: _WrongModelClient(calls)
-    )
+    monkeypatch.setattr("api.system.httpx.AsyncClient", lambda **_kwargs: _WrongModelClient(calls))
     response = client.post(f"/ai-profiles/{created['id']}/test")
 
     assert response.status_code == 502
@@ -202,8 +200,11 @@ def test_llamacpp_profile_and_serving_limits_round_trip(client, db_session):
     created = client.post(
         "/ai-profiles",
         json=_payload(
-            name="llama.cpp", provider="llamacpp", llm_base_url="http://llamacpp:8080/v1",
-            llm_max_concurrency=4, llm_temperature=0.2,
+            name="llama.cpp",
+            provider="llamacpp",
+            llm_base_url="http://llamacpp:8080/v1",
+            llm_max_concurrency=4,
+            llm_temperature=0.2,
         ),
     )
     assert created.status_code == 201, created.text

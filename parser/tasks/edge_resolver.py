@@ -30,8 +30,17 @@ from sqlalchemy.orm import Session
 from cobol.copybook import strip_copybook_extension
 from core.model import Entity, ParseResult, ParsedEdge
 from core.external_targets import classify_external
-from core.dataset_assignment import EDGE_TYPE as ASSIGNED_DATASET, assignment_key, derive_assignments
-from core.doc_resolution import RESOLUTION_TARGET_TYPES, DOC_EDGE_TYPES, FILE_ROOT_TYPES, resolve_documentation_edges
+from core.dataset_assignment import (
+    EDGE_TYPE as ASSIGNED_DATASET,
+    assignment_key,
+    derive_assignments,
+)
+from core.doc_resolution import (
+    RESOLUTION_TARGET_TYPES,
+    DOC_EDGE_TYPES,
+    FILE_ROOT_TYPES,
+    resolve_documentation_edges,
+)
 from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
@@ -286,15 +295,11 @@ def _resolve_xslt_edges(db: Session, source_id: int) -> int:
                 and (not target_qname or entity.qualified_name == target_qname)
             ]
         elif edge.type == "CALLS_TEMPLATE" and meta.get("template_name"):
-            candidates = templates_by_name.get(
-                (edge.variant_key, meta["template_name"]), []
-            )
+            candidates = templates_by_name.get((edge.variant_key, meta["template_name"]), [])
         elif edge.type == "APPLIES_TEMPLATES":
             mode = meta.get("mode") or "#default"
             select = (meta.get("select") or "").strip()
-            candidates = templates_by_match_mode.get(
-                (edge.variant_key, select, mode), []
-            )
+            candidates = templates_by_match_mode.get((edge.variant_key, select, mode), [])
 
         if len(candidates) == 1:
             edge.dst_entity_id = candidates[0].id
@@ -314,9 +319,11 @@ def _resolve_markup_edges(db: Session, source_id: int) -> int:
     from a page alone. Includes and literal links do have a file-level proof.
     """
     entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
-    edges = db.query(CodeEdge).filter(
-        CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved"
-    ).all()
+    edges = (
+        db.query(CodeEdge)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved")
+        .all()
+    )
     resolved = 0
     for edge in edges:
         meta = edge.meta_json or {}
@@ -327,8 +334,10 @@ def _resolve_markup_edges(db: Session, source_id: int) -> int:
             continue
         target_type = meta.get("target_entity_type")
         candidates = [
-            entity for entity in entities
-            if entity.variant_key == edge.variant_key and entity.file_path == target_file
+            entity
+            for entity in entities
+            if entity.variant_key == edge.variant_key
+            and entity.file_path == target_file
             and (not target_type or entity.type == target_type)
         ]
         if len(candidates) == 1:
@@ -344,9 +353,11 @@ def _resolve_markup_edges(db: Session, source_id: int) -> int:
 def _resolve_shell_edges(db: Session, source_id: int) -> int:
     """Resolve literal script/XSLT paths and unambiguous Java main classes."""
     entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
-    edges = db.query(CodeEdge).filter(
-        CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved"
-    ).all()
+    edges = (
+        db.query(CodeEdge)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved")
+        .all()
+    )
     resolved = 0
     for edge in edges:
         meta = edge.meta_json or {}
@@ -356,9 +367,13 @@ def _resolve_shell_edges(db: Session, source_id: int) -> int:
         target_qname = meta.get("target_qualified_name")
         target_type = meta.get("target_entity_type")
         candidates = [
-            entity for entity in entities
+            entity
+            for entity in entities
             if entity.variant_key == edge.variant_key
-            and ((target_file and entity.file_path == target_file) or (target_qname and entity.qualified_name == target_qname))
+            and (
+                (target_file and entity.file_path == target_file)
+                or (target_qname and entity.qualified_name == target_qname)
+            )
             and (not target_type or entity.type == target_type)
         ]
         if len(candidates) == 1:
@@ -380,24 +395,39 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
     # Prozedur-Aufrufe werden bei jedem Lauf neu entschieden, damit eine Regeländerung auch frühere
     # (z. B. auf die eigene Prozedur gerichtete) Auflösungen korrigiert.
-    for stale in db.query(CodeEdge).filter(
-        CodeEdge.source_id == source_id, CodeEdge.type == "EXECUTES", CodeEdge.resolution == "resolved",
-    ).all():
+    for stale in (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.type == "EXECUTES",
+            CodeEdge.resolution == "resolved",
+        )
+        .all()
+    ):
         stale_meta = stale.meta_json or {}
-        if stale_meta.get("language") == "jcl" and stale_meta.get("target_entity_type") == "jcl_proc":
+        if (
+            stale_meta.get("language") == "jcl"
+            and stale_meta.get("target_entity_type") == "jcl_proc"
+        ):
             # Auch die lokale Verdrahtung beim Persistieren (gleiche Datei) wird neu entschieden: In einem
             # Bibliotheks-Member ist die gleichnamige `PROC`-Anweisung nicht automatisch das Ziel.
             stale.dst_entity_id = None
             stale.resolution = "unresolved"
             stale.meta_json = {
-                k: v for k, v in stale_meta.items() if k not in {"resolution_scope", "resolution_via", "target_qualified_name"}
+                k: v
+                for k, v in stale_meta.items()
+                if k not in {"resolution_scope", "resolution_via", "target_qualified_name"}
             }
     db.flush()
-    edges = db.query(CodeEdge).filter(
-        CodeEdge.source_id == source_id,
-        CodeEdge.type == "EXECUTES",
-        CodeEdge.resolution == "unresolved",
-    ).all()
+    edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.type == "EXECUTES",
+            CodeEdge.resolution == "unresolved",
+        )
+        .all()
+    )
     by_variant_type_name: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
     proc_members: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
     file_by_entity = {entity.id: entity.file_path for entity in entities}
@@ -417,7 +447,9 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
         target_name = meta.get("target_program_name") or meta.get("target_proc_name")
         if not target_type or not target_name:
             continue
-        candidates = by_variant_type_name.get((edge.variant_key, target_type, target_name.upper()), [])
+        candidates = by_variant_type_name.get(
+            (edge.variant_key, target_type, target_name.upper()), []
+        )
         if not candidates and target_type == "jcl_proc":
             # Katalogisierte Prozedur: Die Bibliothekselement-Datei heißt wie die Prozedur (`REPROC.prc`).
             candidates = proc_members.get((edge.variant_key, target_name.upper()), [])
@@ -431,11 +463,15 @@ def _resolve_jcl_edges(db: Session, source_id: int) -> int:
             # nicht nach dem Label der `PROC`-Anweisung (`TRANREPT.prc` beginnt mit `//REPROC PROC`).
             own_file = file_by_entity.get(edge.src_entity_id) or ""
             if posixpath.splitext(own_file)[1].upper() not in _JCL_PROC_FILE_EXTENSIONS:
-                candidates = [item for item in candidates if item.file_path == own_file] or candidates
+                candidates = [
+                    item for item in candidates if item.file_path == own_file
+                ] or candidates
             if len(candidates) > 1:
                 member = [
-                    item for item in candidates
-                    if posixpath.splitext(posixpath.basename(item.file_path))[0].upper() == target_name.upper()
+                    item
+                    for item in candidates
+                    if posixpath.splitext(posixpath.basename(item.file_path))[0].upper()
+                    == target_name.upper()
                 ]
                 candidates = member or candidates
         if len(candidates) == 1:
@@ -468,7 +504,11 @@ def _resolve_maven_edges(db: Session, source_id: int) -> int:
     edges = [edge for edge in edges if (edge.meta_json or {}).get("language") == "maven"]
     if not edges:
         return 0
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id, CodeEntity.type.like("maven_%")).all()
+    entities = (
+        db.query(CodeEntity)
+        .filter(CodeEntity.source_id == source_id, CodeEntity.type.like("maven_%"))
+        .all()
+    )
     by_qname: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
     projects_by_coordinates: dict[tuple[str, str, str], list[CodeEntity]] = defaultdict(list)
     projects_by_path: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
@@ -476,7 +516,13 @@ def _resolve_maven_edges(db: Session, source_id: int) -> int:
         by_qname[(entity.variant_key, entity.qualified_name)].append(entity)
         if entity.type == "maven_project":
             meta = entity.meta_json or {}
-            projects_by_coordinates[(entity.variant_key, meta.get("group_id") or "", meta.get("artifact_id") or entity.name)].append(entity)
+            projects_by_coordinates[
+                (
+                    entity.variant_key,
+                    meta.get("group_id") or "",
+                    meta.get("artifact_id") or entity.name,
+                )
+            ].append(entity)
             projects_by_path[(entity.variant_key, entity.file_path)].append(entity)
 
     def unique(candidates: list[CodeEntity]) -> CodeEntity | None:
@@ -485,20 +531,39 @@ def _resolve_maven_edges(db: Session, source_id: int) -> int:
     resolved = 0
     for edge in edges:
         meta = dict(edge.meta_json or {})
-        target = unique(by_qname.get((edge.variant_key, meta.get("target_qualified_name") or ""), []))
+        target = unique(
+            by_qname.get((edge.variant_key, meta.get("target_qualified_name") or ""), [])
+        )
         if target is None:
             continue
         project = None
         target_meta = target.meta_json or {}
         if target.type == "maven_dependency":
-            project = unique(projects_by_coordinates.get(
-                (edge.variant_key, target_meta.get("group_id") or "", target_meta.get("artifact_id") or ""), []))
+            project = unique(
+                projects_by_coordinates.get(
+                    (
+                        edge.variant_key,
+                        target_meta.get("group_id") or "",
+                        target_meta.get("artifact_id") or "",
+                    ),
+                    [],
+                )
+            )
         elif target.type == "maven_module":
-            module_pom = posixpath.normpath(posixpath.join(
-                posixpath.dirname(target_meta.get("path") or target.file_path), target.name, "pom.xml"))
+            module_pom = posixpath.normpath(
+                posixpath.join(
+                    posixpath.dirname(target_meta.get("path") or target.file_path),
+                    target.name,
+                    "pom.xml",
+                )
+            )
             project = unique(projects_by_path.get((edge.variant_key, module_pom), []))
         if project is not None and project.id != target.id:
-            meta["internal_project"] = {"entity_id": project.id, "name": project.name, "path": project.file_path}
+            meta["internal_project"] = {
+                "entity_id": project.id,
+                "name": project.name,
+                "path": project.file_path,
+            }
         else:
             meta.pop("internal_project", None)
         if edge.resolution != "resolved" or edge.dst_entity_id != target.id:
@@ -522,7 +587,9 @@ def _resolve_documentation_edges(db: Session, source_id: int) -> int:
     if not edges:
         return 0
     project_ids = {edge.project_id for edge in edges}
-    query = db.query(CodeEntity).filter(CodeEntity.type.in_(RESOLUTION_TARGET_TYPES | FILE_ROOT_TYPES))
+    query = db.query(CodeEntity).filter(
+        CodeEntity.type.in_(RESOLUTION_TARGET_TYPES | FILE_ROOT_TYPES)
+    )
     if None in project_ids:
         query = query.filter(CodeEntity.source_id == source_id)
     else:
@@ -532,10 +599,14 @@ def _resolve_documentation_edges(db: Session, source_id: int) -> int:
 
 def _derive_dataset_assignments(db: Session, source_id: int) -> int:
     """O-147: `ASSIGNED_DATASET`-Kanten Datei → Dataset neu ableiten (idempotent). Gibt neue Kanten zurück."""
-    entities = db.query(CodeEntity).filter(
-        CodeEntity.source_id == source_id,
-        CodeEntity.type.in_(("jcl_step", "jcl_dataset", "program", "file_fd")),
-    ).all()
+    entities = (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == source_id,
+            CodeEntity.type.in_(("jcl_step", "jcl_dataset", "program", "file_fd")),
+        )
+        .all()
+    )
     step_ids = [entity.id for entity in entities if entity.type == "jcl_step"]
     edges = (
         db.query(CodeEdge)
@@ -545,13 +616,23 @@ def _derive_dataset_assignments(db: Session, source_id: int) -> int:
             CodeEdge.type.in_(("EXECUTES", "READS", "WRITES", "USES_DATASET")),
         )
         .all()
-        if step_ids else []
+        if step_ids
+        else []
     )
     desired = {assignment_key(record): record for record in derive_assignments(entities, edges)}
     existing = {}
-    for edge in db.query(CodeEdge).filter(CodeEdge.source_id == source_id, CodeEdge.type == ASSIGNED_DATASET).all():
+    for edge in (
+        db.query(CodeEdge)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.type == ASSIGNED_DATASET)
+        .all()
+    ):
         meta = edge.meta_json or {}
-        key = (edge.src_entity_id, edge.dst_entity_id, meta.get("jcl_step_entity_id"), meta.get("ddname"))
+        key = (
+            edge.src_entity_id,
+            edge.dst_entity_id,
+            meta.get("jcl_step_entity_id"),
+            meta.get("ddname"),
+        )
         if key in desired and key not in existing:
             existing[key] = edge
         else:
@@ -563,12 +644,21 @@ def _derive_dataset_assignments(db: Session, source_id: int) -> int:
             if edge.meta_json != record["meta"]:
                 edge.meta_json = record["meta"]
             continue
-        db.add(CodeEdge(
-            project_id=record["project_id"], source_id=record["source_id"], variant_key=record["variant_key"],
-            src_entity_id=record["src_entity_id"], dst_entity_id=record["dst_entity_id"],
-            dst_name=record["dst_name"], type=ASSIGNED_DATASET, resolution="resolved",
-            src_start_line=record["src_start_line"], src_end_line=record["src_end_line"], meta_json=record["meta"],
-        ))
+        db.add(
+            CodeEdge(
+                project_id=record["project_id"],
+                source_id=record["source_id"],
+                variant_key=record["variant_key"],
+                src_entity_id=record["src_entity_id"],
+                dst_entity_id=record["dst_entity_id"],
+                dst_name=record["dst_name"],
+                type=ASSIGNED_DATASET,
+                resolution="resolved",
+                src_start_line=record["src_start_line"],
+                src_end_line=record["src_end_line"],
+                meta_json=record["meta"],
+            )
+        )
         created += 1
     return created
 

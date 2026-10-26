@@ -56,7 +56,9 @@ class MCPAccessToken(Base):
     __tablename__ = "mcp_access_tokens"
 
     id = Column(Integer, primary_key=True)
-    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id = Column(
+        Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     name = Column(String(100), nullable=False)
     token_hash = Column(String(64), nullable=False, unique=True)
     token_prefix = Column(String(20), nullable=False)
@@ -165,7 +167,9 @@ class Insight(Base):
     __tablename__ = "insights"
 
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True)
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
     title = Column(String(240), nullable=False)
     content = Column(Text, nullable=False)
     # chat | code | process: the user workflow which produced the draft.
@@ -189,7 +193,9 @@ class Insight(Base):
     verified_by = relationship("User", foreign_keys=[verified_by_id])
 
     __table_args__ = (
-        CheckConstraint("origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"),
+        CheckConstraint(
+            "origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"
+        ),
         CheckConstraint("status IN ('draft', 'verified', 'outdated')", name="ck_insights_status"),
         CheckConstraint(
             "(status = 'draft' AND verified_by_id IS NULL AND verified_at IS NULL) OR "

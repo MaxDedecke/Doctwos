@@ -60,7 +60,10 @@ def test_markup_registry_entries_produce_navigable_roots():
     assert registry.STRUCTURE_PARSERS["xml"].root_entity_types == ("xml_document",)
     assert xslt.entities[0].type == "xslt_stylesheet"
     assert xml.entities[0].type == "xml_document"
-    assert registry.STRUCTURE_PARSERS["jsp"].parse("${order.id}", "view.jsp").entities[0].type == "jsp_page"
+    assert (
+        registry.STRUCTURE_PARSERS["jsp"].parse("${order.id}", "view.jsp").entities[0].type
+        == "jsp_page"
+    )
 
 
 def test_registry_inputs_preserve_existing_cobol_analysis_fingerprint():

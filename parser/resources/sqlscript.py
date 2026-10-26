@@ -1,4 +1,5 @@
 """Konservative Struktur für SQL-Skripte: DDL-Objekte und DML-Anweisungen je Statement."""
+
 from __future__ import annotations
 
 import re
@@ -46,8 +47,11 @@ def parse_sql_file(source: str, path: str, **_: object) -> ParseResult:
     masked = mask(source, line_comments=("--",), quotes="'")
     lines = Lines(source)
     root = Entity(
-        type="sql_script", name=PurePosixPath(normalized).name, start_line=1,
-        end_line=max(1, len(source.splitlines())), qualified_name=normalized,
+        type="sql_script",
+        name=PurePosixPath(normalized).name,
+        start_line=1,
+        end_line=max(1, len(source.splitlines())),
+        qualified_name=normalized,
         meta={"language": "sql", "is_file_root": True},
     )
     entities = [root]
@@ -77,17 +81,34 @@ def parse_sql_file(source: str, path: str, **_: object) -> ParseResult:
             entity_type, label = "sql_statement", f"{kind} {table}"
             meta = {"language": "sql", "statement_type": kind.lower(), "table": table}
         seen[qname] = seen.get(qname, 0) + 1
-        entities.append(Entity(
-            type=entity_type, name=label, start_line=begin_line, end_line=end_line,
-            parent_name=root.name, parent_qualified_name=normalized,
-            qualified_name=qname if seen[qname] == 1 else f"{qname}#{seen[qname]}", meta=meta,
-        ))
+        entities.append(
+            Entity(
+                type=entity_type,
+                name=label,
+                start_line=begin_line,
+                end_line=end_line,
+                parent_name=root.name,
+                parent_qualified_name=normalized,
+                qualified_name=qname if seen[qname] == 1 else f"{qname}#{seen[qname]}",
+                meta=meta,
+            )
+        )
     if skipped:
         root.meta["dml_statements_not_modelled"] = skipped
     chunks = [
-        Chunk(content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
-              meta={"language": "sql", "symbol_type": "source"})
+        Chunk(
+            content=item["content"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
+            meta={"language": "sql", "symbol_type": "source"},
+        )
         for item in CodeParser("sql").chunk_file(source)
     ]
-    return ParseResult(program_name=PurePosixPath(normalized).stem, path=path, source_format="free",
-                       entities=entities, edges=[], chunks=chunks)
+    return ParseResult(
+        program_name=PurePosixPath(normalized).stem,
+        path=path,
+        source_format="free",
+        entities=entities,
+        edges=[],
+        chunks=chunks,
+    )

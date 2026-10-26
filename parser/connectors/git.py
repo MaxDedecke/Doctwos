@@ -732,7 +732,9 @@ class GitConnector(BaseConnector):
                     self._log(f"{error_msg} in '{doc['title']}', nutze Textfallback.")
                     logger.warning(
                         "Strukturparser fehlgeschlagen für '%s' (%s)",
-                        doc["title"], lang, exc_info=exc,
+                        doc["title"],
+                        lang,
+                        exc_info=exc,
                     )
                     parser = CodeParser(lang)
                     chunks = await asyncio.to_thread(
@@ -1584,7 +1586,9 @@ class GitConnector(BaseConnector):
             if self.has_changes and had_previous_sync and not failed_files:
                 escalated = mark_source_insights_outdated(self.db, self.source)
                 if escalated:
-                    self._log(f"{escalated} Erkenntnis(se) wegen Quellenänderung zur Prüfung markiert.")
+                    self._log(
+                        f"{escalated} Erkenntnis(se) wegen Quellenänderung zur Prüfung markiert."
+                    )
             self.db.commit()
             self._log(
                 f"Sync abgeschlossen — {processed} Dokument(e), {total_chunks} Chunks gesamt."

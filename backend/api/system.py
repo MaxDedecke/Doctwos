@@ -89,7 +89,9 @@ def _discovered_model_names(payload: object, provider: str) -> set[str]:
     }
 
 
-def _require_discovered_model(response: httpx.Response, model: str, provider: str, label: str) -> None:
+def _require_discovered_model(
+    response: httpx.Response, model: str, provider: str, label: str
+) -> None:
     available = _discovered_model_names(response.json(), provider)
     if model not in available:
         logger.warning(
@@ -126,9 +128,7 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
     embedding_base_url = values.get(
         "embedding_base_url", existing.embedding_base_url if existing else None
     )
-    deployment_name = values.get(
-        "deployment_name", existing.deployment_name if existing else None
-    )
+    deployment_name = values.get("deployment_name", existing.deployment_name if existing else None)
     if kind == "local":
         legacy_ollama = (
             provider == "ollama"
@@ -154,7 +154,9 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
             detail="Chat-Completions benötigen OpenAI, vLLM, llama.cpp oder einen kompatiblen Provider",
         )
     if protocol == "openai_responses" and provider != "openai":
-        raise HTTPException(status_code=400, detail="Responses-Protokoll benötigt den OpenAI-Provider")
+        raise HTTPException(
+            status_code=400, detail="Responses-Protokoll benötigt den OpenAI-Provider"
+        )
     if protocol in {"anthropic", "gemini"} and provider != protocol:
         raise HTTPException(status_code=400, detail="Protokoll und Provider passen nicht zusammen")
     if kind == "remote" and protocol not in {"ollama", "openai_chat"}:
@@ -205,7 +207,9 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
             raise HTTPException(status_code=400, detail=f"{field} darf nicht leer sein")
 
 
-def _validate_embedding_profile_values(values: dict, existing: EmbeddingProfile | None = None) -> None:
+def _validate_embedding_profile_values(
+    values: dict, existing: EmbeddingProfile | None = None
+) -> None:
     provider = values.get("provider", existing.provider if existing else None)
     if provider not in {"ollama", "openai"}:
         raise HTTPException(status_code=400, detail="Unbekannter Embedding-Provider")
@@ -354,7 +358,10 @@ def list_embedding_profiles(db: Session = Depends(get_db), _user: User = Depends
     db.commit()
     return {
         "active_embedding_profile_id": settings.active_embedding_profile_id,
-        "profiles": [serialize_embedding_profile(p, active_id=settings.active_embedding_profile_id) for p in profiles],
+        "profiles": [
+            serialize_embedding_profile(p, active_id=settings.active_embedding_profile_id)
+            for p in profiles
+        ],
     }
 
 
@@ -413,7 +420,9 @@ def delete_embedding_profile(
         raise HTTPException(status_code=404, detail="Embedding-Profil nicht gefunden")
     settings = get_settings(db)
     if profile.is_system or settings.active_embedding_profile_id == profile.id:
-        raise HTTPException(status_code=409, detail="System- oder aktives Profil kann nicht gelöscht werden")
+        raise HTTPException(
+            status_code=409, detail="System- oder aktives Profil kann nicht gelöscht werden"
+        )
     _remove_deployment(profile.deployment_name)
     db.delete(profile)
     db.commit()
@@ -471,7 +480,9 @@ async def test_embedding_profile(
     except InferenceAdmissionTimeout as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=502, detail=f"Embedding-Endpunkt fehlgeschlagen: {exc}") from exc
+        raise HTTPException(
+            status_code=502, detail=f"Embedding-Endpunkt fehlgeschlagen: {exc}"
+        ) from exc
 
 
 @router.post("/ai-profiles", status_code=201)
@@ -571,9 +582,7 @@ async def test_ai_profile(
     self_hosted = is_self_hosted_openai(profile.provider)
     label_name = provider_label(profile.provider)
     if self_hosted:
-        server_base = (
-            profile.llm_base_url or DEFAULT_BASE_URLS[profile.provider]
-        ).rstrip("/")
+        server_base = (profile.llm_base_url or DEFAULT_BASE_URLS[profile.provider]).rstrip("/")
         server_root = server_base[:-3] if server_base.endswith("/v1") else server_base
         probes.append(("health", _joined_url(server_root, "/health"), profile.llm_api_key))
     if profile.protocol == "ollama":
@@ -638,21 +647,31 @@ async def test_ai_profile(
                     json={
                         "model": profile.llm_model,
                         "messages": [{"role": "user", "content": "Call the probe tool now."}],
-                        "tools": [{
-                            "type": "function",
-                            "function": {
-                                "name": "doctus_profile_probe",
-                                "description": "Connection test. Do not perform external actions.",
-                                "parameters": {"type": "object", "properties": {}, "required": []},
-                            },
-                        }],
+                        "tools": [
+                            {
+                                "type": "function",
+                                "function": {
+                                    "name": "doctus_profile_probe",
+                                    "description": "Connection test. Do not perform external actions.",
+                                    "parameters": {
+                                        "type": "object",
+                                        "properties": {},
+                                        "required": [],
+                                    },
+                                },
+                            }
+                        ],
                         "tool_choice": "required",
                         "stream": False,
                         "max_tokens": 32,
                     },
                     headers={
                         "Content-Type": "application/json",
-                        **({"Authorization": f"Bearer {profile.llm_api_key}"} if profile.llm_api_key else {}),
+                        **(
+                            {"Authorization": f"Bearer {profile.llm_api_key}"}
+                            if profile.llm_api_key
+                            else {}
+                        ),
                     },
                 )
                 raise_for_inference_status(response, profile.provider)
@@ -664,7 +683,8 @@ async def test_ai_profile(
                 if not any(
                     isinstance(call.get("function"), dict)
                     and call["function"].get("name") == "doctus_profile_probe"
-                    for call in tool_calls if isinstance(call, dict)
+                    for call in tool_calls
+                    if isinstance(call, dict)
                 ):
                     raise ValueError(
                         f"{label_name} hat keinen Tool-Aufruf zurückgegeben. "
@@ -682,7 +702,10 @@ async def test_ai_profile(
                 detail = exc.response.json().get("error", {}).get("message", "")
             except (ValueError, AttributeError):
                 detail = ""
-            if any(marker in str(detail).lower() for marker in ("out of memory", "kv cache", "cuda", "gpu memory")):
+            if any(
+                marker in str(detail).lower()
+                for marker in ("out of memory", "kv cache", "cuda", "gpu memory")
+            ):
                 raise HTTPException(
                     status_code=503,
                     detail=f"{label_name} ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher. "
@@ -770,35 +793,53 @@ def create_llm_deployment(
     """Startet einen lokalen Container und legt das passende Profil an (LLM oder Embedding)."""
     if request.role not in {"chat", "embedding"}:
         raise HTTPException(status_code=400, detail="Rolle muss chat oder embedding sein")
-    deployment = _deployer_call(deployer_client.create_deployment, request.model_dump(include={
-        "name", "engine", "model", "role", "gpu", "context_length", "tool_parser"}))
+    deployment = _deployer_call(
+        deployer_client.create_deployment,
+        request.model_dump(
+            include={"name", "engine", "model", "role", "gpu", "context_length", "tool_parser"}
+        ),
+    )
     base_url = deployment["base_url"]
     profile_name = (request.display_name or request.name).strip()
     try:
         if request.role == "embedding":
             openai_style = request.engine != "ollama"
             values = {
-                "name": profile_name, "provider": "openai" if openai_style else "ollama",
-                "model": request.model, "base_url": base_url,
+                "name": profile_name,
+                "provider": "openai" if openai_style else "ollama",
+                "model": request.model,
+                "base_url": base_url,
                 "path": "/embeddings" if openai_style else "/api/embed",
-                "dimension": request.dimension, "context_length": request.context_length,
+                "dimension": request.dimension,
+                "context_length": request.context_length,
             }
             _validate_embedding_profile_values(values)
-            profile = EmbeddingProfile(**values, deployment_name=request.name, created_by_user_id=user.id, is_system=False)
+            profile = EmbeddingProfile(
+                **values, deployment_name=request.name, created_by_user_id=user.id, is_system=False
+            )
             db.add(profile)
             db.flush()
             _activate_embedding_if_first(db, profile)
             db.commit()
             db.refresh(profile)
-            return {"deployment": deployment, "profile": serialize_embedding_profile(profile), "role": "embedding"}
+            return {
+                "deployment": deployment,
+                "profile": serialize_embedding_profile(profile),
+                "role": "embedding",
+            }
         openai_style = request.engine != "ollama"
         values = {
-            "name": profile_name, "kind": "local", "provider": request.engine,
+            "name": profile_name,
+            "kind": "local",
+            "provider": request.engine,
             "protocol": "openai_chat" if openai_style else "ollama",
-            "llm_model": request.model, "llm_base_url": base_url,
+            "llm_model": request.model,
+            "llm_base_url": base_url,
             "llm_path": "/chat/completions" if openai_style else "/api/chat",
-            "embedding_provider": "ollama", "embedding_model": "bge-m3",
-            "llm_context_length": request.context_length, "deployment_name": request.name,
+            "embedding_provider": "ollama",
+            "embedding_model": "bge-m3",
+            "llm_context_length": request.context_length,
+            "deployment_name": request.name,
         }
         _validate_profile_values(values)
         profile = AIProfile(**values, created_by_user_id=user.id, is_system=False)
@@ -807,7 +848,11 @@ def create_llm_deployment(
         _activate_if_first(db, profile)
         db.commit()
         db.refresh(profile)
-        return {"deployment": deployment, "profile": serialize_profile(profile, active_id=get_settings(db).active_profile_id), "role": "chat"}
+        return {
+            "deployment": deployment,
+            "profile": serialize_profile(profile, active_id=get_settings(db).active_profile_id),
+            "role": "chat",
+        }
     except Exception:
         # Kein verwaister Container, wenn das Profil nicht angelegt werden konnte.
         db.rollback()

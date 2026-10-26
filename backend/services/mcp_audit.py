@@ -127,7 +127,8 @@ def record_mcp_tool_call(
                 duration_ms=max(0, min(int(duration_ms), 2_147_483_647)),
                 result_payload_bytes=(
                     max(0, min(int(result_payload_bytes), 2_147_483_647))
-                    if result_payload_bytes is not None else None
+                    if result_payload_bytes is not None
+                    else None
                 ),
                 result_truncated=result_truncated,
                 index_revision=_redact_string(index_revision, 64) if index_revision else None,

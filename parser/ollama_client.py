@@ -138,7 +138,9 @@ def _load_server_settings() -> Optional[dict]:
     except Exception as exc:
         # Nicht still: ein Rückfall auf die Worker-Umgebung ändert das genutzte Modell
         # (z. B. LLM_MODEL aus .env statt des aktiven Profils).
-        logger.warning("AI settings DB lookup unavailable; using worker env: %s", exc, exc_info=True)
+        logger.warning(
+            "AI settings DB lookup unavailable; using worker env: %s", exc, exc_info=True
+        )
         return None
 
 
@@ -421,7 +423,10 @@ async def get_chat_json(
         )
     logger.info(
         "LLM-Aufruf: protocol=%s model=%s host=%s (angefordert: %s)",
-        settings["protocol"], settings["model"], settings["base_url"], model,
+        settings["protocol"],
+        settings["model"],
+        settings["base_url"],
+        model,
     )
     if settings["protocol"] in {"openai_chat", "openai_responses"}:
         if settings["protocol"] == "openai_responses":

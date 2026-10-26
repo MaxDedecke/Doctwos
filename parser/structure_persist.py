@@ -145,10 +145,10 @@ def persist_parse_result(
         # files.  A class QName such as ``com.example.App`` is *not* globally
         # unique in a Maven multi-module source tree; sharing it would merge
         # same-named classes from independent modules.
-        share_container = (
-            (entity.meta or {}).get("language") == "java"
-            and entity.type in {"package", "module"}
-        )
+        share_container = (entity.meta or {}).get("language") == "java" and entity.type in {
+            "package",
+            "module",
+        }
         shared = (
             db.query(CodeEntity)
             .filter(

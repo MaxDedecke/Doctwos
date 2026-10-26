@@ -79,7 +79,9 @@ def ensure_embedding_profiles(db: Session, settings: AISettings) -> list[Embeddi
         provider=settings.embedding_provider or cfg.EMBEDDING_PROVIDER,
         model=settings.embedding_model or cfg.OLLAMA_EMBED_MODEL,
         base_url=settings.embedding_base_url or cfg.EMBEDDING_BASE_URL,
-        path="/embeddings" if (settings.embedding_provider or cfg.EMBEDDING_PROVIDER) == "openai" else "/api/embed",
+        path="/embeddings"
+        if (settings.embedding_provider or cfg.EMBEDDING_PROVIDER) == "openai"
+        else "/api/embed",
         api_key=settings.embedding_api_key or None,
         dimension=settings.embedding_dimension,
         context_length=settings.embedding_context_length,
@@ -114,7 +116,9 @@ def get_profile(db: Session, profile_id: int | None) -> AIProfile:
 def get_active_embedding_profile(db: Session) -> EmbeddingProfile:
     settings = get_settings(db)
     profiles = ensure_embedding_profiles(db, settings)
-    profile = next((item for item in profiles if item.id == settings.active_embedding_profile_id), None)
+    profile = next(
+        (item for item in profiles if item.id == settings.active_embedding_profile_id), None
+    )
     if profile is None and profiles:
         profile = profiles[0]
     if profile is None:
@@ -122,7 +126,9 @@ def get_active_embedding_profile(db: Session) -> EmbeddingProfile:
     return profile
 
 
-def serialize_embedding_profile(profile: EmbeddingProfile, *, active_id: int | None = None) -> dict[str, Any]:
+def serialize_embedding_profile(
+    profile: EmbeddingProfile, *, active_id: int | None = None
+) -> dict[str, Any]:
     return {
         "id": profile.id,
         "name": profile.name,

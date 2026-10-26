@@ -224,7 +224,9 @@ def test_control_path_records_condition_text_and_branch():
         {"type": "IF", "branch": "ELSE", "condition": "WS-A = 'Y'"}
     ]
     # stabiler Vertrag: control_context bleibt unverändert
-    assert edges[("PERFORM", "ONE-PARA", 6)].meta["control_context"] == [{"type": "IF", "branch": "THEN"}]
+    assert edges[("PERFORM", "ONE-PARA", 6)].meta["control_context"] == [
+        {"type": "IF", "branch": "THEN"}
+    ]
 
 
 def test_control_path_records_evaluate_when_and_scope_end():
@@ -237,7 +239,10 @@ def test_control_path_records_evaluate_when_and_scope_end():
 
 def test_out_of_line_perform_carries_loop_head():
     edges = _flow_edges()
-    assert edges[("PERFORM", "THREE-PARA", 10)].meta["loop"] == {"kind": "UNTIL", "text": "WS-A = 'N'"}
+    assert edges[("PERFORM", "THREE-PARA", 10)].meta["loop"] == {
+        "kind": "UNTIL",
+        "text": "WS-A = 'N'",
+    }
     assert edges[("PERFORM", "THREE-PARA", 11)].meta["loop"] == {"kind": "TIMES", "text": "3"}
     assert "loop" not in edges[("PERFORM", "ONE-PARA", 15)].meta
 

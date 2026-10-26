@@ -171,7 +171,9 @@ def test_answer_source_validation_rejects_an_unread_file_or_line():
 
     valid, is_valid = _validate_answer_sources("Belegt: `src/PaymentService.java:55`.", sources)
     wrong_file, wrong_file_valid = _validate_answer_sources("Belegt: `src/Other.java:55`.", sources)
-    wrong_line, wrong_line_valid = _validate_answer_sources("Belegt: `src/PaymentService.java:69`.", sources)
+    wrong_line, wrong_line_valid = _validate_answer_sources(
+        "Belegt: `src/PaymentService.java:69`.", sources
+    )
 
     assert is_valid and valid.startswith("Belegt")
     assert not wrong_file_valid and "nicht belastbar belegt" in wrong_file
@@ -296,16 +298,33 @@ _ANSWER_CONTEXT = {
     "type": "tool_result",
     "name": "answer_context",
     "result": {
-        "evidence": [{
-            "symbol": "COBSWAIT",
-            "entity": {"qualified_name": "COBSWAIT", "file_path": "app/cbl/COBSWAIT.cbl",
-                       "start_line": 22, "end_line": 40},
-            "callees": ["MVSWAIT (Zeile 38)"],
-            "callers": [{"type": "EXECUTES", "from": "app/jcl/WAITSTEP.jcl::job:WAITSTEP::step:WAIT",
-                         "line": 22, "location": "app/jcl/WAITSTEP.jcl:22"}],
-            "call_sites": [{"file": "app/jcl/WAITSTEP.jcl", "around_line": 22,
-                            "text": "18: //WAITSTEP JOB\n19: //WAIT EXEC PGM=COBSWAIT\n26: //SYSIN DD *"}],
-        }],
+        "evidence": [
+            {
+                "symbol": "COBSWAIT",
+                "entity": {
+                    "qualified_name": "COBSWAIT",
+                    "file_path": "app/cbl/COBSWAIT.cbl",
+                    "start_line": 22,
+                    "end_line": 40,
+                },
+                "callees": ["MVSWAIT (Zeile 38)"],
+                "callers": [
+                    {
+                        "type": "EXECUTES",
+                        "from": "app/jcl/WAITSTEP.jcl::job:WAITSTEP::step:WAIT",
+                        "line": 22,
+                        "location": "app/jcl/WAITSTEP.jcl:22",
+                    }
+                ],
+                "call_sites": [
+                    {
+                        "file": "app/jcl/WAITSTEP.jcl",
+                        "around_line": 22,
+                        "text": "18: //WAITSTEP JOB\n19: //WAIT EXEC PGM=COBSWAIT\n26: //SYSIN DD *",
+                    }
+                ],
+            }
+        ],
     },
 }
 
@@ -369,7 +388,9 @@ def test_verified_answer_keeps_an_unbacked_edge_sentence_but_marks_it():
     """Live-Fall C5: eine zusätzliche JCL-Aussage ohne Flow-Beleg verwirft nicht die ganze Antwort."""
     sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
     edges = {("cobswait", "mvswait")}
-    answer = "COBSWAIT ruft MVSWAIT auf (`app/cbl/COBSWAIT.cbl:38`). Der JCL-Schritt ruft DFSRRC00 auf."
+    answer = (
+        "COBSWAIT ruft MVSWAIT auf (`app/cbl/COBSWAIT.cbl:38`). Der JCL-Schritt ruft DFSRRC00 auf."
+    )
 
     text, consistent = _validate_answer_sources(answer, sources, edges)
 
@@ -384,7 +405,7 @@ def test_fenced_mermaid_block_is_neither_checked_nor_annotated():
     sources = [{"file": "UserLogic.java", "lines": [100, 140]}]
     answer = (
         "`UserLogic.create` delegiert (`UserLogic.java:133`).\n\n"
-        "```mermaid\nflowchart TD\n  n1[\"a\"] -->|CALLS| n2[\"b\"]\n```\n"
+        '```mermaid\nflowchart TD\n  n1["a"] -->|CALLS| n2["b"]\n```\n'
     )
     text, consistent = _validate_answer_sources(answer, sources, {("x", "y")})
     assert consistent and text == answer
@@ -400,7 +421,9 @@ def test_no_result_answer_gets_no_unrelated_read_locations_appended():
 
 def test_answer_source_validation_replaces_an_empty_answer_with_a_notice():
     for empty in ("", "  \n"):
-        answer, consistent = _validate_answer_sources(empty, [{"file": "src/A.java", "lines": [1, 5]}])
+        answer, consistent = _validate_answer_sources(
+            empty, [{"file": "src/A.java", "lines": [1, 5]}]
+        )
         assert not consistent
         assert "keine Antwort geliefert" in answer
 
@@ -408,7 +431,13 @@ def test_answer_source_validation_replaces_an_empty_answer_with_a_notice():
 def test_answer_source_validation_marks_file_names_no_tool_result_mentions():
     from api.chat import _tool_evidence_text
 
-    steps = [{"type": "tool_result", "name": "answer_context", "result": {"copybooks": ["CMQV", "CCPAURQY.cpy"]}}]
+    steps = [
+        {
+            "type": "tool_result",
+            "name": "answer_context",
+            "result": {"copybooks": ["CMQV", "CCPAURQY.cpy"]},
+        }
+    ]
     evidence = _tool_evidence_text(steps, "Welche Copybooks bindet `COPAUA0C.cbl` ein?")
     answer = "Genutzt werden `CCPAURQY.cpy`, `COPAUA0C.cbl` und `CICS-UTILITIES.cbl`."
 
@@ -431,43 +460,94 @@ def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
     event = {
         "type": "tool_result",
         "name": "answer_context",
-        "result": {"evidence": [{
-            "entity": {"file_path": "cpy/AMT.cpy", "start_line": 34, "end_line": 34},
-            "data_origin": [
-                {"field": "AMT-OUT", "file": "cbl/PROG.cbl", "line": 885, "cite": "cbl/PROG.cbl:885"},
-                {"field": "AMT-RAW", "file": "cbl/PROG.cbl", "line": 376, "cite": "cbl/PROG.cbl:376"},
-            ],
-            "includes": {
-                "resolved": [{"name": "CPYREC", "line": 178, "cite": "cbl/PROG.cbl:178", "file": "cpy/CPYREC.cpy"}],
-                "external": [{"name": "CMQV", "line": 161, "cite": "cbl/PROG.cbl:161", "category": "mq"}],
-                "unresolved": [],
-            },
-        }]},
+        "result": {
+            "evidence": [
+                {
+                    "entity": {"file_path": "cpy/AMT.cpy", "start_line": 34, "end_line": 34},
+                    "data_origin": [
+                        {
+                            "field": "AMT-OUT",
+                            "file": "cbl/PROG.cbl",
+                            "line": 885,
+                            "cite": "cbl/PROG.cbl:885",
+                        },
+                        {
+                            "field": "AMT-RAW",
+                            "file": "cbl/PROG.cbl",
+                            "line": 376,
+                            "cite": "cbl/PROG.cbl:376",
+                        },
+                    ],
+                    "includes": {
+                        "resolved": [
+                            {
+                                "name": "CPYREC",
+                                "line": 178,
+                                "cite": "cbl/PROG.cbl:178",
+                                "file": "cpy/CPYREC.cpy",
+                            }
+                        ],
+                        "external": [
+                            {
+                                "name": "CMQV",
+                                "line": 161,
+                                "cite": "cbl/PROG.cbl:161",
+                                "category": "mq",
+                            }
+                        ],
+                        "unresolved": [],
+                    },
+                }
+            ]
+        },
     }
 
     _extract_tool_sources(event, agent_sources, source_id=7)
 
     cited = {(item["file"], tuple(item["lines"])) for item in agent_sources}
-    assert {("cbl/PROG.cbl", (885, 885)), ("cbl/PROG.cbl", (376, 376)), ("cbl/PROG.cbl", (178, 178)),
-            ("cbl/PROG.cbl", (161, 161)), ("cpy/AMT.cpy", (34, 34))} <= cited
+    assert {
+        ("cbl/PROG.cbl", (885, 885)),
+        ("cbl/PROG.cbl", (376, 376)),
+        ("cbl/PROG.cbl", (178, 178)),
+        ("cbl/PROG.cbl", (161, 161)),
+        ("cpy/AMT.cpy", (34, 34)),
+    } <= cited
     # Eine solche Zitatform besteht die Validierung gegen die abgerufenen Quellen.
-    answer, consistent = _validate_answer_sources("Zuweisung in `cbl/PROG.cbl:885` und `cbl/PROG.cbl:376`.", agent_sources)
+    answer, consistent = _validate_answer_sources(
+        "Zuweisung in `cbl/PROG.cbl:885` und `cbl/PROG.cbl:376`.", agent_sources
+    )
     assert consistent and "nicht belegt" not in answer
 
 
 def test_answer_context_edge_pairs_cover_control_flow_includes_and_origin():
     from api.chat import _answer_context_edge_pairs
 
-    result = {"evidence": [{
-        "symbol": "UserLogic#create",
-        "control_flow": {"flow": [{
-            "routine": "org.x.UserLogic#create(UserCR,boolean)",
-            "calls": [{"to": "doCreate", "then": [{"to": "beforeCreate"}]}],
-        }]},
-        "includes": {"resolved": [{"name": "UserCR"}]},
-        "data_origin": {"steps": [{"field": "expirationDate", "operation": "argument",
-                                   "passed_by": "caller", "statement": "store(expirationDate)"}]},
-    }]}
+    result = {
+        "evidence": [
+            {
+                "symbol": "UserLogic#create",
+                "control_flow": {
+                    "flow": [
+                        {
+                            "routine": "org.x.UserLogic#create(UserCR,boolean)",
+                            "calls": [{"to": "doCreate", "then": [{"to": "beforeCreate"}]}],
+                        }
+                    ]
+                },
+                "includes": {"resolved": [{"name": "UserCR"}]},
+                "data_origin": {
+                    "steps": [
+                        {
+                            "field": "expirationDate",
+                            "operation": "argument",
+                            "passed_by": "caller",
+                            "statement": "store(expirationDate)",
+                        }
+                    ]
+                },
+            }
+        ]
+    }
     pairs = {(a.lower(), b.lower()) for a, b in _answer_context_edge_pairs(result)}
     assert ("create", "docreate") in pairs
     assert ("docreate", "beforecreate") in pairs

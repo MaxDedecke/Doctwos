@@ -365,9 +365,14 @@ def _seed_downvotes(db_session, session_id, count, prefix):
     """Legt `count` (Frage, Downvote)-Paare an; gibt die Downvote-IDs neueste zuerst zurück."""
     downvote_ids = []
     for index in range(count):
-        db_session.add(ChatMessage(session_id=session_id, role="user", content=f"{prefix} Frage {index}"))
+        db_session.add(
+            ChatMessage(session_id=session_id, role="user", content=f"{prefix} Frage {index}")
+        )
         answer = ChatMessage(
-            session_id=session_id, role="assistant", content=f"{prefix} Antwort {index}", feedback="down"
+            session_id=session_id,
+            role="assistant",
+            content=f"{prefix} Antwort {index}",
+            feedback="down",
         )
         db_session.add(answer)
         db_session.flush()
@@ -388,8 +393,12 @@ def test_chat_feedback_review_is_paged_with_total_and_consistent_labels(
     second_ids = _seed_downvotes(db_session, second.id, 3, "pagingprobe-b")
     seeded = set(first_ids) | set(second_ids)
 
-    page_one = client.get("/admin/chat-feedback", params={"q": "pagingprobe", "limit": 4, "offset": 0}).json()
-    page_two = client.get("/admin/chat-feedback", params={"q": "pagingprobe", "limit": 4, "offset": 4}).json()
+    page_one = client.get(
+        "/admin/chat-feedback", params={"q": "pagingprobe", "limit": 4, "offset": 0}
+    ).json()
+    page_two = client.get(
+        "/admin/chat-feedback", params={"q": "pagingprobe", "limit": 4, "offset": 4}
+    ).json()
 
     assert page_one["total"] == page_two["total"] == 6
     assert len(page_one["entries"]) == 4
@@ -407,11 +416,19 @@ def test_chat_feedback_review_is_paged_with_total_and_consistent_labels(
     assert "session_id" not in page_one["entries"][0]
 
 
-def test_chat_feedback_review_search_matches_answer_question_and_label(client, make_session, db_session):
+def test_chat_feedback_review_search_matches_answer_question_and_label(
+    client, make_session, db_session
+):
     user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
     session = make_session(user.id)
-    db_session.add(ChatMessage(session_id=session.id, role="user", content="Wie funktioniert der Zebrafinken-Import?"))
-    answer = ChatMessage(session_id=session.id, role="assistant", content="Antwort ohne Stichwort.", feedback="down")
+    db_session.add(
+        ChatMessage(
+            session_id=session.id, role="user", content="Wie funktioniert der Zebrafinken-Import?"
+        )
+    )
+    answer = ChatMessage(
+        session_id=session.id, role="assistant", content="Antwort ohne Stichwort.", feedback="down"
+    )
     db_session.add(answer)
     db_session.commit()
 
@@ -436,7 +453,9 @@ def test_chat_feedback_review_rejects_invalid_paging(client):
     assert client.get("/admin/chat-feedback", params={"offset": -1}).status_code == 422
 
 
-def test_chat_sessions_page_pages_by_cursor_without_skips_or_duplicates(client, make_session, db_session, other_user):
+def test_chat_sessions_page_pages_by_cursor_without_skips_or_duplicates(
+    client, make_session, db_session, other_user
+):
     user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
     mine = [make_session(user.id, title=f"paging-{i}") for i in range(7)]
     foreign = make_session(other_user.id, title="paging-foreign")
@@ -459,7 +478,9 @@ def test_chat_sessions_page_pages_by_cursor_without_skips_or_duplicates(client, 
     assert len(seen) == len(set(seen))
 
 
-def test_chat_sessions_page_is_stable_when_sessions_are_added_or_deleted_between_pages(client, make_session, db_session):
+def test_chat_sessions_page_is_stable_when_sessions_are_added_or_deleted_between_pages(
+    client, make_session, db_session
+):
     user = db_session.query(User).filter(User.username == TEST_USERNAME).first()
     made_ids = [make_session(user.id, title=f"stable-{i}").id for i in range(6)]
     top = max(made_ids)
@@ -486,8 +507,18 @@ def test_chat_sessions_page_filters_by_project_and_general(client, make_session,
     scoped.project_id = first_project.id
     db_session.commit()
 
-    general_ids = [s["id"] for s in client.get("/chat/sessions/page", params={"general": True, "limit": 100}).json()["sessions"]]
-    project_ids = [s["id"] for s in client.get("/chat/sessions/page", params={"project_id": first_project.id, "limit": 100}).json()["sessions"]]
+    general_ids = [
+        s["id"]
+        for s in client.get("/chat/sessions/page", params={"general": True, "limit": 100}).json()[
+            "sessions"
+        ]
+    ]
+    project_ids = [
+        s["id"]
+        for s in client.get(
+            "/chat/sessions/page", params={"project_id": first_project.id, "limit": 100}
+        ).json()["sessions"]
+    ]
     assert general.id in general_ids and scoped.id not in general_ids
     assert scoped.id in project_ids and general.id not in project_ids
 

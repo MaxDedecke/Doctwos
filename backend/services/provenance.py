@@ -13,7 +13,11 @@ def source_revision(source: Any, metadata: dict | None = None) -> tuple[str | No
     cursor = getattr(source, "sync_cursor", None)
     cursor = cursor if isinstance(cursor, dict) else {}
 
-    commit = metadata.get("source_revision") or cursor.get("last_commit") or spaces.get("last_commit_hash")
+    commit = (
+        metadata.get("source_revision")
+        or cursor.get("last_commit")
+        or spaces.get("last_commit_hash")
+    )
     if commit:
         return str(commit), "commit"
     content_hash = metadata.get("content_hash")

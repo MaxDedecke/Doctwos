@@ -38,7 +38,9 @@ def _require_project_admin(project_id: int, user: User, db: Session) -> None:
     # vertical slice to project admins; this is both auditable and maps to the
     # existing permission model without inventing another global role.
     if get_project_role(project_id, user, db) != "admin":
-        raise HTTPException(status_code=403, detail="Nur Projekt-Admins dürfen Erkenntnisse freigeben")
+        raise HTTPException(
+            status_code=403, detail="Nur Projekt-Admins dürfen Erkenntnisse freigeben"
+        )
 
 
 @router.post("/{project_id}/insights", status_code=201)
@@ -57,15 +59,22 @@ def create_insight(
     source_ids = {
         item.get("source_id") for item in body.evidence if isinstance(item.get("source_id"), int)
     }
-    sources = {
-        source.id: source for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
-    } if source_ids else {}
+    sources = (
+        {
+            source.id: source
+            for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
+        }
+        if source_ids
+        else {}
+    )
     evidence = []
     for item in body.evidence:
         snapshot = dict(item)
         source = sources.get(snapshot.get("source_id"))
         if source:
-            snapshot["source_last_synced_at"] = source.last_synced_at.isoformat() if source.last_synced_at else None
+            snapshot["source_last_synced_at"] = (
+                source.last_synced_at.isoformat() if source.last_synced_at else None
+            )
         evidence.append(snapshot)
 
     insight = Insight(
@@ -96,7 +105,10 @@ def list_insights(
         if status not in {"draft", "verified", "outdated"}:
             raise HTTPException(status_code=422, detail="Unbekannter Erkenntnisstatus")
         query = query.filter(Insight.status == status)
-    return [_serialize(insight) for insight in query.order_by(Insight.created_at.desc(), Insight.id.desc()).all()]
+    return [
+        _serialize(insight)
+        for insight in query.order_by(Insight.created_at.desc(), Insight.id.desc()).all()
+    ]
 
 
 @router.post("/{project_id}/insights/{insight_id}/verify")
@@ -110,14 +122,20 @@ def verify_insight(
     assert_project_visible(project_id, user, db)
     _require_project_admin(project_id, user, db)
     if not body.confirm:
-        raise HTTPException(status_code=422, detail="Die Freigabe muss ausdrücklich bestätigt werden")
-    insight = db.query(Insight).filter(Insight.id == insight_id, Insight.project_id == project_id).first()
+        raise HTTPException(
+            status_code=422, detail="Die Freigabe muss ausdrücklich bestätigt werden"
+        )
+    insight = (
+        db.query(Insight).filter(Insight.id == insight_id, Insight.project_id == project_id).first()
+    )
     if not insight:
         raise HTTPException(status_code=404, detail="Erkenntnis nicht gefunden")
     if insight.status != "draft":
         raise HTTPException(status_code=409, detail="Erkenntnis wurde bereits freigegeben")
     if insight.created_by_id == user.id:
-        raise HTTPException(status_code=403, detail="Ersteller dürfen ihre eigene Erkenntnis nicht freigeben")
+        raise HTTPException(
+            status_code=403, detail="Ersteller dürfen ihre eigene Erkenntnis nicht freigeben"
+        )
 
     insight.status = "verified"
     insight.verified_by_id = user.id

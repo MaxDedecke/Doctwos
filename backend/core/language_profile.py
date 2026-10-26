@@ -34,7 +34,9 @@ COBOL = LanguageProfile(
 )
 JAVA = LanguageProfile(
     name="java",
-    containers=frozenset({"class", "interface", "enum", "record", "annotation_type", "anonymous_class"}),
+    containers=frozenset(
+        {"class", "interface", "enum", "record", "annotation_type", "anonymous_class"}
+    ),
     routines=frozenset({"method", "constructor", "lambda", "initializer"}),
     data=frozenset({"field", "local_variable", "parameter", "record_component"}),
     control_edges=frozenset({"CALLS"}),
@@ -50,7 +52,9 @@ JCL = LanguageProfile(
 )
 
 # Use of values and types (reads, writes, dataset use, type use); the "data" kind of the drop view.
-DATA_EDGES = frozenset({"READS", "WRITES", "USES", "USES_DATASET", "ASSIGNED_DATASET", "USES_TYPE", "INSTANTIATES"})
+DATA_EDGES = frozenset(
+    {"READS", "WRITES", "USES", "USES_DATASET", "ASSIGNED_DATASET", "USES_TYPE", "INSTANTIATES"}
+)
 
 PROFILES: tuple[LanguageProfile, ...] = (COBOL, JAVA, JCL)
 

@@ -156,8 +156,7 @@ def test_exec_block_in_data_division_does_not_destroy_following_structure():
 
 def test_exec_block_in_standalone_copybook_keeps_data_items():
     result = parse_copybook(
-        "       EXEC SQL INCLUDE SQLCA END-EXEC.\n"
-        "       01  COPY-STATUS PIC X.\n",
+        "       EXEC SQL INCLUDE SQLCA END-EXEC.\n       01  COPY-STATUS PIC X.\n",
         "SQLCOPY.cpy",
     )
 

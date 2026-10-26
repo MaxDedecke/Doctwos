@@ -90,8 +90,12 @@ def test_mcp_audit_endpoint_pages_newest_first_with_total(client, db_session):
     tool = "paging_probe_tool"
     _seed_audit_entries(db_session, tool, 25)
     try:
-        first = client.get("/audit/mcp-tool-calls", params={"tool": tool, "limit": 20, "offset": 0}).json()
-        second = client.get("/audit/mcp-tool-calls", params={"tool": tool, "limit": 20, "offset": 20}).json()
+        first = client.get(
+            "/audit/mcp-tool-calls", params={"tool": tool, "limit": 20, "offset": 0}
+        ).json()
+        second = client.get(
+            "/audit/mcp-tool-calls", params={"tool": tool, "limit": 20, "offset": 20}
+        ).json()
 
         assert first["total"] == second["total"] == 25
         assert len(first["entries"]) == 20
@@ -107,15 +111,21 @@ def test_mcp_audit_endpoint_filters_by_status_and_tool_substring(client, db_sess
     tool = "filter_probe_tool"
     _seed_audit_entries(db_session, tool, 6, failing_every=3)  # indexes 0 and 3 fail
     try:
-        errors = client.get("/audit/mcp-tool-calls", params={"tool": "FILTER_PROBE", "status": "error"}).json()
+        errors = client.get(
+            "/audit/mcp-tool-calls", params={"tool": "FILTER_PROBE", "status": "error"}
+        ).json()
         assert errors["total"] == 2
         assert {entry["status"] for entry in errors["entries"]} == {"error"}
 
-        successes = client.get("/audit/mcp-tool-calls", params={"tool": tool, "status": "success"}).json()
+        successes = client.get(
+            "/audit/mcp-tool-calls", params={"tool": tool, "status": "success"}
+        ).json()
         assert successes["total"] == 4
 
         # LIKE wildcards in user input must match literally, not as patterns.
-        assert client.get("/audit/mcp-tool-calls", params={"tool": "filter%tool"}).json()["total"] == 0
+        assert (
+            client.get("/audit/mcp-tool-calls", params={"tool": "filter%tool"}).json()["total"] == 0
+        )
     finally:
         _cleanup_audit_entries(db_session, tool)
 

@@ -34,7 +34,12 @@ def _positive_int_env(name: str, default: int) -> int:
 MCP_AUDIT_RETENTION_DAYS: int = _positive_int_env("MCP_AUDIT_RETENTION_DAYS", 90)
 # Chat runs the evidence pack (symbols named in the question: source, callers, callees, data access) itself
 # as the first tool step instead of waiting for the model to ask for it.
-CHAT_EVIDENCE_PREFETCH: bool = os.getenv("CHAT_EVIDENCE_PREFETCH", "true").strip().lower() in {"1", "true", "yes", "on"}
+CHAT_EVIDENCE_PREFETCH: bool = os.getenv("CHAT_EVIDENCE_PREFETCH", "true").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 CHAT_EVIDENCE_CHARS: int = _positive_int_env("CHAT_EVIDENCE_CHARS", 6000)
 MCP_ALLOWED_HOSTS: list[str] = [
     item.strip() for item in os.getenv("MCP_ALLOWED_HOSTS", "").split(",") if item.strip()
@@ -61,7 +66,9 @@ KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
 LEGACY_OLLAMA_SERVICE: bool = os.getenv("LEGACY_OLLAMA_SERVICE", "false").lower() in ("1", "true")
 BOOTSTRAP_LLM_ENDPOINT: bool = bool(os.getenv("OLLAMA_BASE_URL")) or LEGACY_OLLAMA_SERVICE
 BOOTSTRAP_EMBEDDING_ENDPOINT: bool = (
-    bool(os.getenv("EMBEDDING_BASE_URL")) or bool(os.getenv("OLLAMA_BASE_URL")) or LEGACY_OLLAMA_SERVICE
+    bool(os.getenv("EMBEDDING_BASE_URL"))
+    or bool(os.getenv("OLLAMA_BASE_URL"))
+    or LEGACY_OLLAMA_SERVICE
 )
 # Deployer-Dienst (startet lokale LLM-Container); siehe deployer/ und docs/ENTSCHEIDUNGEN.md E-12.
 DEPLOYER_URL: str = os.getenv("DEPLOYER_URL", "http://deployer:9000").rstrip("/")

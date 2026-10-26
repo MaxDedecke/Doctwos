@@ -59,7 +59,9 @@ def inspect_change_impact(
     """
     if entity_id is None and file_path is None:
         return {"error": "Provide entity_id, file_path, or both for the same indexed file."}
-    if source_id is not None and (not isinstance(source_id, int) or isinstance(source_id, bool) or source_id <= 0):
+    if source_id is not None and (
+        not isinstance(source_id, int) or isinstance(source_id, bool) or source_id <= 0
+    ):
         return {"error": "source_id must be a positive integer."}
     if entity_id is not None and (
         not isinstance(entity_id, int) or isinstance(entity_id, bool) or entity_id <= 0
@@ -89,36 +91,46 @@ def inspect_change_impact(
             # Mainframe-Bestände haben oft Großbuchstaben-Endungen (`CBSTM03B.CBL`): ein eindeutiger
             # Treffer ohne Beachtung der Groß-/Kleinschreibung gilt als dieselbe Datei.
             same_ignoring_case = {
-                path for (path,) in db.query(CodeEntity.file_path)
-                .filter(CodeEntity.project_id == project_id, func.lower(CodeEntity.file_path) == normalized_path.lower())
-                .distinct().limit(2).all()
+                path
+                for (path,) in db.query(CodeEntity.file_path)
+                .filter(
+                    CodeEntity.project_id == project_id,
+                    func.lower(CodeEntity.file_path) == normalized_path.lower(),
+                )
+                .distinct()
+                .limit(2)
+                .all()
             }
             if len(same_ignoring_case) == 1:
                 normalized_path = same_ignoring_case.pop()
         if entity_id is not None:
-            matching_query = (
-                db.query(CodeEntity.id).filter(
-                    CodeEntity.id == entity_id,
-                    CodeEntity.project_id == project_id,
-                    CodeEntity.file_path == normalized_path,
-                )
+            matching_query = db.query(CodeEntity.id).filter(
+                CodeEntity.id == entity_id,
+                CodeEntity.project_id == project_id,
+                CodeEntity.file_path == normalized_path,
             )
             if source_id is not None:
                 matching_query = matching_query.filter(CodeEntity.source_id == source_id)
             matching_entity = matching_query.first()
             if matching_entity is None:
-                return {"error": "When both selectors are provided, entity_id must belong to file_path in the current project."}
-        file_query = (
-            db.query(CodeEntity).filter(
-                CodeEntity.project_id == project_id,
-                CodeEntity.file_path == normalized_path,
-            )
+                return {
+                    "error": "When both selectors are provided, entity_id must belong to file_path in the current project."
+                }
+        file_query = db.query(CodeEntity).filter(
+            CodeEntity.project_id == project_id,
+            CodeEntity.file_path == normalized_path,
         )
         if source_id is not None:
             file_query = file_query.filter(CodeEntity.source_id == source_id)
-        file_entities = file_query.order_by(CodeEntity.start_line, CodeEntity.id).limit(MAX_IMPACT_NODES + 1).all()
+        file_entities = (
+            file_query.order_by(CodeEntity.start_line, CodeEntity.id)
+            .limit(MAX_IMPACT_NODES + 1)
+            .all()
+        )
         if not file_entities:
-            return {"error": "No indexed code entities were found for this file in the current project."}
+            return {
+                "error": "No indexed code entities were found for this file in the current project."
+            }
         file_root = next(
             (entity for entity in file_entities if (entity.meta_json or {}).get("is_file_root")),
             None,
@@ -129,7 +141,9 @@ def inspect_change_impact(
         target_kind = "file"
         target_count_truncated = len(file_entities) > len(target_entities)
     else:
-        target_query = db.query(CodeEntity).filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
+        target_query = db.query(CodeEntity).filter(
+            CodeEntity.id == entity_id, CodeEntity.project_id == project_id
+        )
         if source_id is not None:
             target_query = target_query.filter(CodeEntity.source_id == source_id)
         target = target_query.first()
@@ -169,12 +183,16 @@ def inspect_change_impact(
             for endpoint_id in (edge.src_entity_id, edge.dst_entity_id)
             if endpoint_id is not None
         }
-        valid_endpoint_ids = {
-            row_id
-            for (row_id,) in db.query(CodeEntity.id).filter(
-                CodeEntity.id.in_(endpoint_ids), CodeEntity.project_id == project_id
-            )
-        } if endpoint_ids else set()
+        valid_endpoint_ids = (
+            {
+                row_id
+                for (row_id,) in db.query(CodeEntity.id).filter(
+                    CodeEntity.id.in_(endpoint_ids), CodeEntity.project_id == project_id
+                )
+            }
+            if endpoint_ids
+            else set()
+        )
 
         next_frontier: set[int] = set()
         for edge in rows:
@@ -256,21 +274,23 @@ def inspect_change_impact(
             continue
         if edge.dst_entity_id is not None and edge.dst_entity_id not in nodes_by_id:
             continue
-        graph_edges.append({
-            "id": edge.id,
-            "source": edge.src_entity_id,
-            "target": edge.dst_entity_id,
-            "target_name": (
-                nodes_by_id[edge.dst_entity_id]["name"]
-                if edge.dst_entity_id is not None
-                else edge.dst_name
-            ),
-            "type": edge.type,
-            "resolution": edge.resolution,
-            "meta": edge.meta_json or {},
-            "start_line": edge.src_start_line,
-            "end_line": edge.src_end_line,
-        })
+        graph_edges.append(
+            {
+                "id": edge.id,
+                "source": edge.src_entity_id,
+                "target": edge.dst_entity_id,
+                "target_name": (
+                    nodes_by_id[edge.dst_entity_id]["name"]
+                    if edge.dst_entity_id is not None
+                    else edge.dst_name
+                ),
+                "type": edge.type,
+                "resolution": edge.resolution,
+                "meta": edge.meta_json or {},
+                "start_line": edge.src_start_line,
+                "end_line": edge.src_end_line,
+            }
+        )
     if len(graph_edges) > limit:
         truncated = True
         graph_edges = graph_edges[:limit]
@@ -278,20 +298,24 @@ def inspect_change_impact(
     # Approved entity-to-entity knowledge links are useful navigation leads,
     # but semantic similarity does not establish a runtime/code dependency.
     candidate_links = (
-        db.query(KnowledgeLink)
-        .filter(
-            KnowledgeLink.status == "approved",
-            KnowledgeLink.source_a_type == "entity",
-            KnowledgeLink.source_b_type == "entity",
-            or_(
-                KnowledgeLink.source_a_entity_id.in_(seen_ids),
-                KnowledgeLink.source_b_entity_id.in_(seen_ids),
-            ),
+        (
+            db.query(KnowledgeLink)
+            .filter(
+                KnowledgeLink.status == "approved",
+                KnowledgeLink.source_a_type == "entity",
+                KnowledgeLink.source_b_type == "entity",
+                or_(
+                    KnowledgeLink.source_a_entity_id.in_(seen_ids),
+                    KnowledgeLink.source_b_entity_id.in_(seen_ids),
+                ),
+            )
+            .order_by(KnowledgeLink.id)
+            .limit(MAX_HEURISTIC_LINKS + 1)
+            .all()
         )
-        .order_by(KnowledgeLink.id)
-        .limit(MAX_HEURISTIC_LINKS + 1)
-        .all()
-    ) if seen_ids else []
+        if seen_ids
+        else []
+    )
     if len(candidate_links) > MAX_HEURISTIC_LINKS:
         truncated = True
         candidate_links = candidate_links[:MAX_HEURISTIC_LINKS]
@@ -307,7 +331,8 @@ def inspect_change_impact(
             db.query(CodeEntity)
             .filter(CodeEntity.id.in_(related_ids), CodeEntity.project_id == project_id)
             .all()
-            if related_ids else []
+            if related_ids
+            else []
         )
     }
     heuristic_links = []
@@ -316,16 +341,18 @@ def inspect_change_impact(
         target = related_entities.get(link.source_b_entity_id)
         if source is None or target is None:
             continue
-        heuristic_links.append({
-            "id": link.id,
-            "source": _entity_json(source),
-            "target": _entity_json(target),
-            "link_type": link.link_type,
-            "direction": link.direction,
-            "score": link.score,
-            "context": (link.context or "")[:500],
-            "reviewed": link.reviewed_at is not None or link.created_by == "user",
-        })
+        heuristic_links.append(
+            {
+                "id": link.id,
+                "source": _entity_json(source),
+                "target": _entity_json(target),
+                "link_type": link.link_type,
+                "direction": link.direction,
+                "score": link.score,
+                "context": (link.context or "")[:500],
+                "reviewed": link.reviewed_at is not None or link.created_by == "user",
+            }
+        )
 
     unknown_edges = [
         {
@@ -351,8 +378,7 @@ def inspect_change_impact(
             entity
             for entity in target_entities
             if any(
-                edge["source"] == entity.id or edge["target"] == entity.id
-                for edge in graph_edges
+                edge["source"] == entity.id or edge["target"] == entity.id for edge in graph_edges
             )
         ),
         target_entities[0],
@@ -362,14 +388,21 @@ def inspect_change_impact(
         "Reflection, dynamic dispatch, generated code, and unindexed dependencies may be missing.",
     ]
     if truncated:
-        limitations.append("The result was truncated by the configured hop, node, or relationship limit.")
-    partial_files = sorted({
-        node["file_path"]
-        for node in nodes
-        if node.get("analysis_status") in {"partial", "text_fallback", "error", "skipped"}
-    })
+        limitations.append(
+            "The result was truncated by the configured hop, node, or relationship limit."
+        )
+    partial_files = sorted(
+        {
+            node["file_path"]
+            for node in nodes
+            if node.get("analysis_status") in {"partial", "text_fallback", "error", "skipped"}
+        }
+    )
     if partial_files:
-        limitations.append("Some files have incomplete or unavailable structural analysis: " + ", ".join(partial_files[:8]))
+        limitations.append(
+            "Some files have incomplete or unavailable structural analysis: "
+            + ", ".join(partial_files[:8])
+        )
 
     has_result = bool(graph_edges or heuristic_links)
     return {
@@ -384,7 +417,9 @@ def inspect_change_impact(
             "kind": target_kind,
             "file_path": normalized_path,
             "entity_ids": sorted(target_ids),
-            "entity_names": [entity.qualified_name or entity.name for entity in target_entities[:12]],
+            "entity_names": [
+                entity.qualified_name or entity.name for entity in target_entities[:12]
+            ],
         },
         "impact_summary": {
             "statically_resolved_edges": statically_resolved_count,

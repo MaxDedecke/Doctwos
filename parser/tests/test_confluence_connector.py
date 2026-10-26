@@ -313,7 +313,9 @@ import httpx  # noqa: E402
 
 
 def _response(url, status=200, payload=None):
-    return httpx.Response(status, json=payload if payload is not None else {}, request=httpx.Request("GET", url))
+    return httpx.Response(
+        status, json=payload if payload is not None else {}, request=httpx.Request("GET", url)
+    )
 
 
 def _server_handler(calls, pages):
@@ -333,7 +335,9 @@ def _server_handler(calls, pages):
 
 
 @pytest.mark.anyio
-async def test_server_dc_uses_rest_api_without_waiting_on_the_cloud_path(db_session, test_source, monkeypatch):
+async def test_server_dc_uses_rest_api_without_waiting_on_the_cloud_path(
+    db_session, test_source, monkeypatch
+):
     test_source.url = "https://wiki.intern/confluence"
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
@@ -401,7 +405,9 @@ async def test_unknown_url_reports_where_it_looked(db_session, test_source):
 
 
 @pytest.mark.anyio
-async def test_a_failing_page_request_aborts_instead_of_ending_the_crawl_silently(db_session, test_source):
+async def test_a_failing_page_request_aborts_instead_of_ending_the_crawl_silently(
+    db_session, test_source
+):
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
 
@@ -417,16 +423,27 @@ async def test_a_failing_page_request_aborts_instead_of_ending_the_crawl_silentl
 
 # --- Schlüssel, Aufräumen, Space-Filter, Anhänge ---------------------------------------------
 
+
 def _chunk(source, key, page_id=None, content="x"):
     return DocumentChunk(
-        project_id=source.project_id, source_id=source.id, file_path=key, content=content,
-        start_line=1, end_line=1, embedding=[0.0] * 1024,
+        project_id=source.project_id,
+        source_id=source.id,
+        file_path=key,
+        content=content,
+        start_line=1,
+        end_line=1,
+        embedding=[0.0] * 1024,
         metadata_json={"page_id": page_id} if page_id else {},
     )
 
 
 def _paths(db_session, source):
-    return {k for (k,) in db_session.query(DocumentChunk.file_path).filter(DocumentChunk.source_id == source.id).distinct()}
+    return {
+        k
+        for (k,) in db_session.query(DocumentChunk.file_path)
+        .filter(DocumentChunk.source_id == source.id)
+        .distinct()
+    }
 
 
 @pytest.mark.anyio
@@ -443,9 +460,16 @@ async def test_same_title_in_two_spaces_gets_two_keys(db_session, test_source):
 
 
 @pytest.mark.anyio
-async def test_legacy_title_keyed_chunks_move_to_the_new_key_when_the_page_id_matches(db_session, test_source):
+async def test_legacy_title_keyed_chunks_move_to_the_new_key_when_the_page_id_matches(
+    db_session, test_source
+):
     test_source.last_synced_at = datetime(2026, 7, 15, tzinfo=timezone.utc)
-    db_session.add_all([_chunk(test_source, "Runbook", page_id="123"), _chunk(test_source, "Runbook", page_id="999")])
+    db_session.add_all(
+        [
+            _chunk(test_source, "Runbook", page_id="123"),
+            _chunk(test_source, "Runbook", page_id="999"),
+        ]
+    )
     db_session.commit()
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
@@ -472,7 +496,9 @@ async def test_deleted_pages_are_removed_after_a_complete_crawl(db_session, test
 
 
 @pytest.mark.anyio
-async def test_nothing_is_removed_when_the_crawl_found_no_pages_or_too_many_would_vanish(db_session, test_source):
+async def test_nothing_is_removed_when_the_crawl_found_no_pages_or_too_many_would_vanish(
+    db_session, test_source
+):
     db_session.add_all([_chunk(test_source, f"DOCS/{i}") for i in range(30)])
     db_session.commit()
     connector = ConfluenceConnector(test_source.id)
@@ -529,17 +555,39 @@ async def test_each_selected_space_is_requested_from_the_server(db_session, test
 async def test_attachments_are_listed_across_pages_and_keyed_by_id(db_session, test_source):
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
-    first = [{"id": f"a{i}", "title": f"f{i}.txt", "metadata": {"mediaType": "text/plain"},
-              "_links": {"download": f"/download/{i}"}, "version": {"when": "2026-07-20T00:00:00.000Z"}} for i in range(50)]
-    second = [{"id": "a50", "title": "letzte.txt", "metadata": {"mediaType": "text/plain"},
-               "_links": {"download": "/download/50"}, "version": {"when": "2026-07-20T00:00:00.000Z"}}]
+    first = [
+        {
+            "id": f"a{i}",
+            "title": f"f{i}.txt",
+            "metadata": {"mediaType": "text/plain"},
+            "_links": {"download": f"/download/{i}"},
+            "version": {"when": "2026-07-20T00:00:00.000Z"},
+        }
+        for i in range(50)
+    ]
+    second = [
+        {
+            "id": "a50",
+            "title": "letzte.txt",
+            "metadata": {"mediaType": "text/plain"},
+            "_links": {"download": "/download/50"},
+            "version": {"when": "2026-07-20T00:00:00.000Z"},
+        }
+    ]
 
     async def handler(url, **kwargs):
         if url.endswith("/rest/api/space"):
             return _response(url, 200, {"results": []})
         if "child/attachment" in url:
             start = (kwargs.get("params") or {}).get("start", 0)
-            return _response(url, 200, {"results": first if start == 0 else second, "_links": {"next": "x"} if start == 0 else {}})
+            return _response(
+                url,
+                200,
+                {
+                    "results": first if start == 0 else second,
+                    "_links": {"next": "x"} if start == 0 else {},
+                },
+            )
         if "/download/" in url:
             return httpx.Response(200, content=b"inhalt", request=httpx.Request("GET", url))
         return _response(url, 200, {"results": [_page()], "_links": {}})
@@ -552,15 +600,22 @@ async def test_attachments_are_listed_across_pages_and_keyed_by_id(db_session, t
 
 # --- Leseeinschränkungen ---------------------------------------------------------------------
 
+
 def _restricted_page(title="Geheim", page_id="900"):
     page = _page(title=title)
     page["id"] = page_id
-    page["restrictions"] = {"read": {"restrictions": {"user": {"results": [{"username": "chef"}]}, "group": {"results": []}}}}
+    page["restrictions"] = {
+        "read": {
+            "restrictions": {"user": {"results": [{"username": "chef"}]}, "group": {"results": []}}
+        }
+    }
     return page
 
 
 @pytest.mark.anyio
-async def test_restricted_pages_are_skipped_by_default_and_requested_with_their_restrictions(db_session, test_source):
+async def test_restricted_pages_are_skipped_by_default_and_requested_with_their_restrictions(
+    db_session, test_source
+):
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
     expands = []
@@ -579,7 +634,9 @@ async def test_restricted_pages_are_skipped_by_default_and_requested_with_their_
     assert [doc["title"] for doc in docs] == ["Runbook"]
     assert "restrictions.read.restrictions.user" in expands[0]
     assert connector._skipped_restricted == 1
-    assert "DOCS/900" not in connector._seen_keys  # zählt nicht als vorhanden: bereits Indiziertes wird aufgeräumt
+    assert (
+        "DOCS/900" not in connector._seen_keys
+    )  # zählt nicht als vorhanden: bereits Indiziertes wird aufgeräumt
 
 
 @pytest.mark.anyio
@@ -596,13 +653,21 @@ async def test_restricted_pages_can_be_included_explicitly(db_session, test_sour
 
 # --- Vererbte Einschränkungen, Blogposts, Pfad, Kommentare -----------------------------------
 
+
 def _tree_page(page_id, title, ancestors=(), restricted=False, content_type="page"):
     page = _page(title=title)
     page["id"] = page_id
     page["type"] = content_type
     page["ancestors"] = [{"id": a_id, "title": a_title} for a_id, a_title in ancestors]
     if restricted:
-        page["restrictions"] = {"read": {"restrictions": {"user": {"results": [{"username": "chef"}]}, "group": {"results": []}}}}
+        page["restrictions"] = {
+            "read": {
+                "restrictions": {
+                    "user": {"results": [{"username": "chef"}]},
+                    "group": {"results": []},
+                }
+            }
+        }
     return page
 
 
@@ -613,11 +678,20 @@ def _typed_handler(pages_by_type, comments=None, calls=None):
         if "child/attachment" in url:
             return _response(url, 200, {"results": []})
         if "child/comment" in url:
-            return _response(url, 200, {"results": (comments or {}).get(url.split("/content/")[1].split("/")[0], []), "_links": {}})
+            return _response(
+                url,
+                200,
+                {
+                    "results": (comments or {}).get(url.split("/content/")[1].split("/")[0], []),
+                    "_links": {},
+                },
+            )
         params = kwargs.get("params") or {}
         if calls is not None:
             calls.append(params)
-        return _response(url, 200, {"results": pages_by_type.get(params.get("type"), []), "_links": {}})
+        return _response(
+            url, 200, {"results": pages_by_type.get(params.get("type"), []), "_links": {}}
+        )
 
     return handler
 
@@ -626,12 +700,16 @@ def _typed_handler(pages_by_type, comments=None, calls=None):
 async def test_children_of_a_restricted_page_are_skipped_too(db_session, test_source):
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
-    pages = {"page": [
-        _tree_page("1", "Offen"),
-        _tree_page("2", "Vorstand", restricted=True),
-        _tree_page("3", "Protokoll", ancestors=[("2", "Vorstand")]),
-        _tree_page("4", "Anhang zum Protokoll", ancestors=[("2", "Vorstand"), ("3", "Protokoll")]),
-    ]}
+    pages = {
+        "page": [
+            _tree_page("1", "Offen"),
+            _tree_page("2", "Vorstand", restricted=True),
+            _tree_page("3", "Protokoll", ancestors=[("2", "Vorstand")]),
+            _tree_page(
+                "4", "Anhang zum Protokoll", ancestors=[("2", "Vorstand"), ("3", "Protokoll")]
+            ),
+        ]
+    }
     with patch_http(_typed_handler(pages)):
         docs = [doc async for doc in connector.fetch_documents()]
     assert [doc["title"] for doc in docs] == ["Offen"]
@@ -642,11 +720,17 @@ async def test_children_of_a_restricted_page_are_skipped_too(db_session, test_so
 async def test_blogposts_are_indexed_next_to_pages(db_session, test_source):
     connector = ConfluenceConnector(test_source.id)
     connector.source = test_source
-    pages = {"page": [_tree_page("1", "Seite")], "blogpost": [_tree_page("9", "Release 5.2 ist da", content_type="blogpost")]}
+    pages = {
+        "page": [_tree_page("1", "Seite")],
+        "blogpost": [_tree_page("9", "Release 5.2 ist da", content_type="blogpost")],
+    }
     with patch_http(_typed_handler(pages)):
         docs = [doc async for doc in connector.fetch_documents()]
     assert {doc["storage_key"] for doc in docs} == {"DOCS/1", "DOCS/9"}
-    assert next(d for d in docs if d["storage_key"] == "DOCS/9")["extra_meta"]["content_type"] == "blogpost"
+    assert (
+        next(d for d in docs if d["storage_key"] == "DOCS/9")["extra_meta"]["content_type"]
+        == "blogpost"
+    )
 
 
 @pytest.mark.anyio
@@ -663,7 +747,10 @@ async def test_page_tree_position_is_part_of_the_document(db_session, test_sourc
 
 @pytest.mark.anyio
 async def test_comments_are_appended_only_when_requested(db_session, test_source):
-    comment = {"body": {"view": {"value": "<p>Bitte <b>aktualisieren</b></p>"}}, "version": {"by": {"displayName": "Anna"}}}
+    comment = {
+        "body": {"view": {"value": "<p>Bitte <b>aktualisieren</b></p>"}},
+        "version": {"by": {"displayName": "Anna"}},
+    }
     pages = {"page": [_tree_page("1", "Seite")]}
 
     off = ConfluenceConnector(test_source.id)

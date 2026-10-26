@@ -82,8 +82,15 @@ def test_process_focus_is_bounded_and_keeps_code_edge_provenance(
         assert payload["truncation"]["node_limit"] == 10
         assert payload["truncation"]["edge_limit"] == 10
         assert len(payload["projection_id"]) > 10
-        resolved = next(item for item in payload["transitions"] if item["code_edge_types"] == ["CALLS"] and item["certainty"] == "certain")
-        assert {key: resolved["locator"][key] for key in ("source_id", "file_path", "start_line", "end_line")} == {
+        resolved = next(
+            item
+            for item in payload["transitions"]
+            if item["code_edge_types"] == ["CALLS"] and item["certainty"] == "certain"
+        )
+        assert {
+            key: resolved["locator"][key]
+            for key in ("source_id", "file_path", "start_line", "end_line")
+        } == {
             "source_id": source.id,
             "file_path": "Payment.java",
             "start_line": 14,
@@ -278,18 +285,30 @@ def test_process_focus_projects_existing_cobol_flow_semantics_without_inventing_
         )
         assert response.status_code == 200
         payload = response.json()
-        perform = next(item for item in payload["transitions"] if item["code_edge_types"] == ["PERFORM"])
+        perform = next(
+            item for item in payload["transitions"] if item["code_edge_types"] == ["PERFORM"]
+        )
         assert perform["kind"] == "call"
         assert perform["meta"] == {
             "thru": "PROCESS-EXIT",
             "thru_resolution": "resolved",
             "thru_target_qualified_name": "PAYMENT.PROCESS-EXIT",
         }
-        dynamic_call = next(item for item in payload["transitions"] if item["resolution"] == "dynamic")
+        dynamic_call = next(
+            item for item in payload["transitions"] if item["resolution"] == "dynamic"
+        )
         assert dynamic_call["kind"] == "external_call"
         assert dynamic_call["certainty"] == "possible"
-        assert next(item for item in payload["transitions"] if item["code_edge_types"] == ["GOTO"])["kind"] == "jump"
-        assert any(node["id"] == f"entity:{sql_block.id}" and node["kind"] == "data_access" for node in payload["nodes"])
+        assert (
+            next(item for item in payload["transitions"] if item["code_edge_types"] == ["GOTO"])[
+                "kind"
+            ]
+            == "jump"
+        )
+        assert any(
+            node["id"] == f"entity:{sql_block.id}" and node["kind"] == "data_access"
+            for node in payload["nodes"]
+        )
         assert f"entity:{file_fd.id}" not in {node["id"] for node in payload["nodes"]}
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -353,36 +372,65 @@ def test_process_focus_projects_java_execution_without_structure_edges(
     db_session.add_all(
         [
             CodeEdge(
-                project_id=test_project, source_id=source.id,
-                src_entity_id=caller.id, dst_entity_id=declared_target.id,
-                dst_name=declared_target.qualified_name, type="CALLS", resolution="resolved",
-                src_start_line=14, src_end_line=14,
-                meta_json={"language": "java", "invocation_kind": "virtual", "dispatch_scope": "static_declaration_only"},
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=caller.id,
+                dst_entity_id=declared_target.id,
+                dst_name=declared_target.qualified_name,
+                type="CALLS",
+                resolution="resolved",
+                src_start_line=14,
+                src_end_line=14,
+                meta_json={
+                    "language": "java",
+                    "invocation_kind": "virtual",
+                    "dispatch_scope": "static_declaration_only",
+                },
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id,
-                src_entity_id=caller.id, dst_entity_id=constructor.id,
-                dst_name=constructor.qualified_name, type="INSTANTIATES", resolution="resolved",
-                src_start_line=16, src_end_line=16,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=caller.id,
+                dst_entity_id=constructor.id,
+                dst_name=constructor.qualified_name,
+                type="INSTANTIATES",
+                resolution="resolved",
+                src_start_line=16,
+                src_end_line=16,
                 meta_json={"language": "java", "invocation_kind": "constructor"},
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id,
-                src_entity_id=caller.id, dst_name="remoteAudit", type="CALLS", resolution="unresolved",
-                src_start_line=18, src_end_line=18,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=caller.id,
+                dst_name="remoteAudit",
+                type="CALLS",
+                resolution="unresolved",
+                src_start_line=18,
+                src_end_line=18,
                 meta_json={"language": "java", "invocation_kind": "virtual"},
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id,
-                src_entity_id=parent_type.id, dst_entity_id=declared_target.id,
-                dst_name=declared_target.qualified_name, type="EXTENDS", resolution="resolved",
-                src_start_line=1, src_end_line=1,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=parent_type.id,
+                dst_entity_id=declared_target.id,
+                dst_name=declared_target.qualified_name,
+                type="EXTENDS",
+                resolution="resolved",
+                src_start_line=1,
+                src_end_line=1,
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id,
-                src_entity_id=caller.id, dst_entity_id=declared_target.id,
-                dst_name=declared_target.qualified_name, type="USES_TYPE", resolution="resolved",
-                src_start_line=12, src_end_line=12,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=caller.id,
+                dst_entity_id=declared_target.id,
+                dst_name=declared_target.qualified_name,
+                type="USES_TYPE",
+                resolution="resolved",
+                src_start_line=12,
+                src_end_line=12,
             ),
         ]
     )
@@ -394,14 +442,22 @@ def test_process_focus_projects_java_execution_without_structure_edges(
         )
         assert response.status_code == 200
         payload = response.json()
-        virtual_call = next(item for item in payload["transitions"] if item["code_edge_types"] == ["CALLS"] and item["resolution"] == "resolved")
+        virtual_call = next(
+            item
+            for item in payload["transitions"]
+            if item["code_edge_types"] == ["CALLS"] and item["resolution"] == "resolved"
+        )
         assert virtual_call["kind"] == "call"
         assert virtual_call["certainty"] == "possible"
         assert virtual_call["meta"]["dispatch_scope"] == "static_declaration_only"
-        constructor_call = next(item for item in payload["transitions"] if item["code_edge_types"] == ["INSTANTIATES"])
+        constructor_call = next(
+            item for item in payload["transitions"] if item["code_edge_types"] == ["INSTANTIATES"]
+        )
         assert constructor_call["kind"] == "call"
         assert constructor_call["certainty"] == "certain"
-        external_call = next(item for item in payload["transitions"] if item["resolution"] == "unresolved")
+        external_call = next(
+            item for item in payload["transitions"] if item["resolution"] == "unresolved"
+        )
         assert external_call["kind"] == "external_call"
         assert external_call["certainty"] == "unresolved"
         assert {"EXTENDS", "USES_TYPE"}.isdisjoint(
@@ -421,38 +477,75 @@ def test_process_focus_exposes_branches_cycles_and_only_observed_order(
     db_session.add(source)
     db_session.flush()
     root = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="FLOW.CBL",
-        name="MAIN", qualified_name="FLOW.MAIN", type="paragraph",
-        start_line=10, end_line=20, meta_json={"language": "cobol"},
+        project_id=test_project,
+        source_id=source.id,
+        file_path="FLOW.CBL",
+        name="MAIN",
+        qualified_name="FLOW.MAIN",
+        type="paragraph",
+        start_line=10,
+        end_line=20,
+        meta_json={"language": "cobol"},
     )
     left = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="FLOW.CBL",
-        name="LEFT", qualified_name="FLOW.LEFT", type="paragraph",
-        start_line=30, end_line=35, meta_json={"language": "cobol"},
+        project_id=test_project,
+        source_id=source.id,
+        file_path="FLOW.CBL",
+        name="LEFT",
+        qualified_name="FLOW.LEFT",
+        type="paragraph",
+        start_line=30,
+        end_line=35,
+        meta_json={"language": "cobol"},
     )
     right = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="FLOW.CBL",
-        name="RIGHT", qualified_name="FLOW.RIGHT", type="paragraph",
-        start_line=40, end_line=45, meta_json={"language": "cobol"},
+        project_id=test_project,
+        source_id=source.id,
+        file_path="FLOW.CBL",
+        name="RIGHT",
+        qualified_name="FLOW.RIGHT",
+        type="paragraph",
+        start_line=40,
+        end_line=45,
+        meta_json={"language": "cobol"},
     )
     db_session.add_all([root, left, right])
     db_session.flush()
     db_session.add_all(
         [
             CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=root.id,
-                dst_entity_id=left.id, dst_name=left.name, type="GOTO", resolution="resolved",
-                src_start_line=14, src_end_line=14,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=root.id,
+                dst_entity_id=left.id,
+                dst_name=left.name,
+                type="GOTO",
+                resolution="resolved",
+                src_start_line=14,
+                src_end_line=14,
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=root.id,
-                dst_entity_id=right.id, dst_name=right.name, type="GOTO", resolution="resolved",
-                src_start_line=14, src_end_line=14,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=root.id,
+                dst_entity_id=right.id,
+                dst_name=right.name,
+                type="GOTO",
+                resolution="resolved",
+                src_start_line=14,
+                src_end_line=14,
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=left.id,
-                dst_entity_id=left.id, dst_name=left.name, type="PERFORM", resolution="resolved",
-                src_start_line=32, src_end_line=32, meta_json={"sequence": 4, "condition": "UNTIL EOF"},
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=left.id,
+                dst_entity_id=left.id,
+                dst_name=left.name,
+                type="PERFORM",
+                resolution="resolved",
+                src_start_line=32,
+                src_end_line=32,
+                meta_json={"sequence": 4, "condition": "UNTIL EOF"},
             ),
         ]
     )
@@ -466,7 +559,9 @@ def test_process_focus_exposes_branches_cycles_and_only_observed_order(
         transitions = response.json()["transitions"]
         branches = [item for item in transitions if item["code_edge_types"] == ["GOTO"]]
         assert len(branches) == 2
-        assert all(item["kind"] == "branch" and item["certainty"] == "possible" for item in branches)
+        assert all(
+            item["kind"] == "branch" and item["certainty"] == "possible" for item in branches
+        )
         assert all(item["meta"]["multiple_targets"] is True for item in branches)
         recursion = next(item for item in transitions if item["source"] == item["target"])
         assert recursion["meta"]["cycle"] is True
@@ -489,8 +584,14 @@ def test_process_focus_passes_control_path_and_loop_and_survives_list_context(
     db_session.flush()
     entities = [
         CodeEntity(
-            project_id=test_project, source_id=source.id, file_path="FLOW.CBL", name=name,
-            qualified_name=f"FLOW.{name}", type="paragraph", start_line=line, end_line=line + 4,
+            project_id=test_project,
+            source_id=source.id,
+            file_path="FLOW.CBL",
+            name=name,
+            qualified_name=f"FLOW.{name}",
+            type="paragraph",
+            start_line=line,
+            end_line=line + 4,
             meta_json={"language": "cobol"},
         )
         for name, line in (("MAIN", 10), ("ONE", 30), ("LOOPED", 40))
@@ -502,16 +603,31 @@ def test_process_focus_passes_control_path_and_loop_and_survives_list_context(
     db_session.add_all(
         [
             CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=root.id,
-                dst_entity_id=one.id, dst_name=one.name, type="PERFORM", resolution="resolved",
-                src_start_line=12, src_end_line=12,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=root.id,
+                dst_entity_id=one.id,
+                dst_name=one.name,
+                type="PERFORM",
+                resolution="resolved",
+                src_start_line=12,
+                src_end_line=12,
                 # COBOL liefert control_context als Liste; das darf die Projektion nicht kippen.
-                meta_json={"control_context": [{"type": "IF", "branch": "THEN"}], "control_path": path},
+                meta_json={
+                    "control_context": [{"type": "IF", "branch": "THEN"}],
+                    "control_path": path,
+                },
             ),
             CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=root.id,
-                dst_entity_id=looped.id, dst_name=looped.name, type="PERFORM", resolution="resolved",
-                src_start_line=14, src_end_line=14,
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=root.id,
+                dst_entity_id=looped.id,
+                dst_name=looped.name,
+                type="PERFORM",
+                resolution="resolved",
+                src_start_line=14,
+                src_end_line=14,
                 meta_json={"loop": {"kind": "UNTIL", "text": "WS-A = 'N'"}},
             ),
         ]
@@ -533,7 +649,12 @@ def test_process_focus_passes_control_path_and_loop_and_survives_list_context(
 
         only_calls = client.get(
             "/process/focus",
-            params={"entity_id": root.id, "project_id": test_project, "hops": 1, "kinds": "iteration"},
+            params={
+                "entity_id": root.id,
+                "project_id": test_project,
+                "hops": 1,
+                "kinds": "iteration",
+            },
         )
         assert only_calls.status_code == 200
         assert [item["kind"] for item in only_calls.json()["transitions"]] == ["iteration"]
@@ -546,10 +667,17 @@ def test_process_helpers_map_loops_to_iteration_and_never_return_list_conditions
     """DB-frei: die Ableitung, die der Endpunkt-Test oben über die API prüft."""
     from api.process import _condition_text, _transition_kind
 
-    perform = CodeEdge(type="PERFORM", resolution="resolved", meta_json={"loop": {"kind": "UNTIL", "text": "X"}})
+    perform = CodeEdge(
+        type="PERFORM", resolution="resolved", meta_json={"loop": {"kind": "UNTIL", "text": "X"}}
+    )
     assert _transition_kind(perform) == "iteration"
     assert _transition_kind(CodeEdge(type="PERFORM", resolution="resolved", meta_json={})) == "call"
-    assert _transition_kind(CodeEdge(type="PERFORM", resolution="unresolved", meta_json={"loop": {"kind": "TIMES"}})) == "external_call"
+    assert (
+        _transition_kind(
+            CodeEdge(type="PERFORM", resolution="unresolved", meta_json={"loop": {"kind": "TIMES"}})
+        )
+        == "external_call"
+    )
     assert _transition_kind(CodeEdge(type="GOTO", resolution="resolved", meta_json={})) == "jump"
 
     assert _condition_text({"condition": "UNTIL EOF"}) == "UNTIL EOF"
@@ -563,40 +691,74 @@ def test_process_focus_on_a_cobol_program_starts_at_its_unique_entry_paragraph(
 ):
     """Die Kanten hängen an Paragraphen: ein Programm als Einstieg lieferte nur den Wurzelknoten."""
     source = KnowledgeSource(
-        name="process-program-entry", type="Git", project_id=test_project, team_id=test_team, branch="main",
+        name="process-program-entry",
+        type="Git",
+        project_id=test_project,
+        team_id=test_team,
+        branch="main",
     )
     db_session.add(source)
     db_session.flush()
     program = CodeEntity(
-        project_id=test_project, source_id=source.id, file_path="PAY.cbl", name="PAY",
-        qualified_name="PAY", type="program", start_line=1, end_line=60, meta_json={"language": "cobol"},
+        project_id=test_project,
+        source_id=source.id,
+        file_path="PAY.cbl",
+        name="PAY",
+        qualified_name="PAY",
+        type="program",
+        start_line=1,
+        end_line=60,
+        meta_json={"language": "cobol"},
     )
     db_session.add(program)
     db_session.flush()
 
     def paragraph(name, start):
         item = CodeEntity(
-            project_id=test_project, source_id=source.id, file_path="PAY.cbl", name=name,
-            qualified_name=f"PAY.{name}", type="paragraph", start_line=start, end_line=start + 5,
-            parent_id=program.id, meta_json={"language": "cobol"},
+            project_id=test_project,
+            source_id=source.id,
+            file_path="PAY.cbl",
+            name=name,
+            qualified_name=f"PAY.{name}",
+            type="paragraph",
+            start_line=start,
+            end_line=start + 5,
+            parent_id=program.id,
+            meta_json={"language": "cobol"},
         )
         db_session.add(item)
         db_session.flush()
         return item
 
     main, init = paragraph("MAIN-PARA", 10), paragraph("1000-INIT", 20)
-    db_session.add(CodeEdge(
-        project_id=test_project, source_id=source.id, src_entity_id=main.id, dst_entity_id=init.id,
-        dst_name="1000-INIT", type="PERFORM", resolution="resolved", src_start_line=12, src_end_line=12,
-    ))
+    db_session.add(
+        CodeEdge(
+            project_id=test_project,
+            source_id=source.id,
+            src_entity_id=main.id,
+            dst_entity_id=init.id,
+            dst_name="1000-INIT",
+            type="PERFORM",
+            resolution="resolved",
+            src_start_line=12,
+            src_end_line=12,
+        )
+    )
     db_session.commit()
     try:
-        body = client.get("/process/focus", params={"entity_id": program.id, "project_id": test_project, "hops": 1}).json()
+        body = client.get(
+            "/process/focus",
+            params={"entity_id": program.id, "project_id": test_project, "hops": 1},
+        ).json()
         assert body["root_node_id"] == f"entity:{main.id}"
-        assert [(t["source"], t["target"]) for t in body["transitions"]] == [(f"entity:{main.id}", f"entity:{init.id}")]
+        assert [(t["source"], t["target"]) for t in body["transitions"]] == [
+            (f"entity:{main.id}", f"entity:{init.id}")
+        ]
 
         init2 = paragraph("MAIN", 30)  # zweiter Einstiegsname: mehrdeutig, Programm bleibt Wurzel
-        body = client.get("/process/focus", params={"entity_id": program.id, "project_id": test_project}).json()
+        body = client.get(
+            "/process/focus", params={"entity_id": program.id, "project_id": test_project}
+        ).json()
         assert body["root_node_id"] == f"entity:{program.id}" and init2.id
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()

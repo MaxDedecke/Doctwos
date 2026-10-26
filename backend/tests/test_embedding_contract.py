@@ -36,12 +36,16 @@ async def test_qwen_embedding_request_uses_8100_context_and_validates_1024(monke
         captured.update(url=url, payload=json)
         return response
 
-    monkeypatch.setattr("services.ollama_client.httpx.AsyncClient", lambda **_: _AsyncClient(response))
+    monkeypatch.setattr(
+        "services.ollama_client.httpx.AsyncClient", lambda **_: _AsyncClient(response)
+    )
     monkeypatch.setattr(_AsyncClient, "post", fake_post)
     monkeypatch.setattr(cfg, "EMBEDDING_DIMENSION", 1024)
     monkeypatch.setattr(cfg, "EMBEDDING_CONTEXT_LENGTH", 8100)
 
-    embedding = await embed_text("Java app.Main#run(int)", is_query=True, model="qwen3-embedding:4b")
+    embedding = await embed_text(
+        "Java app.Main#run(int)", is_query=True, model="qwen3-embedding:4b"
+    )
 
     assert len(embedding) == 1024
     assert captured["payload"] == {
@@ -57,7 +61,9 @@ async def test_backend_embedding_rejects_wrong_dimension(monkeypatch):
     response = MagicMock()
     response.raise_for_status = MagicMock()
     response.json = MagicMock(return_value={"embeddings": [[0.0]]})
-    monkeypatch.setattr("services.ollama_client.httpx.AsyncClient", lambda **_: _AsyncClient(response))
+    monkeypatch.setattr(
+        "services.ollama_client.httpx.AsyncClient", lambda **_: _AsyncClient(response)
+    )
     monkeypatch.setattr(cfg, "EMBEDDING_DIMENSION", 2)
 
     with pytest.raises(ValueError, match="falsche Dimension"):

@@ -151,7 +151,10 @@ async def list_confluence_spaces(req: ConnectorTestRequest):
                     if resp.status_code != 200:
                         break
                     results = resp.json().get("results", [])
-                    spaces.extend({"key": item.get("key"), "name": item.get("name") or item.get("key")} for item in results)
+                    spaces.extend(
+                        {"key": item.get("key"), "name": item.get("name") or item.get("key")}
+                        for item in results
+                    )
                     if len(results) < limit or len(spaces) >= 2000:
                         return {"spaces": spaces}
                     start += len(results)

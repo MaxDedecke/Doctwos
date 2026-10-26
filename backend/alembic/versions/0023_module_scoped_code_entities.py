@@ -19,7 +19,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("uq_code_entities_source_variant_file_qname", "code_entities", type_="unique")
+    op.drop_constraint(
+        "uq_code_entities_source_variant_file_qname", "code_entities", type_="unique"
+    )
     op.create_unique_constraint(
         "uq_code_entities_source_variant_qname",
         "code_entities",

@@ -110,12 +110,11 @@ async def reindex_chunks_preserving_links(
     embedded_count = 0
     old_chunks_by_fingerprint: dict[str, list[DocumentChunk]] = {}
     for old_chunk in old_chunks:
-        old_chunks_by_fingerprint.setdefault(
-            old_fingerprint_by_chunk_id[old_chunk.id], []
-        ).append(old_chunk)
+        old_chunks_by_fingerprint.setdefault(old_fingerprint_by_chunk_id[old_chunk.id], []).append(
+            old_chunk
+        )
     old_count_by_fingerprint = {
-        fingerprint: len(matches)
-        for fingerprint, matches in old_chunks_by_fingerprint.items()
+        fingerprint: len(matches) for fingerprint, matches in old_chunks_by_fingerprint.items()
     }
     # Values are lists, not a single id: two chunks can share a fingerprint
     # (repeated boilerplate clauses, headers/footers, standard legal
@@ -168,9 +167,7 @@ async def reindex_chunks_preserving_links(
                 reason="embedding_model_changed" if model_changed else "content_changed",
             )
         if links_by_old_fingerprint:
-            new_chunk_ids_by_fingerprint.setdefault(
-                fingerprint, []
-            ).append(db_chunk.id)
+            new_chunk_ids_by_fingerprint.setdefault(fingerprint, []).append(db_chunk.id)
         embedded_count += 1
 
     for fingerprint, links in links_by_old_fingerprint.items():

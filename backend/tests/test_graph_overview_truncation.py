@@ -146,7 +146,10 @@ def test_graph_overview_is_not_truncated_below_the_cap(client, db_session, test_
         assert body["edges_sampled"] is False
         assert body["total_nodes"] == len(body["nodes"])
         assert body["total_edges"] == len(body["edges"])
-        assert any(n["id"] == _code_file_id(test_project, source.id, entity.file_path) for n in body["nodes"])
+        assert any(
+            n["id"] == _code_file_id(test_project, source.id, entity.file_path)
+            for n in body["nodes"]
+        )
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
@@ -229,7 +232,10 @@ def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(
 
         assert body["truncated"] is True
         node_ids = {n["id"] for n in body["nodes"]}
-        assert node_ids == {_code_file_id(test_project, source.id, entity.file_path), f"doc:{source.id}:Runbook3a.md"}
+        assert node_ids == {
+            _code_file_id(test_project, source.id, entity.file_path),
+            f"doc:{source.id}:Runbook3a.md",
+        }
 
         assert len(body["edges"]) == 1
         edge = body["edges"][0]

@@ -105,7 +105,9 @@ def _method_candidates(
                 curr = None
             if curr:
                 candidates = list(
-                    methods_by_owner_and_name.get((curr, meta.get("method_name", edge.dst_name)), [])
+                    methods_by_owner_and_name.get(
+                        (curr, meta.get("method_name", edge.dst_name)), []
+                    )
                 )
     argument_count = meta.get("argument_count")
     if argument_count is not None:
@@ -193,7 +195,9 @@ def _receiver_declaration(
             )
             if status == "found":
                 kind = selected[0].type
-                return selected, ("receiver_parameter" if kind == "parameter" else "receiver_local_variable")
+                return selected, (
+                    "receiver_parameter" if kind == "parameter" else "receiver_local_variable"
+                )
             if status == "ambiguous":
                 return [], "ambiguous_receiver_variable"
 
@@ -240,7 +244,9 @@ def _argument_matches(parameter: str, argument: str) -> bool:
 def _resolve_overload(edge: ParsedEdge, candidates: list[Entity]) -> Entity | None:
     count = (edge.meta or {}).get("argument_count")
     if count is not None:
-        candidates = [item for item in candidates if len(item.meta.get("parameter_types", ())) == count]
+        candidates = [
+            item for item in candidates if len(item.meta.get("parameter_types", ())) == count
+        ]
     if len(candidates) == 1:
         return candidates[0]
     argument_types = (edge.meta or {}).get("argument_types")
@@ -590,15 +596,10 @@ def _receiver_type_candidates(
             and (candidate.src_start_line or 0) <= (edge.src_start_line or 0)
         ]
         targets = {
-            (candidate.meta or {}).get("target_qualified_name")
-            for candidate in matching_calls
+            (candidate.meta or {}).get("target_qualified_name") for candidate in matching_calls
         }
         targets.discard(None)
-        declarations = [
-            method
-            for target in targets
-            for method in methods_by_qname.get(target, [])
-        ]
+        declarations = [method for target in targets for method in methods_by_qname.get(target, [])]
         return_types = {
             (method.meta or {}).get("return_type")
             for method in declarations
@@ -741,8 +742,10 @@ def _static_import_owners(result: ParseResult, method_name: str) -> list[str]:
             continue
         imported = edge.dst_name[:-2] if edge.meta.get("wildcard") else edge.dst_name
         if edge.meta.get("wildcard") or imported.rsplit(".", 1)[-1] == method_name:
-            owner = imported if edge.meta.get("wildcard") else (
-                imported.rsplit(".", 1)[0] if "." in imported else None
+            owner = (
+                imported
+                if edge.meta.get("wildcard")
+                else (imported.rsplit(".", 1)[0] if "." in imported else None)
             )
             if owner:
                 owners.append(owner)
@@ -800,9 +803,7 @@ def _global_method_candidates(
             parent_result = result_by_type.get(parent.qualified_name)
             candidates = [
                 item
-                for item in methods_by_owner_and_name.get(
-                    (parent.qualified_name, method_name), []
-                )
+                for item in methods_by_owner_and_name.get((parent.qualified_name, method_name), [])
                 if item.meta.get("visibility") in {"public", "protected"}
                 or (
                     item.meta.get("visibility", "package") == "package"
@@ -873,14 +874,21 @@ def _global_method_candidates(
                         candidates.append(method)
                         seen_signatures.add(signature)
                 queue.extend(hierarchy.get(current, ()))
-    if not candidates and receiver is None and source_owner and ("#" in source_owner or "@" in source_owner):
+    if (
+        not candidates
+        and receiver is None
+        and source_owner
+        and ("#" in source_owner or "@" in source_owner)
+    ):
         curr_owner = source_owner.split("#", 1)[0]
         enclosing_candidates = _scope_candidates(
             _candidates_at_stage((curr_owner,), types_by_qname), result
         )
         for enc_owner in enclosing_candidates:
             if enc_owner.qualified_name:
-                for method in methods_by_owner_and_name.get((enc_owner.qualified_name, method_name), []):
+                for method in methods_by_owner_and_name.get(
+                    (enc_owner.qualified_name, method_name), []
+                ):
                     if not _same_declaration_scope(method, enc_owner):
                         continue
                     signature = tuple(method.meta.get("parameter_types", ()))
@@ -936,15 +944,50 @@ def _resolve_import(
     return False
 
 
-_JAVA_LANG_TYPES = frozenset({
-    "Object", "String", "StringBuilder", "StringBuffer", "Integer", "Long", "Short", "Byte",
-    "Double", "Float", "Boolean", "Character", "Number", "Math", "System", "Thread", "Runnable",
-    "Class", "Enum", "Record", "Iterable", "Comparable", "CharSequence", "AutoCloseable",
-    "Throwable", "Exception", "RuntimeException", "Error", "IllegalArgumentException",
-    "IllegalStateException", "NullPointerException", "UnsupportedOperationException",
-    "IndexOutOfBoundsException", "InterruptedException", "Override", "Deprecated",
-    "FunctionalInterface", "SuppressWarnings", "SafeVarargs", "Void",
-})
+_JAVA_LANG_TYPES = frozenset(
+    {
+        "Object",
+        "String",
+        "StringBuilder",
+        "StringBuffer",
+        "Integer",
+        "Long",
+        "Short",
+        "Byte",
+        "Double",
+        "Float",
+        "Boolean",
+        "Character",
+        "Number",
+        "Math",
+        "System",
+        "Thread",
+        "Runnable",
+        "Class",
+        "Enum",
+        "Record",
+        "Iterable",
+        "Comparable",
+        "CharSequence",
+        "AutoCloseable",
+        "Throwable",
+        "Exception",
+        "RuntimeException",
+        "Error",
+        "IllegalArgumentException",
+        "IllegalStateException",
+        "NullPointerException",
+        "UnsupportedOperationException",
+        "IndexOutOfBoundsException",
+        "InterruptedException",
+        "Override",
+        "Deprecated",
+        "FunctionalInterface",
+        "SuppressWarnings",
+        "SafeVarargs",
+        "Void",
+    }
+)
 
 
 def _external_origin(qualified_name: str) -> dict[str, str]:
@@ -970,8 +1013,11 @@ def _external_type(
     if not name:
         return None
     candidates, _ = _global_type_candidates(
-        name, result=result, source_owner=None,
-        types_by_qname=types_by_qname, types_by_name=types_by_name,
+        name,
+        result=result,
+        source_owner=None,
+        types_by_qname=types_by_qname,
+        types_by_name=types_by_name,
     )
     if candidates:
         return None
@@ -1015,8 +1061,11 @@ def mark_external_edges(
                 meta.pop("external", None)
                 continue
             origin = _external_origin_for_edge(
-                edge, result, result_of_entity=result_of_entity,
-                types_by_qname=types_by_qname, types_by_name=types_by_name,
+                edge,
+                result,
+                result_of_entity=result_of_entity,
+                types_by_qname=types_by_qname,
+                types_by_name=types_by_name,
                 packages_by_qname=packages_by_qname,
                 fields_by_owner_and_name=fields_by_owner_and_name,
                 variables_by_parent_and_name=variables_by_parent_and_name,
@@ -1029,7 +1078,9 @@ def mark_external_edges(
     _mark_external_superclass_calls(java_results, hierarchy)
 
 
-def _mark_external_superclass_calls(java_results: list[ParseResult], hierarchy: dict[str, list[str]]) -> None:
+def _mark_external_superclass_calls(
+    java_results: list[ParseResult], hierarchy: dict[str, list[str]]
+) -> None:
     """`super(...)` und unqualifizierte Aufrufe in Klassen mit externer Oberklasse (O-377).
 
     Erbt die Klasse (oder eine Repository-Oberklasse) von einem belegt externen Typ, kann ein Aufruf ohne
@@ -1064,8 +1115,11 @@ def _mark_external_superclass_calls(java_results: list[ParseResult], hierarchy: 
             meta = edge.meta
             receiver = meta.get("receiver")
             if (
-                edge.type != "CALLS" or edge.resolution != "unresolved" or "external" in meta
-                or receiver not in {None, "super"} or edge.dst_name == "this"
+                edge.type != "CALLS"
+                or edge.resolution != "unresolved"
+                or "external" in meta
+                or receiver not in {None, "super"}
+                or edge.dst_name == "this"
                 or "@anonymous" in (meta.get("source_qualified_name") or "")
             ):
                 continue
@@ -1075,8 +1129,14 @@ def _mark_external_superclass_calls(java_results: list[ParseResult], hierarchy: 
                 library = next(iter(found))
                 meta["external"] = {
                     **_external_origin(library),
-                    "via": "external_superclass" if receiver == "super" or edge.dst_name == "super" else "inherited_from_external_superclass",
-                    **({} if receiver == "super" or edge.dst_name == "super" else {"certainty": "possible"}),
+                    "via": "external_superclass"
+                    if receiver == "super" or edge.dst_name == "super"
+                    else "inherited_from_external_superclass",
+                    **(
+                        {}
+                        if receiver == "super" or edge.dst_name == "super"
+                        else {"certainty": "possible"}
+                    ),
                 }
 
 
@@ -1101,12 +1161,20 @@ def _external_origin_for_edge(
         if meta.get("wildcard") and not meta.get("static"):
             return None if target in packages_by_qname else _external_origin(target)
         owner = target if meta.get("wildcard") else target.rpartition(".")[0]
-        return None if not owner or owner in types_by_qname else {**_external_origin(owner), "via": "import"}
+        return (
+            None
+            if not owner or owner in types_by_qname
+            else {**_external_origin(owner), "via": "import"}
+        )
     if edge.type in {"USES_TYPE", "INSTANTIATES", "EXTENDS", "IMPLEMENTS"}:
         # `T`, `E`, `K2`: Typvariablen sind weder Repo- noch Bibliothekstypen; als
         # offene Lücke gezählt würden sie die Restmenge um Tausende aufblähen.
         if _TYPE_VARIABLE_RE.fullmatch(edge.dst_name) and edge.dst_name not in types_by_name:
-            return {"category": "type_parameter", "library": edge.dst_name, "via": "generic_parameter"}
+            return {
+                "category": "type_parameter",
+                "library": edge.dst_name,
+                "via": "generic_parameter",
+            }
         qname = _external_type(edge.dst_name, result, **lookup)
         return {**_external_origin(qname), "via": "type_reference"} if qname else None
     if edge.type in {"READS", "WRITES"}:
@@ -1122,12 +1190,15 @@ def _external_origin_for_edge(
     if receiver in {None, "this", "super"}:
         if receiver is not None or edge.type != "CALLS":
             return None
-        explicit_owners = list(dict.fromkeys(
-            imp.dst_name.rpartition(".")[0]
-            for imp in _imports_for(result)
-            if imp.meta.get("static") and not imp.meta.get("wildcard")
-            and imp.dst_name.rsplit(".", 1)[-1] == method_name
-        ))
+        explicit_owners = list(
+            dict.fromkeys(
+                imp.dst_name.rpartition(".")[0]
+                for imp in _imports_for(result)
+                if imp.meta.get("static")
+                and not imp.meta.get("wildcard")
+                and imp.dst_name.rsplit(".", 1)[-1] == method_name
+            )
+        )
         if explicit_owners:
             # Ein ausdrücklicher Import benennt den Eigentümer; Wildcards ändern daran nichts.
             if len(explicit_owners) != 1 or explicit_owners[0] in types_by_qname:
@@ -1143,8 +1214,11 @@ def _external_origin_for_edge(
         }
     if re.fullmatch(r"[A-Za-z_$][\w$]*", receiver):
         declarations, _ = _receiver_declaration(
-            receiver, edge, fields_by_owner_and_name=fields_by_owner_and_name,
-            variables_by_parent_and_name=variables_by_parent_and_name, hierarchy=hierarchy,
+            receiver,
+            edge,
+            fields_by_owner_and_name=fields_by_owner_and_name,
+            variables_by_parent_and_name=variables_by_parent_and_name,
+            hierarchy=hierarchy,
         )
         if len(declarations) == 1:
             declared = _entity_type_name(declarations[0])
@@ -1184,6 +1258,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
         if target_path:
             edge.meta["target_file_path"] = target_path
         edge.meta["resolution_scope"] = "global"
+
     types = [entity for entity in entities if entity.type in _TYPE_ENTITY_TYPES]
     types_by_qname: dict[str, list[Entity]] = {}
     types_by_name: dict[str, list[Entity]] = {}
@@ -1234,16 +1309,17 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
             result.edges,
             key=lambda edge: (
                 edge.src_start_line or 0,
-                len((edge.meta or {}).get("receiver") or "")
-                if edge.type == "CALLS"
-                else -1,
+                len((edge.meta or {}).get("receiver") or "") if edge.type == "CALLS" else -1,
             ),
         )
         for edge in ordered_edges:
             if edge.type == "IMPORTS" and edge.resolution == "unresolved":
                 if _resolve_import(
-                    edge, result=result, types_by_qname=types_by_qname,
-                    packages_by_qname=packages_by_qname, mark_global=mark_global,
+                    edge,
+                    result=result,
+                    types_by_qname=types_by_qname,
+                    packages_by_qname=packages_by_qname,
+                    mark_global=mark_global,
                 ):
                     resolved += 1
                 continue
@@ -1284,7 +1360,8 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     )
                     if len(field_candidates) == 1:
                         mark_global(
-                            edge, field_candidates[0],
+                            edge,
+                            field_candidates[0],
                             reason="receiver_field_in_repository",
                         )
                         meta["receiver_type_qualified_name"] = owner
@@ -1352,7 +1429,9 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                         types_by_name=types_by_name,
                     )
                     constructors = [
-                        entity for owner in owner_candidates for entity in entities
+                        entity
+                        for owner in owner_candidates
+                        for entity in entities
                         if entity.type == "constructor"
                         and entity.parent_qualified_name == owner.qualified_name
                         and _same_declaration_scope(entity, owner)
@@ -1365,10 +1444,14 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     elif len(owner_candidates) > 1:
                         meta["resolution_reason"] = "ambiguous_constructor_owner"
                     elif len(owner_candidates) == 1:
-                        mark_global(edge, owner_candidates[0], reason="implicit_constructor_reference")
+                        mark_global(
+                            edge, owner_candidates[0], reason="implicit_constructor_reference"
+                        )
                         resolved += 1
                     else:
-                        meta["resolution_reason"] = owner_reason or "constructor_owner_not_in_repository"
+                        meta["resolution_reason"] = (
+                            owner_reason or "constructor_owner_not_in_repository"
+                        )
                     continue
 
                 synthetic = ParsedEdge(
@@ -1380,7 +1463,9 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                     src_end_line=edge.src_end_line,
                     meta={
                         **meta,
-                        "receiver": None if meta.get("receiver_kind") == "type" else meta.get("receiver"),
+                        "receiver": None
+                        if meta.get("receiver_kind") == "type"
+                        else meta.get("receiver"),
                     },
                 )
                 if meta.get("receiver_kind") == "type":
@@ -1412,14 +1497,20 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
                         hierarchy=hierarchy,
                         methods_by_qname=methods_by_qname,
                     )
-                unique_methods = {item.qualified_name: item for item in candidates if item.qualified_name}
+                unique_methods = {
+                    item.qualified_name: item for item in candidates if item.qualified_name
+                }
                 if len(unique_methods) == 1:
-                    mark_global(edge, next(iter(unique_methods.values())), reason="method_reference_target")
+                    mark_global(
+                        edge, next(iter(unique_methods.values())), reason="method_reference_target"
+                    )
                     resolved += 1
                 elif len(unique_methods) > 1:
                     meta["resolution_reason"] = "ambiguous_method_reference_target"
                 else:
-                    meta["resolution_reason"] = owner_reason or "method_reference_target_not_in_repository"
+                    meta["resolution_reason"] = (
+                        owner_reason or "method_reference_target_not_in_repository"
+                    )
                 continue
             if edge.type == "CALLS":
                 candidates, reason = _global_method_candidates(

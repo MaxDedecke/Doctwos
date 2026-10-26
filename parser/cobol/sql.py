@@ -164,9 +164,7 @@ def scan(
                     meta={
                         "program": program.name,
                         "access": table_access,
-                        "target_qualified_name": (
-                            f"{program.name}.SQL-TABLE@{table.upper()}"
-                        ),
+                        "target_qualified_name": (f"{program.name}.SQL-TABLE@{table.upper()}"),
                     },
                 )
             )
@@ -209,7 +207,12 @@ def _extract_tables_with_access(tokens: list[str], statement_type: str) -> list[
 
     for i, tok in enumerate(tokens):
         upper = tok.upper()
-        if i == 0 and upper == "UPDATE" and i + 1 < len(tokens) and not tokens[i + 1].startswith(":"):
+        if (
+            i == 0
+            and upper == "UPDATE"
+            and i + 1 < len(tokens)
+            and not tokens[i + 1].startswith(":")
+        ):
             table_entries.append((tokens[i + 1], "WRITES"))
         elif (
             upper == "INTO"
@@ -248,25 +251,19 @@ def _extract_tables_with_access(tokens: list[str], statement_type: str) -> list[
 
 def _host_variable_access(tokens: list[str], statement_type: str, variable: str) -> str:
     """Classify a host variable without guessing beyond SQL's clear clauses."""
-    positions = [
-        i for i, token in enumerate(tokens) if token.upper() == f":{variable.upper()}"
-    ]
+    positions = [i for i, token in enumerate(tokens) if token.upper() == f":{variable.upper()}"]
     position = positions[0] if positions else -1
     if position == -1:
         return "USES"
 
     if statement_type == "FETCH":
-        into_position = next(
-            (i for i, token in enumerate(tokens) if token.upper() == "INTO"), None
-        )
+        into_position = next((i for i, token in enumerate(tokens) if token.upper() == "INTO"), None)
         if into_position is not None and position > into_position:
             return "WRITES"
         return "READS"
 
     if statement_type == "SELECT":
-        into_position = next(
-            (i for i, token in enumerate(tokens) if token.upper() == "INTO"), None
-        )
+        into_position = next((i for i, token in enumerate(tokens) if token.upper() == "INTO"), None)
         if into_position is not None and position > into_position:
             next_clause = next(
                 (

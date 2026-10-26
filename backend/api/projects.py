@@ -466,7 +466,9 @@ def get_file_references(
     )
     if source_id is not None:
         query = query.filter(src.source_id == source_id)
-    rows = query.order_by(CodeEdge.src_start_line, CodeEdge.id).limit(_MAX_FILE_REFERENCES + 1).all()
+    rows = (
+        query.order_by(CodeEdge.src_start_line, CodeEdge.id).limit(_MAX_FILE_REFERENCES + 1).all()
+    )
 
     references = []
     for edge, target in rows[:_MAX_FILE_REFERENCES]:
@@ -730,7 +732,11 @@ def _collect_project_references(
     entity_a, entity_b = aliased(CodeEntity), aliased(CodeEntity)
 
     def _touches_file(kind_column, chunk, entity):
-        entity_conditions = [kind_column == "entity", entity.project_id == id, entity.file_path == file_path]
+        entity_conditions = [
+            kind_column == "entity",
+            entity.project_id == id,
+            entity.file_path == file_path,
+        ]
         if entity_name:
             entity_conditions.append(entity.name == entity_name)
         return or_(

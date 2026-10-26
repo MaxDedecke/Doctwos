@@ -8,6 +8,7 @@ Namen, Property-Schlüssel, Dateipfade). Aufgelöst werden diese Kanten quellenw
 Inhalt (Listing, Literal, Passthrough, Kommentar) werden weder nach Überschriften noch nach Namen
 durchsucht.
 """
+
 from __future__ import annotations
 
 import posixpath
@@ -26,7 +27,9 @@ _FENCE = re.compile(r"^(-{4,}|\.{4,}|\+{4,}|/{4,})\s*$")
 _TYPE_NAME = re.compile(r"^[A-Z][A-Za-z0-9_]*$")
 _QUALIFIED = re.compile(r"^[a-z][A-Za-z0-9_]*(?:\.[A-Za-z_][A-Za-z0-9_$]*)+$")
 _PROPERTY_KEY = re.compile(r"^[a-z][A-Za-z0-9_-]*(?:\.[A-Za-z0-9_-]+)+$")
-_PATH = re.compile(r"^[\w./-]+/[\w.-]+\.(?:xml|properties|java|adoc|groovy|js|json|yml|yaml|sql|html|xsl|xslt|sh|cfg|conf)$")
+_PATH = re.compile(
+    r"^[\w./-]+/[\w.-]+\.(?:xml|properties|java|adoc|groovy|js|json|yml|yaml|sql|html|xsl|xslt|sh|cfg|conf)$"
+)
 _MAX_MENTIONS_PER_FILE = 400
 _MIN_TYPE_NAME = 4
 
@@ -89,8 +92,14 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
             continue
         heading = _HEADING.match(text)
         if heading:
-            headings.append({"level": len(heading.group(1)) - 1, "title": _clean_title(heading.group(2)),
-                             "line": number, "anchor": pending_anchor})
+            headings.append(
+                {
+                    "level": len(heading.group(1)) - 1,
+                    "title": _clean_title(heading.group(2)),
+                    "line": number,
+                    "anchor": pending_anchor,
+                }
+            )
             pending_anchor = None
             scannable.append((number, text))
             continue
@@ -99,9 +108,14 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
         scannable.append((number, text))
 
     title = next((h["title"] for h in headings if h["level"] == 0), None)
-    root = Entity(type="asciidoc_document", name=PurePosixPath(normalized).name or normalized, start_line=1,
-                  end_line=last_line, qualified_name=normalized,
-                  meta={"language": "asciidoc", "is_file_root": True, "doc_title": title})
+    root = Entity(
+        type="asciidoc_document",
+        name=PurePosixPath(normalized).name or normalized,
+        start_line=1,
+        end_line=last_line,
+        qualified_name=normalized,
+        meta={"language": "asciidoc", "is_file_root": True, "doc_title": title},
+    )
     entities = [root]
 
     # --- Abschnitte: Ende = Zeile vor der nächsten Überschrift gleicher oder höherer Ebene ---
@@ -110,7 +124,7 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
     sections: list[tuple[int, int, str]] = []  # (start, end, qname)
     for index, heading in enumerate(headings):
         end = last_line
-        for later in headings[index + 1:]:
+        for later in headings[index + 1 :]:
             if later["level"] <= heading["level"]:
                 end = later["line"] - 1
                 break
@@ -119,11 +133,25 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
         qname = f"{normalized}::section:{slug}" + ("" if used[slug] == 1 else f"#{used[slug]}")
         while stack and stack[-1][0] >= heading["level"]:
             stack.pop()
-        parent_name, parent_qname = (stack[-1][1], stack[-1][2]) if stack else (root.name, normalized)
-        entities.append(Entity(type="doc_section", name=heading["title"], start_line=heading["line"],
-                               end_line=max(heading["line"], end), parent_name=parent_name,
-                               parent_qualified_name=parent_qname, qualified_name=qname,
-                               meta={"language": "asciidoc", "level": heading["level"], "anchor": heading["anchor"]}))
+        parent_name, parent_qname = (
+            (stack[-1][1], stack[-1][2]) if stack else (root.name, normalized)
+        )
+        entities.append(
+            Entity(
+                type="doc_section",
+                name=heading["title"],
+                start_line=heading["line"],
+                end_line=max(heading["line"], end),
+                parent_name=parent_name,
+                parent_qualified_name=parent_qname,
+                qualified_name=qname,
+                meta={
+                    "language": "asciidoc",
+                    "level": heading["level"],
+                    "anchor": heading["anchor"],
+                },
+            )
+        )
         stack.append((heading["level"], heading["title"], qname))
         sections.append((heading["line"], max(heading["line"], end), qname))
 
@@ -139,10 +167,22 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
         include = _INCLUDE.match(text)
         if include:
             target = _relative(normalized, include.group(1))
-            edges.append(ParsedEdge(type="INCLUDES", src_name=section_for(number), dst_name=target or include.group(1).strip(),
-                resolution="unresolved" if target else "dynamic", src_start_line=number, src_end_line=number,
-                meta={"language": "asciidoc", "target_file_path": target, "target_entity_type": "asciidoc_document",
-                      "source_file_path": normalized}))
+            edges.append(
+                ParsedEdge(
+                    type="INCLUDES",
+                    src_name=section_for(number),
+                    dst_name=target or include.group(1).strip(),
+                    resolution="unresolved" if target else "dynamic",
+                    src_start_line=number,
+                    src_end_line=number,
+                    meta={
+                        "language": "asciidoc",
+                        "target_file_path": target,
+                        "target_entity_type": "asciidoc_document",
+                        "source_file_path": normalized,
+                    },
+                )
+            )
             continue
         if _HEADING.match(text) or text.lstrip().startswith(":"):
             continue
@@ -158,13 +198,38 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
                 continue
             seen.add((source_name, name))
             mentions += 1
-            edges.append(ParsedEdge(type="DOCUMENTS", src_name=source_name, dst_name=name, resolution="unresolved",
-                src_start_line=number, src_end_line=number,
-                meta={"language": "asciidoc", "mention_kind": kind, "source_file_path": normalized}))
+            edges.append(
+                ParsedEdge(
+                    type="DOCUMENTS",
+                    src_name=source_name,
+                    dst_name=name,
+                    resolution="unresolved",
+                    src_start_line=number,
+                    src_end_line=number,
+                    meta={
+                        "language": "asciidoc",
+                        "mention_kind": kind,
+                        "source_file_path": normalized,
+                    },
+                )
+            )
 
-    chunks = [Chunk(content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
-                    meta={"language": "asciidoc", "symbol_type": "documentation"})
-              for item in CodeParser("asciidoc").chunk_file(
-                  source, boundary_lines=frozenset(h["line"] for h in headings if h["line"] > 1))]
-    return ParseResult(program_name=PurePosixPath(path).stem or "document", path=path, source_format="free",
-                       entities=entities, edges=edges, chunks=chunks)
+    chunks = [
+        Chunk(
+            content=item["content"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
+            meta={"language": "asciidoc", "symbol_type": "documentation"},
+        )
+        for item in CodeParser("asciidoc").chunk_file(
+            source, boundary_lines=frozenset(h["line"] for h in headings if h["line"] > 1)
+        )
+    ]
+    return ParseResult(
+        program_name=PurePosixPath(path).stem or "document",
+        path=path,
+        source_format="free",
+        entities=entities,
+        edges=edges,
+        chunks=chunks,
+    )

@@ -46,12 +46,22 @@ MAX_FILE_BYTES = int(os.getenv("FOLDER_MAX_FILE_MB", "200")) * 1024 * 1024
 # Temporäre Dateien und Systemdateien von Office, Windows, macOS und NAS-Geräten (Papierkörbe, Vorschauen).
 _EXCLUDED_FILE_NAMES = {"thumbs.db", "desktop.ini", ".ds_store"}
 _EXCLUDED_FILE_SUFFIXES = (".tmp", ".temp", ".bak", ".swp", ".lnk")
-_EXCLUDED_DIR_NAMES = {"$recycle.bin", "@eadir", "#recycle", "system volume information", "lost+found"}
+_EXCLUDED_DIR_NAMES = {
+    "$recycle.bin",
+    "@eadir",
+    "#recycle",
+    "system volume information",
+    "lost+found",
+}
 
 
 def _is_excluded_file(name: str) -> bool:
     lower = name.lower()
-    return lower.startswith(("~$", ".")) or lower in _EXCLUDED_FILE_NAMES or lower.endswith(_EXCLUDED_FILE_SUFFIXES)
+    return (
+        lower.startswith(("~$", "."))
+        or lower in _EXCLUDED_FILE_NAMES
+        or lower.endswith(_EXCLUDED_FILE_SUFFIXES)
+    )
 
 
 def _is_excluded_dir(name: str) -> bool:
@@ -170,12 +180,16 @@ def _scan_folder(
     known = known or {}
 
     def on_error(error: OSError) -> None:
-        result.errors.append(f"{getattr(error, 'filename', '?')}: {getattr(error, 'strerror', None) or error}")
+        result.errors.append(
+            f"{getattr(error, 'filename', '?')}: {getattr(error, 'strerror', None) or error}"
+        )
 
     for root, dirs, files in os.walk(folder_path, onerror=on_error):
         dirs[:] = [d for d in dirs if not _is_excluded_dir(d)]
         for fname in files:
-            if os.path.splitext(fname)[1].lower() not in SUPPORTED_EXTENSIONS or _is_excluded_file(fname):
+            if os.path.splitext(fname)[1].lower() not in SUPPORTED_EXTENSIONS or _is_excluded_file(
+                fname
+            ):
                 continue
             full_path = os.path.join(root, fname)
             try:
@@ -184,7 +198,12 @@ def _scan_folder(
                     result.too_large.append(full_path)
                     continue
                 previous = known.get(full_path)
-                if previous and previous[2] and previous[0] == st.st_size and previous[1] == st.st_mtime_ns:
+                if (
+                    previous
+                    and previous[2]
+                    and previous[0] == st.st_size
+                    and previous[1] == st.st_mtime_ns
+                ):
                     digest = previous[2]
                     result.reused_hashes += 1
                 else:
@@ -225,7 +244,9 @@ class FolderConnector(BaseConnector):
         self._log(f"Scanne Ordner: {folder_path}")
         known = {
             r.file_path: (r.size_bytes, r.mtime_ns, r.content_hash)
-            for r in self.db.query(SourceScanFile).filter(SourceScanFile.source_id == self.source_id).all()
+            for r in self.db.query(SourceScanFile)
+            .filter(SourceScanFile.source_id == self.source_id)
+            .all()
         }
         scan = _scan_folder(folder_path, known)
         self._current_scan = scan.files
@@ -236,7 +257,9 @@ class FolderConnector(BaseConnector):
             f"({scan.reused_hashes} ohne erneutes Lesen, da Größe und Änderungszeit unverändert)."
         )
         if scan.too_large:
-            self._log(f"[SKIP] {len(scan.too_large)} Datei(en) über {MAX_FILE_BYTES // (1024 * 1024)} MB nicht indiziert.")
+            self._log(
+                f"[SKIP] {len(scan.too_large)} Datei(en) über {MAX_FILE_BYTES // (1024 * 1024)} MB nicht indiziert."
+            )
         if scan.errors:
             shown = "; ".join(scan.errors[:5])
             self._log(

@@ -48,7 +48,9 @@ def get_repo_path(repo_id: int, file_path: str = "") -> str:
 
 
 # Local repository tools implementation
-_REPOSITORY_IGNORED_DIRS = frozenset({".git", "node_modules", "__pycache__", ".next", "dist", "build"})
+_REPOSITORY_IGNORED_DIRS = frozenset(
+    {".git", "node_modules", "__pycache__", ".next", "dist", "build"}
+)
 
 
 def _repository_file_paths(repo_id: int, directory: str = "") -> list[str]:
@@ -75,11 +77,23 @@ def list_repo_files(repo_id: int, directory: str = "") -> dict:
             return {"error": f"Directory '{directory}' does not exist"}
 
         binary_or_archive_suffixes = (
-            ".png", ".jpg", ".jpeg", ".gif", ".pdf", ".zip", ".tar", ".gz",
-            ".db", ".sqlite", ".exe", ".dll", ".so",
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".pdf",
+            ".zip",
+            ".tar",
+            ".gz",
+            ".db",
+            ".sqlite",
+            ".exe",
+            ".dll",
+            ".so",
         )
         files_list = [
-            path for path in _repository_file_paths(repo_id, directory)
+            path
+            for path in _repository_file_paths(repo_id, directory)
             if not path.lower().endswith(binary_or_archive_suffixes)
         ]
 
@@ -232,7 +246,9 @@ def get_repo_entities(
             limit = 80
         db_query = db_session.query(CodeEntity).filter(CodeEntity.project_id == project_id)
         if file_paths:
-            db_query = db_query.filter(func.lower(CodeEntity.file_path).in_([path.lower() for path in file_paths]))
+            db_query = db_query.filter(
+                func.lower(CodeEntity.file_path).in_([path.lower() for path in file_paths])
+            )
         if entity_names:
             db_query = db_query.filter(
                 func.lower(CodeEntity.name).in_([name.lower() for name in entity_names])
@@ -314,10 +330,19 @@ def _compact_change_package_for_agent(package: dict) -> dict:
             "root_entity_id": path.get("root_entity_id"),
             "hops": path.get("hops"),
             "edges": [
-                {name: edge.get(name) for name in (
-                    "edge_id", "from_entity_id", "to_entity_id", "relationship", "resolution",
-                    "evidence_file", "evidence_start_line", "evidence_end_line",
-                )}
+                {
+                    name: edge.get(name)
+                    for name in (
+                        "edge_id",
+                        "from_entity_id",
+                        "to_entity_id",
+                        "relationship",
+                        "resolution",
+                        "evidence_file",
+                        "evidence_start_line",
+                        "evidence_end_line",
+                    )
+                }
                 for edge in path.get("edges", [])[:3]
                 if isinstance(edge, dict)
             ],
@@ -331,24 +356,51 @@ def _compact_change_package_for_agent(package: dict) -> dict:
         for record in records[:count]:
             if not isinstance(record, dict):
                 continue
-            item = {name: record.get(name) for name in (
-                "entity_id", "source_type", "issue_key", "classification", "classification_basis",
-                "classification_keyword", "record_type", "bug_candidate", "url",
-                "relationship_path_entity_id", "relationship_path_available",
-            ) if name in record}
+            item = {
+                name: record.get(name)
+                for name in (
+                    "entity_id",
+                    "source_type",
+                    "issue_key",
+                    "classification",
+                    "classification_basis",
+                    "classification_keyword",
+                    "record_type",
+                    "bug_candidate",
+                    "url",
+                    "relationship_path_entity_id",
+                    "relationship_path_available",
+                )
+                if name in record
+            }
             if isinstance(record.get("title"), str):
-                item["title"] = f"<untrusted_source>{escape(record['title'][:120])}</untrusted_source>"
+                item["title"] = (
+                    f"<untrusted_source>{escape(record['title'][:120])}</untrusted_source>"
+                )
             evidence = record.get("evidence")
             if isinstance(evidence, dict):
-                item["evidence"] = {name: evidence.get(name) for name in (
-                    "link_id", "status", "link_type", "direction", "score", "reviewed_at",
-                    "chunk_id", "start_line", "end_line",
-                ) if name in evidence}
+                item["evidence"] = {
+                    name: evidence.get(name)
+                    for name in (
+                        "link_id",
+                        "status",
+                        "link_type",
+                        "direction",
+                        "score",
+                        "reviewed_at",
+                        "chunk_id",
+                        "start_line",
+                        "end_line",
+                    )
+                    if name in evidence
+                }
                 if include_text:
                     for name in ("context", "excerpt"):
                         value = evidence.get(name)
                         if isinstance(value, str) and value.strip():
-                            item["evidence"][name] = f"<untrusted_source>{escape(value[:120])}</untrusted_source>"
+                            item["evidence"][name] = (
+                                f"<untrusted_source>{escape(value[:120])}</untrusted_source>"
+                            )
             compacted.append(item)
         return compacted
 
@@ -356,9 +408,20 @@ def _compact_change_package_for_agent(package: dict) -> dict:
     for node in package.get("affected_code", [])[:6]:
         if not isinstance(node, dict):
             continue
-        compact_node = {name: node.get(name) for name in (
-            "id", "name", "qualified_name", "type", "file_path", "source_id", "start_line", "end_line",
-        ) if name in node}
+        compact_node = {
+            name: node.get(name)
+            for name in (
+                "id",
+                "name",
+                "qualified_name",
+                "type",
+                "file_path",
+                "source_id",
+                "start_line",
+                "end_line",
+            )
+            if name in node
+        }
         compact_node["relationship_path"] = compact_path(node.get("relationship_path"))
         if isinstance(node.get("evidence"), dict) and node["evidence"].get("unresolved_candidates"):
             compact_node["evidence"] = node["evidence"]
@@ -385,10 +448,18 @@ def _compact_change_package_for_agent(package: dict) -> dict:
             "note": tests.get("note") if isinstance(tests, dict) else None,
         },
         "responsibility": {
-            "status": responsibility.get("status") if isinstance(responsibility, dict) else "unknown",
-            "items": responsibility.get("items", [])[:5] if isinstance(responsibility, dict) else [],
-            "unknown_files": responsibility.get("unknown_files", [])[:5] if isinstance(responsibility, dict) else [],
-            "partial": responsibility.get("partial", False) if isinstance(responsibility, dict) else True,
+            "status": responsibility.get("status")
+            if isinstance(responsibility, dict)
+            else "unknown",
+            "items": responsibility.get("items", [])[:5]
+            if isinstance(responsibility, dict)
+            else [],
+            "unknown_files": responsibility.get("unknown_files", [])[:5]
+            if isinstance(responsibility, dict)
+            else [],
+            "partial": responsibility.get("partial", False)
+            if isinstance(responsibility, dict)
+            else True,
             "note": responsibility.get("note") if isinstance(responsibility, dict) else None,
         },
         "evidence_gaps": package.get("evidence_gaps", []),
@@ -404,14 +475,22 @@ def _compact_change_package_for_agent(package: dict) -> dict:
 
 
 # Unified Agent Execution Loop
-async def _prefetch_evidence(db_session, user_id: Optional[int], project_id: int, prompt: str, max_chars: Optional[int] = None) -> Optional[tuple[str, dict, str]]:
+async def _prefetch_evidence(
+    db_session,
+    user_id: Optional[int],
+    project_id: int,
+    prompt: str,
+    max_chars: Optional[int] = None,
+) -> Optional[tuple[str, dict, str]]:
     """Run the answer_context evidence pack for the symbols named in the question.
 
     Returns (tool name, arguments, JSON result) when at least one named symbol resolves, otherwise None so the
     regular bootstrap applies. Failures never block the chat."""
     if user_id is None:
         return None
-    question = (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()[:1400]
+    question = (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()[
+        :1400
+    ]
     try:
         from mcp_server import build_answer_context
 
@@ -419,7 +498,13 @@ async def _prefetch_evidence(db_session, user_id: Optional[int], project_id: int
         if user is None:
             return None
         result = await asyncio.to_thread(
-            build_answer_context, db_session, user, project_id, question=question, max_chars=max_chars or cfg.CHAT_EVIDENCE_CHARS)
+            build_answer_context,
+            db_session,
+            user,
+            project_id,
+            question=question,
+            max_chars=max_chars or cfg.CHAT_EVIDENCE_CHARS,
+        )
     except Exception as exc:  # evidence is an accelerator; the model can still use its tools
         logger.warning("Chat evidence prefetch failed (%s)", type(exc).__name__)
         try:
@@ -532,14 +617,14 @@ async def run_agent_loop(
                 {
                     "name": "offer_code_walkthrough",
                     "description": (
-                    "Offers one optional, guided code and call-flow walkthrough in the chat. Use this only after "
-                    "you have explained a class, flow, or concept and inspected every referenced "
-                    "location. The user starts it explicitly and then moves through the steps with "
-                    "Back and Next; code steps open and highlight inspected code, while callgraph steps "
-                    "highlight a resolved edge from a successful trace_call_flow result made earlier in "
-                    "this turn. For a callgraph step use kind='callgraph', trace_tool_call_id copied from "
-                    "that result's tool_call_id field, and edge_id from its edges. Prefer 2-6 meaningful "
-                    "steps. Do not call this once per file."
+                        "Offers one optional, guided code and call-flow walkthrough in the chat. Use this only after "
+                        "you have explained a class, flow, or concept and inspected every referenced "
+                        "location. The user starts it explicitly and then moves through the steps with "
+                        "Back and Next; code steps open and highlight inspected code, while callgraph steps "
+                        "highlight a resolved edge from a successful trace_call_flow result made earlier in "
+                        "this turn. For a callgraph step use kind='callgraph', trace_tool_call_id copied from "
+                        "that result's tool_call_id field, and edge_id from its edges. Prefer 2-6 meaningful "
+                        "steps. Do not call this once per file."
                     ),
                     "inputSchema": {
                         "type": "object",
@@ -650,7 +735,10 @@ async def run_agent_loop(
                         "entity_id": {"type": "integer", "minimum": 1},
                         "relationships": {
                             "type": "array",
-                            "items": {"type": "string", "enum": ["code_dependency", "documented", "manual"]},
+                            "items": {
+                                "type": "string",
+                                "enum": ["code_dependency", "documented", "manual"],
+                            },
                             "minItems": 1,
                             "maxItems": 3,
                             "uniqueItems": True,
@@ -686,7 +774,12 @@ async def run_agent_loop(
                                         "edge_id": {"type": "integer", "minimum": 1},
                                         "explanation": {"type": "string"},
                                     },
-                                    "required": ["kind", "trace_tool_call_id", "edge_id", "explanation"],
+                                    "required": [
+                                        "kind",
+                                        "trace_tool_call_id",
+                                        "edge_id",
+                                        "explanation",
+                                    ],
                                 },
                             },
                         },
@@ -815,9 +908,19 @@ async def run_agent_loop(
                             "type": "string",
                             "description": "Optional exact repository-relative indexed file path.",
                         },
-                        "source_id": {"type": "integer", "minimum": 1, "description": "Git source ID; needed for a diff when several Git sources exist."},
-                        "base_ref": {"type": "string", "description": "Git base revision; supply together with head_ref instead of entity_id/file_path."},
-                        "head_ref": {"type": "string", "description": "Git target revision; supply together with base_ref instead of entity_id/file_path."},
+                        "source_id": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Git source ID; needed for a diff when several Git sources exist.",
+                        },
+                        "base_ref": {
+                            "type": "string",
+                            "description": "Git base revision; supply together with head_ref instead of entity_id/file_path.",
+                        },
+                        "head_ref": {
+                            "type": "string",
+                            "description": "Git target revision; supply together with base_ref instead of entity_id/file_path.",
+                        },
                         "direction": {
                             "type": "string",
                             "enum": ["incoming", "outgoing", "both"],
@@ -837,25 +940,29 @@ async def run_agent_loop(
     for client in mcp_clients:
         try:
             tools = await client.list_tools()
-            mcp_preflight_servers.append({
-                "server": client.name,
-                "available": True,
-                "tool_count": len(tools),
-                "tools": [tool.get("name") for tool in tools if tool.get("name")],
-            })
+            mcp_preflight_servers.append(
+                {
+                    "server": client.name,
+                    "available": True,
+                    "tool_count": len(tools),
+                    "tools": [tool.get("name") for tool in tools if tool.get("name")],
+                }
+            )
             for t in tools:
                 name = t["name"]
                 mcp_tool_map[name] = client
                 mcp_tools_def.append(t)
         except Exception as e:
             logger.error(f"Error listing tools for MCP client {client.name}: {e}")
-            mcp_preflight_servers.append({
-                "server": client.name,
-                "available": False,
-                "tool_count": 0,
-                "tools": [],
-                "error": str(e)[:240],
-            })
+            mcp_preflight_servers.append(
+                {
+                    "server": client.name,
+                    "available": False,
+                    "tool_count": 0,
+                    "tools": [],
+                    "error": str(e)[:240],
+                }
+            )
 
     preflight_by_server = {item["server"]: item for item in mcp_preflight_servers}
     for item in mcp_initialization_status or []:
@@ -869,7 +976,8 @@ async def run_agent_loop(
     mcp_preflight_servers = list(preflight_by_server.values())
     mcp_preflight = {
         "type": "mcp_preflight",
-        "status": "ready" if any(item.get("available") for item in mcp_preflight_servers)
+        "status": "ready"
+        if any(item.get("available") for item in mcp_preflight_servers)
         else ("unavailable" if mcp_preflight_servers else "not_configured"),
         "servers": mcp_preflight_servers,
         "tool_count": sum(item.get("tool_count", 0) for item in mcp_preflight_servers),
@@ -983,7 +1091,9 @@ async def run_agent_loop(
         value = raw.strip()
         if re.search(r"(?i)\.(?:java|cbl|cpy|xsl|xml|jcl|pom)$", value) or "/" in value:
             continue
-        parts = [part for part in value.split(".") if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)]
+        parts = [
+            part for part in value.split(".") if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)
+        ]
         if parts:
             # A dotted reference names the concrete member/paragraph after
             # the dot (`COPAUA0C.MAIN-PARA`, `UserServiceImpl.create`).
@@ -1028,10 +1138,12 @@ async def run_agent_loop(
                 if len(focused_matches) == 1:
                     path_val = focused_matches[0]
                 else:
-                    return json.dumps({
-                        "error": "Die Frage ist auf eine konkrete Datei begrenzt; diese Datei liegt außerhalb des Dateifokus.",
-                        "file_focus": sorted(file_focus_paths),
-                    })
+                    return json.dumps(
+                        {
+                            "error": "Die Frage ist auf eine konkrete Datei begrenzt; diese Datei liegt außerhalb des Dateifokus.",
+                            "file_focus": sorted(file_focus_paths),
+                        }
+                    )
             res = view_repo_file(repo_id, path_val, start_val, end_val)
             if res.get("error") and path_val:
                 # Models sometimes infer the wrong COBOL subdirectory from a
@@ -1049,7 +1161,9 @@ async def run_agent_loop(
             query_val = args.get("query", "")
             res = search_repo_code(repo_id, query_val)
             if file_focus_paths:
-                res["matches"] = [match for match in res["matches"] if _is_in_file_focus(match.get("file", ""))]
+                res["matches"] = [
+                    match for match in res["matches"] if _is_in_file_focus(match.get("file", ""))
+                ]
                 res["total_matches"] = len(res["matches"])
                 res["truncated"] = False
             return json.dumps(res)
@@ -1068,11 +1182,30 @@ async def run_agent_loop(
                 if raw_step.get("kind") == "callgraph":
                     trace_tool_call_id = raw_step.get("trace_tool_call_id")
                     edge_id = raw_step.get("edge_id")
-                    flow = validated_call_flows.get(trace_tool_call_id) if isinstance(trace_tool_call_id, str) else None
+                    flow = (
+                        validated_call_flows.get(trace_tool_call_id)
+                        if isinstance(trace_tool_call_id, str)
+                        else None
+                    )
                     if not isinstance(edge_id, int) or isinstance(edge_id, bool) or flow is None:
-                        return json.dumps({"error": "A graph step must reference an earlier successful call-flow result and one of its edges."})
-                    edge = next((item for item in flow.get("edges", []) if isinstance(item, dict) and item.get("id") == edge_id), None)
-                    nodes = {item.get("id"): item for item in flow.get("nodes", []) if isinstance(item, dict)}
+                        return json.dumps(
+                            {
+                                "error": "A graph step must reference an earlier successful call-flow result and one of its edges."
+                            }
+                        )
+                    edge = next(
+                        (
+                            item
+                            for item in flow.get("edges", [])
+                            if isinstance(item, dict) and item.get("id") == edge_id
+                        ),
+                        None,
+                    )
+                    nodes = {
+                        item.get("id"): item
+                        for item in flow.get("nodes", [])
+                        if isinstance(item, dict)
+                    }
                     source_id = edge.get("source") if edge else None
                     target_id = edge.get("target") if edge else None
                     source = nodes.get(source_id)
@@ -1089,25 +1222,37 @@ async def run_agent_loop(
                         or not str(source.get("name") or "").strip()
                         or not str(target.get("name") or "").strip()
                     ):
-                        return json.dumps({"error": f"Call-flow edge '{edge_id}' is not a resolved edge in the referenced result."})
-                    steps.append({
-                        "kind": "callgraph",
-                        "trace_tool_call_id": trace_tool_call_id,
-                        "edge_id": edge_id,
-                        "source_entity_id": source_id,
-                        "target_entity_id": target_id,
-                        "source_name": str(source.get("name") or "")[:240],
-                        "target_name": str(target.get("name") or "")[:240],
-                        "file_path": str(source.get("file_path") or "").replace("\\", "/")[:1000],
-                        "start_line": edge.get("start_line"),
-                        "end_line": edge.get("end_line"),
-                        "explanation": explanation,
-                    })
+                        return json.dumps(
+                            {
+                                "error": f"Call-flow edge '{edge_id}' is not a resolved edge in the referenced result."
+                            }
+                        )
+                    steps.append(
+                        {
+                            "kind": "callgraph",
+                            "trace_tool_call_id": trace_tool_call_id,
+                            "edge_id": edge_id,
+                            "source_entity_id": source_id,
+                            "target_entity_id": target_id,
+                            "source_name": str(source.get("name") or "")[:240],
+                            "target_name": str(target.get("name") or "")[:240],
+                            "file_path": str(source.get("file_path") or "").replace("\\", "/")[
+                                :1000
+                            ],
+                            "start_line": edge.get("start_line"),
+                            "end_line": edge.get("end_line"),
+                            "explanation": explanation,
+                        }
+                    )
                     continue
                 if raw_step.get("kind") not in (None, "code"):
                     return json.dumps({"error": "Walkthrough step kind must be code or callgraph."})
                 if not repo_available:
-                    return json.dumps({"error": "Code walkthrough steps require an available repository; use only validated callgraph steps."})
+                    return json.dumps(
+                        {
+                            "error": "Code walkthrough steps require an available repository; use only validated callgraph steps."
+                        }
+                    )
                 file_path = str(raw_step.get("file_path", "")).replace("\\", "/").strip()
                 try:
                     start_line = int(raw_step.get("start_line", 1))
@@ -1117,12 +1262,14 @@ async def run_agent_loop(
                 inspected = view_repo_file(repo_id, file_path, start_line, end_line)
                 if inspected.get("error") or inspected.get("start_line", 0) < 1 or not explanation:
                     return json.dumps({"error": f"Invalid walkthrough step for '{file_path}'."})
-                steps.append({
-                    "file_path": inspected["file_path"].replace("\\", "/"),
-                    "start_line": inspected["start_line"],
-                    "end_line": inspected["end_line"],
-                    "explanation": explanation,
-                })
+                steps.append(
+                    {
+                        "file_path": inspected["file_path"].replace("\\", "/"),
+                        "start_line": inspected["start_line"],
+                        "end_line": inspected["end_line"],
+                        "explanation": explanation,
+                    }
+                )
             return json.dumps({"status": "ok", "title": title, "steps": steps})
         elif name == "offer_source_walkthrough" and walkthrough_documents:
             title = str(args.get("title", "")).strip()[:120]
@@ -1142,7 +1289,9 @@ async def run_agent_loop(
                 candidate = candidates.get(chunk_id)
                 explanation = str(raw_step.get("explanation", "")).strip()[:500]
                 if not candidate or not explanation:
-                    return json.dumps({"error": f"Document chunk '{chunk_id}' is not available for this turn."})
+                    return json.dumps(
+                        {"error": f"Document chunk '{chunk_id}' is not available for this turn."}
+                    )
                 steps.append({**candidate, "kind": "document", "explanation": explanation})
             return json.dumps({"status": "ok", "title": title, "steps": steps})
         elif name == "get_repo_entities" and project_id:
@@ -1161,7 +1310,11 @@ async def run_agent_loop(
             return json.dumps(res)
         elif name == "trace_call_flow" and project_id:
             entity_id = args.get("entity_id")
-            candidate = exact_trace_entities.get(entity_id) if isinstance(entity_id, int) and not isinstance(entity_id, bool) else None
+            candidate = (
+                exact_trace_entities.get(entity_id)
+                if isinstance(entity_id, int) and not isinstance(entity_id, bool)
+                else None
+            )
             if (file_focus_paths or trace_target_names) and candidate is None:
                 return json.dumps(
                     {
@@ -1171,7 +1324,11 @@ async def run_agent_loop(
                         "candidates": list(exact_trace_entities.values()),
                     }
                 )
-            if candidate is not None and trace_target_names and str(candidate.get("name") or "").casefold() not in trace_target_names:
+            if (
+                candidate is not None
+                and trace_target_names
+                and str(candidate.get("name") or "").casefold() not in trace_target_names
+            ):
                 return json.dumps(
                     {
                         "error": "Die gewählte Entity entspricht nicht dem in der Frage genannten Ziel.",
@@ -1209,17 +1366,32 @@ async def run_agent_loop(
                 not isinstance(relationships, list)
                 or not relationships
                 or len(relationships) > len(allowed_relationships)
-                or any(not isinstance(item, str) or item not in allowed_relationships for item in relationships)
+                or any(
+                    not isinstance(item, str) or item not in allowed_relationships
+                    for item in relationships
+                )
                 or len(set(relationships)) != len(relationships)
             ):
-                return json.dumps({"error": "relationships must contain unique supported relationship types."})
-            entity = db_session.query(CodeEntity).filter(
-                CodeEntity.id == entity_id,
-                CodeEntity.project_id == project_id,
-            ).first()
-            user = db_session.query(User).filter(User.id == audit_user_id).first() if audit_user_id is not None else None
+                return json.dumps(
+                    {"error": "relationships must contain unique supported relationship types."}
+                )
+            entity = (
+                db_session.query(CodeEntity)
+                .filter(
+                    CodeEntity.id == entity_id,
+                    CodeEntity.project_id == project_id,
+                )
+                .first()
+            )
+            user = (
+                db_session.query(User).filter(User.id == audit_user_id).first()
+                if audit_user_id is not None
+                else None
+            )
             if not entity or not user:
-                return json.dumps({"error": "The indexed entity is unavailable in the current project context."})
+                return json.dumps(
+                    {"error": "The indexed entity is unavailable in the current project context."}
+                )
             try:
                 graph = get_graph_neighborhood(
                     node_id=f"entity:{entity_id}",
@@ -1238,11 +1410,17 @@ async def run_agent_loop(
                 return json.dumps({"error": "The graph neighborhood could not be loaded."})
             focus_id = graph.get("focus_id")
             focus_node = next(
-                (node for node in graph.get("nodes", []) if isinstance(node, dict) and node.get("id") == focus_id),
+                (
+                    node
+                    for node in graph.get("nodes", [])
+                    if isinstance(node, dict) and node.get("id") == focus_id
+                ),
                 None,
             )
             if not isinstance(focus_id, str) or not focus_node:
-                return json.dumps({"error": "The indexed entity has no visible graph neighborhood."})
+                return json.dumps(
+                    {"error": "The indexed entity has no visible graph neighborhood."}
+                )
             raw_edges = graph.get("edges", [])
             matching_edges = []
             if isinstance(raw_edges, list):
@@ -1277,23 +1455,28 @@ async def run_agent_loop(
                     if isinstance(endpoint_id, str):
                         visible_node_ids.add(endpoint_id)
             nodes = [
-                node for node in graph.get("nodes", [])
+                node
+                for node in graph.get("nodes", [])
                 if isinstance(node, dict) and node.get("id") in visible_node_ids
             ]
             was_truncated = len(matching_edges) > len(edges) or bool(graph.get("has_more"))
-            return json.dumps({
-                **graph,
-                "nodes": nodes,
-                "edges": edges,
-                "has_more": was_truncated,
-                "truncated": was_truncated,
-                "status": "ok",
-                "focus_label": str(focus_node.get("label") or focus_node.get("name") or "")[:500],
-                "direction": direction,
-                "hops": 1,
-                "limit": 40,
-                "relationships": relationships,
-            })
+            return json.dumps(
+                {
+                    **graph,
+                    "nodes": nodes,
+                    "edges": edges,
+                    "has_more": was_truncated,
+                    "truncated": was_truncated,
+                    "status": "ok",
+                    "focus_label": str(focus_node.get("label") or focus_node.get("name") or "")[
+                        :500
+                    ],
+                    "direction": direction,
+                    "hops": 1,
+                    "limit": 40,
+                    "relationships": relationships,
+                }
+            )
         elif name == "search_knowledge" and project_id:
             query = args.get("query")
             if not isinstance(query, str) or not query.strip() or len(query) > 200:
@@ -1310,24 +1493,41 @@ async def run_agent_loop(
                 return json.dumps({"error": "types must contain unique supported search types."})
             source_id = args.get("source_id")
             if source_id is not None and (
-                not isinstance(source_id, int) or isinstance(source_id, bool) or source_id < 1 or "document" not in types
+                not isinstance(source_id, int)
+                or isinstance(source_id, bool)
+                or source_id < 1
+                or "document" not in types
             ):
-                return json.dumps({"error": "source_id requires document search and a positive source ID."})
-            user = db_session.query(User).filter(User.id == audit_user_id).first() if audit_user_id is not None else None
+                return json.dumps(
+                    {"error": "source_id requires document search and a positive source ID."}
+                )
+            user = (
+                db_session.query(User).filter(User.id == audit_user_id).first()
+                if audit_user_id is not None
+                else None
+            )
             if not user:
                 return json.dumps({"error": "The current user context is unavailable."})
             visible_project_ids = get_visible_project_ids(user, db_session)
             if visible_project_ids is not None and project_id not in visible_project_ids:
                 return json.dumps({"error": "The current project is not available to this user."})
             if source_id is not None:
-                source = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+                source = (
+                    db_session.query(KnowledgeSource)
+                    .filter(KnowledgeSource.id == source_id)
+                    .first()
+                )
                 visible_team_ids = get_visible_team_ids(user, db_session)
                 if (
                     not source
                     or source.project_id != project_id
                     or (visible_team_ids is not None and source.team_id not in visible_team_ids)
                 ):
-                    return json.dumps({"error": "The selected source is unavailable in the current project context."})
+                    return json.dumps(
+                        {
+                            "error": "The selected source is unavailable in the current project context."
+                        }
+                    )
                 types = ["document"]
             try:
                 results, counts = search_nodes(
@@ -1343,21 +1543,32 @@ async def run_agent_loop(
             except Exception as ex:
                 logger.warning("Knowledge search failed: %s", ex)
                 return json.dumps({"error": "The knowledge search could not be completed."})
-            has_more = any(int(counts.get(search_type, 0) or 0) > sum(
-                1 for result in results if isinstance(result, dict) and result.get("node_type") == search_type
-            ) for search_type in types)
-            return json.dumps({
-                "status": "ok",
-                "query": query.strip(),
-                "types": types,
-                "project_id": project_id,
-                "source_id": source_id,
-                "limit": 10,
-                "results": results[:20],
-                "counts": {search_type: int(counts.get(search_type, 0) or 0) for search_type in types},
-                "has_more": has_more,
-                "truncated": has_more,
-            }, ensure_ascii=False)
+            has_more = any(
+                int(counts.get(search_type, 0) or 0)
+                > sum(
+                    1
+                    for result in results
+                    if isinstance(result, dict) and result.get("node_type") == search_type
+                )
+                for search_type in types
+            )
+            return json.dumps(
+                {
+                    "status": "ok",
+                    "query": query.strip(),
+                    "types": types,
+                    "project_id": project_id,
+                    "source_id": source_id,
+                    "limit": 10,
+                    "results": results[:20],
+                    "counts": {
+                        search_type: int(counts.get(search_type, 0) or 0) for search_type in types
+                    },
+                    "has_more": has_more,
+                    "truncated": has_more,
+                },
+                ensure_ascii=False,
+            )
         elif name == "inspect_change_impact" and project_id:
             res = inspect_change_impact(
                 db_session,
@@ -1438,16 +1649,33 @@ async def run_agent_loop(
     bootstrap_tool: Optional[dict[str, Any]] = None
     prefetched = None
     if require_initial_tool_call and project_id and not pinned_file and cfg.CHAT_EVIDENCE_PREFETCH:
-        prefetched = await _prefetch_evidence(db_session, audit_user_id, project_id, prompt, evidence_chars)
+        prefetched = await _prefetch_evidence(
+            db_session, audit_user_id, project_id, prompt, evidence_chars
+        )
     if prefetched is not None:
         bootstrap_name, bootstrap_args, bootstrap_result = prefetched
         bootstrap_id = "bootstrap-0"
         bootstrap_tool = {
-            "name": bootstrap_name, "arguments": bootstrap_args, "result": bootstrap_result, "id": bootstrap_id,
+            "name": bootstrap_name,
+            "arguments": bootstrap_args,
+            "result": bootstrap_result,
+            "id": bootstrap_id,
             "truncated": _tool_result_was_truncated(bootstrap_result),
         }
-        agent_steps.append({"type": "tool_call", "name": bootstrap_name, "arguments": bootstrap_args, "id": bootstrap_id})
-        yield {"type": "tool_call", "name": bootstrap_name, "arguments": bootstrap_args, "id": bootstrap_id}
+        agent_steps.append(
+            {
+                "type": "tool_call",
+                "name": bootstrap_name,
+                "arguments": bootstrap_args,
+                "id": bootstrap_id,
+            }
+        )
+        yield {
+            "type": "tool_call",
+            "name": bootstrap_name,
+            "arguments": bootstrap_args,
+            "id": bootstrap_id,
+        }
         agent_steps.append({"type": "tool_result", **bootstrap_tool})
         yield {"type": "tool_result", **bootstrap_tool}
     elif require_initial_tool_call and project_id:
@@ -1480,14 +1708,15 @@ async def run_agent_loop(
             )
             explicit_files.extend(
                 f"{name}.cbl"
-                for name in re.findall(r"\b([A-Z][A-Z0-9]{3,})\.(?:MAIN-PARA|[A-Z0-9-]+)\b", question_text)
+                for name in re.findall(
+                    r"\b([A-Z][A-Z0-9]{3,})\.(?:MAIN-PARA|[A-Z0-9-]+)\b", question_text
+                )
             )
             # COBOL questions often mention only the PROGRAM-ID. Resolve a
             # matching tracked source file before falling back to unrelated
             # first-page entities from the same project.
             explicit_files.extend(
-                f"{name}.cbl"
-                for name in re.findall(r"\b([A-Z][A-Z0-9]{5,})\b", question_text)
+                f"{name}.cbl" for name in re.findall(r"\b([A-Z][A-Z0-9]{5,})\b", question_text)
             )
             available_paths = _repository_file_paths(repo_id)
             candidates: list[str] = []
@@ -1496,7 +1725,8 @@ async def run_agent_loop(
                 basename = os.path.basename(requested)
                 candidates.extend(
                     [
-                        path for path in available_paths
+                        path
+                        for path in available_paths
                         if os.path.basename(path).lower() == basename
                         and ("/" not in requested or path.lower().endswith(requested))
                     ][:40]
@@ -1508,7 +1738,9 @@ async def run_agent_loop(
                 # the rest of the turn.  It is intentionally set before the
                 # bootstrap call, so a model cannot replace an explicitly
                 # named program with a semantically similar neighbour.
-                file_focus_paths.update(path.replace("\\", "/").lstrip("./").lower() for path in candidates)
+                file_focus_paths.update(
+                    path.replace("\\", "/").lstrip("./").lower() for path in candidates
+                )
                 explicit_entity_names: list[str] = []
                 for raw in re.findall(r"`([^`]+)`", question_text):
                     value = raw.strip()
@@ -1520,7 +1752,9 @@ async def run_agent_loop(
                     # resolved paths, so duplicate simple names stay visible
                     # rather than being selected by a generic bootstrap.
                     explicit_entity_names.extend(
-                        part for part in value.split(".") if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)
+                        part
+                        for part in value.split(".")
+                        if re.fullmatch(r"[A-Za-z][A-Za-z0-9:_-]*", part)
                     )
                 for owner, member in re.findall(
                     r"\b([A-Z][A-Z0-9]{3,}|[A-Za-z][A-Za-z0-9]*Impl)\.([A-Za-z][A-Za-z0-9-]*)\b",
@@ -1533,8 +1767,12 @@ async def run_agent_loop(
                 # candidate matching that hint; otherwise a unique basename is
                 # safe and deterministic.
                 hinted = [
-                    path for path in candidates
-                    if any(part.lower() in path.lower() for part in ("core/rest-cxf", "app/", "flowable"))
+                    path
+                    for path in candidates
+                    if any(
+                        part.lower() in path.lower()
+                        for part in ("core/rest-cxf", "app/", "flowable")
+                    )
                 ]
                 selected = (hinted or candidates)[0]
                 if explicit_entity_names:
@@ -1613,7 +1851,11 @@ async def run_agent_loop(
                 "name": tool["name"],
                 "description": tool.get("description", ""),
                 "parameters": tool.get("inputSchema", {"type": "object", "properties": {}}),
-                **({"strict": False} if tool["name"] in {"inspect_change_impact", "inspect_change_package"} else {}),
+                **(
+                    {"strict": False}
+                    if tool["name"] in {"inspect_change_impact", "inspect_change_package"}
+                    else {}
+                ),
             }
             for tool in all_tools
         ]
@@ -1801,7 +2043,11 @@ async def run_agent_loop(
                         "name": t["name"],
                         "description": t.get("description", ""),
                         "parameters": t.get("inputSchema", {"type": "object", "properties": {}}),
-                        **({"strict": False} if t["name"] in {"inspect_change_impact", "inspect_change_package"} else {}),
+                        **(
+                            {"strict": False}
+                            if t["name"] in {"inspect_change_impact", "inspect_change_package"}
+                            else {}
+                        ),
                     },
                 }
             )

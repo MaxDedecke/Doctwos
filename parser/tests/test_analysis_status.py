@@ -102,7 +102,13 @@ def test_copybook_chunk_without_fallback_marker_is_not_text_fallback():
 
 
 def _gap_chunk(start: int, end: int) -> Chunk:
-    meta = {"program": "TESTPGM", "format": "fixed", "fallback": True, "partial": True, "unstructured": True}
+    meta = {
+        "program": "TESTPGM",
+        "format": "fixed",
+        "fallback": True,
+        "partial": True,
+        "unstructured": True,
+    }
     return Chunk(content="x", start_line=start, end_line=end, meta=meta)
 
 
@@ -124,8 +130,12 @@ def test_whole_file_fallback_stays_text_fallback_when_gap_chunks_exist_too():
 
 def _block_entity(start: int, end: int) -> Entity:
     return Entity(
-        name=f"EXEC-CICS-BLOCK@{start}", type="exec_block", start_line=start, end_line=end,
-        qualified_name=f"TESTPGM.EXEC-CICS-BLOCK@{start}", parent_name="TESTPGM",
+        name=f"EXEC-CICS-BLOCK@{start}",
+        type="exec_block",
+        start_line=start,
+        end_line=end,
+        qualified_name=f"TESTPGM.EXEC-CICS-BLOCK@{start}",
+        parent_name="TESTPGM",
     )
 
 

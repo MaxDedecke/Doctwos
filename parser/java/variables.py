@@ -28,8 +28,14 @@ def select_visible_variable(variables: list, use_line: int, use_column: int) -> 
     for item in variables:
         meta = item.meta or {}
         declaration = _coordinates(item)
-        scope_start = (int(meta.get("scope_start_line", item.start_line or 1)), int(meta.get("scope_start_column", 0)))
-        scope_end = (int(meta.get("scope_end_line", item.end_line or 1_000_000)), int(meta.get("scope_end_column", 1_000_000)))
+        scope_start = (
+            int(meta.get("scope_start_line", item.start_line or 1)),
+            int(meta.get("scope_start_column", 0)),
+        )
+        scope_end = (
+            int(meta.get("scope_end_line", item.end_line or 1_000_000)),
+            int(meta.get("scope_end_column", 1_000_000)),
+        )
         if declaration <= use_position and scope_start <= use_position <= scope_end:
             extent = (scope_end[0] - scope_start[0], scope_end[1] - scope_start[1])
             visible.append((extent, declaration, item))

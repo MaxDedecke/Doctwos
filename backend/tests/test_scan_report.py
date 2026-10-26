@@ -11,11 +11,27 @@ from models.database import CodeEdge, CodeEntity, KnowledgeSource
     [
         ("skipped", "Binärformat ohne Textextraktion, wird nicht embedded.", "not_indexable"),
         ("skipped", None, "not_indexable"),
-        ("text_fallback", "Sprache 'properties' hat keinen Strukturparser; als Text indexiert.", "no_structure_parser"),
-        ("partial", "Strukturparser fehlgeschlagen: IndexError: list index out of range (declarations.py:288 in walk)", "parser_error"),
+        (
+            "text_fallback",
+            "Sprache 'properties' hat keinen Strukturparser; als Text indexiert.",
+            "no_structure_parser",
+        ),
+        (
+            "partial",
+            "Strukturparser fehlgeschlagen: IndexError: list index out of range (declarations.py:288 in walk)",
+            "parser_error",
+        ),
         ("partial", "no viable alternative at input 'PARM-DATE,'", "parser_error"),
-        ("partial", "DOCTYPE/DTD-Deklarationen werden aus Sicherheitsgründen nicht verarbeitet.", "blocked_for_safety"),
-        ("partial", "1 Codebereich(e) außerhalb erkannter Paragraphen nur als Text erfasst: Zeilen 5-6.", "uncovered_code"),
+        (
+            "partial",
+            "DOCTYPE/DTD-Deklarationen werden aus Sicherheitsgründen nicht verarbeitet.",
+            "blocked_for_safety",
+        ),
+        (
+            "partial",
+            "1 Codebereich(e) außerhalb erkannter Paragraphen nur als Text erfasst: Zeilen 5-6.",
+            "uncovered_code",
+        ),
         ("partial", "etwas Unbekanntes", "other"),
     ],
 )
@@ -28,7 +44,11 @@ def test_summary_counts_by_category_language_and_parser_error_class():
         ("java", "complete", None),
         ("java", "partial", "Strukturparser fehlgeschlagen: IndexError: x (a.py:1 in f)"),
         ("java", "partial", "Strukturparser fehlgeschlagen: IndexError: y (a.py:1 in f)"),
-        ("properties", "text_fallback", "Sprache 'properties' hat keinen Strukturparser; als Text indexiert."),
+        (
+            "properties",
+            "text_fallback",
+            "Sprache 'properties' hat keinen Strukturparser; als Text indexiert.",
+        ),
         (None, "skipped", None),
     ]
     summary = summarize_scan_reasons(rows)
@@ -40,25 +60,44 @@ def test_summary_counts_by_category_language_and_parser_error_class():
     assert summary["parser_error_classes"] == {"IndexError": 2}
 
 
-def test_edge_summary_separates_external_targets_from_open_gaps(db_session, test_project, test_team):
+def test_edge_summary_separates_external_targets_from_open_gaps(
+    db_session, test_project, test_team
+):
     source = KnowledgeSource(project_id=test_project, team_id=test_team, type="Git", name="edges")
     db_session.add(source)
     db_session.commit()
-    entity = CodeEntity(source_id=source.id, project_id=test_project, file_path="a.cbl", name="A",
-                        type="program", qualified_name="A", start_line=1, end_line=2)
+    entity = CodeEntity(
+        source_id=source.id,
+        project_id=test_project,
+        file_path="a.cbl",
+        name="A",
+        type="program",
+        qualified_name="A",
+        start_line=1,
+        end_line=2,
+    )
     db_session.add(entity)
     db_session.commit()
 
     def edge(dst, resolution, meta=None):
-        return CodeEdge(source_id=source.id, project_id=test_project, src_entity_id=entity.id,
-                        dst_name=dst, type="CALL", resolution=resolution, meta_json=meta)
+        return CodeEdge(
+            source_id=source.id,
+            project_id=test_project,
+            src_entity_id=entity.id,
+            dst_name=dst,
+            type="CALL",
+            resolution=resolution,
+            meta_json=meta,
+        )
 
-    db_session.add_all([
-        edge("DFHAID", "unresolved", {"external": {"category": "cics"}}),
-        edge("MQOPEN", "unresolved", {"external": {"category": "mq"}}),
-        edge("COBDATFT", "unresolved"),
-        edge("SUB", "resolved"),
-    ])
+    db_session.add_all(
+        [
+            edge("DFHAID", "unresolved", {"external": {"category": "cics"}}),
+            edge("MQOPEN", "unresolved", {"external": {"category": "mq"}}),
+            edge("COBDATFT", "unresolved"),
+            edge("SUB", "resolved"),
+        ]
+    )
     db_session.commit()
     try:
         assert summarize_edges(db_session, source.id) == {

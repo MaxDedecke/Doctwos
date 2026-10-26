@@ -52,7 +52,9 @@ async def test_confluence_server_without_wiki_path_and_with_pat_is_accepted(monk
 
     _install_transport(monkeypatch, handler)
     result = await connectors.test_connector(
-        ConnectorTestRequest(type="confluence", token="pat-123", url="https://wiki.intern/confluence")
+        ConnectorTestRequest(
+            type="confluence", token="pat-123", url="https://wiki.intern/confluence"
+        )
     )
     assert result["success"] is True and "Server/Data Center" in result["message"]
     # Ohne Benutzername: Personal Access Token als Bearer, nicht Basic Auth.
@@ -68,7 +70,9 @@ async def test_confluence_cloud_is_still_recognised(monkeypatch):
 
     _install_transport(monkeypatch, handler)
     result = await connectors.test_connector(
-        ConnectorTestRequest(type="confluence", username="bot@example.com", token="t", url="https://x.atlassian.net")
+        ConnectorTestRequest(
+            type="confluence", username="bot@example.com", token="t", url="https://x.atlassian.net"
+        )
     )
     assert result["success"] is True and "Cloud" in result["message"]
 
@@ -76,11 +80,15 @@ async def test_confluence_cloud_is_still_recognised(monkeypatch):
 @pytest.mark.anyio
 async def test_confluence_reports_rejected_credentials_and_unknown_paths_differently(monkeypatch):
     _install_transport(monkeypatch, lambda request: httpx.Response(401))
-    denied = await connectors.test_connector(ConnectorTestRequest(type="confluence", token="x", url="https://w"))
+    denied = await connectors.test_connector(
+        ConnectorTestRequest(type="confluence", token="x", url="https://w")
+    )
     assert denied["success"] is False and "Anmeldung abgelehnt" in denied["message"]
 
     _install_transport(monkeypatch, lambda request: httpx.Response(404))
-    missing = await connectors.test_connector(ConnectorTestRequest(type="confluence", token="x", url="https://w"))
+    missing = await connectors.test_connector(
+        ConnectorTestRequest(type="confluence", token="x", url="https://w")
+    )
     assert missing["success"] is False and "Kontextpfad" in missing["message"]
 
 
@@ -101,7 +109,9 @@ async def test_certificate_errors_get_an_actionable_hint(monkeypatch):
         raise httpx.ConnectError("[SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed")
 
     _install_transport(monkeypatch, handler)
-    result = await connectors.test_connector(ConnectorTestRequest(type="jira", token="t", url="https://jira.intern"))
+    result = await connectors.test_connector(
+        ConnectorTestRequest(type="jira", token="t", url="https://jira.intern")
+    )
     assert result["success"] is False and "CUSTOM_CA_BUNDLE" in result["message"]
 
 
@@ -121,7 +131,10 @@ def test_source_http_verify_reads_the_stored_source_configuration(monkeypatch, t
     monkeypatch.delenv("CUSTOM_CA_BUNDLE", raising=False)
     assert connectors.source_http_verify(["ALL"]) is True
     assert connectors.source_http_verify({"ids": ["A"], "verify_ssl": False}) is False
-    assert connectors.source_http_verify({"ca_bundle": "/certs/x.pem", "verify_ssl": False}) == "/certs/x.pem"
+    assert (
+        connectors.source_http_verify({"ca_bundle": "/certs/x.pem", "verify_ssl": False})
+        == "/certs/x.pem"
+    )
     monkeypatch.setenv("CUSTOM_CA_BUNDLE", str(bundle))
     assert connectors.source_http_verify({}) == str(bundle)
 
@@ -132,11 +145,15 @@ async def test_confluence_spaces_are_listed_across_pages(monkeypatch):
         if request.url.path != "/rest/api/space":
             return httpx.Response(404)
         start = int(request.url.params.get("start", 0))
-        items = [{"key": f"S{i}", "name": f"Space {i}"} for i in range(start, min(start + 100, 130))]
+        items = [
+            {"key": f"S{i}", "name": f"Space {i}"} for i in range(start, min(start + 100, 130))
+        ]
         return httpx.Response(200, json={"results": items})
 
     _install_transport(monkeypatch, handler)
-    result = await connectors.list_confluence_spaces(ConnectorTestRequest(type="confluence", token="pat", url="https://w"))
+    result = await connectors.list_confluence_spaces(
+        ConnectorTestRequest(type="confluence", token="pat", url="https://w")
+    )
     assert len(result["spaces"]) == 130 and result["spaces"][0] == {"key": "S0", "name": "Space 0"}
 
 
@@ -146,5 +163,7 @@ async def test_confluence_spaces_report_failure_clearly(monkeypatch):
 
     _install_transport(monkeypatch, lambda request: httpx.Response(401))
     with pytest.raises(HTTPException) as excinfo:
-        await connectors.list_confluence_spaces(ConnectorTestRequest(type="confluence", token="x", url="https://w"))
+        await connectors.list_confluence_spaces(
+            ConnectorTestRequest(type="confluence", token="x", url="https://w")
+        )
     assert excinfo.value.status_code == 502

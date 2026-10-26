@@ -24,9 +24,7 @@ def test_xslt_parser_extracts_templates_parameters_chunks_and_relationships() ->
 
     assert result.diagnostics == []
     assert result.entities[0].type == "xslt_stylesheet"
-    assert result.entities[0].meta["namespaces"]["xsl"] == (
-        "http://www.w3.org/1999/XSL/Transform"
-    )
+    assert result.entities[0].meta["namespaces"]["xsl"] == ("http://www.w3.org/1999/XSL/Transform")
     assert {entity.type for entity in result.entities} >= {
         "xslt_stylesheet",
         "xslt_template",
@@ -45,7 +43,9 @@ def test_xslt_parser_extracts_templates_parameters_chunks_and_relationships() ->
     call = next(edge for edge in result.edges if edge.type == "CALLS_TEMPLATE")
     assert call.resolution == "resolved"
     assert call.meta["target_qualified_name"].endswith("::template:footer")
-    assert next(edge for edge in result.edges if edge.type == "READS_XML").dst_name == "web/input.xml"
+    assert (
+        next(edge for edge in result.edges if edge.type == "READS_XML").dst_name == "web/input.xml"
+    )
 
 
 def test_xslt_parser_keeps_ambiguous_apply_templates_unresolved() -> None:
@@ -71,7 +71,9 @@ def test_xslt_parser_marks_dynamic_template_and_document_selection_dynamic() -> 
     </xsl:stylesheet>"""
 
     result = parse_xslt_file(source, "run.xsl")
-    assert next(edge for edge in result.edges if edge.type == "CALLS_TEMPLATE").resolution == "dynamic"
+    assert (
+        next(edge for edge in result.edges if edge.type == "CALLS_TEMPLATE").resolution == "dynamic"
+    )
     document_edge = next(edge for edge in result.edges if edge.type == "READS_XML")
     assert document_edge.resolution == "dynamic"
     assert document_edge.meta["document_expression"] == "$uri"
@@ -90,7 +92,7 @@ def test_xslt_parser_blocks_doctype_without_fetching_external_resources() -> Non
 
 
 def test_xml_root_parser_provides_a_target_for_xslt_resource_edges() -> None:
-    result = parse_xml_document("<?xml version=\"1.0\"?>\n<root/>", "web/input.xml")
+    result = parse_xml_document('<?xml version="1.0"?>\n<root/>', "web/input.xml")
 
     assert result.diagnostics == []
     assert result.entities[0].type == "xml_document"

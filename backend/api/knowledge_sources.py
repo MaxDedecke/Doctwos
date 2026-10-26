@@ -129,7 +129,9 @@ def _validate_embedding_model(value: Optional[str]) -> Optional[str]:
         return None
     model = value.strip()
     if not model or model == "disabled":
-        raise HTTPException(status_code=400, detail="Embedding-Modell darf nicht leer oder deaktiviert sein")
+        raise HTTPException(
+            status_code=400, detail="Embedding-Modell darf nicht leer oder deaktiviert sein"
+        )
     if len(model) > 255:
         raise HTTPException(status_code=400, detail="Embedding-Modellname ist zu lang")
     return model
@@ -292,13 +294,17 @@ def reindex_knowledge_source(
 
     local_file_path = None
     if (db_source.type or "").lower() == "local":
-        file_name = (db_source.spaces or {}).get("path") if isinstance(db_source.spaces, dict) else None
+        file_name = (
+            (db_source.spaces or {}).get("path") if isinstance(db_source.spaces, dict) else None
+        )
         if not file_name:
             raise HTTPException(status_code=400, detail="Lokale Datei ist nicht mehr verfügbar")
         local_file_path = os.path.join(UPLOADS_DIR, file_name)
 
     requested_model = _validate_embedding_model(body.embedding_model if body else None)
-    db_source.embedding_model = requested_model or db_source.embedding_model or cfg.OLLAMA_EMBED_MODEL
+    db_source.embedding_model = (
+        requested_model or db_source.embedding_model or cfg.OLLAMA_EMBED_MODEL
+    )
     # The direct source-level reset cannot fingerprint individual replacement
     # chunks. Approved entity links therefore need an explicit human review
     # after the model switch instead of silently retaining a dead chunk_id.
@@ -371,10 +377,14 @@ def update_knowledge_source(
         requested_model = _validate_embedding_model(fields["embedding_model"])
         current_model = db_source.embedding_model or cfg.OLLAMA_EMBED_MODEL
         if requested_model != current_model:
-            has_vectors = db.query(DocumentChunk.id).filter(
-                DocumentChunk.source_id == source_id,
-                DocumentChunk.embedding.isnot(None),
-            ).first()
+            has_vectors = (
+                db.query(DocumentChunk.id)
+                .filter(
+                    DocumentChunk.source_id == source_id,
+                    DocumentChunk.embedding.isnot(None),
+                )
+                .first()
+            )
             if has_vectors:
                 raise HTTPException(
                     status_code=409,
@@ -818,7 +828,9 @@ def list_watched_folders(path: str | None = None, user: User = Depends(get_curre
     try:
         entries = sorted(os.scandir(current), key=lambda entry: entry.name.lower())
     except OSError as exc:
-        raise HTTPException(status_code=403, detail=f"Ordner nicht lesbar: {exc.strerror or exc}") from exc
+        raise HTTPException(
+            status_code=403, detail=f"Ordner nicht lesbar: {exc.strerror or exc}"
+        ) from exc
     folders = [
         {"name": entry.name, "path": os.path.join(current, entry.name)}
         for entry in entries
@@ -896,7 +908,20 @@ def create_git_source(
 UPLOAD_MAX_BYTES = int(os.getenv("UPLOAD_MAX_MB", "100")) * 1024 * 1024
 
 _ALLOWED_UPLOAD_EXTENSIONS = {
-    ".pdf", ".md", ".txt", ".docx", ".doc", ".xlsx", ".pptx", ".odt", ".ods", ".odp", ".html", ".htm", ".csv", ".rtf",
+    ".pdf",
+    ".md",
+    ".txt",
+    ".docx",
+    ".doc",
+    ".xlsx",
+    ".pptx",
+    ".odt",
+    ".ods",
+    ".odp",
+    ".html",
+    ".htm",
+    ".csv",
+    ".rtf",
 }
 
 
@@ -1003,7 +1028,9 @@ html { scrollbar-width: thin; scrollbar-color: rgba(161, 161, 170, 0.5) transpar
 </style>"""
 
 
-def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True) -> dict:
+def _resolve_confluence(
+    url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True
+) -> dict:
     import urllib.parse as urlparse
 
     parsed = urlparse.urlparse(url)
@@ -1061,7 +1088,9 @@ def _resolve_confluence(url: str, base_url: str, auth, headers: dict, theme: str
     }
 
 
-def _resolve_jira(url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True) -> dict:
+def _resolve_jira(
+    url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True
+) -> dict:
     import urllib.parse as urlparse
 
     parsed = urlparse.urlparse(url)

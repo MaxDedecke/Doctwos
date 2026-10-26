@@ -18,16 +18,29 @@ from models.database import CodeEdge
 # Reihenfolge ist Priorität: der erste Treffer gewinnt.
 _REASON_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("blocked_for_safety", ("aus Sicherheitsgründen",)),
-    ("parser_error", (
-        "Strukturparser fehlgeschlagen", "no viable alternative", "extraneous input",
-        "mismatched input", "XML ist nicht gültig",
-    )),
+    (
+        "parser_error",
+        (
+            "Strukturparser fehlgeschlagen",
+            "no viable alternative",
+            "extraneous input",
+            "mismatched input",
+            "XML ist nicht gültig",
+        ),
+    ),
     ("no_structure_parser", ("hat keinen Strukturparser",)),
     ("uncovered_code", ("außerhalb erkannter Paragraphen",)),
-    ("not_indexable", (
-        "Binärformat", "leer (keine Textinhalte)", "kein UTF-8", "überschreitet",
-        "Build-/IDE-Verzeichnis", "kein sinnvoller",
-    )),
+    (
+        "not_indexable",
+        (
+            "Binärformat",
+            "leer (keine Textinhalte)",
+            "kein UTF-8",
+            "überschreitet",
+            "Build-/IDE-Verzeichnis",
+            "kein sinnvoller",
+        ),
+    ),
 )
 _PARSER_ERROR_CLASS = re.compile(r"Strukturparser fehlgeschlagen:\s*([A-Za-z_][\w.]*)")
 
@@ -54,7 +67,10 @@ def summarize_scan_reasons(rows: list[tuple[str | None, str | None, str | None]]
             parser_error_classes[match.group(1)] += 1
     return {
         "by_reason": {
-            category: {"total_files": sum(langs.values()), "by_language": dict(sorted(langs.items()))}
+            category: {
+                "total_files": sum(langs.values()),
+                "by_language": dict(sorted(langs.items())),
+            }
             for category, langs in sorted(by_reason.items())
         },
         "parser_error_classes": dict(sorted(parser_error_classes.items())),
@@ -72,7 +88,11 @@ def summarize_edges(db: Session, source_id: int) -> dict:
     category = CodeEdge.meta_json["external"]["category"].as_string()
     external_by_category = dict(
         db.query(category, func.count())
-        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved", category.isnot(None))
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.resolution == "unresolved",
+            category.isnot(None),
+        )
         .group_by(category)
         .all()
     )

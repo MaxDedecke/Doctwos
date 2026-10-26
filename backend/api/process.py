@@ -67,7 +67,9 @@ def _entity_locator(entity: CodeEntity, provenance: dict | None = None) -> Proce
     )
 
 
-def _edge_locator(edge: CodeEdge, source: CodeEntity, provenance: dict | None = None) -> ProcessLocator:
+def _edge_locator(
+    edge: CodeEdge, source: CodeEntity, provenance: dict | None = None
+) -> ProcessLocator:
     # Older persisted CodeEdges can have line 0. The entity declaration is an
     # explicitly detectable fallback that remains openable; parsers should
     # populate src_start_line for the precise call site.
@@ -110,7 +112,10 @@ def _node_kind(entity: CodeEntity, root: CodeEntity) -> str:
     if entity.id == root.id:
         return "entry"
     if _language(entity).lower() == "cobol" and entity.type in {
-        "sql_block", "sql_table", "file_fd", "data_item",
+        "sql_block",
+        "sql_table",
+        "file_fd",
+        "data_item",
     }:
         return "data_access"
     if _language(entity).lower() == "jcl" and entity.type == "jcl_dataset":
@@ -181,10 +186,14 @@ def _annotate_semantics(transitions: list[ProcessTransition]) -> None:
 
 
 def _requested_kinds(kinds: list[str] | None) -> set[str]:
-    requested = {item.strip().lower() for raw in kinds or [] for item in raw.split(",") if item.strip()}
+    requested = {
+        item.strip().lower() for raw in kinds or [] for item in raw.split(",") if item.strip()
+    }
     unknown = requested - KNOWN_PROCESS_KINDS
     if unknown:
-        raise HTTPException(status_code=422, detail=f"Unbekannte Prozessarten: {', '.join(sorted(unknown))}")
+        raise HTTPException(
+            status_code=422, detail=f"Unbekannte Prozessarten: {', '.join(sorted(unknown))}"
+        )
     return requested or set(KNOWN_PROCESS_KINDS)
 
 
@@ -200,7 +209,14 @@ def _projection(
     entities: dict[int, CodeEntity] = {root.id: root}
     source_cache: dict[int, KnowledgeSource | None] = {}
 
-    def provenance_for(entity: CodeEntity, start_line: int, end_line: int | None, *, certainty: str | None = None, origin: str | None = None) -> dict:
+    def provenance_for(
+        entity: CodeEntity,
+        start_line: int,
+        end_line: int | None,
+        *,
+        certainty: str | None = None,
+        origin: str | None = None,
+    ) -> dict:
         source_id = entity.source_id
         if source_id is not None and source_id not in source_cache:
             source_cache[source_id] = (
@@ -218,7 +234,8 @@ def _projection(
             verification_status="indexed_unreviewed" if source else "unavailable",
             detail=(
                 "Automatisch aus dem Codeindex abgeleitet; eine fachliche Freigabe ist nicht hinterlegt."
-                if source else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
+                if source
+                else "Quellenmetadaten sind für diesen Codebeleg nicht verfügbar."
             ),
             locator={"file_path": entity.file_path, "start_line": start_line, "end_line": end_line},
             certainty=certainty,
@@ -281,9 +298,11 @@ def _projection(
                 entities[source.id] = source
 
             if edge.dst_entity_id is None:
-                if len(entities) + sum(
-                    item.target.startswith("external:edge:") for item in transitions
-                ) >= node_limit:
+                if (
+                    len(entities)
+                    + sum(item.target.startswith("external:edge:") for item in transitions)
+                    >= node_limit
+                ):
                     reasons.add("node_limit")
                     omitted_nodes += 1
                     omitted_transitions += 1
@@ -292,7 +311,9 @@ def _projection(
             else:
                 target = entities.get(edge.dst_entity_id)
                 if target is None:
-                    target = db.query(CodeEntity).filter(CodeEntity.id == edge.dst_entity_id).first()
+                    target = (
+                        db.query(CodeEntity).filter(CodeEntity.id == edge.dst_entity_id).first()
+                    )
                     if target is None:
                         continue
                     if len(entities) >= node_limit:
@@ -320,7 +341,9 @@ def _projection(
                         source,
                         provenance_for(
                             source,
-                            edge.src_start_line if edge.src_start_line >= 1 else source.start_line or 1,
+                            edge.src_start_line
+                            if edge.src_start_line >= 1
+                            else source.start_line or 1,
                             edge.src_end_line if edge.src_end_line >= 1 else None,
                             certainty=_certainty(edge, source),
                             origin=edge.type,
@@ -336,12 +359,21 @@ def _projection(
                     meta={
                         key: value
                         for key, value in (edge.meta_json or {}).items()
-                        if key in {
-                            "thru", "thru_resolution", "thru_target_qualified_name",
-                            "statement_type", "cursor_name",
-                            "invocation_kind", "dispatch_scope", "resolution_reason",
-                            "control_role", "control_context", "exception_types",
-                            "control_path", "loop",
+                        if key
+                        in {
+                            "thru",
+                            "thru_resolution",
+                            "thru_target_qualified_name",
+                            "statement_type",
+                            "cursor_name",
+                            "invocation_kind",
+                            "dispatch_scope",
+                            "resolution_reason",
+                            "control_role",
+                            "control_context",
+                            "exception_types",
+                            "control_path",
+                            "loop",
                         }
                     },
                 )
@@ -361,13 +393,17 @@ def _projection(
                 language=_language(entity),
                 locator=_entity_locator(
                     entity,
-                    provenance_for(entity, entity.start_line or 1, entity.end_line, origin="CodeEntity"),
+                    provenance_for(
+                        entity, entity.start_line or 1, entity.end_line, origin="CodeEntity"
+                    ),
                 ),
                 entity_id=entity.id,
             )
         )
     # Unresolved nodes use the transition locator; their target has no own file.
-    unresolved = [transition for transition in transitions if transition.target.startswith("external:edge:")]
+    unresolved = [
+        transition for transition in transitions if transition.target.startswith("external:edge:")
+    ]
     for transition in unresolved:
         edge_id = transition.code_edge_ids[0]
         edge = db.query(CodeEdge).filter(CodeEdge.id == edge_id).first()
@@ -427,7 +463,8 @@ def _program_entry(db: Session, program: CodeEntity) -> CodeEntity | None:
         .all()
     )
     named = [
-        c for c in children
+        c
+        for c in children
         if c.name.casefold() in _ENTRY_NAMES
         or (c.qualified_name or "").casefold().endswith(tuple("." + n for n in _ENTRY_NAMES))
     ]
@@ -454,6 +491,4 @@ def focus_process(
     _assert_entity_visible(root, user, db, project_id)
     if direction == "outgoing" and root.type in {"program", "cobol_program"}:
         root = _program_entry(db, root) or root
-    return _projection(
-        db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds)
-    )
+    return _projection(db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds))

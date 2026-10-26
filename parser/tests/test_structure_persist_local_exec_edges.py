@@ -12,8 +12,12 @@ OPERATION = f"{BLOCK}.RETURN@98"
 
 def _entity(entity_id: int, name: str, entity_type: str, qualified_name: str) -> CodeEntity:
     return CodeEntity(
-        id=entity_id, name=name, type=entity_type, qualified_name=qualified_name,
-        file_path="app/cbl/COSGN00C.cbl", variant_key="default",
+        id=entity_id,
+        name=name,
+        type=entity_type,
+        qualified_name=qualified_name,
+        file_path="app/cbl/COSGN00C.cbl",
+        variant_key="default",
     )
 
 
@@ -31,15 +35,22 @@ def _index():
 
 def _edge(meta: dict, dst_name: str = "RETURN") -> ParsedEdge:
     return ParsedEdge(
-        type="EXECUTES", src_name=BLOCK, dst_name=dst_name, resolution="resolved",
-        src_start_line=98, src_end_line=102, scope=PGM,
+        type="EXECUTES",
+        src_name=BLOCK,
+        dst_name=dst_name,
+        resolution="resolved",
+        src_start_line=98,
+        src_end_line=102,
+        scope=PGM,
         meta={"program": PGM, "dialect": "CICS", "language": "cobol", **meta},
     )
 
 
 def test_exec_operation_in_the_same_file_is_resolved_when_persisted():
     by_qname, by_name = _index()
-    row = _build_edge(1, 7, "default", _edge({"target_qualified_name": OPERATION}), by_qname, by_name)
+    row = _build_edge(
+        1, 7, "default", _edge({"target_qualified_name": OPERATION}), by_qname, by_name
+    )
     assert row.resolution == "resolved"
     assert row.dst_entity_id == 2
 
@@ -54,5 +65,12 @@ def test_copybook_cross_reference_still_waits_for_pass_two():
 
 def test_missing_local_target_stays_unresolved():
     by_qname, by_name = _index()
-    row = _build_edge(1, 7, "default", _edge({"target_qualified_name": f"{BLOCK}.SEND@98"}, "SEND"), by_qname, by_name)
+    row = _build_edge(
+        1,
+        7,
+        "default",
+        _edge({"target_qualified_name": f"{BLOCK}.SEND@98"}, "SEND"),
+        by_qname,
+        by_name,
+    )
     assert row.resolution == "unresolved"

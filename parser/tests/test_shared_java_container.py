@@ -34,7 +34,9 @@ def source(db_session, tmp_path):
         {"n": f"shared-java-team-{tmp_path.name}"},
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES (:n, :t, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES (:n, :t, now()) RETURNING id"
+        ),
         {"n": f"shared-java-project-{tmp_path.name}", "t": team_id},
     ).scalar_one()
     src = KnowledgeSource(
@@ -43,9 +45,15 @@ def source(db_session, tmp_path):
     db_session.add(src)
     db_session.commit()
     yield src
-    db_session.query(CodeEdge).filter(CodeEdge.source_id == src.id).delete(synchronize_session=False)
-    db_session.query(CodeEntity).filter(CodeEntity.source_id == src.id).delete(synchronize_session=False)
-    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == src.id).delete(synchronize_session=False)
+    db_session.query(CodeEdge).filter(CodeEdge.source_id == src.id).delete(
+        synchronize_session=False
+    )
+    db_session.query(CodeEntity).filter(CodeEntity.source_id == src.id).delete(
+        synchronize_session=False
+    )
+    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == src.id).delete(
+        synchronize_session=False
+    )
     db_session.execute(text("DELETE FROM projects WHERE id = :id"), {"id": project_id})
     db_session.execute(text("DELETE FROM teams WHERE id = :id"), {"id": team_id})
     db_session.commit()
@@ -54,8 +62,12 @@ def source(db_session, tmp_path):
 def _persist_java(db, src, path, body):
     result = parse_java_file(f"package com.acme;\n{body}\n", path)
     persist_parse_result(
-        db, project_id=src.project_id, source_id=src.id, file_path=path,
-        content_hash=path, result=result,
+        db,
+        project_id=src.project_id,
+        source_id=src.id,
+        file_path=path,
+        content_hash=path,
+        result=result,
     )
     db.commit()
     return result.variant_key
@@ -64,21 +76,37 @@ def _persist_java(db, src, path, body):
 def _classes(db, src):
     return {
         e.qualified_name
-        for e in db.query(CodeEntity).filter(CodeEntity.source_id == src.id, CodeEntity.type == "class")
+        for e in db.query(CodeEntity).filter(
+            CodeEntity.source_id == src.id, CodeEntity.type == "class"
+        )
     }
 
 
 def _package(db, src):
-    return db.query(CodeEntity).filter(
-        CodeEntity.source_id == src.id, CodeEntity.type == "package", CodeEntity.qualified_name == "com.acme"
-    ).one()
+    return (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.source_id == src.id,
+            CodeEntity.type == "package",
+            CodeEntity.qualified_name == "com.acme",
+        )
+        .one()
+    )
 
 
 def _add_cobol_program(db, src, variant_key):
-    db.add(CodeEntity(
-        source_id=src.id, project_id=src.project_id, file_path="PAYMENT.CBL", variant_key=variant_key,
-        name="PAYMENT", qualified_name="PAYMENT", type="program", meta_json={"language": "cobol"},
-    ))
+    db.add(
+        CodeEntity(
+            source_id=src.id,
+            project_id=src.project_id,
+            file_path="PAYMENT.CBL",
+            variant_key=variant_key,
+            name="PAYMENT",
+            qualified_name="PAYMENT",
+            type="program",
+            meta_json={"language": "cobol"},
+        )
+    )
     db.commit()
 
 
@@ -113,8 +141,12 @@ def test_owner_file_reparsed_into_other_package_keeps_package_for_siblings(db_se
     _persist_java(db_session, source, "a/Sibling.java", "class Sibling {}")
     result = parse_java_file("package other;\nclass Owner {}\n", "a/Owner.java")
     persist_parse_result(
-        db_session, project_id=source.project_id, source_id=source.id, file_path="a/Owner.java",
-        content_hash="moved", result=result,
+        db_session,
+        project_id=source.project_id,
+        source_id=source.id,
+        file_path="a/Owner.java",
+        content_hash="moved",
+        result=result,
     )
     db_session.commit()
     assert _package(db_session, source).file_path == "a/Sibling.java"

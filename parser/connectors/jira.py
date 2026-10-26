@@ -96,7 +96,9 @@ class JiraConnector(BaseConnector):
                     break
 
             # Der Delta-Lauf liefert nur Geänderte; ob ein Issue noch existiert, zeigt erst die Schlüsselliste.
-            self._crawl_complete = await self._list_all_keys(client, base_url, auth, headers, spaces)
+            self._crawl_complete = await self._list_all_keys(
+                client, base_url, auth, headers, spaces
+            )
 
     async def sync(self, force_reindex: bool = False) -> None:
         await super().sync()
@@ -118,14 +120,18 @@ class JiraConnector(BaseConnector):
         try:
             while True:
                 params = {"jql": jql, "startAt": start, "maxResults": limit, "fields": "key"}
-                data = await self._get_json(client, f"{base_url}{self._search_path}", auth, headers, params)
+                data = await self._get_json(
+                    client, f"{base_url}{self._search_path}", auth, headers, params
+                )
                 issues = data.get("issues", [])
                 keys.update(issue["key"] for issue in issues if issue.get("key"))
                 start += len(issues)
                 if not issues or start >= data.get("total", 0):
                     break
         except Exception as exc:  # noqa: BLE001 - nur Aufräumen entfällt, der Sync selbst ist durch
-            self._log(f"[WARNUNG] Schlüsselliste nicht vollständig abrufbar ({exc}); gelöschte Issues werden diesmal nicht aufgeräumt.")
+            self._log(
+                f"[WARNUNG] Schlüsselliste nicht vollständig abrufbar ({exc}); gelöschte Issues werden diesmal nicht aufgeräumt."
+            )
             return False
         self._all_keys = keys
         return True
@@ -157,9 +163,7 @@ class JiraConnector(BaseConnector):
 
     # ── API-Aufruf ────────────────────────────────────────────────────────────
 
-    async def _search_issues(
-        self, client, base_url, auth, headers, jql, start, limit
-    ) -> dict:
+    async def _search_issues(self, client, base_url, auth, headers, jql, start, limit) -> dict:
         """
         Führt eine Jira-Issue-Suche durch.
 
@@ -173,7 +177,11 @@ class JiraConnector(BaseConnector):
             "maxResults": limit,
             "fields": "summary,description,comment,status,priority,assignee",
         }
-        paths = [self._search_path] if self._search_path else ["/rest/api/2/search", "/rest/api/3/search"]
+        paths = (
+            [self._search_path]
+            if self._search_path
+            else ["/rest/api/2/search", "/rest/api/3/search"]
+        )
         for path in paths:
             try:
                 data = await self._get_json(client, f"{base_url}{path}", auth, headers, params)
@@ -197,8 +205,14 @@ class JiraConnector(BaseConnector):
     async def _get_json(self, client, url, auth, headers, params) -> dict:
         """GET mit Backoff nur bei 429/5xx/Netzwerkfehlern; 4xx werden sofort gemeldet."""
         response = await request_with_retry(
-            client, "GET", url, headers_fn=lambda: headers, auth=auth, params=params,
-            timeout=30.0, log=self._log,
+            client,
+            "GET",
+            url,
+            headers_fn=lambda: headers,
+            auth=auth,
+            params=params,
+            timeout=30.0,
+            log=self._log,
         )
         await asyncio.sleep(0.05)
         return response.json()

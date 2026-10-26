@@ -88,7 +88,13 @@ def _run_job(run: LinkBuilderRun, admin: bool = False, user_id: int | None = Non
         "id": run.id,
         "label": label,
         "status": run.status,
-        "progress": round(100 * (run.scope_json or {}).get("processed_items", 0) / max(1, (run.scope_json or {}).get("total_items", 1))) if (run.scope_json or {}).get("total_items") else None,
+        "progress": round(
+            100
+            * (run.scope_json or {}).get("processed_items", 0)
+            / max(1, (run.scope_json or {}).get("total_items", 1))
+        )
+        if (run.scope_json or {}).get("total_items")
+        else None,
         "progress_message": run.progress_message,
         "budget": (run.scope_json or {}).get("max_items"),
         "error_message": run.error_message,
@@ -97,7 +103,8 @@ def _run_job(run: LinkBuilderRun, admin: bool = False, user_id: int | None = Non
         "can_resume": run.status in {"failed", "cancelled"},
         "can_start": admin and run.status in {"failed", "cancelled"},
         "can_delete": admin and run.status in TERMINAL,
-        "can_stop": (admin or (user_id is not None and run.triggered_by_user_id == user_id)) and run.status in ACTIVE,
+        "can_stop": (admin or (user_id is not None and run.triggered_by_user_id == user_id))
+        and run.status in ACTIVE,
     }
 
 
@@ -287,7 +294,9 @@ def start_job(
         if previous.status in ACTIVE:
             raise HTTPException(409, "Job läuft bereits")
         if previous.status not in {"failed", "cancelled"}:
-            raise HTTPException(409, "Nur fehlgeschlagene oder abgebrochene Jobs können neu angestoßen werden")
+            raise HTTPException(
+                409, "Nur fehlgeschlagene oder abgebrochene Jobs können neu angestoßen werden"
+            )
         return _queue_link_builder(previous, db)
 
     if kind == "diagnostics":
@@ -386,7 +395,9 @@ def stop_job(
         if not is_admin(user):
             visible = get_visible_project_ids(user, db) or []
             if record.triggered_by_user_id != user.id or record.project_id not in visible:
-                raise HTTPException(403, "Nur der auslösende Nutzer oder ein Administrator darf den Lauf abbrechen")
+                raise HTTPException(
+                    403, "Nur der auslösende Nutzer oder ein Administrator darf den Lauf abbrechen"
+                )
         if record.status not in ACTIVE:
             raise HTTPException(409, "Nur laufende Jobs können abgebrochen werden")
         task_id = record.celery_task_id
@@ -450,7 +461,9 @@ def resume_job(
         if not previous:
             raise HTTPException(404, "Job nicht gefunden")
         if previous.status not in {"failed", "cancelled"}:
-            raise HTTPException(409, "Nur fehlgeschlagene oder abgebrochene Jobs können wiederaufgenommen werden")
+            raise HTTPException(
+                409, "Nur fehlgeschlagene oder abgebrochene Jobs können wiederaufgenommen werden"
+            )
         project_ids = get_visible_project_ids(user, db)
         if previous.project_id is None and not is_admin(user):
             raise HTTPException(403, "Kein Zugriff auf diesen Job")

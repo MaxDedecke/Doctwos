@@ -135,7 +135,9 @@ def run(root: Path, revision: str) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("root", type=Path, help="repository checkout or source snapshot")
-    parser.add_argument("--revision", required=True, help="immutable dataset revision or snapshot id")
+    parser.add_argument(
+        "--revision", required=True, help="immutable dataset revision or snapshot id"
+    )
     args = parser.parse_args()
     root = args.root.resolve()
     if not root.is_dir():

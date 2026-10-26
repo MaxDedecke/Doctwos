@@ -55,8 +55,18 @@ class Client { void call() { new Service().run(1); } }
     )
     _commit_file(path, "one/Shared.java", "package one; public class Shared {}\n", "one")
     _commit_file(path, "two/Shared.java", "package two; public class Shared {}\n", "two")
-    _commit_file(path, "module-a/src/main/java/duplicate/App.java", "package duplicate; public class App {}\n", "module a app")
-    _commit_file(path, "module-b/src/main/java/duplicate/App.java", "package duplicate; public class App {}\n", "module b app")
+    _commit_file(
+        path,
+        "module-a/src/main/java/duplicate/App.java",
+        "package duplicate; public class App {}\n",
+        "module a app",
+    )
+    _commit_file(
+        path,
+        "module-b/src/main/java/duplicate/App.java",
+        "package duplicate; public class App {}\n",
+        "module b app",
+    )
     _commit_file(
         path,
         "app/Ambiguous.java",
@@ -190,7 +200,9 @@ async def test_java_git_persistence_resolves_multiple_files_and_keeps_ambiguity(
         await connector.sync()
 
     db_session.expire_all()
-    source_state = db_session.query(KnowledgeSource).filter(KnowledgeSource.id == java_source.id).one()
+    source_state = (
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == java_source.id).one()
+    )
     assert source_state.sync_status == "completed", source_state.last_error
     entities = db_session.query(CodeEntity).filter(CodeEntity.source_id == java_source.id).all()
     by_qname = {entity.qualified_name: entity for entity in entities}
@@ -235,27 +247,49 @@ async def test_java_git_persistence_resolves_multiple_files_and_keeps_ambiguity(
         if edge.type in {"STARTS_JAVA", "USES_RESOURCE", "READS_XML", "INCLUDES"}
     ]
     assert {edge.type for edge in cross_edges} == {
-        "STARTS_JAVA", "USES_RESOURCE", "READS_XML", "INCLUDES"
+        "STARTS_JAVA",
+        "USES_RESOURCE",
+        "READS_XML",
+        "INCLUDES",
     }
     assert next(edge for edge in cross_edges if edge.type == "STARTS_JAVA").dst_entity_id == main.id
-    assert next(
-        edge for edge in cross_edges
-        if edge.type == "USES_RESOURCE" and edge.dst_entity_id == roots["app/src/main/resources/templates/report.xsl"].id
-    ).resolution == "resolved"
-    assert next(
-        edge for edge in cross_edges
-        if edge.type == "READS_XML" and edge.dst_entity_id == roots["app/src/main/resources/templates/input.xml"].id
-    ).resolution == "resolved"
-    assert next(
-        edge for edge in cross_edges
-        if edge.type == "INCLUDES" and edge.dst_entity_id == roots["app/src/main/resources/views/fragment.jsp"].id
-    ).resolution == "resolved"
+    assert (
+        next(
+            edge
+            for edge in cross_edges
+            if edge.type == "USES_RESOURCE"
+            and edge.dst_entity_id == roots["app/src/main/resources/templates/report.xsl"].id
+        ).resolution
+        == "resolved"
+    )
+    assert (
+        next(
+            edge
+            for edge in cross_edges
+            if edge.type == "READS_XML"
+            and edge.dst_entity_id == roots["app/src/main/resources/templates/input.xml"].id
+        ).resolution
+        == "resolved"
+    )
+    assert (
+        next(
+            edge
+            for edge in cross_edges
+            if edge.type == "INCLUDES"
+            and edge.dst_entity_id == roots["app/src/main/resources/views/fragment.jsp"].id
+        ).resolution
+        == "resolved"
+    )
     assert all(
         edge.meta_json["evidence"]["source"]["file_path"]
         == db_session.get(CodeEntity, edge.src_entity_id).file_path
         for edge in cross_edges
     )
-    dynamic = next(edge for edge in cross_edges if edge.type == "USES_RESOURCE" and edge.resolution == "dynamic")
+    dynamic = next(
+        edge
+        for edge in cross_edges
+        if edge.type == "USES_RESOURCE" and edge.resolution == "dynamic"
+    )
     assert dynamic.dst_entity_id is None
     assert dynamic.meta_json["resolution_reason"] == "dynamic_resource_expression"
 
@@ -269,7 +303,9 @@ async def test_java_same_qualified_class_in_separate_modules_is_not_merged(db_se
 
     apps = (
         db_session.query(CodeEntity)
-        .filter(CodeEntity.source_id == java_source.id, CodeEntity.qualified_name == "duplicate.App")
+        .filter(
+            CodeEntity.source_id == java_source.id, CodeEntity.qualified_name == "duplicate.App"
+        )
         .order_by(CodeEntity.file_path)
         .all()
     )

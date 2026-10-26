@@ -33,7 +33,9 @@ def extract_xlsx_text(file_path: str) -> str:
         for sheet in workbook.worksheets:
             lines.append(f"## Blatt: {sheet.title}")
             for row in sheet.iter_rows(values_only=True):
-                cells = [str(value).strip() for value in row if value is not None and str(value).strip()]
+                cells = [
+                    str(value).strip() for value in row if value is not None and str(value).strip()
+                ]
                 cells_read += len(row)
                 if cells:
                     lines.append(" | ".join(cells))
@@ -69,7 +71,23 @@ def extract_pptx_text(file_path: str) -> str:
 
 class _HtmlText(HTMLParser):
     _SKIP = {"script", "style", "head", "noscript"}
-    _BLOCK = {"p", "div", "li", "tr", "br", "h1", "h2", "h3", "h4", "h5", "h6", "table", "section", "article", "pre"}
+    _BLOCK = {
+        "p",
+        "div",
+        "li",
+        "tr",
+        "br",
+        "h1",
+        "h2",
+        "h3",
+        "h4",
+        "h5",
+        "h6",
+        "table",
+        "section",
+        "article",
+        "pre",
+    }
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)

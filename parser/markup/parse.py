@@ -40,7 +40,7 @@ def _without_external_doctype(source: str) -> str:
     if match is None or len(_DOCTYPE_RE.findall(source)) != 1 or "<!ENTITY" in source.upper():
         return source
     blanked = re.sub(r"[^\n]", " ", match.group(0))
-    return source[: match.start()] + blanked + source[match.end():]
+    return source[: match.start()] + blanked + source[match.end() :]
 
 
 _XML_PREDEFINED_ENTITIES = {"amp", "lt", "gt", "quot", "apos"}

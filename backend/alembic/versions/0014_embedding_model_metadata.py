@@ -22,8 +22,7 @@ def upgrade() -> None:
         "WHERE embedding IS NOT NULL AND embedding_model IS NULL"
     )
     op.execute(
-        "UPDATE knowledge_sources SET embedding_model = 'bge-m3' "
-        "WHERE embedding_model IS NULL"
+        "UPDATE knowledge_sources SET embedding_model = 'bge-m3' WHERE embedding_model IS NULL"
     )
 
 

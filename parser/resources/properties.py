@@ -5,6 +5,7 @@ Bewusst klein: ein Dateiwurzel-Entity je Datei und je Basis-Bundle ein
 (`messages_de.properties`) bekommen nur die Wurzel mit Bundle/Locale, damit ein
 Bundle mit vielen Sprachen den Entity-Bestand nicht vervielfacht.
 """
+
 from __future__ import annotations
 
 import re
@@ -14,7 +15,9 @@ from code_parser import CodeParser
 from core.model import Chunk, Entity, ParseResult
 
 _LOCALE_SUFFIX = re.compile(r"^(?P<bundle>.+?)_(?P<locale>[a-z]{2,3}(?:_[A-Za-z]{2,4})?)$")
-_SECRET_KEY = re.compile(r"pass(word|wd)?|secret|token|credential|private|api[._-]?key", re.IGNORECASE)
+_SECRET_KEY = re.compile(
+    r"pass(word|wd)?|secret|token|credential|private|api[._-]?key", re.IGNORECASE
+)
 _VALUE_PREVIEW = 120
 
 
@@ -74,11 +77,17 @@ def parse_properties_file(source: str, path: str, **_: object) -> ParseResult:
     entries = list(_logical_entries(source))
     total_lines = max(1, len(source.splitlines()))
     root = Entity(
-        type="properties_file", name=PurePosixPath(normalized).name or normalized,
-        start_line=1, end_line=total_lines, qualified_name=normalized,
+        type="properties_file",
+        name=PurePosixPath(normalized).name or normalized,
+        start_line=1,
+        end_line=total_lines,
+        qualified_name=normalized,
         meta={
-            "language": "properties", "is_file_root": True, "bundle": bundle,
-            "locale": locale, "property_count": len(entries),
+            "language": "properties",
+            "is_file_root": True,
+            "bundle": bundle,
+            "locale": locale,
+            "property_count": len(entries),
         },
     )
     entities = [root]
@@ -96,17 +105,32 @@ def parse_properties_file(source: str, path: str, **_: object) -> ParseResult:
                 meta["value_redacted"] = True
             else:
                 meta["value_preview"] = value[:_VALUE_PREVIEW]
-            entities.append(Entity(
-                type="property", name=key, start_line=start, end_line=end,
-                parent_name=root.name, parent_qualified_name=normalized,
-                qualified_name=f"{normalized}::{key}{suffix}", meta=meta,
-            ))
+            entities.append(
+                Entity(
+                    type="property",
+                    name=key,
+                    start_line=start,
+                    end_line=end,
+                    parent_name=root.name,
+                    parent_qualified_name=normalized,
+                    qualified_name=f"{normalized}::{key}{suffix}",
+                    meta=meta,
+                )
+            )
     chunks = [
-        Chunk(content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
-              meta={"language": "properties", "symbol_type": "source", "bundle": bundle})
+        Chunk(
+            content=item["content"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
+            meta={"language": "properties", "symbol_type": "source", "bundle": bundle},
+        )
         for item in CodeParser("properties").chunk_file(source)
     ]
     return ParseResult(
-        program_name=PurePosixPath(normalized).stem or "properties", path=path,
-        source_format="free", entities=entities, edges=[], chunks=chunks,
+        program_name=PurePosixPath(normalized).stem or "properties",
+        path=path,
+        source_format="free",
+        entities=entities,
+        edges=[],
+        chunks=chunks,
     )

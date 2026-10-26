@@ -25,10 +25,14 @@ def mark_source_insights_outdated(db, source: KnowledgeSource) -> int:
     if source.project_id is None:
         return 0
     affected = 0
-    for insight in db.query(Insight).filter(
-        Insight.project_id == source.project_id,
-        Insight.status == "verified",
-    ).all():
+    for insight in (
+        db.query(Insight)
+        .filter(
+            Insight.project_id == source.project_id,
+            Insight.status == "verified",
+        )
+        .all()
+    ):
         if not _references_source(insight.evidence_json, source.id):
             continue
         prior_ids = set(insight.outdated_source_ids or [])

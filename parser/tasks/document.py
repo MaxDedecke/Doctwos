@@ -94,7 +94,14 @@ async def process_local_document_async(source_id: int, file_path: str):
         elif ext in [".docx", ".doc"]:
             try:
                 log_event("Lese Word-Dokument ein...")
-                pages.append((None, extract_legacy_doc(file_path, extract_docx_text) if ext == ".doc" else extract_docx_text(file_path)))
+                pages.append(
+                    (
+                        None,
+                        extract_legacy_doc(file_path, extract_docx_text)
+                        if ext == ".doc"
+                        else extract_docx_text(file_path),
+                    )
+                )
             except Exception as e:
                 log_event(f"Fehler beim Lesen des Word-Dokuments: {e}")
         elif ext in OFFICE_EXTENSIONS:
@@ -120,9 +127,7 @@ async def process_local_document_async(source_id: int, file_path: str):
         log_event(f"{total_chars} Zeichen Text erfolgreich extrahiert ({len(pages)} Seite(n)).")
 
         # 2. Ensure embedding model is pulled
-        log_event(
-            f"Stelle sicher, dass das Einbettungs-Modell '{embedding_model}' bereit ist..."
-        )
+        log_event(f"Stelle sicher, dass das Einbettungs-Modell '{embedding_model}' bereit ist...")
         await ensure_model_pulled(embedding_model)
 
         # 3. Chunk and embed content, page by page so a chunk never blends text

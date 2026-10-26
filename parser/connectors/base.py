@@ -223,7 +223,11 @@ class BaseConnector(ABC):
         log = log or self._log
         # Werte einmal lesen: ein Zugriff auf self.source von mehreren Tasks aus könnte nach einem Commit der
         # Hauptsession eine Nachladeabfrage auf genau dieser Session auslösen.
-        project_id = self._project_id if self._project_id is not None else (self.source.project_id if self.source else None)
+        project_id = (
+            self._project_id
+            if self._project_id is not None
+            else (self.source.project_id if self.source else None)
+        )
         source_id = self._source_id
         lang = doc.get("extra_meta", {}).get("language", "text")
         parser = CodeParser(lang)
@@ -289,7 +293,9 @@ class BaseConnector(ABC):
                     for chunk, vector in zip(chunks, vectors):
                         chunk["embedding"] = vector
             except Exception as exc:
-                logger.info(f"Gebündeltes Embedding für '{doc['title']}' fehlgeschlagen, wechsle auf Einzelaufrufe: {exc}")
+                logger.info(
+                    f"Gebündeltes Embedding für '{doc['title']}' fehlgeschlagen, wechsle auf Einzelaufrufe: {exc}"
+                )
 
         count = await reindex_chunks_preserving_links(
             db,
@@ -327,7 +333,9 @@ class BaseConnector(ABC):
         try:
             if await is_gpu_accelerated(self.embedding_model):
                 return max(1, min(config.EMBED_CONCURRENCY, available))
-            return max(1, min(config.EMBED_CONCURRENCY, config.EMBED_CONCURRENCY_CPU_ONLY, available))
+            return max(
+                1, min(config.EMBED_CONCURRENCY, config.EMBED_CONCURRENCY_CPU_ONLY, available)
+            )
         except Exception:  # noqa: BLE001 - im Zweifel nacheinander
             return 1
 
@@ -370,7 +378,8 @@ class BaseConnector(ABC):
             if not stale:
                 return 0
             if not seen_keys or (
-                len(stale) >= self._ORPHAN_MIN_COUNT and len(stale) > len(known) * self._ORPHAN_MAX_SHARE
+                len(stale) >= self._ORPHAN_MIN_COUNT
+                and len(stale) > len(known) * self._ORPHAN_MAX_SHARE
             ):
                 self._append_log(
                     db,
@@ -385,7 +394,9 @@ class BaseConnector(ABC):
                     DocumentChunk.source_id == self.source_id,
                     DocumentChunk.file_path.in_(stale_list[offset : offset + 500]),
                 ).delete(synchronize_session=False)
-            self._append_log(db, f"{len(stale)} Dokument(e) nicht mehr in der Quelle — aus dem Index entfernt.")
+            self._append_log(
+                db, f"{len(stale)} Dokument(e) nicht mehr in der Quelle — aus dem Index entfernt."
+            )
             db.commit()
             return len(stale)
         except Exception as exc:
@@ -455,7 +466,9 @@ class BaseConnector(ABC):
                 f"Starte Sync für '{self.source.name}' "
                 f"(ID: {self.source_id}, Typ: {self.source.type})..."
             )
-            self._log(f"Stelle sicher, dass Embedding-Modell '{self.embedding_model}' bereit ist...")
+            self._log(
+                f"Stelle sicher, dass Embedding-Modell '{self.embedding_model}' bereit ist..."
+            )
             await ensure_model_pulled(self.embedding_model)
 
             processed = 0
@@ -468,7 +481,9 @@ class BaseConnector(ABC):
             def collect(finished) -> None:
                 nonlocal processed, total_chunks
                 for task in finished:
-                    doc, chunk_count, messages = task.result()  # wirft, wenn die Verarbeitung scheiterte
+                    doc, chunk_count, messages = (
+                        task.result()
+                    )  # wirft, wenn die Verarbeitung scheiterte
                     for message in messages:
                         self._log(message)
                     total_chunks += chunk_count
@@ -485,7 +500,9 @@ class BaseConnector(ABC):
                     in_flight.add(asyncio.create_task(self._process_one(doc)))
                     if len(in_flight) >= concurrency:
                         # Rückstau: der Crawl holt erst weitere Dokumente, wenn ein Platz frei wird.
-                        finished, in_flight = await asyncio.wait(in_flight, return_when=asyncio.FIRST_COMPLETED)
+                        finished, in_flight = await asyncio.wait(
+                            in_flight, return_when=asyncio.FIRST_COMPLETED
+                        )
                         collect(finished)
                 if in_flight:
                     finished, in_flight = await asyncio.wait(in_flight)
@@ -516,7 +533,9 @@ class BaseConnector(ABC):
             if self.has_changes and had_previous_sync:
                 escalated = mark_source_insights_outdated(self.db, self.source)
                 if escalated:
-                    self._log(f"{escalated} Erkenntnis(se) wegen Quellenänderung zur Prüfung markiert.")
+                    self._log(
+                        f"{escalated} Erkenntnis(se) wegen Quellenänderung zur Prüfung markiert."
+                    )
             self.db.commit()
             self._log(
                 f"Sync abgeschlossen — {processed} Dokument(e), {total_chunks} Chunks gesamt."

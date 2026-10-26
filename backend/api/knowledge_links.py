@@ -558,19 +558,26 @@ def estimate_knowledge_link_computation(
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
     selected = set(source_ids)
     visible = {
-        row[0] for row in db.query(KnowledgeSource.id).filter(
+        row[0]
+        for row in db.query(KnowledgeSource.id)
+        .filter(
             KnowledgeSource.id.in_(selected),
             KnowledgeSource.team_id == project.team_id,
             or_(KnowledgeSource.project_id == project_id, KnowledgeSource.project_id.is_(None)),
-        ).all()
+        )
+        .all()
     }
     if len(selected) < 2 or visible != selected:
         raise HTTPException(status_code=400, detail="Ungültiger Wissensquellen-Scope")
-    chunks = db.query(DocumentChunk).filter(
-        DocumentChunk.project_id == project_id,
-        DocumentChunk.source_id.in_(selected),
-        DocumentChunk.embedding.isnot(None),
-    ).count()
+    chunks = (
+        db.query(DocumentChunk)
+        .filter(
+            DocumentChunk.project_id == project_id,
+            DocumentChunk.source_id.in_(selected),
+            DocumentChunk.embedding.isnot(None),
+        )
+        .count()
+    )
     return {
         "project_id": project_id,
         "chunk_count": chunks,
@@ -581,8 +588,12 @@ def estimate_knowledge_link_computation(
 
 @router.post("/compute")
 def trigger_knowledge_link_computation(
-    project_id: Optional[int] = Query(None, ge=1, description="Projektkontext des Cross-Source-Laufs."),
-    source_ids: Optional[list[int]] = Query(None, min_length=2, description="Mindestens zwei Wissensquellen im Run-Scope."),
+    project_id: Optional[int] = Query(
+        None, ge=1, description="Projektkontext des Cross-Source-Laufs."
+    ),
+    source_ids: Optional[list[int]] = Query(
+        None, min_length=2, description="Mindestens zwei Wissensquellen im Run-Scope."
+    ),
     min_confidence: Optional[int] = Query(
         None,
         ge=0,
@@ -595,7 +606,12 @@ def trigger_knowledge_link_computation(
         max_length=255,
         description="Embedding-Modell des aktiven AI-Profils.",
     ),
-    max_items: int = Query(200, ge=1, le=5000, description="Maximale Zahl Dokument-Abschnitte pro Lauf; der Lauf kann fortgesetzt werden."),
+    max_items: int = Query(
+        200,
+        ge=1,
+        le=5000,
+        description="Maximale Zahl Dokument-Abschnitte pro Lauf; der Lauf kann fortgesetzt werden.",
+    ),
     confirm: bool = Query(False, description="Explizite Bestätigung des teuren Batch-Laufs."),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
@@ -604,9 +620,13 @@ def trigger_knowledge_link_computation(
     if not is_admin(user):
         raise HTTPException(status_code=403, detail="Nur für Administratoren")
     if not confirm:
-        raise HTTPException(status_code=428, detail="Der globale Batch-Lauf muss ausdrücklich bestätigt werden")
+        raise HTTPException(
+            status_code=428, detail="Der globale Batch-Lauf muss ausdrücklich bestätigt werden"
+        )
     if project_id is None or not source_ids:
-        raise HTTPException(status_code=422, detail="Projekt und mindestens zwei Wissensquellen im Scope angeben")
+        raise HTTPException(
+            status_code=422, detail="Projekt und mindestens zwei Wissensquellen im Scope angeben"
+        )
 
     project = db.query(Project).filter(Project.id == project_id).first()
     if not project:
@@ -626,7 +646,9 @@ def trigger_knowledge_link_computation(
         .all()
     }
     if visible_source_ids != set(selected_source_ids):
-        raise HTTPException(status_code=400, detail="Mindestens eine Wissensquelle gehört nicht zum Projektkontext")
+        raise HTTPException(
+            status_code=400, detail="Mindestens eine Wissensquelle gehört nicht zum Projektkontext"
+        )
 
     # Repair stale entries before checking for a live duplicate. The project
     # row lock serializes concurrent enqueue requests for this scope.

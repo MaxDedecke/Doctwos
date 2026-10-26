@@ -17,9 +17,22 @@ ALL_TYPES = "project,entity,document,knowledge_source"
 # Entities, die eine ganze Datei vertreten. Nur sie dürfen über den Dateinamen gefunden werden;
 # sonst passte jede Entity einer Datei (209 bei COPAUA0C) allein wegen des Pfads.
 ROOT_ENTITY_TYPES = (
-    "program", "copybook", "compilation_unit", "jcl_file", "jcl_job", "xml_document", "xslt_stylesheet",
-    "html_document", "jsp_page", "shell_script", "properties_file", "groovy_file", "javascript_file",
-    "sql_script", "maven_project", "asciidoc_document",
+    "program",
+    "copybook",
+    "compilation_unit",
+    "jcl_file",
+    "jcl_job",
+    "xml_document",
+    "xslt_stylesheet",
+    "html_document",
+    "jsp_page",
+    "shell_script",
+    "properties_file",
+    "groovy_file",
+    "javascript_file",
+    "sql_script",
+    "maven_project",
+    "asciidoc_document",
 )
 _TOKEN_SPLIT = re.compile(r"[\s.#]+|::")
 _MAX_TOKENS = 6
@@ -118,11 +131,13 @@ def search_nodes(
         query = db.query(CodeEntity)
         for token in tokens:
             # Treffer über Name, Qualified Name ohne Pfadanteil oder (nur Datei-Entities) Dateiname.
-            query = query.filter(or_(
-                _contains(CodeEntity.name, token),
-                _contains(qualified_tail, token),
-                and_(CodeEntity.type.in_(ROOT_ENTITY_TYPES), _contains(file_name, token)),
-            ))
+            query = query.filter(
+                or_(
+                    _contains(CodeEntity.name, token),
+                    _contains(qualified_tail, token),
+                    and_(CodeEntity.type.in_(ROOT_ENTITY_TYPES), _contains(file_name, token)),
+                )
+            )
         if source_id:
             query = query.filter(CodeEntity.source_id == source_id)
         if project_id:
@@ -262,7 +277,9 @@ def search_nodes(
         chunk_filter = db.query(DocumentChunk)
         for token in doc_tokens:
             # Titel oder Dateiname; ein Ordnername allein macht ein Dokument nicht zum Treffer.
-            chunk_filter = chunk_filter.filter(or_(_contains(doc_title, token), _contains(doc_file_name, token)))
+            chunk_filter = chunk_filter.filter(
+                or_(_contains(doc_title, token), _contains(doc_file_name, token))
+            )
         if project_id:
             chunk_filter = chunk_filter.filter(DocumentChunk.project_id == project_id)
         else:

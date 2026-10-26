@@ -241,11 +241,15 @@ async def init_mcp_clients_for_sources(sources: List[Any], status_callback=None)
         server_name = f"{src_type}-{src.id}"
         if not src.token:
             if status_callback:
-                status_callback({"server": server_name, "available": False, "status": "not_configured"})
+                status_callback(
+                    {"server": server_name, "available": False, "status": "not_configured"}
+                )
             continue
         if not src.url:
             if status_callback:
-                status_callback({"server": server_name, "available": False, "status": "not_configured"})
+                status_callback(
+                    {"server": server_name, "available": False, "status": "not_configured"}
+                )
             continue
 
         if src_type == "jira":
@@ -267,7 +271,13 @@ async def init_mcp_clients_for_sources(sources: List[Any], status_callback=None)
             )
             started = await client.start()
             if status_callback:
-                status_callback({"server": server_name, "available": bool(started), "status": "connected" if started else "unavailable"})
+                status_callback(
+                    {
+                        "server": server_name,
+                        "available": bool(started),
+                        "status": "connected" if started else "unavailable",
+                    }
+                )
             if started:
                 clients.append(client)
 
@@ -297,7 +307,13 @@ async def init_mcp_clients_for_sources(sources: List[Any], status_callback=None)
             )
             started = await client.start()
             if status_callback:
-                status_callback({"server": server_name, "available": bool(started), "status": "connected" if started else "unavailable"})
+                status_callback(
+                    {
+                        "server": server_name,
+                        "available": bool(started),
+                        "status": "connected" if started else "unavailable",
+                    }
+                )
             if started:
                 clients.append(client)
 

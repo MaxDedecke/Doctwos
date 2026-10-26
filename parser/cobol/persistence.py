@@ -57,9 +57,7 @@ def find_source(
     if not edge.src_name:
         program_hint = (edge.meta or {}).get("program")
         if program_hint:
-            hinted = [
-                row for row in by_name.get(program_hint.upper(), []) if row.type == "program"
-            ]
+            hinted = [row for row in by_name.get(program_hint.upper(), []) if row.type == "program"]
             if len(hinted) == 1:
                 return hinted[0]
         return next((row for row in by_qname.values() if row.type == "program"), None)

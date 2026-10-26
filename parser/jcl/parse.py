@@ -60,7 +60,12 @@ def _logical_statements(source: str):
         if begins_statement:
             if current is not None:
                 yield current
-            current = {"label": label, "operand": operand, "line": line_number, "end_line": line_number}
+            current = {
+                "label": label,
+                "operand": operand,
+                "line": line_number,
+                "end_line": line_number,
+            }
             if keyword == "DD" and re.match(r"^DD\s+(?:\*|DATA)(?:\s|,|$)", operand, re.I):
                 yield current
                 dlm = re.search(r"\bDLM\s*=\s*'?([^',\s]+)", operand, re.I)
@@ -102,8 +107,11 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
     normalized = PurePosixPath(path.replace("\\", "/")).as_posix()
     filename = PurePosixPath(normalized).name
     file_root = Entity(
-        type="jcl_file", name=filename, start_line=1,
-        end_line=max(1, len(source.splitlines())), qualified_name=normalized,
+        type="jcl_file",
+        name=filename,
+        start_line=1,
+        end_line=max(1, len(source.splitlines())),
+        qualified_name=normalized,
         meta={"language": "jcl", "is_file_root": True},
     )
     entities = [file_root]
@@ -123,8 +131,12 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
     def make_job(name: str, line: int, *, implicit: bool = False) -> Entity:
         unique = _unique_name(name, job_counts)
         entity = Entity(
-            type="jcl_job", name=unique, start_line=line, end_line=line,
-            parent_name=file_root.name, parent_qualified_name=normalized,
+            type="jcl_job",
+            name=unique,
+            start_line=line,
+            end_line=line,
+            parent_name=file_root.name,
+            parent_qualified_name=normalized,
             qualified_name=_qualified(normalized, "job", unique),
             meta={"language": "jcl", "implicit": implicit},
         )
@@ -135,8 +147,12 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
     def make_proc(name: str, line: int) -> Entity:
         unique = _unique_name(name, proc_counts)
         entity = Entity(
-            type="jcl_proc", name=unique, start_line=line, end_line=line,
-            parent_name=file_root.name, parent_qualified_name=normalized,
+            type="jcl_proc",
+            name=unique,
+            start_line=line,
+            end_line=line,
+            parent_name=file_root.name,
+            parent_qualified_name=normalized,
             qualified_name=_qualified(normalized, "proc", unique),
             meta={"language": "jcl"},
         )
@@ -168,7 +184,9 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
         if keyword == "EXEC":
             if current_job is None and current_proc is None:
                 if implicit_job is None:
-                    implicit_job = make_job(PurePosixPath(normalized).stem or "JOB", line, implicit=True)
+                    implicit_job = make_job(
+                        PurePosixPath(normalized).stem or "JOB", line, implicit=True
+                    )
                 current_job = implicit_job
             step_order += 1
             parent = current_proc or current_job
@@ -177,24 +195,34 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
             base_name = statement["label"] or f"STEP-{step_order}"
             unique = _unique_name(base_name, step_counts)
             step = Entity(
-                type="jcl_step", name=unique, start_line=line, end_line=statement["end_line"],
-                parent_name=container_name, parent_qualified_name=container_qname,
+                type="jcl_step",
+                name=unique,
+                start_line=line,
+                end_line=statement["end_line"],
+                parent_name=container_name,
+                parent_qualified_name=container_qname,
                 qualified_name=f"{container_qname}::step:{unique}",
                 meta={"language": "jcl", "step_order": step_order},
             )
             entities.append(step)
             current_step = step
             if parent is not None:
-                edges.append(ParsedEdge(
-                    type="CONTAINS", src_name=parent.qualified_name or parent.name,
-                    dst_name=step.name, resolution="resolved",
-                    src_start_line=line, src_end_line=statement["end_line"],
-                    meta={
-                        "language": "jcl", "relationship_kind": "job_step",
-                        "target_qualified_name": step.qualified_name,
-                        "target_entity_type": "jcl_step",
-                    },
-                ))
+                edges.append(
+                    ParsedEdge(
+                        type="CONTAINS",
+                        src_name=parent.qualified_name or parent.name,
+                        dst_name=step.name,
+                        resolution="resolved",
+                        src_start_line=line,
+                        src_end_line=statement["end_line"],
+                        meta={
+                            "language": "jcl",
+                            "relationship_kind": "job_step",
+                            "target_qualified_name": step.qualified_name,
+                            "target_entity_type": "jcl_step",
+                        },
+                    )
+                )
 
             pgm = _value(_PGM.search(arguments))
             proc = _value(_PROC.search(arguments))
@@ -208,18 +236,28 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
                 target, target_type, kind = target, "jcl_proc", "procedure"
             if target:
                 dynamic = _is_dynamic(target)
-                edges.append(ParsedEdge(
-                    type="EXECUTES", src_name=step.qualified_name or step.name,
-                    dst_name=target, resolution="dynamic" if dynamic else "unresolved",
-                    src_start_line=line, src_end_line=statement["end_line"],
-                    meta={
-                        "language": "jcl", "execution_kind": kind,
-                        "target_entity_type": target_type,
-                        "target_program_name": target.upper() if kind == "program" and not dynamic else None,
-                        "target_proc_name": target.upper() if kind == "procedure" and not dynamic else None,
-                        "dynamic_target": dynamic,
-                    },
-                ))
+                edges.append(
+                    ParsedEdge(
+                        type="EXECUTES",
+                        src_name=step.qualified_name or step.name,
+                        dst_name=target,
+                        resolution="dynamic" if dynamic else "unresolved",
+                        src_start_line=line,
+                        src_end_line=statement["end_line"],
+                        meta={
+                            "language": "jcl",
+                            "execution_kind": kind,
+                            "target_entity_type": target_type,
+                            "target_program_name": target.upper()
+                            if kind == "program" and not dynamic
+                            else None,
+                            "target_proc_name": target.upper()
+                            if kind == "procedure" and not dynamic
+                            else None,
+                            "dynamic_target": dynamic,
+                        },
+                    )
+                )
             continue
 
         # `JOBLIB`/`JOBCAT` stehen vor dem ersten EXEC und gehören dem Job, nicht einem Step.
@@ -234,8 +272,11 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
         dataset = datasets.get(normalized_dataset)
         if dataset is None:
             dataset = Entity(
-                type="jcl_dataset", name=dataset_name, start_line=line,
-                end_line=statement["end_line"], parent_name=file_root.name,
+                type="jcl_dataset",
+                name=dataset_name,
+                start_line=line,
+                end_line=statement["end_line"],
+                parent_name=file_root.name,
                 parent_qualified_name=normalized,
                 qualified_name=_qualified(normalized, "dataset", normalized_dataset),
                 meta={"language": "jcl", "dataset_name": dataset_name, "dynamic": dynamic},
@@ -248,22 +289,37 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
         if disposition in {"NEW", "MOD"}:
             edge_type, access_basis = "WRITES", f"DISP={disposition} suggests output allocation"
         elif disposition == "SHR":
-            edge_type, access_basis = "READS", "DISP=SHR is a likely input, not proof of COBOL OPEN mode"
+            edge_type, access_basis = (
+                "READS",
+                "DISP=SHR is a likely input, not proof of COBOL OPEN mode",
+            )
         else:
-            edge_type, access_basis = "USES_DATASET", "JCL does not declare application read/write mode"
-        edges.append(ParsedEdge(
-            type=edge_type, src_name=owner.qualified_name or owner.name,
-            dst_name=dataset_name, resolution="dynamic" if dynamic else "resolved",
-            src_start_line=line, src_end_line=statement["end_line"],
-            meta={
-                "language": "jcl", "ddname": statement["label"] or None,
-                "dd_scope": "step" if owner is current_step else "job",
-                "disposition": disposition, "access_certainty": "possible" if edge_type in {"READS", "WRITES"} else "certain",
-                "access_basis": access_basis,
-                "target_qualified_name": None if dynamic else dataset.qualified_name,
-                "target_entity_type": "jcl_dataset",
-            },
-        ))
+            edge_type, access_basis = (
+                "USES_DATASET",
+                "JCL does not declare application read/write mode",
+            )
+        edges.append(
+            ParsedEdge(
+                type=edge_type,
+                src_name=owner.qualified_name or owner.name,
+                dst_name=dataset_name,
+                resolution="dynamic" if dynamic else "resolved",
+                src_start_line=line,
+                src_end_line=statement["end_line"],
+                meta={
+                    "language": "jcl",
+                    "ddname": statement["label"] or None,
+                    "dd_scope": "step" if owner is current_step else "job",
+                    "disposition": disposition,
+                    "access_certainty": "possible"
+                    if edge_type in {"READS", "WRITES"}
+                    else "certain",
+                    "access_basis": access_basis,
+                    "target_qualified_name": None if dynamic else dataset.qualified_name,
+                    "target_entity_type": "jcl_dataset",
+                },
+            )
+        )
 
     # Resolve only an unambiguous in-file PROC statically. External procedure
     # libraries are handled later against the complete indexed source.
@@ -279,12 +335,18 @@ def parse_jcl_file(source: str, path: str, **_: object) -> ParseResult:
 
     chunks = [
         Chunk(
-            content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
+            content=item["content"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
             meta={"language": "jcl", "symbol_type": "source", **item.get("meta", {})},
         )
         for item in CodeParser("jcl").chunk_file(source)
     ]
     return ParseResult(
-        program_name=PurePosixPath(normalized).stem or "jcl", path=path,
-        source_format="fixed", entities=entities, edges=edges, chunks=chunks,
+        program_name=PurePosixPath(normalized).stem or "jcl",
+        path=path,
+        source_format="fixed",
+        entities=entities,
+        edges=edges,
+        chunks=chunks,
     )

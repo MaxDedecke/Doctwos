@@ -5,14 +5,18 @@ from pathlib import Path
 
 import pytest
 
-CATALOGUE = json.loads((Path(__file__).parent / "fixtures" / "eval_product_scenarios.json").read_text())
+CATALOGUE = json.loads(
+    (Path(__file__).parent / "fixtures" / "eval_product_scenarios.json").read_text()
+)
 SCENARIOS = CATALOGUE["scenarios"]
 VIEWS = {"structure", "process", "impact", "graph", "negative"}
 
 
 def test_every_project_pins_a_commit_revision():
     for project in CATALOGUE["projects"].values():
-        assert len(project["revision"]) == 40 and set(project["revision"]) <= set("0123456789abcdef")
+        assert len(project["revision"]) == 40 and set(project["revision"]) <= set(
+            "0123456789abcdef"
+        )
 
 
 def test_ids_are_unique_and_projects_declared():
@@ -26,11 +30,18 @@ def test_scenario_declares_what_its_view_checks(scenario):
     assert scenario["view"] in VIEWS
     expect = scenario["expect"]
     if scenario["view"] == "negative":
-        assert scenario["request"] in {"process", "change-package-without-target"} and expect["status"] >= 400
+        assert (
+            scenario["request"] in {"process", "change-package-without-target"}
+            and expect["status"] >= 400
+        )
         return
     assert scenario["entity"]["query"] and scenario["entity"]["qualified_name"]
-    required = {"structure": {"group", "targets"}, "process": {"root_label", "labels"},
-                "impact": {"impact_status", "affected_count"}, "graph": {"labels"}}[scenario["view"]]
+    required = {
+        "structure": {"group", "targets"},
+        "process": {"root_label", "labels"},
+        "impact": {"impact_status", "affected_count"},
+        "graph": {"labels"},
+    }[scenario["view"]]
     assert required <= set(expect)
 
 

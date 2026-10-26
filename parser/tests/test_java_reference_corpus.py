@@ -70,7 +70,6 @@ def test_java_reference_corpus_preserves_error_positions_and_fallback() -> None:
     # Recovery keeps the valid surrounding declaration structure. A complete
     # text fallback is reserved for files with no extractable declaration.
     assert any(
-        entity.qualified_name == "corpus.damaged.Broken#recover()"
-        for entity in broken.entities
+        entity.qualified_name == "corpus.damaged.Broken#recover()" for entity in broken.entities
     )
     assert not any(chunk.meta.get("fallback") for chunk in broken.chunks)

@@ -60,7 +60,9 @@ def raise_for_inference_status(response: httpx.Response, provider: str | None) -
         return
     if is_self_hosted_openai(provider):
         detail = _response_detail(response).lower()
-        if response.status_code in {429, 503} or any(marker in detail for marker in _VLLM_MEMORY_MARKERS):
+        if response.status_code in {429, 503} or any(
+            marker in detail for marker in _VLLM_MEMORY_MARKERS
+        ):
             raise VllmCapacityError(
                 f"{provider_label(provider)} ist ausgelastet oder hat nicht genug GPU-/KV-Cache-Speicher "
                 "bzw. Kontext für diese Anfrage. Bitte erneut versuchen oder Kontextlänge, "

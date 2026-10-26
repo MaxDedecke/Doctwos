@@ -297,20 +297,12 @@ def _occurs_count(ctx) -> int | None:
 def _usage_text(ctx, source_text: str | None = None) -> str | None:
     if ctx is None:
         return None
-    raw = (
-        antlr_bridge.original_span(source_text, ctx)
-        if source_text is not None
-        else ctx.getText()
-    )
-    cleaned = re.sub(
-        r"^(USAGE\s+IS\s+|USAGE\s+|IS\s+)", "", raw.strip(), flags=re.IGNORECASE
-    )
+    raw = antlr_bridge.original_span(source_text, ctx) if source_text is not None else ctx.getText()
+    cleaned = re.sub(r"^(USAGE\s+IS\s+|USAGE\s+|IS\s+)", "", raw.strip(), flags=re.IGNORECASE)
     return cleaned.strip()
 
 
-def _value_intervals(
-    ctx, source_text: str | None = None
-) -> tuple[str | None, list[str] | None]:
+def _value_intervals(ctx, source_text: str | None = None) -> tuple[str | None, list[str] | None]:
     if ctx is None:
         return None, None
     intervals = ctx.dataValueInterval()

@@ -5,6 +5,7 @@ oder einen Dateipfad; die Kante wird nur verdrahtet, wenn das Ziel im Projekt EI
 Namen (z. B. mehrere Klassen `Realm` in verschiedenen Modulen) bleiben unaufgelöst und tragen die Zahl der
 Kandidaten in `meta.ambiguous_candidates` — es wird nicht geraten.
 """
+
 from __future__ import annotations
 
 from collections import defaultdict
@@ -16,10 +17,22 @@ DOC_ENTITY_TYPES = frozenset({"asciidoc_document", "doc_section"})
 TYPE_ENTITY_TYPES = frozenset({"class", "interface", "enum", "record", "annotation_type"})
 # Typen, die der Auflöser als Ziele braucht; der Aufrufer lädt nur diese aus der Datenbank.
 RESOLUTION_TARGET_TYPES = TYPE_ENTITY_TYPES | {"property", "asciidoc_document"}
-FILE_ROOT_TYPES = frozenset({
-    "compilation_unit", "properties_file", "html_document", "xml_document", "groovy_file", "javascript_file",
-    "shell_script", "sql_script", "maven_project", "xslt_stylesheet", "jsp_page", "asciidoc_document",
-})
+FILE_ROOT_TYPES = frozenset(
+    {
+        "compilation_unit",
+        "properties_file",
+        "html_document",
+        "xml_document",
+        "groovy_file",
+        "javascript_file",
+        "shell_script",
+        "sql_script",
+        "maven_project",
+        "xslt_stylesheet",
+        "jsp_page",
+        "asciidoc_document",
+    }
+)
 
 
 def _meta(edge) -> dict:
@@ -61,8 +74,12 @@ def resolve_documentation_edges(entities, edges) -> int:
         if kind == "property_key":
             return by_property.get((variant, name), [])
         if kind == "file_path":
-            return [item for item in roots
-                    if item.variant_key == variant and (item.file_path == name or item.file_path.endswith("/" + name))]
+            return [
+                item
+                for item in roots
+                if item.variant_key == variant
+                and (item.file_path == name or item.file_path.endswith("/" + name))
+            ]
         return []
 
     resolved = 0

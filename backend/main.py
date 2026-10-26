@@ -94,6 +94,7 @@ from services.ai_settings import initialize_runtime_settings
 from core.teams import require_admin
 from mcp_server import asgi_app as inbound_mcp_app, run_mcp_session_manager
 
+
 @asynccontextmanager
 async def _lifespan(app: FastAPI):
     bootstrap_superuser()

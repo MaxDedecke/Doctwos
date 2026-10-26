@@ -61,7 +61,9 @@ def test_pass_marks_unresolved_system_targets_and_clears_resolved_ones(db_sessio
         text("INSERT INTO teams (name, created_at) VALUES ('ext-team', now()) RETURNING id")
     ).scalar_one()
     project_id = db_session.execute(
-        text("INSERT INTO projects (name, team_id, created_at) VALUES ('ext-proj', :t, now()) RETURNING id"),
+        text(
+            "INSERT INTO projects (name, team_id, created_at) VALUES ('ext-proj', :t, now()) RETURNING id"
+        ),
         {"t": team_id},
     ).scalar_one()
     source = KnowledgeSource(name="ext", type="git", project_id=project_id, team_id=team_id)
@@ -69,23 +71,36 @@ def test_pass_marks_unresolved_system_targets_and_clears_resolved_ones(db_sessio
     db_session.flush()
     try:
         program = CodeEntity(
-            project_id=project_id, source_id=source.id, file_path="a.cbl", name="A", type="program",
-            qualified_name="A", start_line=1, end_line=2,
+            project_id=project_id,
+            source_id=source.id,
+            file_path="a.cbl",
+            name="A",
+            type="program",
+            qualified_name="A",
+            start_line=1,
+            end_line=2,
         )
         db_session.add(program)
         db_session.flush()
 
         def edge(edge_type, name, resolution="unresolved", meta=None):
             row = CodeEdge(
-                project_id=project_id, source_id=source.id, src_entity_id=program.id, dst_name=name,
-                type=edge_type, resolution=resolution, meta_json=meta,
+                project_id=project_id,
+                source_id=source.id,
+                src_entity_id=program.id,
+                dst_name=name,
+                type=edge_type,
+                resolution=resolution,
+                meta_json=meta,
             )
             db_session.add(row)
             return row
 
         copy_sys = edge("COPY", "DFHAID")
         call_gap = edge("CALL", "COBDATFT")
-        stale = edge("CALL", "MQOPEN", "resolved", {"external": {"category": "mq", "kind": "system_routine"}})
+        stale = edge(
+            "CALL", "MQOPEN", "resolved", {"external": {"category": "mq", "kind": "system_routine"}}
+        )
         db_session.flush()
         _mark_external_targets(db_session, source.id)
         db_session.flush()

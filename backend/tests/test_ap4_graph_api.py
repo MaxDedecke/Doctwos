@@ -1,5 +1,12 @@
 from api.graph import _code_file_id
-from models.database import CodeEdge, CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource, Project
+from models.database import (
+    CodeEdge,
+    CodeEntity,
+    DocumentChunk,
+    EntityDocLink,
+    KnowledgeSource,
+    Project,
+)
 from services.graph_retrieval import expand_chunks_with_graph
 
 
@@ -182,9 +189,12 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
         assert {n["id"] for n in graph["nodes"]} == {caller.id, target.id, copybook.id}
         # Der Graph ist weiterhin durch MAX_NODES begrenzt, erlaubt für eine
         # technische Ablaufanalyse aber nun bis zu fünf Beziehungsebenen.
-        assert client.get(
-            f"/callgraph/focus?entity_id={target.id}&hops=5&project_id={test_project}"
-        ).status_code == 200
+        assert (
+            client.get(
+                f"/callgraph/focus?entity_id={target.id}&hops=5&project_id={test_project}"
+            ).status_code
+            == 200
+        )
         assert (
             client.get(
                 f"/callgraph/export?entity_id={target.id}&format=json&project_id={test_project}"
@@ -228,6 +238,7 @@ def test_entity_neighbors_resolve_and_callgraph_exports(
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
 
 def test_callgraph_keeps_exact_java_edge_types_and_knowledge_graph_collapses_them(
     client, db_session, test_project, test_team
@@ -295,9 +306,7 @@ def test_graph_neighborhood_resolves_entity_ids_to_file_nodes_with_direction(
 ):
     """Der Wissensgraph gibt nie Entity-Knoten aus (a235d08): entity:<id> wird auf die
     enthaltende Datei umgeleitet, Kanten verbinden Dateiknoten."""
-    source, caller, target, copybook, _, _ = _fixture_graph(
-        db_session, test_project, test_team
-    )
+    source, caller, target, copybook, _, _ = _fixture_graph(db_session, test_project, test_team)
     caller_file = _code_file_id(test_project, source.id, "CALLER.CBL")
     target_file = _code_file_id(test_project, source.id, "TARGET.CBL")
     copybook_file = _code_file_id(test_project, source.id, "FIELDS.CPY")
@@ -329,9 +338,9 @@ def test_graph_neighborhood_resolves_entity_ids_to_file_nodes_with_direction(
             },
         )
         assert upstream.status_code == 200
-        assert {
-            (edge["source"], edge["target"]) for edge in upstream.json()["edges"]
-        } == {(caller_file, target_file)}
+        assert {(edge["source"], edge["target"]) for edge in upstream.json()["edges"]} == {
+            (caller_file, target_file)
+        }
 
         both = client.get(
             "/graph/neighborhood",
@@ -630,37 +639,64 @@ def test_graph_neighborhood_pages_skip_unresolved_and_same_file_edges(
     source, caller, target, _, _, _ = _fixture_graph(db_session, test_project, test_team)
     try:
         sibling = CodeEntity(
-            project_id=test_project, source_id=source.id, file_path="CALLER.CBL",
-            name="SIBLING", type="paragraph", qualified_name="CALLER::SIBLING",
+            project_id=test_project,
+            source_id=source.id,
+            file_path="CALLER.CBL",
+            name="SIBLING",
+            type="paragraph",
+            qualified_name="CALLER::SIBLING",
         )
         db_session.add(sibling)
         db_session.flush()
         # Vor der echten Kante liegen viele Kanten ohne Dateiziel (niedrigere IDs).
         for i in range(6):
-            db_session.add(CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=caller.id,
-                dst_entity_id=None, dst_name=f"EXT{i}", type="CALLS", resolution="unresolved",
-            ))
-            db_session.add(CodeEdge(
-                project_id=test_project, source_id=source.id, src_entity_id=caller.id,
-                dst_entity_id=sibling.id, dst_name="SIBLING", type="PERFORMS",
-                resolution="resolved",
-            ))
+            db_session.add(
+                CodeEdge(
+                    project_id=test_project,
+                    source_id=source.id,
+                    src_entity_id=caller.id,
+                    dst_entity_id=None,
+                    dst_name=f"EXT{i}",
+                    type="CALLS",
+                    resolution="unresolved",
+                )
+            )
+            db_session.add(
+                CodeEdge(
+                    project_id=test_project,
+                    source_id=source.id,
+                    src_entity_id=caller.id,
+                    dst_entity_id=sibling.id,
+                    dst_name="SIBLING",
+                    type="PERFORMS",
+                    resolution="resolved",
+                )
+            )
         # Die echte Kante bekommt eine höhere ID als das Rauschen.
         db_session.query(CodeEdge).filter(
             CodeEdge.src_entity_id == caller.id, CodeEdge.dst_entity_id == target.id
         ).delete()
-        db_session.add(CodeEdge(
-            project_id=test_project, source_id=source.id, src_entity_id=caller.id,
-            dst_entity_id=target.id, dst_name="TARGET", type="CALLS", resolution="resolved",
-        ))
+        db_session.add(
+            CodeEdge(
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=caller.id,
+                dst_entity_id=target.id,
+                dst_name="TARGET",
+                type="CALLS",
+                resolution="resolved",
+            )
+        )
         db_session.commit()
         caller_file = _code_file_id(test_project, source.id, "CALLER.CBL")
         res = client.get(
             "/graph/neighborhood",
             params={
-                "node_id": caller_file, "project_id": test_project, "limit": 2,
-                "direction": "outgoing", "relationships": "code_dependency",
+                "node_id": caller_file,
+                "project_id": test_project,
+                "limit": 2,
+                "direction": "outgoing",
+                "relationships": "code_dependency",
             },
         )
         assert res.status_code == 200

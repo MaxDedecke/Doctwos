@@ -17,7 +17,8 @@ def patch_http(handler):
     async def mock_request(method, url, **kwargs):
         return await answer(url, **kwargs)
 
-    with patch("httpx.AsyncClient.get", side_effect=answer), patch(
-        "httpx.AsyncClient.request", side_effect=mock_request
+    with (
+        patch("httpx.AsyncClient.get", side_effect=answer),
+        patch("httpx.AsyncClient.request", side_effect=mock_request),
     ):
         yield

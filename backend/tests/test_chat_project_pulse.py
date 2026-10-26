@@ -13,9 +13,27 @@ def pulse_project(db_session):
     db_session.commit()
     db_session.add_all(
         [
-            CodeEntity(project_id=project.id, name="PAYROLL", type="program", file_path="a.cbl", qualified_name="PAYROLL"),
-            CodeEntity(project_id=project.id, name="ACCTREC", type="copybook", file_path="b.cpy", qualified_name="ACCTREC"),
-            CodeEntity(project_id=project.id, name="MAIN-PARA", type="paragraph", file_path="a.cbl", qualified_name="PAYROLL.MAIN-PARA"),
+            CodeEntity(
+                project_id=project.id,
+                name="PAYROLL",
+                type="program",
+                file_path="a.cbl",
+                qualified_name="PAYROLL",
+            ),
+            CodeEntity(
+                project_id=project.id,
+                name="ACCTREC",
+                type="copybook",
+                file_path="b.cpy",
+                qualified_name="ACCTREC",
+            ),
+            CodeEntity(
+                project_id=project.id,
+                name="MAIN-PARA",
+                type="paragraph",
+                file_path="a.cbl",
+                qualified_name="PAYROLL.MAIN-PARA",
+            ),
         ]
     )
     db_session.commit()
@@ -31,19 +49,39 @@ def test_project_pulse_returns_counts_and_real_names(client, pulse_project):
     assert resp.status_code == 200
     body = resp.json()
     assert body["counts"] == {
-        "program": 1, "copybook": 1, "sql_table": 0, "jcl_job": 0,
-        "class": 0, "interface": 0, "method": 0, "maven_module": 0,
+        "program": 1,
+        "copybook": 1,
+        "sql_table": 0,
+        "jcl_job": 0,
+        "class": 0,
+        "interface": 0,
+        "method": 0,
+        "maven_module": 0,
     }
     assert body["samples"]["program"] == ["PAYROLL"]
     assert body["samples"]["copybook"] == ["ACCTREC"]
     assert body["samples"]["sql_table"] == []
 
 
-def test_project_pulse_counts_java_but_samples_only_types_worth_asking_about(client, pulse_project, db_session):
+def test_project_pulse_counts_java_but_samples_only_types_worth_asking_about(
+    client, pulse_project, db_session
+):
     db_session.add_all(
         [
-            CodeEntity(project_id=pulse_project.id, name="UserLogic", type="class", file_path="U.java", qualified_name="a.UserLogic"),
-            CodeEntity(project_id=pulse_project.id, name="getName", type="method", file_path="U.java", qualified_name="a.UserLogic#getName()"),
+            CodeEntity(
+                project_id=pulse_project.id,
+                name="UserLogic",
+                type="class",
+                file_path="U.java",
+                qualified_name="a.UserLogic",
+            ),
+            CodeEntity(
+                project_id=pulse_project.id,
+                name="getName",
+                type="method",
+                file_path="U.java",
+                qualified_name="a.UserLogic#getName()",
+            ),
         ]
     )
     db_session.commit()
@@ -55,5 +93,7 @@ def test_project_pulse_counts_java_but_samples_only_types_worth_asking_about(cli
 
 
 def test_project_pulse_requires_login(unauthenticated_client, pulse_project):
-    resp = unauthenticated_client.get("/chat/project-pulse", params={"project_id": pulse_project.id})
+    resp = unauthenticated_client.get(
+        "/chat/project-pulse", params={"project_id": pulse_project.id}
+    )
     assert resp.status_code in (401, 403)

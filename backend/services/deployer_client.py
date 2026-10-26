@@ -27,8 +27,11 @@ def _request(method: str, path: str, *, timeout: float = 30.0, **kwargs: Any) ->
         )
     try:
         response = httpx.request(
-            method, f"{cfg.DEPLOYER_URL}{path}", timeout=timeout,
-            headers={"Authorization": f"Bearer {cfg.DEPLOYER_TOKEN}"}, **kwargs,
+            method,
+            f"{cfg.DEPLOYER_URL}{path}",
+            timeout=timeout,
+            headers={"Authorization": f"Bearer {cfg.DEPLOYER_TOKEN}"},
+            **kwargs,
         )
     except httpx.HTTPError as exc:
         raise DeployerError(f"Deployer nicht erreichbar: {exc}", 503) from exc
@@ -37,7 +40,9 @@ def _request(method: str, path: str, *, timeout: float = 30.0, **kwargs: Any) ->
             detail = response.json().get("detail", response.text)
         except ValueError:
             detail = response.text
-        raise DeployerError(str(detail), response.status_code if response.status_code < 500 else 502)
+        raise DeployerError(
+            str(detail), response.status_code if response.status_code < 500 else 502
+        )
     return response.json() if response.content else None
 
 

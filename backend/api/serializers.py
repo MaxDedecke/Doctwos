@@ -195,7 +195,14 @@ def serialize_topic_node(n: TopicNode) -> dict:
 
 
 def _knowledge_link_side(
-    source_type, entity_id, chunk_id, title, url, source_type_label, entity_nav, doc_source_id,
+    source_type,
+    entity_id,
+    chunk_id,
+    title,
+    url,
+    source_type_label,
+    entity_nav,
+    doc_source_id,
     doc_location_of=None,
 ) -> dict:
     side = {

@@ -47,7 +47,11 @@ def _imports(client):
 def test_receiver_calls_are_marked_by_declared_type_or_type_name():
     client = _edges()
     log = _call(client, "LOG.error").meta["external"]
-    assert (log["category"], log["library"], log["via"]) == ("library", "org.slf4j.Logger", "declared_receiver_type")
+    assert (log["category"], log["library"], log["via"]) == (
+        "library",
+        "org.slf4j.Logger",
+        "declared_receiver_type",
+    )
     listed = _call(client, "List.of").meta["external"]
     assert (listed["category"], listed["library"]) == ("jdk", "java.util.List")
     assert _call(client, "String.valueOf").meta["external"]["library"] == "java.lang.String"
@@ -57,11 +61,16 @@ def test_receiver_calls_are_marked_by_declared_type_or_type_name():
 def test_static_imports_are_explicit_certain_and_wildcards_only_possible():
     client = _edges()
     explicit = _call(client, "assertEquals").meta["external"]
-    assert (explicit["library"], explicit["via"]) == ("org.junit.jupiter.api.Assertions", "static_import")
+    assert (explicit["library"], explicit["via"]) == (
+        "org.junit.jupiter.api.Assertions",
+        "static_import",
+    )
     assert "certainty" not in explicit
     wildcard = _call(client, "verify").meta["external"]
     assert (wildcard["library"], wildcard["via"], wildcard["certainty"]) == (
-        "org.mockito.Mockito", "static_wildcard_import", "possible",
+        "org.mockito.Mockito",
+        "static_wildcard_import",
+        "possible",
     )
 
 
@@ -76,7 +85,9 @@ def test_real_gaps_and_repository_targets_are_not_marked_external():
 
 
 def test_stale_external_flag_is_removed_once_an_edge_resolves():
-    client = parse_java_file("package app; import api.Service; class C { Service s; }", "app/C.java")
+    client = parse_java_file(
+        "package app; import api.Service; class C { Service s; }", "app/C.java"
+    )
     usage = next(e for e in client.edges if e.type == "USES_TYPE")
     usage.meta["external"] = {"category": "library", "library": "old.Service"}
     resolve_global_edges([parse_java_file(SERVICE, "api/Service.java"), client])
@@ -146,7 +157,7 @@ def test_inherited_field_type_is_resolved_in_the_import_context_of_its_declaring
         "base/BasePanel.java",
     )
     child = parse_java_file(
-        "package app;\nimport base.BasePanel;\npublic class Child extends BasePanel { void go() { LOG.error(\"x\"); } }\n",
+        'package app;\nimport base.BasePanel;\npublic class Child extends BasePanel { void go() { LOG.error("x"); } }\n',
         "app/Child.java",
     )
     resolve_global_edges([base, child])
@@ -173,7 +184,10 @@ def test_calls_in_a_class_with_an_external_superclass_are_attributed_to_it():
             by_source.setdefault(edge.meta["source_qualified_name"].split("#")[0], []).append(edge)
     super_call = next(e for e in by_source["app.Child"] if e.dst_name == "super")
     assert super_call.meta["external"]["library"] == "org.apache.wicket.markup.html.panel.Panel"
-    assert super_call.meta["external"]["via"] == "external_superclass" and "certainty" not in super_call.meta["external"]
+    assert (
+        super_call.meta["external"]["via"] == "external_superclass"
+        and "certainty" not in super_call.meta["external"]
+    )
     add_call = next(e for e in by_source["app.Child"] if e.dst_name == "add")
     assert add_call.meta["external"]["via"] == "inherited_from_external_superclass"
     assert add_call.meta["external"]["certainty"] == "possible"

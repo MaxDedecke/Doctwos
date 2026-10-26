@@ -228,4 +228,3 @@ def test_persist_parse_result_deduplicates_duplicate_qnames_without_violating_co
     assert len(code_entity_adds) == 1
     assert code_entity_adds[0].qualified_name == "COACTUPC.CICS-OUTPUT-EDIT-VARS.WS-EDIT-DATE-X"
     assert summary["entities"] == 1
-

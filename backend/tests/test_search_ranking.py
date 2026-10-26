@@ -11,14 +11,21 @@ REL = "app/app-authorization-ims-db2-mq"
 @pytest.fixture
 def corpus(db_session, test_project):
     team_id = db_session.query(Project.team_id).filter(Project.id == test_project).scalar()
-    source = KnowledgeSource(name="search-rank", type="Git", project_id=test_project, team_id=team_id, spaces={})
+    source = KnowledgeSource(
+        name="search-rank", type="Git", project_id=test_project, team_id=team_id, spaces={}
+    )
     db_session.add(source)
     db_session.flush()
 
     def entity(name, type_, path, qualified=None, parent=None):
         item = CodeEntity(
-            project_id=test_project, source_id=source.id, file_path=path, name=name, type=type_,
-            qualified_name=qualified or name, start_line=1,
+            project_id=test_project,
+            source_id=source.id,
+            file_path=path,
+            name=name,
+            type=type_,
+            qualified_name=qualified or name,
+            start_line=1,
         )
         db_session.add(item)
         db_session.flush()
@@ -27,21 +34,40 @@ def corpus(db_session, test_project):
     entity("COPAUA0C", "program", f"{REL}/cbl/COPAUA0C.cbl")
     for para in ("MAIN-PARA", "1000-EXIT", "2000-EXIT"):
         entity(para, "paragraph", f"{REL}/cbl/COPAUA0C.cbl", f"COPAUA0C.{para}")
-    entity("GET-AUTHORIZATIONS", "paragraph", f"{REL}/cbl/COPAUS0C.cbl", "COPAUS0C.GET-AUTHORIZATIONS")
-    entity("STEP01", "jcl_step", f"{REL}/jcl/LOADPADB.JCL", f"{REL}/jcl/LOADPADB.JCL::job:LOADPADB::step:STEP01")
+    entity(
+        "GET-AUTHORIZATIONS", "paragraph", f"{REL}/cbl/COPAUS0C.cbl", "COPAUS0C.GET-AUTHORIZATIONS"
+    )
+    entity(
+        "STEP01",
+        "jcl_step",
+        f"{REL}/jcl/LOADPADB.JCL",
+        f"{REL}/jcl/LOADPADB.JCL::job:LOADPADB::step:STEP01",
+    )
     entity("LOADPADB.JCL", "jcl_file", f"{REL}/jcl/LOADPADB.JCL", f"{REL}/jcl/LOADPADB.JCL")
     entity("UserLogic", "class", "core/UserLogic.java", "org.example.UserLogic")
     entity("create", "method", "core/UserLogic.java", "org.example.UserLogic#create(UserCR)")
     entity("update", "method", "core/UserLogic.java", "org.example.UserLogic#update(UserUR)")
-    entity("PENDING-AUTH-REQUEST", "data_item", f"{REL}/cpy/CCPAURQY.cpy", "CCPAURQY.PENDING-AUTH-REQUEST")
+    entity(
+        "PENDING-AUTH-REQUEST",
+        "data_item",
+        f"{REL}/cpy/CCPAURQY.cpy",
+        "CCPAURQY.PENDING-AUTH-REQUEST",
+    )
     entity("SALES_100", "data_item", "x/SALES.cpy", "SALES.SALES_100")
     entity("SALES5", "data_item", "x/SALES.cpy", "SALES.SALES5")
 
     def doc(path, title):
-        db_session.add(DocumentChunk(
-            project_id=test_project, source_id=source.id, file_path=path, content="x", start_line=1, end_line=2,
-            metadata_json={"title": title} if title else {},
-        ))
+        db_session.add(
+            DocumentChunk(
+                project_id=test_project,
+                source_id=source.id,
+                file_path=path,
+                content="x",
+                start_line=1,
+                end_line=2,
+                metadata_json={"title": title} if title else {},
+            )
+        )
 
     doc(f"{REL}/README.md", "README")
     doc(f"{REL}/docs/Authorization Guide.md", "Authorization Guide")
@@ -60,7 +86,9 @@ def _labels(db, project, q, types="entity", limit=10):
     return [(r["node_label"], r["node_meta"].get("type")) for r in results], counts
 
 
-def test_exact_name_comes_first_and_children_follow_only_through_their_qualified_name(db_session, corpus):
+def test_exact_name_comes_first_and_children_follow_only_through_their_qualified_name(
+    db_session, corpus
+):
     labels, counts = _labels(db_session, corpus, "COPAUA0C")
     assert labels[0] == ("COPAUA0C", "program")
     assert {name for name, _ in labels[1:]} == {"MAIN-PARA", "1000-EXIT", "2000-EXIT"}
@@ -70,12 +98,16 @@ def test_exact_name_comes_first_and_children_follow_only_through_their_qualified
 def test_a_folder_name_alone_is_no_hit(db_session, corpus):
     """`authorization` stand im Ordnernamen von JCL und Copybooks, nicht in deren Namen."""
     labels, counts = _labels(db_session, corpus, "authorization")
-    assert {name for name, _ in labels} == {"GET-AUTHORIZATIONS", "PENDING-AUTH-REQUEST"} - {"PENDING-AUTH-REQUEST"}
+    assert {name for name, _ in labels} == {"GET-AUTHORIZATIONS", "PENDING-AUTH-REQUEST"} - {
+        "PENDING-AUTH-REQUEST"
+    }
     assert counts["entity"] == 1
     assert all(type_ != "jcl_step" for _, type_ in labels)
 
 
-def test_file_entities_are_found_by_file_name_and_only_an_extension_narrows_to_them(db_session, corpus):
+def test_file_entities_are_found_by_file_name_and_only_an_extension_narrows_to_them(
+    db_session, corpus
+):
     labels, _ = _labels(db_session, corpus, "LOADPADB")
     # Die Datei zuerst; ihr Step folgt, weil sein Qualified Name den Dateinamen trägt.
     assert labels == [("LOADPADB.JCL", "jcl_file"), ("STEP01", "jcl_step")]
@@ -103,7 +135,9 @@ def test_percent_and_underscore_in_the_query_are_not_wildcards(db_session, corpu
 
 
 def test_documents_are_ranked_by_title_and_ignore_folder_only_matches(db_session, corpus):
-    docs, counts = search_nodes(db_session, q="authorization", types="document", project_id=corpus, limit=10)
+    docs, counts = search_nodes(
+        db_session, q="authorization", types="document", project_id=corpus, limit=10
+    )
     paths = [d["node_meta"]["file_path"] for d in docs]
     assert paths == [f"{REL}/docs/Authorization Guide.md", "docs/authorization-notes.md"]
     assert counts["document"] == 2
@@ -114,13 +148,17 @@ def test_documents_are_ranked_by_title_and_ignore_folder_only_matches(db_session
 
 def test_blank_or_separator_only_queries_do_not_crash(db_session, corpus):
     for q in ("", "   ", ". #"):
-        results, counts = search_nodes(db_session, q=q, types="entity,document", project_id=corpus, limit=5)
+        results, counts = search_nodes(
+            db_session, q=q, types="entity,document", project_id=corpus, limit=5
+        )
         assert isinstance(results, list) and "entity" in counts
 
 
 def test_a_long_qualified_name_keeps_its_specific_tail():
     """Mehr als sechs Teilbegriffe: der Klassen-/Methodenteil am Ende darf nicht abgeschnitten werden."""
-    tokens = _search_tokens("org.apache.syncope.core.rest.cxf.service.UserServiceImpl#create(UserCR)")
+    tokens = _search_tokens(
+        "org.apache.syncope.core.rest.cxf.service.UserServiceImpl#create(UserCR)"
+    )
     assert tokens[-2:] == ["UserServiceImpl", "create(UserCR)"] and len(tokens) == 6
     # Mehrwortanfragen behalten dagegen den Anfang der Eingabe.
     assert _search_tokens("a b c d e f g h") == ["a", "b", "c", "d", "e", "f"]

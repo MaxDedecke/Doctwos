@@ -351,9 +351,7 @@ def test_sql_tables_and_cobol_file_io_carry_read_write_direction():
         ("WRITES", "WS-ORDER"),
     }
     assert any(
-        edge.type == "USES"
-        and edge.dst_name == "ORDERS-FILE"
-        and edge.meta["open_mode"] == "INPUT"
+        edge.type == "USES" and edge.dst_name == "ORDERS-FILE" and edge.meta["open_mode"] == "INPUT"
         for edge in result.edges
     )
 
@@ -376,17 +374,18 @@ def test_write_and_rewrite_follow_the_fd_record_layout_not_an_invented_file_name
     )
 
     record_writes = [
-        edge for edge in result.edges
-        if edge.type == "WRITES" and edge.dst_name == "ORDER-RECORD"
+        edge for edge in result.edges if edge.type == "WRITES" and edge.dst_name == "ORDER-RECORD"
     ]
     assert len(record_writes) == 2
     assert all(edge.resolution == "resolved" for edge in record_writes)
     assert all(edge.meta["io_target_kind"] == "record" for edge in record_writes)
-    assert all(edge.meta["target_qualified_name"] == "RECORDIO.ORDERS-FILE.ORDER-RECORD" for edge in record_writes)
+    assert all(
+        edge.meta["target_qualified_name"] == "RECORDIO.ORDERS-FILE.ORDER-RECORD"
+        for edge in record_writes
+    )
 
     buffer_reads = [
-        edge for edge in result.edges
-        if edge.type == "READS" and edge.dst_name == "WS-ORDER"
+        edge for edge in result.edges if edge.type == "READS" and edge.dst_name == "WS-ORDER"
     ]
     assert len(buffer_reads) == 2
     assert all(edge.resolution == "resolved" for edge in buffer_reads)
@@ -803,7 +802,6 @@ def test_o364_procedure_copybook_parsing():
     assert calls[0].dst_name == "SUBPROG"
 
 
-
 def _numbered_fixed_source(rows: list[str]) -> str:
     """Festformat mit Sequenznummern in Spalte 1-6 und 73-80, wie in Mainframe-Quellen."""
     out = []
@@ -816,20 +814,22 @@ def _numbered_fixed_source(rows: list[str]) -> str:
 def test_blank_sequence_numbered_lines_are_not_reported_as_unstructured_code():
     # O-374: Zeilen, die nur Sequenznummern (Spalte 73-80) tragen, galten als Code
     # und erzeugten Fallback-Chunks; COACCT01/CODATE01 wurden dadurch `partial`.
-    source = _numbered_fixed_source([
-        " IDENTIFICATION DIVISION.",
-        " PROGRAM-ID. LONEDOT.",
-        " DATA DIVISION.",
-        " WORKING-STORAGE SECTION.",
-        "     01  WS-A PIC X(8).",
-        " PROCEDURE DIVISION.",
-        " MAIN-PARA.",
-        "     MOVE 1 TO WS-A",
-        "     .",
-        "",
-        " NEXT-PARA.",
-        "     STOP RUN.",
-    ])
+    source = _numbered_fixed_source(
+        [
+            " IDENTIFICATION DIVISION.",
+            " PROGRAM-ID. LONEDOT.",
+            " DATA DIVISION.",
+            " WORKING-STORAGE SECTION.",
+            "     01  WS-A PIC X(8).",
+            " PROCEDURE DIVISION.",
+            " MAIN-PARA.",
+            "     MOVE 1 TO WS-A",
+            "     .",
+            "",
+            " NEXT-PARA.",
+            "     STOP RUN.",
+        ]
+    )
     result = parse_program(source, "LONEDOT.cbl")
     assert [c for c in result.chunks if c.meta.get("fallback")] == []
     assert [e.name for e in result.entities if e.type == "paragraph"] == ["MAIN-PARA", "NEXT-PARA"]
@@ -897,15 +897,24 @@ def test_dynamic_call_targets_carry_evidenced_candidates_but_stay_dynamic():
     to_program = calls["WS-TO-PROGRAM"]
     assert to_program.resolution == "dynamic"
     assert [(c["name"], c["count"], c["source"]) for c in to_program.meta["candidate_targets"]] == [
-        ("COSGN00C", 2, "move"), ("COMEN01C", 1, "move"),
+        ("COSGN00C", 2, "move"),
+        ("COMEN01C", 1, "move"),
     ]
     assert to_program.meta["candidate_basis"] == "literal_assignments_in_program"
 
     linked = calls["LIT-ADMIN"]
     assert linked.resolution == "dynamic"
-    assert linked.meta["candidate_targets"][0] | {"line": 0} == {"name": "COADM01C", "line": 0, "source": "value", "count": 1}
+    assert linked.meta["candidate_targets"][0] | {"line": 0} == {
+        "name": "COADM01C",
+        "line": 0,
+        "source": "value",
+        "count": 1,
+    }
 
-    assert calls["LITERAL1"].resolution == "resolved" and "candidate_targets" not in calls["LITERAL1"].meta
+    assert (
+        calls["LITERAL1"].resolution == "resolved"
+        and "candidate_targets" not in calls["LITERAL1"].meta
+    )
 
 
 def test_cics_program_operand_with_a_subscript_still_produces_a_dynamic_edge():
@@ -990,7 +999,11 @@ def test_compute_string_and_unstring_operands_get_directions():
         "           STOP RUN.\n"
     )
     result = parse_program(source, "x.cbl")
-    seen = {(e.type, e.dst_name, e.src_start_line) for e in result.edges if e.type in {"READS", "WRITES", "READS_WRITES", "USES"}}
+    seen = {
+        (e.type, e.dst_name, e.src_start_line)
+        for e in result.edges
+        if e.type in {"READS", "WRITES", "READS_WRITES", "USES"}
+    }
     assert ("READS", "WS-LINE", 13) in seen
     assert {("WRITES", "WS-A", 14), ("WRITES", "WS-B", 15)} <= seen
     assert ("WRITES", "WS-AMT", 17) in seen and ("READS", "WS-AN", 18) in seen

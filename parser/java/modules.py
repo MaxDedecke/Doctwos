@@ -23,9 +23,9 @@ def source_kind_from_path(path: str) -> str | None:
                 return "source"
             if parts[index + 2] == "resources":
                 return "resource"
-        if parts[index:index + 2] == ["target", "generated-sources"]:
+        if parts[index : index + 2] == ["target", "generated-sources"]:
             return "generated"
-        if parts[index:index + 2] == ["src", "generated"]:
+        if parts[index : index + 2] == ["src", "generated"]:
             return "generated"
     return None
 
@@ -41,9 +41,9 @@ def source_set_from_path(path: str) -> str | None:
             and parts[index + 2] == "java"
         ):
             return parts[index + 1]
-        if parts[index:index + 2] == ["target", "generated-sources"]:
+        if parts[index : index + 2] == ["target", "generated-sources"]:
             return "main"
-        if parts[index:index + 2] == ["src", "generated"]:
+        if parts[index : index + 2] == ["src", "generated"]:
             return "main"
     return None
 
@@ -53,8 +53,14 @@ def module_from_path(path: str) -> str | None:
 
     parts = path.replace("\\", "/").split("/")
     for index in range(len(parts) - 2):
-        if parts[index] == "src" and parts[index + 1].lower() in _JAVA_SOURCE_SETS and parts[index + 2] in {"java", "resources"}:
+        if (
+            parts[index] == "src"
+            and parts[index + 1].lower() in _JAVA_SOURCE_SETS
+            and parts[index + 2] in {"java", "resources"}
+        ):
             return "/".join(parts[:index]) or "."
-        if parts[index:index + 2] == ["target", "generated-sources"] or parts[index:index + 2] == ["src", "generated"]:
+        if parts[index : index + 2] == ["target", "generated-sources"] or parts[
+            index : index + 2
+        ] == ["src", "generated"]:
             return "/".join(parts[:index]) or "."
     return None

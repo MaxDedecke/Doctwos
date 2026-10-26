@@ -308,19 +308,28 @@ class ConfluenceConnector(BaseConnector):
     # Seiten und Blogposts liegen in Confluence als getrennte Inhaltstypen.
     _CONTENT_TYPES = ("page", "blogpost")
     _PAGE_EXPAND = "body.view,version,space,ancestors"
-    _RESTRICTION_EXPAND = "restrictions.read.restrictions.user,restrictions.read.restrictions.group,ancestors"
+    _RESTRICTION_EXPAND = (
+        "restrictions.read.restrictions.user,restrictions.read.restrictions.group,ancestors"
+    )
 
-    async def _iter_content(self, client, base_url, auth, headers, space_key, content_type, limit, expand):
+    async def _iter_content(
+        self, client, base_url, auth, headers, space_key, content_type, limit, expand
+    ):
         """Alle Inhalte eines Typs (und optional eines Spaces) seitenweise; Fehler werden weitergereicht."""
         start = 0
         while True:
-            data = await self._fetch_pages(client, base_url, auth, headers, space_key, start, limit, content_type, expand)
+            data = await self._fetch_pages(
+                client, base_url, auth, headers, space_key, start, limit, content_type, expand
+            )
             results = data.get("results", [])
             if not results:
                 return
             for page in results:
                 # Absicherung, falls ein Server den Space-Filter ignoriert.
-                if space_key is not None and page.get("space", {}).get("key") not in (space_key, None):
+                if space_key is not None and page.get("space", {}).get("key") not in (
+                    space_key,
+                    None,
+                ):
                     continue
                 yield page
             start += len(results)
@@ -328,12 +337,21 @@ class ConfluenceConnector(BaseConnector):
             if len(results) < limit or "next" not in data.get("_links", {}):
                 return
 
-    async def _collect_restricted_ids(self, client, base_url, auth, headers, space_keys, limit) -> set[str]:
+    async def _collect_restricted_ids(
+        self, client, base_url, auth, headers, space_keys, limit
+    ) -> set[str]:
         ids: set[str] = set()
         for space_key in space_keys:
             for content_type in self._CONTENT_TYPES:
                 async for page in self._iter_content(
-                    client, base_url, auth, headers, space_key, content_type, 100, self._RESTRICTION_EXPAND
+                    client,
+                    base_url,
+                    auth,
+                    headers,
+                    space_key,
+                    content_type,
+                    100,
+                    self._RESTRICTION_EXPAND,
                 ):
                     if self._is_restricted(page):
                         ids.add(str(page.get("id")))
@@ -346,7 +364,9 @@ class ConfluenceConnector(BaseConnector):
             return False
         if str(page.get("id")) in restricted_ids:
             return True
-        return any(str(ancestor.get("id")) in restricted_ids for ancestor in page.get("ancestors") or [])
+        return any(
+            str(ancestor.get("id")) in restricted_ids for ancestor in page.get("ancestors") or []
+        )
 
     async def _append_comments(self, client, base_url, auth, headers, page, doc) -> None:
         """Hängt die Kommentare der Seite als eigenen Abschnitt an (nur auf Wunsch: ein Abruf mehr je Seite)."""
@@ -354,17 +374,24 @@ class ConfluenceConnector(BaseConnector):
         while True:
             try:
                 data = await self._get_json(
-                    client, f"{base_url}{self._api_root}/content/{page.get('id')}/child/comment",
-                    auth, headers, {"limit": limit, "start": start, "expand": "body.view,version"},
+                    client,
+                    f"{base_url}{self._api_root}/content/{page.get('id')}/child/comment",
+                    auth,
+                    headers,
+                    {"limit": limit, "start": start, "expand": "body.view,version"},
                 )
             except httpx.HTTPError as exc:
                 self._log(f"Kommentare von '{page.get('title')}' nicht abrufbar: {exc}")
                 return
             results = data.get("results", [])
             for comment in results:
-                text, _sections = _html_to_text(comment.get("body", {}).get("view", {}).get("value", ""))
+                text, _sections = _html_to_text(
+                    comment.get("body", {}).get("view", {}).get("value", "")
+                )
                 if text:
-                    author = (comment.get("version", {}).get("by") or {}).get("displayName") or "Unbekannt"
+                    author = (comment.get("version", {}).get("by") or {}).get(
+                        "displayName"
+                    ) or "Unbekannt"
                     lines.append(f"Kommentar von {author}: " + " ".join(text.split()))
             if len(results) < limit or "next" not in data.get("_links", {}):
                 break
@@ -372,7 +399,9 @@ class ConfluenceConnector(BaseConnector):
         if lines:
             doc["content"] += "\n\nKommentare\n" + "\n".join(lines)
             if doc.get("line_sections") is not None:
-                doc["line_sections"] = list(doc["line_sections"]) + [None, "Kommentare"] + ["Kommentare"] * len(lines)
+                doc["line_sections"] = (
+                    list(doc["line_sections"]) + [None, "Kommentare"] + ["Kommentare"] * len(lines)
+                )
 
     async def _discover_api_root(self, client, base_url, auth, headers) -> str:
         """Findet die REST-Wurzel dieser Installation (Server/DC oder Cloud) mit je einer Anfrage.
@@ -385,7 +414,11 @@ class ConfluenceConnector(BaseConnector):
         for root in self._API_ROOTS:
             try:
                 response = await client.get(
-                    f"{base_url}{root}/space", params={"limit": 1}, auth=auth, headers=headers, timeout=30.0
+                    f"{base_url}{root}/space",
+                    params={"limit": 1},
+                    auth=auth,
+                    headers=headers,
+                    timeout=30.0,
                 )
             except httpx.HTTPError as exc:
                 last_error = exc
@@ -401,7 +434,9 @@ class ConfluenceConnector(BaseConnector):
         if auth_error:
             raise RuntimeError(auth_error)
         if last_error is not None:
-            raise RuntimeError(f"Confluence nicht erreichbar: {type(last_error).__name__}: {last_error}")
+            raise RuntimeError(
+                f"Confluence nicht erreichbar: {type(last_error).__name__}: {last_error}"
+            )
         raise RuntimeError(
             f"Keine Confluence-REST-API unter {base_url} gefunden (geprüft: {', '.join(self._API_ROOTS)}). "
             "Prüfe die Server-URL einschließlich eines evtl. Kontextpfads (z. B. /confluence)."
@@ -450,7 +485,14 @@ class ConfluenceConnector(BaseConnector):
             for space_key in space_keys:
                 for content_type in self._CONTENT_TYPES:
                     async for page in self._iter_content(
-                        client, base_url, auth, headers, space_key, content_type, page_limit, self._PAGE_EXPAND
+                        client,
+                        base_url,
+                        auth,
+                        headers,
+                        space_key,
+                        content_type,
+                        page_limit,
+                        self._PAGE_EXPAND,
                     ):
                         if self._is_restricted_in_tree(page, restricted_ids):
                             # Alle Projektmitglieder in Doctus sähen sonst, was in Confluence nur wenigen erlaubt ist.
@@ -471,7 +513,9 @@ class ConfluenceConnector(BaseConnector):
 
                         if doc is not None:
                             if include_comments:
-                                await self._append_comments(client, base_url, auth, headers, page, doc)
+                                await self._append_comments(
+                                    client, base_url, auth, headers, page, doc
+                                )
                             yield doc
 
                         async for att_doc in self._fetch_attachments(
@@ -499,7 +543,16 @@ class ConfluenceConnector(BaseConnector):
     # ── Interne Hilfsmethoden ────────────────────────────────────────────────
 
     async def _fetch_pages(
-        self, client, base_url, auth, headers, space_key, start, limit, content_type="page", expand=None
+        self,
+        client,
+        base_url,
+        auth,
+        headers,
+        space_key,
+        start,
+        limit,
+        content_type="page",
+        expand=None,
     ) -> dict:
         """Ruft eine Seite der Content-API ab (Fehler werden weitergereicht, damit der Sync nicht still endet)."""
         params = {
@@ -510,13 +563,21 @@ class ConfluenceConnector(BaseConnector):
         }
         if space_key is not None:
             params["spaceKey"] = space_key
-        return await self._get_json(client, f"{base_url}{self._api_root}/content", auth, headers, params)
+        return await self._get_json(
+            client, f"{base_url}{self._api_root}/content", auth, headers, params
+        )
 
     async def _get_json(self, client, url, auth, headers, params) -> dict:
         """GET mit Backoff nur bei 429/5xx/Netzwerkfehlern; 4xx (z. B. 404) werden sofort gemeldet."""
         response = await request_with_retry(
-            client, "GET", url, headers_fn=lambda: headers, auth=auth, params=params,
-            timeout=30.0, log=self._log,
+            client,
+            "GET",
+            url,
+            headers_fn=lambda: headers,
+            auth=auth,
+            params=params,
+            timeout=30.0,
+            log=self._log,
         )
         await asyncio.sleep(0.05)  # Höflichkeits-Pause zwischen Requests
         return response.json()
@@ -623,20 +684,27 @@ class ConfluenceConnector(BaseConnector):
                 "page_id": page.get("id"),
                 "space_key": page.get("space", {}).get("key"),
                 "content_type": page.get("type") or "page",
-                "ancestors": [a.get("title") for a in page.get("ancestors") or [] if a.get("title")],
+                "ancestors": [
+                    a.get("title") for a in page.get("ancestors") or [] if a.get("title")
+                ],
             },
             line_sections=line_sections,
         )
 
-    async def _list_attachments(self, client, base_url, auth, headers, page_id, page_title) -> list[dict]:
+    async def _list_attachments(
+        self, client, base_url, auth, headers, page_id, page_title
+    ) -> list[dict]:
         """Alle Anhänge einer Seite (seitenweise abgefragt, nicht nur die ersten 50)."""
         attachments: list[dict] = []
         start, limit = 0, 50
         while True:
             try:
                 resp = await self._get_json(
-                    client, f"{base_url}{self._api_root}/content/{page_id}/child/attachment",
-                    auth, headers, {"limit": limit, "start": start, "expand": "version"},
+                    client,
+                    f"{base_url}{self._api_root}/content/{page_id}/child/attachment",
+                    auth,
+                    headers,
+                    {"limit": limit, "start": start, "expand": "version"},
                 )
             except httpx.HTTPError as exc:
                 self._log(f"Anhänge von '{page_title}' nicht abrufbar: {exc}")
@@ -655,7 +723,9 @@ class ConfluenceConnector(BaseConnector):
         page_title = page.get("title", "Unbekannte Seite")
         page_key = self._page_key(page)
 
-        for att in await self._list_attachments(client, base_url, auth, headers, page_id, page_title):
+        for att in await self._list_attachments(
+            client, base_url, auth, headers, page_id, page_title
+        ):
             mime_type = att.get("metadata", {}).get("mediaType", "")
             if not _is_supported_mime(mime_type):
                 continue
@@ -697,8 +767,14 @@ class ConfluenceConnector(BaseConnector):
 
             try:
                 dl_resp = await request_with_retry(
-                    client, "GET", f"{base_url}{download_path}", headers_fn=lambda: headers, auth=auth,
-                    follow_redirects=True, timeout=60.0, log=self._log,
+                    client,
+                    "GET",
+                    f"{base_url}{download_path}",
+                    headers_fn=lambda: headers,
+                    auth=auth,
+                    follow_redirects=True,
+                    timeout=60.0,
+                    log=self._log,
                 )
             except Exception as e:
                 self._log(f"Download-Fehler für '{filename}': {e}")

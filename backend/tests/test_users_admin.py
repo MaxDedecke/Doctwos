@@ -200,11 +200,14 @@ def test_users_endpoints_require_admin(client, cleanup_user):
 
 # --- Löschen ----------------------------------------------------------------------------------
 
+
 def _user_id(client):
     return next(u["id"] for u in client.get("/users").json() if u["username"] == NEW_USERNAME)
 
 
-def test_admin_can_delete_a_user_and_their_private_chats_but_not_shared_ones(client, db_session, cleanup_user):
+def test_admin_can_delete_a_user_and_their_private_chats_but_not_shared_ones(
+    client, db_session, cleanup_user
+):
     from models.database import ChatSession
 
     _create(client)
@@ -247,7 +250,14 @@ def test_user_with_authored_insights_cannot_be_deleted(client, db_session, clean
     project = Project(name="loesch-test-projekt", team_id=team.id)
     db_session.add(project)
     db_session.commit()
-    insight = Insight(project_id=project.id, title="t", content="c", origin_kind="chat", evidence_json={}, created_by_id=user_id)
+    insight = Insight(
+        project_id=project.id,
+        title="t",
+        content="c",
+        origin_kind="chat",
+        evidence_json={},
+        created_by_id=user_id,
+    )
     db_session.add(insight)
     db_session.commit()
     try:

@@ -157,9 +157,15 @@ class App {
     assert by_qname["demo.User#component:name"].type == "record_component"
     assert by_qname["demo.User#component:age"].meta["component_type"] == "int"
     method = by_qname["demo.App#run(String)"]
-    assert by_qname["demo.App#run(String)@param:input"].parent_qualified_name == method.qualified_name
-    assert any(entity.type == "local_variable" and entity.name == "count" for entity in result.entities)
-    assert any(entity.type == "local_variable" and entity.name == "text" for entity in result.entities)
+    assert (
+        by_qname["demo.App#run(String)@param:input"].parent_qualified_name == method.qualified_name
+    )
+    assert any(
+        entity.type == "local_variable" and entity.name == "count" for entity in result.entities
+    )
+    assert any(
+        entity.type == "local_variable" and entity.name == "text" for entity in result.entities
+    )
     lambda_entity = next(entity for entity in result.entities if entity.type == "lambda")
     assert lambda_entity.parent_qualified_name == method.qualified_name
     assert any(
@@ -174,8 +180,13 @@ class App {
         and entity.name == "left"
         for entity in result.entities
     )
-    assert any(entity.type == "method_reference" and entity.name == "input::trim" for entity in result.entities)
-    assert any(entity.type == "local_class" and entity.name == "Local" for entity in result.entities)
+    assert any(
+        entity.type == "method_reference" and entity.name == "input::trim"
+        for entity in result.entities
+    )
+    assert any(
+        entity.type == "local_class" and entity.name == "Local" for entity in result.entities
+    )
     assert any(entity.type == "anonymous_class" for entity in result.entities)
 
 
@@ -215,7 +226,8 @@ class App {
     parameters = [
         entity
         for entity in result.entities
-        if entity.type == "parameter" and entity.parent_qualified_name == lambda_entity.qualified_name
+        if entity.type == "parameter"
+        and entity.parent_qualified_name == lambda_entity.qualified_name
     ]
     assert [(entity.name, entity.meta["parameter_type"]) for entity in parameters] == [
         ("left", "String"),
@@ -249,7 +261,10 @@ def test_maven_module_path_is_attached_to_root_and_nested_entities() -> None:
 
 
 def test_generated_java_sources_are_marked_without_build_execution() -> None:
-    result = parse_java_file("package demo; class Generated {}", "billing/target/generated-sources/openapi/demo/Generated.java")
+    result = parse_java_file(
+        "package demo; class Generated {}",
+        "billing/target/generated-sources/openapi/demo/Generated.java",
+    )
 
     assert result.entities[0].meta["module"] == "billing"
     assert result.entities[0].meta["source_set"] == "main"

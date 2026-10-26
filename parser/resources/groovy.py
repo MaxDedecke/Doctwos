@@ -3,6 +3,7 @@
 Erfasst Klassen, Interfaces, Enums, Traits und Methoden mit exakten Zeilen.
 Keine Typauflösung, keine Kanten: nur belegte Deklarationen.
 """
+
 from __future__ import annotations
 
 import re
@@ -22,7 +23,19 @@ _METHOD = re.compile(
     r"(?:def|void|[A-Za-z_][\w.<>\[\],?]*)[ \t]+(\w+)[ \t]*\(([^;{}]*)\)[ \t]*(?:throws[\w\s,.]+)?\{",
     re.MULTILINE,
 )
-_NOT_A_METHOD = {"if", "for", "while", "switch", "catch", "synchronized", "return", "new", "else", "try", "when"}
+_NOT_A_METHOD = {
+    "if",
+    "for",
+    "while",
+    "switch",
+    "catch",
+    "synchronized",
+    "return",
+    "new",
+    "else",
+    "try",
+    "when",
+}
 _NOT_A_TYPE = {"else", "return", "new", "throw", "assert", "case", "in"}
 
 
@@ -32,8 +45,12 @@ def parse_groovy_file(source: str, path: str, **_: object) -> ParseResult:
     lines = Lines(source)
     total = max(1, len(source.splitlines()))
     root = Entity(
-        type="groovy_file", name=PurePosixPath(normalized).name, start_line=1, end_line=total,
-        qualified_name=normalized, meta={"language": "groovy", "is_file_root": True},
+        type="groovy_file",
+        name=PurePosixPath(normalized).name,
+        start_line=1,
+        end_line=total,
+        qualified_name=normalized,
+        meta={"language": "groovy", "is_file_root": True},
     )
     package = re.search(r"^[ \t]*package[ \t]+([\w.]+)", masked, re.MULTILINE)
     if package:
@@ -55,8 +72,11 @@ def parse_groovy_file(source: str, path: str, **_: object) -> ParseResult:
         name = match.group(2)
         entity = Entity(
             type="class" if match.group(1) != "interface" else "interface",
-            name=name, start_line=lines.line(match.start(2)), end_line=lines.line(end),
-            parent_name=root.name, parent_qualified_name=normalized,
+            name=name,
+            start_line=lines.line(match.start(2)),
+            end_line=lines.line(end),
+            parent_name=root.name,
+            parent_qualified_name=normalized,
             qualified_name=unique(f"{normalized}::{name}"),
             meta={"language": "groovy", "kind": match.group(1)},
         )
@@ -65,7 +85,7 @@ def parse_groovy_file(source: str, path: str, **_: object) -> ParseResult:
 
     for match in _METHOD.finditer(masked):
         name = match.group(1)
-        head = masked[match.start():match.start(1)].split()
+        head = masked[match.start() : match.start(1)].split()
         if name in _NOT_A_METHOD or (head and head[-1] in _NOT_A_TYPE):
             continue
         brace = match.end() - 1
@@ -74,16 +94,32 @@ def parse_groovy_file(source: str, path: str, **_: object) -> ParseResult:
             continue
         owners = [span for span in spans if span[0] < match.start() < span[1]]
         owner = min(owners, key=lambda span: span[1] - span[0])[2] if owners else root
-        entities.append(Entity(
-            type="method", name=name, start_line=lines.line(match.start(1)), end_line=lines.line(end),
-            parent_name=owner.name, parent_qualified_name=owner.qualified_name,
-            qualified_name=unique(f"{owner.qualified_name}#{name}"),
-            meta={"language": "groovy", "parameters": " ".join(match.group(2).split())[:200]},
-        ))
+        entities.append(
+            Entity(
+                type="method",
+                name=name,
+                start_line=lines.line(match.start(1)),
+                end_line=lines.line(end),
+                parent_name=owner.name,
+                parent_qualified_name=owner.qualified_name,
+                qualified_name=unique(f"{owner.qualified_name}#{name}"),
+                meta={"language": "groovy", "parameters": " ".join(match.group(2).split())[:200]},
+            )
+        )
     chunks = [
-        Chunk(content=item["content"], start_line=item["start_line"], end_line=item["end_line"],
-              meta={"language": "groovy", "symbol_type": "source"})
+        Chunk(
+            content=item["content"],
+            start_line=item["start_line"],
+            end_line=item["end_line"],
+            meta={"language": "groovy", "symbol_type": "source"},
+        )
         for item in CodeParser("groovy").chunk_file(source)
     ]
-    return ParseResult(program_name=PurePosixPath(normalized).stem, path=path, source_format="free",
-                       entities=entities, edges=[], chunks=chunks)
+    return ParseResult(
+        program_name=PurePosixPath(normalized).stem,
+        path=path,
+        source_format="free",
+        entities=entities,
+        edges=[],
+        chunks=chunks,
+    )

@@ -12,8 +12,15 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 ProcessNodeKind = Literal[
-    "step", "call", "branch", "jump", "iteration", "data_access",
-    "external_call", "entry", "exit",
+    "step",
+    "call",
+    "branch",
+    "jump",
+    "iteration",
+    "data_access",
+    "external_call",
+    "entry",
+    "exit",
 ]
 ProcessTransitionKind = ProcessNodeKind
 ProcessCertainty = Literal["certain", "possible", "unresolved"]
@@ -78,13 +85,9 @@ class ProcessTransition(BaseModel):
 
     @model_validator(mode="after")
     def require_code_edge_provenance(self):
-        if self.origin_kind == "code_edge" and (
-            not self.code_edge_ids or not self.code_edge_types
-        ):
+        if self.origin_kind == "code_edge" and (not self.code_edge_ids or not self.code_edge_types):
             raise ValueError("code_edge transitions require edge IDs and edge types")
-        if self.origin_kind == "synthetic" and (
-            self.code_edge_ids or self.code_edge_types
-        ):
+        if self.origin_kind == "synthetic" and (self.code_edge_ids or self.code_edge_types):
             raise ValueError("synthetic transitions must not claim CodeEdge provenance")
         return self
 

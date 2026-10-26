@@ -44,7 +44,9 @@ async def test_process_knowledge_source_does_not_auto_trigger_entity_links(monke
     # Ensure no LinkBuilderRun was added to DB
     for call in fake_db.add.call_args_list:
         obj = call[0][0]
-        assert not isinstance(obj, LinkBuilderRun), "LinkBuilderRun must not be created on sync (O-315)"
+        assert not isinstance(obj, LinkBuilderRun), (
+            "LinkBuilderRun must not be created on sync (O-315)"
+        )
 
     # Ensure no Celery task was sent
     assert len(sent_tasks) == 0, "compute_entity_links task must not be sent on sync (O-315)"

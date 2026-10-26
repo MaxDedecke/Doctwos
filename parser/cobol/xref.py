@@ -29,25 +29,80 @@ from .names import canonical_identifier
 
 _QUALIFIERS = ("OF", "IN")
 _ASSIGNMENT_VERBS = {
-    "ACCEPT", "ADD", "COMPUTE", "DIVIDE", "INITIALIZE", "MOVE",
-    "MULTIPLY", "READ", "SET", "SUBTRACT", "WRITE", "REWRITE",
-    "STRING", "UNSTRING",
+    "ACCEPT",
+    "ADD",
+    "COMPUTE",
+    "DIVIDE",
+    "INITIALIZE",
+    "MOVE",
+    "MULTIPLY",
+    "READ",
+    "SET",
+    "SUBTRACT",
+    "WRITE",
+    "REWRITE",
+    "STRING",
+    "UNSTRING",
 }
 # Klauselwörter, die in STRING/UNSTRING die Richtung des folgenden Operanden festlegen.
 _STRING_CLAUSE_MODES = {
-    "INTO": ("WRITES", "target"), "DELIMITER": ("WRITES", "target"), "COUNT": ("WRITES", "target"),
-    "POINTER": ("READS_WRITES", "pointer"), "TALLYING": ("READS_WRITES", "counter"),
-    "DELIMITED": ("READS", "source"), "BY": ("READS", "source"),
+    "INTO": ("WRITES", "target"),
+    "DELIMITER": ("WRITES", "target"),
+    "COUNT": ("WRITES", "target"),
+    "POINTER": ("READS_WRITES", "pointer"),
+    "TALLYING": ("READS_WRITES", "counter"),
+    "DELIMITED": ("READS", "source"),
+    "BY": ("READS", "source"),
 }
 _STATEMENT_VERBS = _ASSIGNMENT_VERBS | {
-    "ACCEPT", "ALTER", "CALL", "CANCEL", "CLOSE", "CONTINUE", "DELETE",
-    "DISPLAY", "ELSE", "END-ADD", "END-CALL", "END-COMPUTE", "END-DELETE",
-    "END-DIVIDE", "END-EVALUATE", "END-IF", "END-MULTIPLY", "END-READ",
-    "END-REWRITE", "END-SEARCH", "END-START", "END-SUBTRACT", "END-WRITE",
-    "EVALUATE", "EXEC", "EXIT", "GO", "GOBACK", "GOTO", "IF", "INITIALIZE",
-    "INSPECT", "MERGE", "OPEN", "PERFORM", "RELEASE", "RETURN", "SEARCH",
-    "SORT", "START", "STOP", "THEN", "UNTIL", "WHEN",
-    "STRING", "UNSTRING", "END-STRING", "END-UNSTRING",
+    "ACCEPT",
+    "ALTER",
+    "CALL",
+    "CANCEL",
+    "CLOSE",
+    "CONTINUE",
+    "DELETE",
+    "DISPLAY",
+    "ELSE",
+    "END-ADD",
+    "END-CALL",
+    "END-COMPUTE",
+    "END-DELETE",
+    "END-DIVIDE",
+    "END-EVALUATE",
+    "END-IF",
+    "END-MULTIPLY",
+    "END-READ",
+    "END-REWRITE",
+    "END-SEARCH",
+    "END-START",
+    "END-SUBTRACT",
+    "END-WRITE",
+    "EVALUATE",
+    "EXEC",
+    "EXIT",
+    "GO",
+    "GOBACK",
+    "GOTO",
+    "IF",
+    "INITIALIZE",
+    "INSPECT",
+    "MERGE",
+    "OPEN",
+    "PERFORM",
+    "RELEASE",
+    "RETURN",
+    "SEARCH",
+    "SORT",
+    "START",
+    "STOP",
+    "THEN",
+    "UNTIL",
+    "WHEN",
+    "STRING",
+    "UNSTRING",
+    "END-STRING",
+    "END-UNSTRING",
 }
 _READ_CONTEXT_VERBS = {"DISPLAY", "EVALUATE", "IF", "UNTIL", "WHEN"}
 
@@ -62,7 +117,9 @@ def _reference_access(proc_tokens: list[Token], idx: int) -> tuple[str, str, str
             break
         start -= 1
     verb_token = proc_tokens[start] if start >= 0 else None
-    verb = canonical_identifier(verb_token.value) if verb_token and verb_token.kind == "WORD" else ""
+    verb = (
+        canonical_identifier(verb_token.value) if verb_token and verb_token.kind == "WORD" else ""
+    )
     if verb not in _ASSIGNMENT_VERBS | _READ_CONTEXT_VERBS:
         return None
     end = idx + 1
@@ -74,10 +131,24 @@ def _reference_access(proc_tokens: list[Token], idx: int) -> tuple[str, str, str
         end += 1
     statement = proc_tokens[start:end]
     relative = idx - start
-    words = [canonical_identifier(token.value) if token.kind == "WORD" else token.value for token in statement]
-    markers = {word: [i for i, item in enumerate(words) if item == word] for word in (
-        "TO", "FROM", "GIVING", "INTO", "BY", "UP", "DOWN", "TRUE", "FALSE",
-    )}
+    words = [
+        canonical_identifier(token.value) if token.kind == "WORD" else token.value
+        for token in statement
+    ]
+    markers = {
+        word: [i for i, item in enumerate(words) if item == word]
+        for word in (
+            "TO",
+            "FROM",
+            "GIVING",
+            "INTO",
+            "BY",
+            "UP",
+            "DOWN",
+            "TRUE",
+            "FALSE",
+        )
+    }
     mode = None
     role = "operand"
     if verb == "MOVE":
@@ -127,7 +198,9 @@ def _reference_access(proc_tokens: list[Token], idx: int) -> tuple[str, str, str
     elif verb == "SET":
         if markers["UP"] or markers["DOWN"]:
             by = next(iter(markers["BY"]), None)
-            mode, role = ("READS_WRITES", "target") if by is None or relative < by else ("READS", "source")
+            mode, role = (
+                ("READS_WRITES", "target") if by is None or relative < by else ("READS", "source")
+            )
         else:
             mode, role = "WRITES", "target"
     elif verb in _READ_CONTEXT_VERBS:
@@ -185,9 +258,17 @@ def scan(
         word = canonical_identifier(tok.value) if tok.kind == "WORD" else ""
         if control_stack and word in _STATEMENT_VERBS:
             top = control_stack[-1]
-            if top["type"] == "IF" and top["branch"] == "CONDITION" and word not in {"IF", "ELSE", "END-IF"}:
+            if (
+                top["type"] == "IF"
+                and top["branch"] == "CONDITION"
+                and word not in {"IF", "ELSE", "END-IF"}
+            ):
                 top["branch"] = "THEN"
-            elif top["type"] == "EVALUATE" and top["branch"] == "CONDITION" and word not in {"WHEN", "END-EVALUATE"}:
+            elif (
+                top["type"] == "EVALUATE"
+                and top["branch"] == "CONDITION"
+                and word not in {"WHEN", "END-EVALUATE"}
+            ):
                 top["branch"] = "BODY"
         if word in {"END-IF", "END-EVALUATE"}:
             expected = "IF" if word == "END-IF" else "EVALUATE"

@@ -378,9 +378,7 @@ deploy
         .all()
     )
     declarations = (
-        db_session.query(CodeEdge)
-        .filter_by(source_id=test_source.id, type="DECLARES")
-        .all()
+        db_session.query(CodeEdge).filter_by(source_id=test_source.id, type="DECLARES").all()
     )
 
     assert {entity.qualified_name for entity in entities if entity.type == "shell_function"} == {
@@ -1041,9 +1039,7 @@ async def test_git_connector_progress_advances_only_as_files_actually_complete(
 
 
 @pytest.mark.anyio
-async def test_git_connector_records_progress_while_other_files_still_run(
-    db_session, test_source
-):
+async def test_git_connector_records_progress_while_other_files_still_run(db_session, test_source):
     """Regression: fertige Dateien wurden erst ab 50 offenen Tasks verbucht -- ein
     Sync mit weniger Dateien zeigte bis zum Schluss keinen Stand (z. B. 245/350)."""
     connector = GitConnector(test_source.id)

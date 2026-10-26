@@ -11,7 +11,9 @@ def test_source_ca_bundle_wins_over_everything(monkeypatch, tmp_path):
     env_bundle = tmp_path / "env.pem"
     env_bundle.write_text("x")
     monkeypatch.setenv("CUSTOM_CA_BUNDLE", str(env_bundle))
-    assert resolve_verify({"ca_bundle": "/certs/kunde.pem", "verify_ssl": False}) == "/certs/kunde.pem"
+    assert (
+        resolve_verify({"ca_bundle": "/certs/kunde.pem", "verify_ssl": False}) == "/certs/kunde.pem"
+    )
 
 
 def test_explicit_opt_out_disables_verification(monkeypatch):

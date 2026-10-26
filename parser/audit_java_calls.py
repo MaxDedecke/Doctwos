@@ -51,8 +51,7 @@ def audit_java_calls(root: Path, *, example_limit: int = 50) -> dict:
         "resolved_targets": dict(
             sorted(
                 Counter(
-                    edge.meta.get("target_qualified_name", "<missing>")
-                    for edge in resolved_calls
+                    edge.meta.get("target_qualified_name", "<missing>") for edge in resolved_calls
                 ).items()
             )
         ),

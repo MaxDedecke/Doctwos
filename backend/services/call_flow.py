@@ -45,9 +45,7 @@ CALL_FLOW_EDGE_TYPES = {
     "ASSIGNED_DATASET",
     "LINKS_TO",
 }
-CALL_EXECUTION_EDGE_TYPES = {
-    "CALL", "PERFORM", "GOTO", "CALLS", "STARTS_JAVA", "EXECUTES_SCRIPT"
-}
+CALL_EXECUTION_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "CALLS", "STARTS_JAVA", "EXECUTES_SCRIPT"}
 CALL_DEPENDENCY_EDGE_TYPES = CALL_FLOW_EDGE_TYPES - CALL_EXECUTION_EDGE_TYPES
 CALL_FLOW_EDGE_PRIORITY = {
     "CALL": 0,
@@ -185,9 +183,13 @@ def trace_call_flow(
         )
         candidates_truncated = len(paragraphs) > node_limit
         named_entries = [
-            item for item in paragraphs
-            if item.name.casefold() in {"main-para", "main", "procedure-division", "procedure-start"}
-            or (item.qualified_name or "").casefold().endswith((".main-para", ".main", ".procedure-division", ".procedure-start"))
+            item
+            for item in paragraphs
+            if item.name.casefold()
+            in {"main-para", "main", "procedure-division", "procedure-start"}
+            or (item.qualified_name or "")
+            .casefold()
+            .endswith((".main-para", ".main", ".procedure-division", ".procedure-start"))
         ]
         if not candidates_truncated and len(named_entries) == 1:
             root = named_entries[0]
@@ -248,9 +250,7 @@ def trace_call_flow(
                 "status": "entry_point_selection_required",
                 "root": _node_json(root),
                 "requested_root": _node_json(root),
-                "entry_candidates": [
-                    _node_json(method) for method in methods[:node_limit]
-                ],
+                "entry_candidates": [_node_json(method) for method in methods[:node_limit]],
                 "truncated": candidates_truncated,
                 "nodes": [_node_json(root)],
                 "edges": [],
@@ -288,8 +288,7 @@ def trace_call_flow(
             language = CodeEdge.meta_json["language"].as_string()
             edge_filter = or_(
                 CodeEdge.type.in_(CALL_DEPENDENCY_EDGE_TYPES - {"EXECUTES"}),
-                (CodeEdge.type == "EXECUTES")
-                & or_(language.is_(None), language != "jcl"),
+                (CodeEdge.type == "EXECUTES") & or_(language.is_(None), language != "jcl"),
             )
         else:
             edge_filter = CodeEdge.type.in_(CALL_FLOW_EDGE_TYPES)
@@ -310,12 +309,16 @@ def trace_call_flow(
             else_=2,
         )
         resolution_priority = case((CodeEdge.resolution == "resolved", 0), else_=1)
-        rows = query.order_by(
-            edge_priority,
-            resolution_priority,
-            CodeEdge.src_start_line,
-            CodeEdge.id,
-        ).limit(remaining_edges + 1).all()
+        rows = (
+            query.order_by(
+                edge_priority,
+                resolution_priority,
+                CodeEdge.src_start_line,
+                CodeEdge.id,
+            )
+            .limit(remaining_edges + 1)
+            .all()
+        )
         if len(rows) > remaining_edges:
             truncated = True
             rows = rows[:remaining_edges]

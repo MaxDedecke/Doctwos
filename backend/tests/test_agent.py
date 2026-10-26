@@ -177,7 +177,9 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
 
     @contextlib.asynccontextmanager
     async def mock_admitted_stream(client, url, **kwargs):
-        async with client.stream("POST", url, json=kwargs["json"], headers=kwargs["headers"]) as response:
+        async with client.stream(
+            "POST", url, json=kwargs["json"], headers=kwargs["headers"]
+        ) as response:
             yield response
 
     monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
@@ -217,7 +219,10 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
     (tmp_path / "config.sh").write_text("#!/bin/sh\nMODE=prod\n", encoding="utf-8")
     captured = {}
 
-    monkeypatch.setattr("agent.get_repo_path", lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path))
+    monkeypatch.setattr(
+        "agent.get_repo_path",
+        lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path),
+    )
 
     @contextlib.asynccontextmanager
     async def mock_stream(self, method, url, **kwargs):
@@ -268,7 +273,9 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
 
 
 @pytest.mark.asyncio
-async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope(monkeypatch, tmp_path):
+async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope(
+    monkeypatch, tmp_path
+):
     target = tmp_path / "core" / "UserServiceImpl.java"
     target.parent.mkdir()
     target.write_text("class UserServiceImpl {}\n", encoding="utf-8")
@@ -281,7 +288,9 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
     monkeypatch.setattr(
         "agent.get_repo_entities",
         lambda _project_id, _db, query="", limit=80, file_paths=None, entity_names=None: {
-            "entities": [], "file_paths": file_paths, "entity_names": entity_names
+            "entities": [],
+            "file_paths": file_paths,
+            "entity_names": entity_names,
         },
     )
 
@@ -303,7 +312,9 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
 
     @contextlib.asynccontextmanager
     async def mock_admitted_stream(client, url, **kwargs):
-        async with client.stream("POST", url, json=kwargs["json"], headers=kwargs["headers"]) as response:
+        async with client.stream(
+            "POST", url, json=kwargs["json"], headers=kwargs["headers"]
+        ) as response:
             yield response
 
     monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
@@ -367,15 +378,30 @@ async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkey
         async def lines():
             if calls["count"] == 1:
                 yield "data: " + json.dumps(
-                    {"choices": [{"delta": {"tool_calls": [{
-                        "index": 0,
-                        "id": "trace-1",
-                        "type": "function",
-                        "function": {"name": "trace_call_flow", "arguments": '{"entity_id": 99}'},
-                    }]}}]}
+                    {
+                        "choices": [
+                            {
+                                "delta": {
+                                    "tool_calls": [
+                                        {
+                                            "index": 0,
+                                            "id": "trace-1",
+                                            "type": "function",
+                                            "function": {
+                                                "name": "trace_call_flow",
+                                                "arguments": '{"entity_id": 99}',
+                                            },
+                                        }
+                                    ]
+                                }
+                            }
+                        ]
+                    }
                 )
             else:
-                yield "data: " + json.dumps({"choices": [{"delta": {"content": "Keine belegte Kante."}}]})
+                yield "data: " + json.dumps(
+                    {"choices": [{"delta": {"content": "Keine belegte Kante."}}]}
+                )
             yield "data: [DONE]"
 
         response.aiter_lines = lines
@@ -402,7 +428,9 @@ async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkey
         )
     ]
 
-    trace_result = next(event for event in events if event.get("id") == "trace-1" and event["type"] == "tool_result")
+    trace_result = next(
+        event for event in events if event.get("id") == "trace-1" and event["type"] == "tool_result"
+    )
     assert "entity_not_exactly_resolved" in trace_result["result"]
 
 
@@ -528,7 +556,9 @@ async def test_openai_responses_agent_executes_function_call(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_is_used_up(monkeypatch):
+async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_is_used_up(
+    monkeypatch,
+):
     """Ein Modell, das nur Werkzeuge aufruft, liefert in der letzten Runde eine Antwort aus den Belegen."""
     requests = []
 
@@ -546,17 +576,44 @@ async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_
         payload = json.loads(json.dumps(kwargs["json"]))
         requests.append(payload)
         if payload.get("tool_choice") == "none":
-            return FakeResponse({"output": [{"type": "message", "content": [{"type": "output_text", "text": "Teilantwort aus Belegen"}]}]})
-        return FakeResponse({"output": [{"type": "function_call", "call_id": f"call-{len(requests)}", "name": "big_lookup", "arguments": "{}"}]})
+            return FakeResponse(
+                {
+                    "output": [
+                        {
+                            "type": "message",
+                            "content": [{"type": "output_text", "text": "Teilantwort aus Belegen"}],
+                        }
+                    ]
+                }
+            )
+        return FakeResponse(
+            {
+                "output": [
+                    {
+                        "type": "function_call",
+                        "call_id": f"call-{len(requests)}",
+                        "name": "big_lookup",
+                        "arguments": "{}",
+                    }
+                ]
+            }
+        )
 
     monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
 
     events = [
         event
         async for event in run_agent_loop(
-            provider="openai_responses", model_name="gpt-5.6-luna", api_key="secret",
-            base_url="https://api.openai.com/v1", endpoint_path="/responses", system_prompt="System",
-            prompt="Frage", temperature=0.2, repo_id=None, db_session=SimpleNamespace(),
+            provider="openai_responses",
+            model_name="gpt-5.6-luna",
+            api_key="secret",
+            base_url="https://api.openai.com/v1",
+            endpoint_path="/responses",
+            system_prompt="System",
+            prompt="Frage",
+            temperature=0.2,
+            repo_id=None,
+            db_session=SimpleNamespace(),
             mcp_clients=[_FakeMcpClient("Ergebnis")],
         )
     ]
@@ -572,9 +629,18 @@ async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_
 async def _first_preflight(mcp_clients, mcp_initialization_status=None):
     """Startet den Agenten und liefert nur das Preflight-Ereignis (der Lauf wird danach geschlossen)."""
     events = run_agent_loop(
-        provider="ollama", model_name="test-model", api_key=None, base_url=None, system_prompt="System",
-        prompt="Was passiert hier?", temperature=0.2, repo_id=1, db_session=SimpleNamespace(),
-        mcp_clients=mcp_clients, ollama_base_url="http://ollama:11434", project_id=1,
+        provider="ollama",
+        model_name="test-model",
+        api_key=None,
+        base_url=None,
+        system_prompt="System",
+        prompt="Was passiert hier?",
+        temperature=0.2,
+        repo_id=1,
+        db_session=SimpleNamespace(),
+        mcp_clients=mcp_clients,
+        ollama_base_url="http://ollama:11434",
+        project_id=1,
         mcp_initialization_status=mcp_initialization_status,
     )
     try:
@@ -602,7 +668,9 @@ async def test_mcp_preflight_reports_not_configured_ready_and_unavailable():
     none = await _first_preflight([])
     assert (none["status"], none["servers"], none["tool_count"]) == ("not_configured", [], 0)
 
-    ready = await _first_preflight([_PreflightMcpClient("jira-3", ["jira_search", "jira_get_issue"])])
+    ready = await _first_preflight(
+        [_PreflightMcpClient("jira-3", ["jira_search", "jira_get_issue"])]
+    )
     assert ready["status"] == "ready" and ready["tool_count"] == 2
     assert ready["servers"][0]["tools"] == ["jira_search", "jira_get_issue"]
 
@@ -610,11 +678,21 @@ async def test_mcp_preflight_reports_not_configured_ready_and_unavailable():
     assert down["status"] == "unavailable" and down["tool_count"] == 0
     assert "Verbindung abgelehnt" in down["servers"][0]["error"]
 
-    mixed = await _first_preflight([_PreflightMcpClient("jira-3", error="x"), _PreflightMcpClient("confluence-4", ["page_get"])])
+    mixed = await _first_preflight(
+        [
+            _PreflightMcpClient("jira-3", error="x"),
+            _PreflightMcpClient("confluence-4", ["page_get"]),
+        ]
+    )
     assert mixed["status"] == "ready" and mixed["tool_count"] == 1
-    assert {item["server"]: item["available"] for item in mixed["servers"]} == {"jira-3": False, "confluence-4": True}
+    assert {item["server"]: item["available"] for item in mixed["servers"]} == {
+        "jira-3": False,
+        "confluence-4": True,
+    }
 
     # Eine Quelle ohne Zugangsdaten ist nicht verfügbar und wird mit ihrem Grund gemeldet.
-    unconfigured = await _first_preflight([], [{"server": "jira-5", "available": False, "status": "not_configured"}])
+    unconfigured = await _first_preflight(
+        [], [{"server": "jira-5", "available": False, "status": "not_configured"}]
+    )
     assert unconfigured["status"] == "unavailable"
     assert unconfigured["servers"][0]["status"] == "not_configured"

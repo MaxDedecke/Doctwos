@@ -80,9 +80,9 @@ def mcp_project_context(db_session):
     db_session.query(Project).filter(Project.id.in_([project.id, foreign_project.id])).delete(
         synchronize_session=False
     )
-    db_session.query(TeamMembership).filter(TeamMembership.team_id.in_([team.id, foreign_team.id])).delete(
-        synchronize_session=False
-    )
+    db_session.query(TeamMembership).filter(
+        TeamMembership.team_id.in_([team.id, foreign_team.id])
+    ).delete(synchronize_session=False)
     db_session.query(Team).filter(Team.id.in_([team.id, foreign_team.id])).delete(
         synchronize_session=False
     )
@@ -187,8 +187,15 @@ def test_every_project_tool_denies_a_user_without_project_access_with_the_same_g
 
     _use_test_session(monkeypatch, db_session)
     _owner, outsider, project_id, _foreign_project_id = mcp_project_context
-    entity = CodeEntity(project_id=project_id, name="secret", type="method", file_path="src/Secret.java",
-                        qualified_name="demo.Secret#secret()", start_line=1, end_line=3)
+    entity = CodeEntity(
+        project_id=project_id,
+        name="secret",
+        type="method",
+        file_path="src/Secret.java",
+        qualified_name="demo.Secret#secret()",
+        start_line=1,
+        end_line=3,
+    )
     db_session.add(entity)
     db_session.commit()
     ctx = _context(outsider.id)
@@ -196,14 +203,27 @@ def test_every_project_tool_denies_a_user_without_project_access_with_the_same_g
     calls = [
         lambda: mcp_server.search_code(ctx, project_id=project_id, query="secret"),
         lambda: mcp_server.research_project(ctx, project_id=project_id, query="Secret.secret"),
-        lambda: mcp_server.explain_symbol(ctx, project_id=project_id, symbol="demo.Secret#secret()"),
-        lambda: mcp_server.answer_context(ctx, project_id=project_id, symbols=["demo.Secret#secret()"], question="was tut secret"),
+        lambda: mcp_server.explain_symbol(
+            ctx, project_id=project_id, symbol="demo.Secret#secret()"
+        ),
+        lambda: mcp_server.answer_context(
+            ctx, project_id=project_id, symbols=["demo.Secret#secret()"], question="was tut secret"
+        ),
         lambda: mcp_server.get_code_entity(ctx, project_id=project_id, entity_id=entity.id),
         lambda: mcp_server.trace_data_access(ctx, project_id=project_id, entity_id=entity.id),
         lambda: mcp_server.get_call_flow(ctx, project_id=project_id, entity_id=entity.id),
-        lambda: mcp_server.get_call_flow(ctx, project_id=project_id, entity_id=entity.id, cursor="nicht-gueltig", page_size=99, hops=9),
+        lambda: mcp_server.get_call_flow(
+            ctx,
+            project_id=project_id,
+            entity_id=entity.id,
+            cursor="nicht-gueltig",
+            page_size=99,
+            hops=9,
+        ),
         lambda: mcp_server.get_graph_neighbors(ctx, project_id=project_id, entity_id=entity.id),
-        lambda: asyncio.run(mcp_server.search_knowledge(ctx, project_id=project_id, query="secret")),
+        lambda: asyncio.run(
+            mcp_server.search_knowledge(ctx, project_id=project_id, query="secret")
+        ),
     ]
     for call in calls:
         with pytest.raises(ValueError) as error:
@@ -220,8 +240,14 @@ def test_get_call_flow_accepts_documented_directions(
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
     calls = {}
     requested_root = SimpleNamespace(
-        id=1, name="root", qualified_name="root", type="program", file_path="root.cbl",
-        source_id=None, start_line=1, end_line=2,
+        id=1,
+        name="root",
+        qualified_name="root",
+        type="program",
+        file_path="root.cbl",
+        source_id=None,
+        start_line=1,
+        end_line=2,
     )
     monkeypatch.setattr(mcp_server, "_entity", lambda *_args: requested_root)
 
@@ -263,15 +289,17 @@ def test_get_call_flow_includes_bounded_source_evidence_and_binds_cursor_options
     )
     db_session.add_all([root, target])
     db_session.flush()
-    db_session.add(DocumentChunk(
-        project_id=project_id,
-        source_id=None,
-        file_path="src/Flow.java",
-        content="".join(f"line {line}\n" for line in range(1, 13)),
-        start_line=1,
-        end_line=12,
-        metadata_json={},
-    ))
+    db_session.add(
+        DocumentChunk(
+            project_id=project_id,
+            source_id=None,
+            file_path="src/Flow.java",
+            content="".join(f"line {line}\n" for line in range(1, 13)),
+            start_line=1,
+            end_line=12,
+            metadata_json={},
+        )
+    )
     db_session.commit()
 
     root_node = {
@@ -303,14 +331,24 @@ def test_get_call_flow_includes_bounded_source_evidence_and_binds_cursor_options
             "nodes": [root_node, target_node],
             "edges": [
                 {
-                    "id": 1, "source": root.id, "target": target.id,
-                    "target_name": "callee", "type": "CALL",
-                    "resolution": "resolved", "start_line": 6, "end_line": 6,
+                    "id": 1,
+                    "source": root.id,
+                    "target": target.id,
+                    "target_name": "callee",
+                    "type": "CALL",
+                    "resolution": "resolved",
+                    "start_line": 6,
+                    "end_line": 6,
                 },
                 {
-                    "id": 2, "source": root.id, "target": target.id,
-                    "target_name": "callee", "type": "CALL",
-                    "resolution": "resolved", "start_line": 9, "end_line": 9,
+                    "id": 2,
+                    "source": root.id,
+                    "target": target.id,
+                    "target_name": "callee",
+                    "type": "CALL",
+                    "resolution": "resolved",
+                    "start_line": 9,
+                    "end_line": 9,
                 },
             ],
             "entry_candidates": [],
@@ -329,14 +367,21 @@ def test_get_call_flow_includes_bounded_source_evidence_and_binds_cursor_options
 
     with pytest.raises(ValueError, match="cursor does not match"):
         mcp_server.get_call_flow(
-            _context(user.id), project_id=project_id, entity_id=root.id,
-            page_size=1, cursor=first["next_cursor"], include_source=False,
+            _context(user.id),
+            project_id=project_id,
+            entity_id=root.id,
+            page_size=1,
+            cursor=first["next_cursor"],
+            include_source=False,
         )
 
     with pytest.raises(ValueError, match="Retry with the next_cursor"):
         mcp_server.get_call_flow(
-            _context(user.id), project_id=project_id, entity_id=root.id,
-            page_size=1, cursor=first["next_cursor"][:-3] + "!!!",
+            _context(user.id),
+            project_id=project_id,
+            entity_id=root.id,
+            page_size=1,
+            cursor=first["next_cursor"][:-3] + "!!!",
         )
 
 
@@ -399,16 +444,31 @@ async def test_search_knowledge_falls_back_to_scoped_keywords_when_embedding_fai
 ):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, foreign_project_id = mcp_project_context
-    db_session.add_all([
-        DocumentChunk(project_id=project_id, file_path="own/a.txt",
-                      content="The zorblax settlement runs nightly.", embedding_dimension=1024),
-        DocumentChunk(project_id=foreign_project_id, file_path="foreign/b.txt",
-                      content="Foreign zorblax secret.", embedding_dimension=1024),
-    ])
+    db_session.add_all(
+        [
+            DocumentChunk(
+                project_id=project_id,
+                file_path="own/a.txt",
+                content="The zorblax settlement runs nightly.",
+                embedding_dimension=1024,
+            ),
+            DocumentChunk(
+                project_id=foreign_project_id,
+                file_path="foreign/b.txt",
+                content="Foreign zorblax secret.",
+                embedding_dimension=1024,
+            ),
+        ]
+    )
     db_session.commit()
     profile = SimpleNamespace(
-        model="test-embedding", provider="ollama", base_url="https://embedding.test",
-        path="/api/embed", api_key=None, dimension=1024, context_length=4096,
+        model="test-embedding",
+        provider="ollama",
+        base_url="https://embedding.test",
+        path="/api/embed",
+        api_key=None,
+        dimension=1024,
+        context_length=4096,
     )
     monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
 
@@ -503,8 +563,12 @@ async def test_search_knowledge_rechecks_scope_on_retriever_results(
     )
     monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
     foreign_chunk = SimpleNamespace(
-        id=987654, project_id=foreign_project_id, source_id=None,
-        file_path="foreign/private.txt", start_line=1, end_line=2,
+        id=987654,
+        project_id=foreign_project_id,
+        source_id=None,
+        file_path="foreign/private.txt",
+        start_line=1,
+        end_line=2,
         content="FOREIGN_PRIVATE_SENTINEL",
     )
 
@@ -518,34 +582,35 @@ async def test_search_knowledge_rechecks_scope_on_retriever_results(
     assert result["results"] == []
 
 
-def test_call_flow_bounds_edges_before_returning_them(
-    db_session, mcp_project_context, monkeypatch
-):
+def test_call_flow_bounds_edges_before_returning_them(db_session, mcp_project_context, monkeypatch):
     _use_test_session(monkeypatch, db_session)
     _owner, _outsider, project_id, _foreign_project_id = mcp_project_context
     root = CodeEntity(
         # Paragraph statt program: ein COBOL-program ohne Einstiegs-Paragraph liefert
         # bewusst entry_point_not_found (O-343) -- hier geht es nur um die Kantengrenze.
-        project_id=project_id, name="BusyRoot", type="paragraph", file_path="busy.cbl"
+        project_id=project_id,
+        name="BusyRoot",
+        type="paragraph",
+        file_path="busy.cbl",
     )
     db_session.add(root)
     db_session.commit()
-    db_session.add_all([
-        CodeEdge(
-            project_id=project_id,
-            src_entity_id=root.id,
-            dst_entity_id=root.id,
-            dst_name="BusyRoot",
-            type="CALL",
-            resolution="resolved",
-        )
-        for _ in range(CALL_FLOW_MAX_EDGES + 37)
-    ])
+    db_session.add_all(
+        [
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=root.id,
+                dst_entity_id=root.id,
+                dst_name="BusyRoot",
+                type="CALL",
+                resolution="resolved",
+            )
+            for _ in range(CALL_FLOW_MAX_EDGES + 37)
+        ]
+    )
     db_session.commit()
 
-    result = trace_call_flow(
-        db_session, project_id=project_id, entity_id=root.id, hops=1
-    )
+    result = trace_call_flow(db_session, project_id=project_id, entity_id=root.id, hops=1)
     assert len(result["edges"]) == CALL_FLOW_MAX_EDGES
     assert result["truncated"] is True
 
@@ -561,7 +626,9 @@ def test_mcp_token_revocation_takes_effect_immediately(db_session, mcp_project_c
     assert token.revoked_at is not None
 
 
-def test_mcp_token_expiry_deactivated_accounts_and_malformed_secrets_are_rejected(db_session, mcp_project_context):
+def test_mcp_token_expiry_deactivated_accounts_and_malformed_secrets_are_rejected(
+    db_session, mcp_project_context
+):
     """O-324: Ein abgelaufener Token, ein deaktiviertes Konto und fremde oder überlange Geheimnisse schlagen fehl."""
     from datetime import timedelta
 
@@ -596,25 +663,40 @@ def test_get_code_entity_continuation_keeps_later_chunks(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
     entity = CodeEntity(
-        project_id=project_id, name="big", type="method", file_path="src/Big.java",
-        qualified_name="demo.Big#big()", start_line=1, end_line=12,
+        project_id=project_id,
+        name="big",
+        type="method",
+        file_path="src/Big.java",
+        qualified_name="demo.Big#big()",
+        start_line=1,
+        end_line=12,
     )
     db_session.add(entity)
     db_session.flush()
     for index in range(4):
-        db_session.add(DocumentChunk(
-            project_id=project_id, source_id=None, file_path="src/Big.java",
-            content=f"{index}" * 600, start_line=index * 3 + 1, end_line=index * 3 + 3,
-            metadata_json={},
-        ))
+        db_session.add(
+            DocumentChunk(
+                project_id=project_id,
+                source_id=None,
+                file_path="src/Big.java",
+                content=f"{index}" * 600,
+                start_line=index * 3 + 1,
+                end_line=index * 3 + 3,
+                metadata_json={},
+            )
+        )
     db_session.commit()
 
     seen = []
     chunk_id, char_offset = None, 0
     for _ in range(10):
         result = mcp_server.get_code_entity(
-            _context(user.id), project_id=project_id, entity_id=entity.id,
-            max_chars=500, chunk_id=chunk_id, char_offset=char_offset,
+            _context(user.id),
+            project_id=project_id,
+            entity_id=entity.id,
+            max_chars=500,
+            chunk_id=chunk_id,
+            char_offset=char_offset,
         )
         seen += [(s["chunk_id"], len(s["content"])) for s in result["definition"]["sections"]]
         definition = result["definition"]
@@ -626,7 +708,10 @@ def test_get_code_entity_continuation_keeps_later_chunks(
 
     with pytest.raises(ValueError, match="invalid cursor"):
         mcp_server.get_code_entity(
-            _context(user.id), project_id=project_id, entity_id=entity.id, chunk_id=-5,
+            _context(user.id),
+            project_id=project_id,
+            entity_id=entity.id,
+            chunk_id=-5,
         )
 
 
@@ -636,34 +721,66 @@ def test_research_project_uses_paged_call_flow_contract(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
     root = CodeEntity(
-        project_id=project_id, name="resolveWidget", type="method", file_path="src/W.java",
-        qualified_name="demo.W#resolveWidget()", start_line=1, end_line=5,
+        project_id=project_id,
+        name="resolveWidget",
+        type="method",
+        file_path="src/W.java",
+        qualified_name="demo.W#resolveWidget()",
+        start_line=1,
+        end_line=5,
     )
     db_session.add(root)
     db_session.flush()
-    db_session.add(DocumentChunk(
-        project_id=project_id, source_id=None, file_path="src/W.java",
-        content="".join(f"line {n}\n" for n in range(1, 6)), start_line=1, end_line=5,
-        metadata_json={},
-    ))
+    db_session.add(
+        DocumentChunk(
+            project_id=project_id,
+            source_id=None,
+            file_path="src/W.java",
+            content="".join(f"line {n}\n" for n in range(1, 6)),
+            start_line=1,
+            end_line=5,
+            metadata_json={},
+        )
+    )
     db_session.commit()
     root_node = {
-        "id": root.id, "name": root.name, "qualified_name": root.qualified_name,
-        "type": root.type, "file_path": root.file_path, "source_id": None,
-        "start_line": 1, "end_line": 5,
+        "id": root.id,
+        "name": root.name,
+        "qualified_name": root.qualified_name,
+        "type": root.type,
+        "file_path": root.file_path,
+        "source_id": None,
+        "start_line": 1,
+        "end_line": 5,
     }
     edges = [
-        {"id": n, "source": root.id, "target": None, "target_name": f"x{n}", "type": "CALL",
-         "resolution": "unresolved", "start_line": 2, "end_line": 2}
+        {
+            "id": n,
+            "source": root.id,
+            "target": None,
+            "target_name": f"x{n}",
+            "type": "CALL",
+            "resolution": "unresolved",
+            "start_line": 2,
+            "end_line": 2,
+        }
         for n in range(1, 31)
     ]
     monkeypatch.setattr(
-        mcp_server, "trace_call_flow",
-        lambda *_a, **_k: {"status": "ok", "root": root_node, "nodes": [root_node],
-                           "edges": edges, "entry_candidates": []},
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": root_node,
+            "nodes": [root_node],
+            "edges": edges,
+            "entry_candidates": [],
+        },
     )
 
-    result = mcp_server.research_project(_context(user.id), project_id=project_id, query="resolveWidget")
+    result = mcp_server.research_project(
+        _context(user.id), project_id=project_id, query="resolveWidget"
+    )
     flow = result["call_flow"]
     assert result["resolution"] == "unique_exact_match"
     assert len(flow["edges"]) == 10
@@ -681,18 +798,43 @@ def test_research_project_ignores_parameters_that_share_the_method_name(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
     qualified = "org.apache.demo.core.rest.cxf.service.Widget#create(Req)"
-    method = CodeEntity(project_id=project_id, name="create", type="method", file_path="src/Widget.java",
-                        qualified_name=qualified, start_line=1, end_line=5)
+    method = CodeEntity(
+        project_id=project_id,
+        name="create",
+        type="method",
+        file_path="src/Widget.java",
+        qualified_name=qualified,
+        start_line=1,
+        end_line=5,
+    )
     db_session.add(method)
-    db_session.add(CodeEntity(project_id=project_id, name="req", type="parameter", file_path="src/Widget.java",
-                              qualified_name=f"{qualified}@param:req", start_line=1, end_line=1))
+    db_session.add(
+        CodeEntity(
+            project_id=project_id,
+            name="req",
+            type="parameter",
+            file_path="src/Widget.java",
+            qualified_name=f"{qualified}@param:req",
+            start_line=1,
+            end_line=1,
+        )
+    )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server, "trace_call_flow",
-        lambda *_a, **_k: {"status": "ok", "root": {}, "nodes": [], "edges": [], "entry_candidates": []},
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": {},
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
     )
     result = mcp_server.research_project(
-        _context(user.id), project_id=project_id, query="org.apache.demo.core.rest.cxf.service.Widget#create",
+        _context(user.id),
+        project_id=project_id,
+        query="org.apache.demo.core.rest.cxf.service.Widget#create",
     )
     assert result["resolution"] == "unique_exact_match"
     assert [item["qualified_name"] for item in result["candidates"]] == [qualified]
@@ -702,7 +844,8 @@ def test_research_terms_keep_prose_but_split_symbol_lists():
     terms = mcp_server._research_terms
     assert terms("how does approval/decline work") == ["how does approval/decline work"]
     assert terms("UserLogic#create(User) UserLogic#update(UserPatch)") == [
-        "UserLogic#create(User)", "UserLogic#update(UserPatch)"
+        "UserLogic#create(User)",
+        "UserLogic#update(UserPatch)",
     ]
     assert terms("CARD-INCIDENT PA-TRANSACTION-AMT") == ["CARD-INCIDENT", "PA-TRANSACTION-AMT"]
     assert terms("src/Foo.java src/Bar.java") == ["src/Foo.java", "src/Bar.java"]
@@ -719,8 +862,15 @@ def test_research_terms_treat_cobol_names_with_digits_as_symbols_but_not_plain_w
 def test_mentioned_symbols_come_from_prose_and_ignore_plain_words():
     mentioned = mcp_server._mentioned_symbols
     assert mentioned("Welche Rolle spielt COSGN00C bei der Anmeldung?") == ["COSGN00C"]
-    assert mentioned("Was macht PA-TRANSACTION-AMT in COPAUA0C?") == ["COPAUA0C", "PA-TRANSACTION-AMT"]
-    assert set(mentioned("Wie funktioniert `UserLogic.create` und doCreate?")) == {"UserLogic", "doCreate", "UserLogic.create"}
+    assert mentioned("Was macht PA-TRANSACTION-AMT in COPAUA0C?") == [
+        "COPAUA0C",
+        "PA-TRANSACTION-AMT",
+    ]
+    assert set(mentioned("Wie funktioniert `UserLogic.create` und doCreate?")) == {
+        "UserLogic",
+        "doCreate",
+        "UserLogic.create",
+    }
     assert mentioned("Wie wird ein Benutzer provisioniert?") == []
     assert mentioned("how does approval/decline work") == []
     assert len(mentioned("A1B2C3D4 E5F6G7H8 I9J0K1L2 M3N4O5P6 Q7R8S9T0")) == 4
@@ -731,28 +881,54 @@ def test_research_project_resolves_a_symbol_named_inside_a_prose_question(
 ):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
-    db_session.add(CodeEntity(project_id=project_id, name="COSGN00C", type="program", file_path="app/cbl/COSGN00C.cbl",
-                              qualified_name="COSGN00C", start_line=1, end_line=50))
+    db_session.add(
+        CodeEntity(
+            project_id=project_id,
+            name="COSGN00C",
+            type="program",
+            file_path="app/cbl/COSGN00C.cbl",
+            qualified_name="COSGN00C",
+            start_line=1,
+            end_line=50,
+        )
+    )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server, "trace_call_flow",
-        lambda *_a, **_k: {"status": "ok", "root": {}, "nodes": [], "edges": [], "entry_candidates": []},
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": {},
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
     )
 
     named = mcp_server.research_project(
-        _context(user.id), project_id=project_id, query="Welche Rolle spielt COSGN00C bei der Anmeldung?"
+        _context(user.id),
+        project_id=project_id,
+        query="Welche Rolle spielt COSGN00C bei der Anmeldung?",
     )
-    assert named["resolution"] == "unique_exact_match" and named["query_interpretation"] == "symbols_in_text"
+    assert (
+        named["resolution"] == "unique_exact_match"
+        and named["query_interpretation"] == "symbols_in_text"
+    )
     assert [item["qualified_name"] for item in named["candidates"]] == ["COSGN00C"]
     assert [action["tool"] for action in named["follow_up_actions"]][-1] == "search_knowledge"
     assert named["original_query"] == "Welche Rolle spielt COSGN00C bei der Anmeldung?"
 
     # Ein Name, den der Index nicht kennt, ändert nichts: Freitext bleibt Freitext.
     unknown = mcp_server.research_project(
-        _context(user.id), project_id=project_id, query="Welche Rolle spielt UNBEKANNT9X bei der Anmeldung?"
+        _context(user.id),
+        project_id=project_id,
+        query="Welche Rolle spielt UNBEKANNT9X bei der Anmeldung?",
     )
     assert unknown["resolution"] == "no_exact_match" and "query_interpretation" not in unknown
-    assert [action["tool"] for action in unknown["follow_up_actions"]] == ["search_code", "search_knowledge"]
+    assert [action["tool"] for action in unknown["follow_up_actions"]] == [
+        "search_code",
+        "search_knowledge",
+    ]
 
 
 def test_research_project_prose_without_symbol_offers_code_and_knowledge_search(
@@ -769,16 +945,25 @@ def test_research_project_prose_without_symbol_offers_code_and_knowledge_search(
 
 def _method(project_id, name, qualified, path="src/Auth.java", start=1, end=6, kind="method"):
     return CodeEntity(
-        project_id=project_id, name=name, type=kind, file_path=path,
-        qualified_name=qualified, start_line=start, end_line=end,
+        project_id=project_id,
+        name=name,
+        type=kind,
+        file_path=path,
+        qualified_name=qualified,
+        start_line=start,
+        end_line=end,
     )
 
 
 def _chunk(project_id, path, lines, start=1):
     return DocumentChunk(
-        project_id=project_id, source_id=None, file_path=path,
-        content="".join(f"{text}\n" for text in lines), start_line=start,
-        end_line=start + len(lines) - 1, metadata_json={},
+        project_id=project_id,
+        source_id=None,
+        file_path=path,
+        content="".join(f"{text}\n" for text in lines),
+        start_line=start,
+        end_line=start + len(lines) - 1,
+        metadata_json={},
     )
 
 
@@ -795,37 +980,61 @@ def test_search_code_finds_java_methods_by_dotted_name_and_word_pairs(
 ):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    method = _method(project_id, "authenticate", "org.demo.AuthDataAccessor#authenticate(Authentication)")
+    method = _method(
+        project_id, "authenticate", "org.demo.AuthDataAccessor#authenticate(Authentication)"
+    )
     db_session.add(method)
     db_session.commit()
 
-    dotted = mcp_server.search_code(_context(user.id), project_id=project_id, query="AuthDataAccessor.authenticate")
+    dotted = mcp_server.search_code(
+        _context(user.id), project_id=project_id, query="AuthDataAccessor.authenticate"
+    )
     assert [hit["id"] for hit in dotted["results"]] == [method.id]
     assert dotted["resolution"] == "exact"
 
-    words = mcp_server.search_code(_context(user.id), project_id=project_id, query="authenticate AuthDataAccessor")
+    words = mcp_server.search_code(
+        _context(user.id), project_id=project_id, query="authenticate AuthDataAccessor"
+    )
     assert [hit["id"] for hit in words["results"]] == [method.id]
     assert words["resolution"] == "fuzzy"
 
 
-def test_search_code_suggests_similar_names_when_nothing_matches(db_session, mcp_project_context, monkeypatch):
+def test_search_code_suggests_similar_names_when_nothing_matches(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    db_session.add(_method(project_id, "authenticate", "org.demo.AuthDataAccessor#authenticate(Authentication)"))
+    db_session.add(
+        _method(
+            project_id, "authenticate", "org.demo.AuthDataAccessor#authenticate(Authentication)"
+        )
+    )
     db_session.commit()
 
-    result = mcp_server.search_code(_context(user.id), project_id=project_id, query="AuthDataAccessor.unknownThing")
+    result = mcp_server.search_code(
+        _context(user.id), project_id=project_id, query="AuthDataAccessor.unknownThing"
+    )
     assert result["results"] == [] and result["resolution"] == "none"
-    assert result["did_you_mean"][0]["qualified_name"].endswith("AuthDataAccessor#authenticate(Authentication)")
+    assert result["did_you_mean"][0]["qualified_name"].endswith(
+        "AuthDataAccessor#authenticate(Authentication)"
+    )
 
 
-def test_search_code_compact_adds_source_only_for_the_best_exact_match(db_session, mcp_project_context, monkeypatch):
+def test_search_code_compact_adds_source_only_for_the_best_exact_match(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     first = _method(project_id, "run", "demo.Job#run()", "src/Job.java", 1, 3)
     second = _method(project_id, "run", "demo.Other#run()", "src/Other.java", 1, 3)
-    db_session.add_all([first, second, _chunk(project_id, "src/Job.java", ["a", "b", "c"]),
-                        _chunk(project_id, "src/Other.java", ["x", "y", "z"])])
+    db_session.add_all(
+        [
+            first,
+            second,
+            _chunk(project_id, "src/Job.java", ["a", "b", "c"]),
+            _chunk(project_id, "src/Other.java", ["x", "y", "z"]),
+        ]
+    )
     db_session.commit()
 
     compact = mcp_server.search_code(_context(user.id), project_id=project_id, query="run")
@@ -836,14 +1045,20 @@ def test_search_code_compact_adds_source_only_for_the_best_exact_match(db_sessio
     assert "detail" not in str(mcp_server.search_code.__doc__)
 
 
-def test_search_code_hides_parameters_unless_they_match_exactly(db_session, mcp_project_context, monkeypatch):
+def test_search_code_hides_parameters_unless_they_match_exactly(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     method = _method(project_id, "login", "demo.Auth#login(String)")
-    param = _method(project_id, "login", "demo.Auth#login(String)@param:loginName", kind="parameter")
+    param = _method(
+        project_id, "login", "demo.Auth#login(String)@param:loginName", kind="parameter"
+    )
     db_session.add_all([method, param])
     db_session.commit()
-    result = mcp_server.search_code(_context(user.id), project_id=project_id, query="Auth#login", include_source=False)
+    result = mcp_server.search_code(
+        _context(user.id), project_id=project_id, query="Auth#login", include_source=False
+    )
     assert [hit["type"] for hit in result["results"]] == ["method"]
 
 
@@ -852,40 +1067,115 @@ def test_explain_symbol_returns_numbered_source_callers_callees_and_data_access(
 ):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    target = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 10, 13)
+    target = _method(
+        project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 10, 13
+    )
     caller = _method(project_id, "login", "org.demo.Provider#login()", "src/Provider.java", 1, 4)
     db_session.add_all([target, caller])
     db_session.flush()
-    db_session.add_all([
-        _chunk(project_id, "src/Auth.java", ["m(String u) {", "  check(u);", "  return ok;", "}"], 10),
-        CodeEdge(project_id=project_id, src_entity_id=target.id, dst_entity_id=None, dst_name="check", type="CALLS",
-                 resolution="unresolved", src_start_line=11, src_end_line=11),
-        CodeEdge(project_id=project_id, src_entity_id=target.id, dst_entity_id=None, dst_name="failedLogins", type="WRITES",
-                 resolution="resolved", src_start_line=12, src_end_line=12, meta_json={"operation": "SET"}),
-    ])
+    db_session.add_all(
+        [
+            _chunk(
+                project_id,
+                "src/Auth.java",
+                ["m(String u) {", "  check(u);", "  return ok;", "}"],
+                10,
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=target.id,
+                dst_entity_id=None,
+                dst_name="check",
+                type="CALLS",
+                resolution="unresolved",
+                src_start_line=11,
+                src_end_line=11,
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=target.id,
+                dst_entity_id=None,
+                dst_name="failedLogins",
+                type="WRITES",
+                resolution="resolved",
+                src_start_line=12,
+                src_end_line=12,
+                meta_json={"operation": "SET"},
+            ),
+        ]
+    )
     db_session.commit()
-    root = {"id": target.id, "name": target.name, "qualified_name": target.qualified_name, "type": "method",
-            "file_path": target.file_path, "source_id": None, "start_line": 10, "end_line": 13}
-    caller_node = {"id": caller.id, "name": "login", "qualified_name": caller.qualified_name, "type": "method",
-                   "file_path": caller.file_path, "source_id": None, "start_line": 1, "end_line": 4}
+    root = {
+        "id": target.id,
+        "name": target.name,
+        "qualified_name": target.qualified_name,
+        "type": "method",
+        "file_path": target.file_path,
+        "source_id": None,
+        "start_line": 10,
+        "end_line": 13,
+    }
+    caller_node = {
+        "id": caller.id,
+        "name": "login",
+        "qualified_name": caller.qualified_name,
+        "type": "method",
+        "file_path": caller.file_path,
+        "source_id": None,
+        "start_line": 1,
+        "end_line": 4,
+    }
 
     def fake_flow(_db, *, direction, **_kwargs):
         if direction == "incoming":
-            edge = {"id": 1, "source": caller.id, "target": target.id, "target_name": "authenticate", "type": "CALLS",
-                    "resolution": "resolved", "start_line": 2, "end_line": 2}
-            return {"status": "ok", "root": root, "nodes": [root, caller_node], "edges": [edge], "entry_candidates": []}
-        edge = {"id": 2, "source": target.id, "target": None, "target_name": "check", "type": "CALLS",
-                "resolution": "unresolved", "start_line": 11, "end_line": 11}
-        return {"status": "ok", "root": root, "nodes": [root], "edges": [edge], "entry_candidates": []}
+            edge = {
+                "id": 1,
+                "source": caller.id,
+                "target": target.id,
+                "target_name": "authenticate",
+                "type": "CALLS",
+                "resolution": "resolved",
+                "start_line": 2,
+                "end_line": 2,
+            }
+            return {
+                "status": "ok",
+                "root": root,
+                "nodes": [root, caller_node],
+                "edges": [edge],
+                "entry_candidates": [],
+            }
+        edge = {
+            "id": 2,
+            "source": target.id,
+            "target": None,
+            "target_name": "check",
+            "type": "CALLS",
+            "resolution": "unresolved",
+            "start_line": 11,
+            "end_line": 11,
+        }
+        return {
+            "status": "ok",
+            "root": root,
+            "nodes": [root],
+            "edges": [edge],
+            "entry_candidates": [],
+        }
 
     monkeypatch.setattr(mcp_server, "trace_call_flow", fake_flow)
-    result = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="Auth.authenticate")
+    result = mcp_server.explain_symbol(
+        _context(user.id), project_id=project_id, symbol="Auth.authenticate"
+    )
 
     assert result["resolution"] == "unique_exact_match"
     assert result["source"]["text"].splitlines()[1] == "11:   check(u);"
     assert result["callers"][0]["from"] == caller.qualified_name
     assert result["callees"][0]["to"] == "check"
-    assert result["data_access"][0]["target"] == "failedLogins" and result["data_access"][0]["operation"] == "SET"
+    assert (
+        result["data_access"][0]["target"] == "failedLogins"
+        and result["data_access"][0]["operation"] == "SET"
+    )
     assert "outline" not in result
 
 
@@ -895,56 +1185,100 @@ def test_explain_symbol_returns_an_outline_with_facts_when_the_source_exceeds_th
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     program = _method(project_id, "BIGPROG", "BIGPROG", "app/BIGPROG.cbl", 1, 400, kind="program")
-    first = _method(project_id, "READ-FILE", "BIGPROG.READ-FILE", "app/BIGPROG.cbl", 10, 30, kind="paragraph")
-    second = _method(project_id, "WRITE-FILE", "BIGPROG.WRITE-FILE", "app/BIGPROG.cbl", 31, 60, kind="paragraph")
+    first = _method(
+        project_id, "READ-FILE", "BIGPROG.READ-FILE", "app/BIGPROG.cbl", 10, 30, kind="paragraph"
+    )
+    second = _method(
+        project_id, "WRITE-FILE", "BIGPROG.WRITE-FILE", "app/BIGPROG.cbl", 31, 60, kind="paragraph"
+    )
     db_session.add_all([program, first, second])
     db_session.flush()
-    db_session.add_all([
-        _chunk(project_id, "app/BIGPROG.cbl", ["X" * 80 for _ in range(400)], 1),
-        CodeEdge(project_id=project_id, src_entity_id=first.id, dst_entity_id=None, dst_name="XREF-FILE", type="READS",
-                 resolution="resolved", src_start_line=12, src_end_line=12,
-                 meta_json={"io_target_kind": "file_fd", "operation": "READ"}),
-        CodeEdge(project_id=project_id, src_entity_id=second.id, dst_entity_id=None, dst_name="NEXT-PARA", type="PERFORM",
-                 resolution="resolved", src_start_line=40, src_end_line=40),
-    ])
+    db_session.add_all(
+        [
+            _chunk(project_id, "app/BIGPROG.cbl", ["X" * 80 for _ in range(400)], 1),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=first.id,
+                dst_entity_id=None,
+                dst_name="XREF-FILE",
+                type="READS",
+                resolution="resolved",
+                src_start_line=12,
+                src_end_line=12,
+                meta_json={"io_target_kind": "file_fd", "operation": "READ"},
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=second.id,
+                dst_entity_id=None,
+                dst_name="NEXT-PARA",
+                type="PERFORM",
+                resolution="resolved",
+                src_start_line=40,
+                src_end_line=40,
+            ),
+        ]
+    )
     db_session.commit()
 
-    result = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="BIGPROG", max_chars=2000)
+    result = mcp_server.explain_symbol(
+        _context(user.id), project_id=project_id, symbol="BIGPROG", max_chars=2000
+    )
     assert "source" not in result
     symbols = {item["symbol"]: item for item in result["outline"]}
     assert symbols["BIGPROG.READ-FILE"]["facts"] == "io READ XREF-FILE"
     assert symbols["BIGPROG.WRITE-FILE"]["facts"] == "performs NEXT-PARA"
     assert symbols["BIGPROG.READ-FILE"]["lines"] == "10-30"
 
-    ranged = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="BIGPROG.READ-FILE", start_line=10, end_line=12)
+    ranged = mcp_server.explain_symbol(
+        _context(user.id),
+        project_id=project_id,
+        symbol="BIGPROG.READ-FILE",
+        start_line=10,
+        end_line=12,
+    )
     assert ranged["source"]["start_line"] == 10 and "outline" not in ranged
 
 
-def test_explain_symbol_reports_unknown_and_ambiguous_symbols(db_session, mcp_project_context, monkeypatch):
+def test_explain_symbol_reports_unknown_and_ambiguous_symbols(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    db_session.add_all([
-        _method(project_id, "create", "a.One#create()", "src/One.java", 1, 3),
-        _method(project_id, "create", "b.Two#create()", "src/Two.java", 1, 3),
-        _method(project_id, "create", "b.TwoTest#create()", "src/test/TwoTest.java", 1, 3),
-    ])
+    db_session.add_all(
+        [
+            _method(project_id, "create", "a.One#create()", "src/One.java", 1, 3),
+            _method(project_id, "create", "b.Two#create()", "src/Two.java", 1, 3),
+            _method(project_id, "create", "b.TwoTest#create()", "src/test/TwoTest.java", 1, 3),
+        ]
+    )
     db_session.commit()
 
-    unknown = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="Nothing.here")
+    unknown = mcp_server.explain_symbol(
+        _context(user.id), project_id=project_id, symbol="Nothing.here"
+    )
     assert unknown["resolution"] == "none" and "hint" in unknown
     ambiguous = mcp_server.explain_symbol(_context(user.id), project_id=project_id, symbol="create")
     assert ambiguous["resolution"] == "ambiguous"
-    assert {c["qualified_name"] for c in ambiguous["candidates"]} == {"a.One#create()", "b.Two#create()", "b.TwoTest#create()"}
+    assert {c["qualified_name"] for c in ambiguous["candidates"]} == {
+        "a.One#create()",
+        "b.Two#create()",
+        "b.TwoTest#create()",
+    }
 
 
-def test_explain_symbol_denies_a_project_the_mcp_user_cannot_open(db_session, mcp_project_context, monkeypatch):
+def test_explain_symbol_denies_a_project_the_mcp_user_cannot_open(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     _owner, outsider, project_id, _foreign = mcp_project_context
     with pytest.raises(ValueError, match="MCP request failed or access denied"):
         mcp_server.explain_symbol(_context(outsider.id), project_id=project_id, symbol="anything")
 
 
-def test_get_code_entity_resolves_a_symbol_without_an_entity_id(db_session, mcp_project_context, monkeypatch):
+def test_get_code_entity_resolves_a_symbol_without_an_entity_id(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     entity = _method(project_id, "run", "demo.Job#run()", "src/Job.java", 1, 2)
@@ -959,98 +1293,226 @@ def test_get_code_entity_resolves_a_symbol_without_an_entity_id(db_session, mcp_
 
 def test_extract_symbols_finds_code_names_in_german_and_english_questions():
     extract = mcp_server._extract_symbols
-    assert extract("In AWS CardDemo: Wie berechnet das Batch-Programm CBACT04C die Zinsen?") == ["CardDemo", "CBACT04C"]
-    assert "DefaultNotificationManager.createTasks" in extract("Wie erzeugt DefaultNotificationManager.createTasks Aufgaben?")
-    assert "DefaultNotificationManager" not in extract("Wie erzeugt DefaultNotificationManager.createTasks Aufgaben?")
-    terms = extract("Welche Programme binden das Copybook CVTRA05Y ein? Feld TRAN-RECORD, z.B. TRAN-ID.")
-    assert "CVTRA05Y" in terms and "TRAN-RECORD" in terms and "TRAN-ID" in terms and "z.B" not in terms
+    assert extract("In AWS CardDemo: Wie berechnet das Batch-Programm CBACT04C die Zinsen?") == [
+        "CardDemo",
+        "CBACT04C",
+    ]
+    assert "DefaultNotificationManager.createTasks" in extract(
+        "Wie erzeugt DefaultNotificationManager.createTasks Aufgaben?"
+    )
+    assert "DefaultNotificationManager" not in extract(
+        "Wie erzeugt DefaultNotificationManager.createTasks Aufgaben?"
+    )
+    terms = extract(
+        "Welche Programme binden das Copybook CVTRA05Y ein? Feld TRAN-RECORD, z.B. TRAN-ID."
+    )
+    assert (
+        "CVTRA05Y" in terms and "TRAN-RECORD" in terms and "TRAN-ID" in terms and "z.B" not in terms
+    )
     assert extract("Wie funktioniert das eigentlich?") == []
 
 
 def test_relevant_children_prefers_names_and_facts_that_match_the_question():
     outline = [
         {"symbol": "P.WORKING-STORAGE", "type": "section", "lines": "1-9"},
-        {"symbol": "P.1000-READ-INPUT", "type": "paragraph", "lines": "10-20", "facts": "io READ INFILE"},
-        {"symbol": "P.1300-COMPUTE-INTEREST", "type": "paragraph", "lines": "21-30", "facts": "performs 1300-B-WRITE-TX"},
+        {
+            "symbol": "P.1000-READ-INPUT",
+            "type": "paragraph",
+            "lines": "10-20",
+            "facts": "io READ INFILE",
+        },
+        {
+            "symbol": "P.1300-COMPUTE-INTEREST",
+            "type": "paragraph",
+            "lines": "21-30",
+            "facts": "performs 1300-B-WRITE-TX",
+        },
         {"symbol": "P.9999-ABEND-PROGRAM", "type": "paragraph", "lines": "31-40"},
     ]
-    top = mcp_server._relevant_children("Wie berechnet P die Zinsen und welche Formel gilt?", outline, 2)
+    top = mcp_server._relevant_children(
+        "Wie berechnet P die Zinsen und welche Formel gilt?", outline, 2
+    )
     assert top[0]["symbol"] == "P.1300-COMPUTE-INTEREST"
     assert all(item["type"] != "section" for item in top)
     files = mcp_server._relevant_children("Welche Dateien werden gelesen?", outline, 1)
     assert files[0]["symbol"] == "P.1000-READ-INPUT"
 
 
-def test_used_by_lists_copy_users_and_overload_callers_once_per_unit(db_session, mcp_project_context, monkeypatch):
+def test_used_by_lists_copy_users_and_overload_callers_once_per_unit(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     book = _method(project_id, "CVBOOK", "CVBOOK", "app/cpy/CVBOOK.cpy", 1, 5, kind="copybook")
     prog_a = _method(project_id, "PROGA", "PROGA", "app/cbl/PROGA.cbl", 1, 90, kind="program")
     prog_b = _method(project_id, "PROGB", "PROGB", "app/cbl/PROGB.cbl", 1, 90, kind="program")
-    own = _method(project_id, "CVBOOK2", "CVBOOK.CVBOOK", "app/cpy/CVBOOK.cpy", 2, 3, kind="program")
+    own = _method(
+        project_id, "CVBOOK2", "CVBOOK.CVBOOK", "app/cpy/CVBOOK.cpy", 2, 3, kind="program"
+    )
     db_session.add_all([book, prog_a, prog_b, own])
     db_session.flush()
-    db_session.add_all([
-        CodeEdge(project_id=project_id, src_entity_id=prog_a.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=7, src_end_line=7),
-        CodeEdge(project_id=project_id, src_entity_id=prog_a.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=40, src_end_line=40),
-        CodeEdge(project_id=project_id, src_entity_id=prog_b.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=9, src_end_line=9),
-        CodeEdge(project_id=project_id, src_entity_id=own.id, dst_entity_id=book.id, dst_name="CVBOOK", type="COPY", resolution="resolved", src_start_line=3, src_end_line=3),
-    ])
+    db_session.add_all(
+        [
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=prog_a.id,
+                dst_entity_id=book.id,
+                dst_name="CVBOOK",
+                type="COPY",
+                resolution="resolved",
+                src_start_line=7,
+                src_end_line=7,
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=prog_a.id,
+                dst_entity_id=book.id,
+                dst_name="CVBOOK",
+                type="COPY",
+                resolution="resolved",
+                src_start_line=40,
+                src_end_line=40,
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=prog_b.id,
+                dst_entity_id=book.id,
+                dst_name="CVBOOK",
+                type="COPY",
+                resolution="resolved",
+                src_start_line=9,
+                src_end_line=9,
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=own.id,
+                dst_entity_id=book.id,
+                dst_name="CVBOOK",
+                type="COPY",
+                resolution="resolved",
+                src_start_line=3,
+                src_end_line=3,
+            ),
+        ]
+    )
     db_session.commit()
     users = mcp_server._used_by(db_session, db_session.get(User, user.id), book, 10)
     assert [u["unit"] for u in users] == ["PROGA", "PROGB"]
     assert users[0]["lines"] == [7, 40] and users[0]["types"] == ["COPY"]
 
 
-def test_answer_context_resolves_named_symbols_and_returns_evidence(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_resolves_named_symbols_and_returns_evidence(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    method = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3)
-    db_session.add_all([method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])])
+    method = _method(
+        project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3
+    )
+    db_session.add_all(
+        [method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])]
+    )
     db_session.commit()
-    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
-        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
 
     result = mcp_server.answer_context(
-        _context(user.id), project_id=project_id,
-        question="Wie läuft Auth.authenticate ab und welche Prüfungen gibt es?")
+        _context(user.id),
+        project_id=project_id,
+        question="Wie läuft Auth.authenticate ab und welche Prüfungen gibt es?",
+    )
     assert [r["symbol"] for r in result["resolved"]] == ["org.demo.Auth#authenticate(String)"]
     assert result["evidence"][0]["source"]["text"].splitlines()[0] == "1: check(u);"
 
 
-def test_answer_context_expands_the_paragraphs_that_match_a_large_program(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_expands_the_paragraphs_that_match_a_large_program(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     program = _method(project_id, "BIGPROG", "BIGPROG", "app/BIGPROG.cbl", 1, 300, kind="program")
-    interest = _method(project_id, "1300-COMPUTE-INTEREST", "BIGPROG.1300-COMPUTE-INTEREST", "app/BIGPROG.cbl", 100, 110, kind="paragraph")
-    other = _method(project_id, "9999-ABEND", "BIGPROG.9999-ABEND", "app/BIGPROG.cbl", 200, 210, kind="paragraph")
-    db_session.add_all([program, interest, other,
-                        _chunk(project_id, "app/BIGPROG.cbl", [("L%03d " % n) + "x" * 70 for n in range(1, 301)], 1)])
+    interest = _method(
+        project_id,
+        "1300-COMPUTE-INTEREST",
+        "BIGPROG.1300-COMPUTE-INTEREST",
+        "app/BIGPROG.cbl",
+        100,
+        110,
+        kind="paragraph",
+    )
+    other = _method(
+        project_id,
+        "9999-ABEND",
+        "BIGPROG.9999-ABEND",
+        "app/BIGPROG.cbl",
+        200,
+        210,
+        kind="paragraph",
+    )
+    db_session.add_all(
+        [
+            program,
+            interest,
+            other,
+            _chunk(
+                project_id, "app/BIGPROG.cbl", [("L%03d " % n) + "x" * 70 for n in range(1, 301)], 1
+            ),
+        ]
+    )
     db_session.commit()
-    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
-        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
 
     result = mcp_server.answer_context(
-        _context(user.id), project_id=project_id,
-        question="Wie berechnet BIGPROG die Zinsen?", max_chars=6000)
+        _context(user.id),
+        project_id=project_id,
+        question="Wie berechnet BIGPROG die Zinsen?",
+        max_chars=6000,
+    )
     entry = result["evidence"][0]
     assert "source" not in entry and entry["outline"]
     assert entry["expanded"][0]["symbol"] == "BIGPROG.1300-COMPUTE-INTEREST"
     assert entry["expanded"][0]["source"]["text"].splitlines()[0].startswith("100: L100")
 
 
-def test_answer_context_without_a_symbol_offers_candidates(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_without_a_symbol_offers_candidates(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    result = mcp_server.answer_context(_context(user.id), project_id=project_id, question="Wie funktioniert die Anmeldung?")
+    result = mcp_server.answer_context(
+        _context(user.id), project_id=project_id, question="Wie funktioniert die Anmeldung?"
+    )
     assert result["resolved"] == [] and "hint" in result
 
 
-def test_answer_context_denies_a_project_the_mcp_user_cannot_open(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_denies_a_project_the_mcp_user_cannot_open(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     _owner, outsider, project_id, _foreign = mcp_project_context
     with pytest.raises(ValueError, match="MCP request failed or access denied"):
-        mcp_server.answer_context(_context(outsider.id), project_id=project_id, question="Was macht CBACT04C?")
+        mcp_server.answer_context(
+            _context(outsider.id), project_id=project_id, question="Was macht CBACT04C?"
+        )
 
 
 @pytest.fixture(autouse=True)
@@ -1058,29 +1520,61 @@ def _no_embedding_calls(monkeypatch):
     monkeypatch.setattr(mcp_server, "_embedding_scores", lambda *_a, **_k: None)
 
 
-def test_answer_context_accepts_symbols_and_topic_without_a_question(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_accepts_symbols_and_topic_without_a_question(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    method = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3)
-    db_session.add_all([method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])])
+    method = _method(
+        project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3
+    )
+    db_session.add_all(
+        [method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])]
+    )
     db_session.commit()
-    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
-        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
 
-    result = mcp_server.answer_context(_context(user.id), project_id=project_id,
-                                       symbols=["Auth.authenticate"], topic="login checks")
+    result = mcp_server.answer_context(
+        _context(user.id),
+        project_id=project_id,
+        symbols=["Auth.authenticate"],
+        topic="login checks",
+    )
     assert [r["symbol"] for r in result["resolved"]] == ["org.demo.Auth#authenticate(String)"]
     assert result["unresolved_terms"] == []
 
 
-def test_answer_context_follows_the_call_chain_two_hops(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_follows_the_call_chain_two_hops(
+    db_session, mcp_project_context, monkeypatch
+):
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     a = _method(project_id, "start", "org.demo.Entry#start()", "src/Entry.java", 1, 3)
     b = _method(project_id, "route", "org.demo.Router#route()", "src/Router.java", 1, 8)
     c = _method(project_id, "deliver", "org.demo.Sender#deliver()", "src/Sender.java", 1, 3)
-    db_session.add_all([a, b, c, _chunk(project_id, "src/Entry.java", ["route();", "x;", "}"]),
-                        _chunk(project_id, "src/Router.java", ["deliver();", "y;", "z;", "w;", "v;", "u;", "t;", "}"])])
+    db_session.add_all(
+        [
+            a,
+            b,
+            c,
+            _chunk(project_id, "src/Entry.java", ["route();", "x;", "}"]),
+            _chunk(
+                project_id,
+                "src/Router.java",
+                ["deliver();", "y;", "z;", "w;", "v;", "u;", "t;", "}"],
+            ),
+        ]
+    )
     db_session.commit()
 
     def flow(_db, _user, _project, entity_id, **kwargs):
@@ -1089,12 +1583,22 @@ def test_answer_context_follows_the_call_chain_two_hops(db_session, mcp_project_
         target = {a.id: b, b.id: c}.get(entity_id)
         if target is None:
             return {"nodes": [], "edges": []}
-        return {"nodes": [{"id": target.id, "qualified_name": target.qualified_name, "file_path": target.file_path,
-                           "start_line": target.start_line}],
-                "edges": [{"target": target.id, "type": "CALLS", "start_line": 1}]}
+        return {
+            "nodes": [
+                {
+                    "id": target.id,
+                    "qualified_name": target.qualified_name,
+                    "file_path": target.file_path,
+                    "start_line": target.start_line,
+                }
+            ],
+            "edges": [{"target": target.id, "type": "CALLS", "start_line": 1}],
+        }
 
     monkeypatch.setattr(mcp_server, "_call_flow_page", flow)
-    result = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["Entry.start"], topic="routing")
+    result = mcp_server.answer_context(
+        _context(user.id), project_id=project_id, symbols=["Entry.start"], topic="routing"
+    )
     chain = result["evidence"][0]["callee_chain"]
     assert chain[0]["symbol"] == "org.demo.Router#route()"
     assert chain[0]["source"]["text"].startswith("1: deliver();")
@@ -1103,23 +1607,42 @@ def test_answer_context_follows_the_call_chain_two_hops(db_session, mcp_project_
 
 def test_embedding_scores_blend_into_the_ranking(db_session, mcp_project_context, monkeypatch):
     user, _outsider, project_id, _foreign = mcp_project_context
-    monkeypatch.setattr(mcp_server, "_embedding_scores", lambda _db, _p, _q, texts: [0.1 if "PLAIN" in t else 0.9 for t in texts])
+    monkeypatch.setattr(
+        mcp_server,
+        "_embedding_scores",
+        lambda _db, _p, _q, texts: [0.1 if "PLAIN" in t else 0.9 for t in texts],
+    )
     rows = [(1.0, {"symbol": "PLAIN-ONE"}), (1.0, {"symbol": "SEMANTIC-TWO"})]
     ranked = mcp_server._rank_by_embedding(db_session, project_id, "q", rows, lambda i: i["symbol"])
     assert ranked[0][1]["symbol"] == "SEMANTIC-TWO"
 
 
-def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(db_session, mcp_project_context, monkeypatch):
+def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(
+    db_session, mcp_project_context, monkeypatch
+):
     import asyncio
     import agent
     from api import chat as chat_api
 
     user, _outsider, project_id, _foreign = mcp_project_context
-    method = _method(project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3)
-    db_session.add_all([method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])])
+    method = _method(
+        project_id, "authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", 1, 3
+    )
+    db_session.add_all(
+        [method, _chunk(project_id, "src/Auth.java", ["check(u);", "return ok;", "}"])]
+    )
     db_session.commit()
-    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
-        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
 
     prompt = "Context...\nQuestion: Wie läuft Auth.authenticate ab?"
     prefetched = asyncio.run(agent._prefetch_evidence(db_session, user.id, project_id, prompt))
@@ -1131,17 +1654,40 @@ def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(db_s
     assert {"file": "src/Auth.java", "lines": [1, 3], "source_id": 7} in sources
 
     # Unknown symbols fall back to the regular bootstrap.
-    assert asyncio.run(agent._prefetch_evidence(db_session, user.id, project_id, "Question: Was ist Zebra?")) is None
+    assert (
+        asyncio.run(
+            agent._prefetch_evidence(db_session, user.id, project_id, "Question: Was ist Zebra?")
+        )
+        is None
+    )
 
 
 def test_outline_facts_carry_message_texts_and_assigned_codes(db_session, mcp_project_context):
     _user, _outsider, project_id, _foreign = mcp_project_context
     program = _method(project_id, "AUTHPROG", "AUTHPROG", "app/AUTHPROG.cbl", 1, 12, kind="program")
-    para = _method(project_id, "8000-DECLINE", "AUTHPROG.8000-DECLINE", "app/AUTHPROG.cbl", 3, 8, kind="paragraph")
-    lines = ["       PROCEDURE DIVISION.", "      * comment 'not a message at all'",
-             "       8000-DECLINE.", "           MOVE '51' TO AUTH-RESP-REASON",
-             "           DISPLAY 'INSUFFICIENT FUNDS (LIMIT)'", "           MOVE 'N' TO FLAG", "           EXIT.",
-             "", "", "", "", ""]
+    para = _method(
+        project_id,
+        "8000-DECLINE",
+        "AUTHPROG.8000-DECLINE",
+        "app/AUTHPROG.cbl",
+        3,
+        8,
+        kind="paragraph",
+    )
+    lines = [
+        "       PROCEDURE DIVISION.",
+        "      * comment 'not a message at all'",
+        "       8000-DECLINE.",
+        "           MOVE '51' TO AUTH-RESP-REASON",
+        "           DISPLAY 'INSUFFICIENT FUNDS (LIMIT)'",
+        "           MOVE 'N' TO FLAG",
+        "           EXIT.",
+        "",
+        "",
+        "",
+        "",
+        "",
+    ]
     db_session.add_all([program, para, _chunk(project_id, "app/AUTHPROG.cbl", lines)])
     db_session.commit()
     outline = mcp_server._outline(db_session, program)
@@ -1152,6 +1698,7 @@ def test_outline_facts_carry_message_texts_and_assigned_codes(db_session, mcp_pr
 
 def test_evidence_budget_scales_with_the_context_window():
     from api.chat import _evidence_budget
+
     assert _evidence_budget(None) is None
     assert _evidence_budget(8192) == 5538
     assert _evidence_budget(2048) == 3000 and _evidence_budget(131072) == 14000
@@ -1159,68 +1706,161 @@ def test_evidence_budget_scales_with_the_context_window():
 
 def test_relevant_children_follows_perform_one_step_and_skips_housekeeping():
     outline = [
-        {"symbol": "P.0000-FILE-OPEN", "type": "paragraph", "lines": "1-5", "facts": "io OPEN INFILE"},
-        {"symbol": "P.1300-COMPUTE-INTEREST", "type": "paragraph", "lines": "6-9", "facts": "performs 1300-B-WRITE-TX, 9999-ABEND-PROGRAM"},
-        {"symbol": "P.1300-B-WRITE-TX", "type": "paragraph", "lines": "10-20", "facts": 'io WRITE TRANFILE; msgs "Int. for a/c"'},
-        {"symbol": "P.9999-ABEND-PROGRAM", "type": "paragraph", "lines": "21-30", "facts": "calls CEE3ABD"},
+        {
+            "symbol": "P.0000-FILE-OPEN",
+            "type": "paragraph",
+            "lines": "1-5",
+            "facts": "io OPEN INFILE",
+        },
+        {
+            "symbol": "P.1300-COMPUTE-INTEREST",
+            "type": "paragraph",
+            "lines": "6-9",
+            "facts": "performs 1300-B-WRITE-TX, 9999-ABEND-PROGRAM",
+        },
+        {
+            "symbol": "P.1300-B-WRITE-TX",
+            "type": "paragraph",
+            "lines": "10-20",
+            "facts": 'io WRITE TRANFILE; msgs "Int. for a/c"',
+        },
+        {
+            "symbol": "P.9999-ABEND-PROGRAM",
+            "type": "paragraph",
+            "lines": "21-30",
+            "facts": "calls CEE3ABD",
+        },
     ]
-    chosen = [c["symbol"] for c in mcp_server._relevant_children("Wie berechnet P die Zinsen?", outline, 1)]
+    chosen = [
+        c["symbol"]
+        for c in mcp_server._relevant_children("Wie berechnet P die Zinsen?", outline, 1)
+    ]
     assert chosen == ["P.1300-COMPUTE-INTEREST", "P.1300-B-WRITE-TX"]
 
 
 def test_outline_facts_name_the_fields_a_paragraph_computes(db_session, mcp_project_context):
     _user, _outsider, project_id, _foreign = mcp_project_context
     program = _method(project_id, "INTPROG", "INTPROG", "app/INTPROG.cbl", 1, 9, kind="program")
-    para = _method(project_id, "1300-COMPUTE-INTEREST", "INTPROG.1300-COMPUTE-INTEREST", "app/INTPROG.cbl", 2, 6, kind="paragraph")
-    lines = ["       PROCEDURE DIVISION.", "       1300-COMPUTE-INTEREST.", "           COMPUTE WS-MONTHLY-INT",
-             "            = (BAL * RATE) / 1200", "           ADD WS-MONTHLY-INT TO WS-TOTAL-INT", "           EXIT.", "", "", ""]
+    para = _method(
+        project_id,
+        "1300-COMPUTE-INTEREST",
+        "INTPROG.1300-COMPUTE-INTEREST",
+        "app/INTPROG.cbl",
+        2,
+        6,
+        kind="paragraph",
+    )
+    lines = [
+        "       PROCEDURE DIVISION.",
+        "       1300-COMPUTE-INTEREST.",
+        "           COMPUTE WS-MONTHLY-INT",
+        "            = (BAL * RATE) / 1200",
+        "           ADD WS-MONTHLY-INT TO WS-TOTAL-INT",
+        "           EXIT.",
+        "",
+        "",
+        "",
+    ]
     db_session.add_all([program, para, _chunk(project_id, "app/INTPROG.cbl", lines)])
     db_session.commit()
-    facts = next(i for i in mcp_server._outline(db_session, program) if i["symbol"].endswith("COMPUTE-INTEREST"))["facts"]
+    facts = next(
+        i
+        for i in mcp_server._outline(db_session, program)
+        if i["symbol"].endswith("COMPUTE-INTEREST")
+    )["facts"]
     assert "computes WS-MONTHLY-INT, WS-TOTAL-INT" in facts
 
 
-def test_ide_file_marks_known_system_targets_as_external(unauthenticated_client, db_session, mcp_project_context):
+def test_ide_file_marks_known_system_targets_as_external(
+    unauthenticated_client, db_session, mcp_project_context
+):
     """O-325: ein COPY auf ein MQ-Systemcopybook ist `unresolved`, aber extern und keine Indexlücke."""
     from models.database import CodeEdge
 
     owner, _outsider, project_id, _foreign = mcp_project_context
-    source = KnowledgeSource(name="ide-src", type="Git", project_id=project_id, team_id=db_session.query(Project.team_id).filter(Project.id == project_id).scalar())
+    source = KnowledgeSource(
+        name="ide-src",
+        type="Git",
+        project_id=project_id,
+        team_id=db_session.query(Project.team_id).filter(Project.id == project_id).scalar(),
+    )
     db_session.add(source)
     db_session.flush()
-    program = CodeEntity(project_id=project_id, source_id=source.id, file_path="cbl/PROG.cbl", name="PROG",
-                         qualified_name="PROG", type="program", start_line=1, end_line=30)
+    program = CodeEntity(
+        project_id=project_id,
+        source_id=source.id,
+        file_path="cbl/PROG.cbl",
+        name="PROG",
+        qualified_name="PROG",
+        type="program",
+        start_line=1,
+        end_line=30,
+    )
     db_session.add(program)
     db_session.flush()
-    for name, meta in (("CMQODV", {"external": {"category": "mq", "kind": "system_copybook"}}), ("MYBOOK", {})):
-        db_session.add(CodeEdge(project_id=project_id, source_id=source.id, src_entity_id=program.id, dst_name=name,
-                                type="COPY", resolution="unresolved", src_start_line=10, src_end_line=10, meta_json=meta))
+    for name, meta in (
+        ("CMQODV", {"external": {"category": "mq", "kind": "system_copybook"}}),
+        ("MYBOOK", {}),
+    ):
+        db_session.add(
+            CodeEdge(
+                project_id=project_id,
+                source_id=source.id,
+                src_entity_id=program.id,
+                dst_name=name,
+                type="COPY",
+                resolution="unresolved",
+                src_start_line=10,
+                src_end_line=10,
+                meta_json=meta,
+            )
+        )
     db_session.commit()
     _token, secret = create_token(db_session, user=owner, name="ide external", days=1)
 
     response = unauthenticated_client.get(
-        "/ide/file", params={"project_id": project_id, "source_id": source.id, "path": "cbl/PROG.cbl"},
+        "/ide/file",
+        params={"project_id": project_id, "source_id": source.id, "path": "cbl/PROG.cbl"},
         headers={"Authorization": f"Bearer {secret}"},
     )
 
     assert response.status_code == 200
     by_name = {ref["name"]: ref for ref in response.json()["references"]}
-    assert by_name["CMQODV"]["external_category"] == "mq" and by_name["CMQODV"]["resolution"] == "unresolved"
+    assert (
+        by_name["CMQODV"]["external_category"] == "mq"
+        and by_name["CMQODV"]["resolution"] == "unresolved"
+    )
     assert by_name["MYBOOK"]["external_category"] is None
 
 
-def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(db_session, mcp_project_context):
+def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(
+    db_session, mcp_project_context
+):
     """O-147: `ASSIGNED_DATASET` erscheint in der Datenzugriffsübersicht mit DD-Name und JCL-Fundstelle."""
     from models.database import CodeEdge
 
     _owner, _outsider, project_id, _foreign = mcp_project_context
-    source = KnowledgeSource(name="dd-src", type="Git", project_id=project_id, team_id=db_session.query(Project.team_id).filter(Project.id == project_id).scalar())
+    source = KnowledgeSource(
+        name="dd-src",
+        type="Git",
+        project_id=project_id,
+        team_id=db_session.query(Project.team_id).filter(Project.id == project_id).scalar(),
+    )
     db_session.add(source)
     db_session.flush()
 
     def entity(type_, name, path, start, end, parent=None):
-        item = CodeEntity(project_id=project_id, source_id=source.id, file_path=path, name=name, qualified_name=name,
-                          type=type_, start_line=start, end_line=end, parent_id=parent.id if parent else None)
+        item = CodeEntity(
+            project_id=project_id,
+            source_id=source.id,
+            file_path=path,
+            name=name,
+            qualified_name=name,
+            type=type_,
+            start_line=start,
+            end_line=end,
+            parent_id=parent.id if parent else None,
+        )
         db_session.add(item)
         db_session.flush()
         return item
@@ -1228,24 +1868,46 @@ def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(db_sess
     program = entity("program", "CBTRN02C", "cbl/CBTRN02C.cbl", 1, 90)
     file_fd = entity("file_fd", "TRANSACT-FILE", "cbl/CBTRN02C.cbl", 30, 31, parent=program)
     dataset = entity("jcl_dataset", "AWS.TRANSACT.KSDS", "jcl/POSTTRAN.jcl", 14, 14)
-    db_session.add(CodeEdge(
-        project_id=project_id, source_id=source.id, src_entity_id=file_fd.id, dst_entity_id=dataset.id,
-        dst_name=dataset.name, type="ASSIGNED_DATASET", resolution="resolved", src_start_line=30, src_end_line=31,
-        meta_json={"derived_by": "jcl_dd_assign", "ddname": "TRANFILE", "jcl_file_path": "jcl/POSTTRAN.jcl", "jcl_start_line": 14},
-    ))
+    db_session.add(
+        CodeEdge(
+            project_id=project_id,
+            source_id=source.id,
+            src_entity_id=file_fd.id,
+            dst_entity_id=dataset.id,
+            dst_name=dataset.name,
+            type="ASSIGNED_DATASET",
+            resolution="resolved",
+            src_start_line=30,
+            src_end_line=31,
+            meta_json={
+                "derived_by": "jcl_dd_assign",
+                "ddname": "TRANFILE",
+                "jcl_file_path": "jcl/POSTTRAN.jcl",
+                "jcl_start_line": 14,
+            },
+        )
+    )
     db_session.commit()
 
     summary = mcp_server._data_access_summary(db_session, program)
 
-    assert summary == [{
-        "access": "ASSIGNED_DATASET", "target": "AWS.TRANSACT.KSDS", "lines": [30],
-        "ddname": "TRANFILE", "via_jcl": "jcl/POSTTRAN.jcl:14", "certainty": "possible",
-    }]
+    assert summary == [
+        {
+            "access": "ASSIGNED_DATASET",
+            "target": "AWS.TRANSACT.KSDS",
+            "lines": [30],
+            "ddname": "TRANFILE",
+            "via_jcl": "jcl/POSTTRAN.jcl:14",
+            "certainty": "possible",
+        }
+    ]
 
 
 def test_symbol_signature_must_match_the_overload():
     def method(qualified):
-        return CodeEntity(name=qualified.split("#")[1].split("(")[0], type="method", qualified_name=qualified)
+        return CodeEntity(
+            name=qualified.split("#")[1].split("(")[0], type="method", qualified_name=qualified
+        )
 
     update = method("a.UserServiceImpl#update(UserUR)")
     create = method("a.UserLogic#create(UserCR,boolean)")
@@ -1265,10 +1927,21 @@ def test_research_project_reports_signature_mismatch_with_existing_overloads(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign_project_id = mcp_project_context
     qualified = "org.demo.UserServiceImpl#update(UserUR)"
-    db_session.add(CodeEntity(project_id=project_id, name="update", type="method", file_path="src/UserServiceImpl.java",
-                              qualified_name=qualified, start_line=1, end_line=5))
+    db_session.add(
+        CodeEntity(
+            project_id=project_id,
+            name="update",
+            type="method",
+            file_path="src/UserServiceImpl.java",
+            qualified_name=qualified,
+            start_line=1,
+            end_line=5,
+        )
+    )
     db_session.commit()
-    result = mcp_server.research_project(_context(user.id), project_id=project_id, query="UserServiceImpl.update(UserTO)")
+    result = mcp_server.research_project(
+        _context(user.id), project_id=project_id, query="UserServiceImpl.update(UserTO)"
+    )
     assert result["resolution"] == "signature_mismatch"
     assert [item["qualified_name"] for item in result["candidates"]] == [qualified]
 
@@ -1280,107 +1953,223 @@ def test_answer_context_lists_copybooks_grouped_when_the_question_asks_for_them(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     program = _method(project_id, "PAYPROG", "PAYPROG", "src/PAYPROG.cbl", 1, 90, kind="program")
-    paragraph = _method(project_id, "MAIN-PARA", "PAYPROG.MAIN-PARA", "src/PAYPROG.cbl", 40, 60, kind="paragraph")
+    paragraph = _method(
+        project_id, "MAIN-PARA", "PAYPROG.MAIN-PARA", "src/PAYPROG.cbl", 40, 60, kind="paragraph"
+    )
     copybook = _method(project_id, "CPYREC", "CPYREC", "src/CPYREC.cpy", 1, 10, kind="copybook")
     db_session.add_all([program, paragraph, copybook])
     db_session.flush()
 
     def copy_edge(source, name, line, resolution, target=None, external=None, kind="COPY"):
-        return CodeEdge(project_id=project_id, src_entity_id=source.id, dst_entity_id=target.id if target else None,
-                        dst_name=name, type=kind, resolution=resolution, src_start_line=line, src_end_line=line,
-                        meta_json={"external": external} if external else None)
+        return CodeEdge(
+            project_id=project_id,
+            src_entity_id=source.id,
+            dst_entity_id=target.id if target else None,
+            dst_name=name,
+            type=kind,
+            resolution=resolution,
+            src_start_line=line,
+            src_end_line=line,
+            meta_json={"external": external} if external else None,
+        )
 
-    db_session.add_all([
-        copy_edge(program, "CPYREC", 10, "resolved", copybook),
-        copy_edge(program, "CMQV", 20, "unresolved", external={"category": "mq", "kind": "system_copybook"}),
-        copy_edge(paragraph, "LOSTCPY", 45, "unresolved"),  # COPY in einem Absatz derselben Datei zählt mit
-        copy_edge(program, "CMQV", 20, "unresolved", external={"category": "mq", "kind": "system_copybook"}),  # Dublette
-    ])
+    db_session.add_all(
+        [
+            copy_edge(program, "CPYREC", 10, "resolved", copybook),
+            copy_edge(
+                program,
+                "CMQV",
+                20,
+                "unresolved",
+                external={"category": "mq", "kind": "system_copybook"},
+            ),
+            copy_edge(
+                paragraph, "LOSTCPY", 45, "unresolved"
+            ),  # COPY in einem Absatz derselben Datei zählt mit
+            copy_edge(
+                program,
+                "CMQV",
+                20,
+                "unresolved",
+                external={"category": "mq", "kind": "system_copybook"},
+            ),  # Dublette
+        ]
+    )
     db_session.commit()
-    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
-        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
 
-    asked = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["PAYPROG"],
-                                      question="Welche Copybooks bindet PAYPROG ein?")
+    asked = mcp_server.answer_context(
+        _context(user.id),
+        project_id=project_id,
+        symbols=["PAYPROG"],
+        question="Welche Copybooks bindet PAYPROG ein?",
+    )
     copies = asked["evidence"][0]["includes"]
     assert copies["counts"] == {"resolved": 1, "external": 1, "unresolved": 1}
-    assert copies["resolved"][0]["cite"] == "src/PAYPROG.cbl:10" and copies["resolved"][0]["defined_in"] == "src/CPYREC.cpy"
+    assert (
+        copies["resolved"][0]["cite"] == "src/PAYPROG.cbl:10"
+        and copies["resolved"][0]["defined_in"] == "src/CPYREC.cpy"
+    )
     assert (copies["external"][0]["name"], copies["external"][0]["category"]) == ("CMQV", "mq")
     assert copies["unresolved"][0]["name"] == "LOSTCPY"
     assert "cite" in asked["notice"]
 
-    plain = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["PAYPROG"],
-                                      question="Was macht PAYPROG?")
+    plain = mcp_server.answer_context(
+        _context(user.id), project_id=project_id, symbols=["PAYPROG"], question="Was macht PAYPROG?"
+    )
     assert "includes" not in plain["evidence"][0]  # ohne COPY-Frage keine zusätzliche Last im Paket
 
 
-def test_answer_context_follows_a_data_field_back_to_its_origin(db_session, mcp_project_context, monkeypatch):
+def test_answer_context_follows_a_data_field_back_to_its_origin(
+    db_session, mcp_project_context, monkeypatch
+):
     """O-346/Q6: Die Herkunftskette eines Feldes steht im Beweispaket, nicht nur seine Deklaration."""
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    paragraph = _method(project_id, "2100-EXTRACT", "DEMO.2100-EXTRACT", "src/DEMO.cbl", 9, 16, kind="paragraph")
+    paragraph = _method(
+        project_id, "2100-EXTRACT", "DEMO.2100-EXTRACT", "src/DEMO.cbl", 9, 16, kind="paragraph"
+    )
     amount = _method(project_id, "AMT-OUT", "DEMO.AMT-OUT", "src/DEMO.cbl", 3, 3, kind="data_item")
     raw = _method(project_id, "AMT-RAW", "DEMO.AMT-RAW", "src/DEMO.cbl", 4, 4, kind="data_item")
-    buffer = _method(project_id, "MSG-BUFFER", "DEMO.MSG-BUFFER", "src/DEMO.cbl", 5, 5, kind="data_item")
-    other = _method(project_id, "OTHER-FIELD", "DEMO.OTHER-FIELD", "src/DEMO.cbl", 6, 6, kind="data_item")
+    buffer = _method(
+        project_id, "MSG-BUFFER", "DEMO.MSG-BUFFER", "src/DEMO.cbl", 5, 5, kind="data_item"
+    )
+    other = _method(
+        project_id, "OTHER-FIELD", "DEMO.OTHER-FIELD", "src/DEMO.cbl", 6, 6, kind="data_item"
+    )
     db_session.add_all([paragraph, amount, raw, buffer, other])
     db_session.flush()
 
     def edge(kind, src, dst, line, operation, role):
-        return CodeEdge(project_id=project_id, src_entity_id=src.id, dst_entity_id=dst.id, dst_name=dst.name, type=kind,
-                        resolution="resolved", src_start_line=line, src_end_line=line,
-                        meta_json={"operation": operation, "operand_role": role})
+        return CodeEdge(
+            project_id=project_id,
+            src_entity_id=src.id,
+            dst_entity_id=dst.id,
+            dst_name=dst.name,
+            type=kind,
+            resolution="resolved",
+            src_start_line=line,
+            src_end_line=line,
+            meta_json={"operation": operation, "operand_role": role},
+        )
 
-    db_session.add_all([
-        _chunk(project_id, "src/DEMO.cbl", [
-            "UNSTRING MSG-BUFFER", "   INTO AMT-RAW", "COMPUTE AMT-OUT =", "   NUMVAL(AMT-RAW)", "MOVE OTHER-FIELD TO X",
-        ], 10),
-        edge("READS", paragraph, buffer, 10, "UNSTRING", "source"),
-        edge("WRITES", paragraph, raw, 11, "UNSTRING", "target"),
-        edge("WRITES", paragraph, amount, 12, "COMPUTE", "result"),
-        edge("READS", paragraph, raw, 13, "COMPUTE", "source"),
-        edge("READS", paragraph, other, 14, "MOVE", "source"),
-    ])
+    db_session.add_all(
+        [
+            _chunk(
+                project_id,
+                "src/DEMO.cbl",
+                [
+                    "UNSTRING MSG-BUFFER",
+                    "   INTO AMT-RAW",
+                    "COMPUTE AMT-OUT =",
+                    "   NUMVAL(AMT-RAW)",
+                    "MOVE OTHER-FIELD TO X",
+                ],
+                10,
+            ),
+            edge("READS", paragraph, buffer, 10, "UNSTRING", "source"),
+            edge("WRITES", paragraph, raw, 11, "UNSTRING", "target"),
+            edge("WRITES", paragraph, amount, 12, "COMPUTE", "result"),
+            edge("READS", paragraph, raw, 13, "COMPUTE", "source"),
+            edge("READS", paragraph, other, 14, "MOVE", "source"),
+        ]
+    )
     db_session.commit()
 
-    result = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=["AMT-OUT"],
-                                       question="Woher stammt AMT-OUT?")
+    result = mcp_server.answer_context(
+        _context(user.id),
+        project_id=project_id,
+        symbols=["AMT-OUT"],
+        question="Woher stammt AMT-OUT?",
+    )
     chain = result["evidence"][0]["data_origin"]
     assert [(step["field"], step["operation"], step["reads"]) for step in chain] == [
         ("AMT-OUT", "COMPUTE", ["AMT-RAW"]),
         ("AMT-RAW", "UNSTRING", ["MSG-BUFFER"]),
     ]
-    assert chain[0]["line"] == 12 and chain[0]["cite"] == "src/DEMO.cbl:12" and "OTHER-FIELD" not in str(chain)
+    assert (
+        chain[0]["line"] == 12
+        and chain[0]["cite"] == "src/DEMO.cbl:12"
+        and "OTHER-FIELD" not in str(chain)
+    )
 
 
 def test_language_profile_gives_cobol_java_and_jcl_the_same_roles():
     from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, profile_of, role_of
 
-    assert [role_of(t) for t in ("program", "paragraph", "data_item")] == ["container", "routine", "data"]
+    assert [role_of(t) for t in ("program", "paragraph", "data_item")] == [
+        "container",
+        "routine",
+        "data",
+    ]
     assert [role_of(t) for t in ("class", "method", "field")] == ["container", "routine", "data"]
-    assert [role_of(t) for t in ("jcl_job", "jcl_step", "jcl_dataset")] == ["container", "routine", "data"]
+    assert [role_of(t) for t in ("jcl_job", "jcl_step", "jcl_dataset")] == [
+        "container",
+        "routine",
+        "data",
+    ]
     assert role_of("maven_module") is None and role_of(None) is None
     assert profile_of("lambda").name == "java" and profile_of("section").name == "cobol"
-    assert {"PERFORM", "CALL", "CALLS", "EXECUTES"} <= CONTROL_EDGES and {"COPY", "IMPORTS", "EXTENDS"} <= INCLUDE_EDGES
+    assert {"PERFORM", "CALL", "CALLS", "EXECUTES"} <= CONTROL_EDGES and {
+        "COPY",
+        "IMPORTS",
+        "EXTENDS",
+    } <= INCLUDE_EDGES
 
 
 def _flow_entities(db_session, project_id, container_type, routine_type, file_path, names):
     container = _method(project_id, "UNIT", "UNIT", file_path, 1, 200, kind=container_type)
-    routines = [_method(project_id, name, f"UNIT.{name}", file_path, 10 + 10 * i, 18 + 10 * i, kind=routine_type)
-                for i, name in enumerate(names)]
+    routines = [
+        _method(
+            project_id, name, f"UNIT.{name}", file_path, 10 + 10 * i, 18 + 10 * i, kind=routine_type
+        )
+        for i, name in enumerate(names)
+    ]
     db_session.add_all([container, *routines])
     db_session.flush()
     return container, routines
 
 
-def _control(db_session, project_id, edge_type, source, target, line, resolution="resolved", external=None, name=None):
-    db_session.add(CodeEdge(
-        project_id=project_id, src_entity_id=source.id, dst_entity_id=target.id if target else None,
-        dst_name=name or (target.name if target else "x"), type=edge_type, resolution=resolution,
-        src_start_line=line, src_end_line=line, meta_json={"external": external} if external else None))
+def _control(
+    db_session,
+    project_id,
+    edge_type,
+    source,
+    target,
+    line,
+    resolution="resolved",
+    external=None,
+    name=None,
+):
+    db_session.add(
+        CodeEdge(
+            project_id=project_id,
+            src_entity_id=source.id,
+            dst_entity_id=target.id if target else None,
+            dst_name=name or (target.name if target else "x"),
+            type=edge_type,
+            resolution=resolution,
+            src_start_line=line,
+            src_end_line=line,
+            meta_json={"external": external} if external else None,
+        )
+    )
 
 
-@pytest.mark.parametrize("container_type, routine_type, edge_type", [("program", "paragraph", "PERFORM"), ("class", "method", "CALLS")])
+@pytest.mark.parametrize(
+    "container_type, routine_type, edge_type",
+    [("program", "paragraph", "PERFORM"), ("class", "method", "CALLS")],
+)
 def test_control_flow_block_works_for_cobol_and_java_the_same_way(
     db_session, mcp_project_context, monkeypatch, container_type, routine_type, edge_type
 ):
@@ -1390,48 +2179,110 @@ def test_control_flow_block_works_for_cobol_and_java_the_same_way(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     unit, (main, init, work, leaf) = _flow_entities(
-        db_session, project_id, container_type, routine_type, "src/Unit.src", ["main", "init", "work", "leaf"])
+        db_session,
+        project_id,
+        container_type,
+        routine_type,
+        "src/Unit.src",
+        ["main", "init", "work", "leaf"],
+    )
     _control(db_session, project_id, edge_type, main, init, 12)
     _control(db_session, project_id, edge_type, main, work, 14)
-    _control(db_session, project_id, edge_type, main, None, 15, "unresolved", {"category": "logging"}, "LOG.debug")  # nicht listen
+    _control(
+        db_session,
+        project_id,
+        edge_type,
+        main,
+        None,
+        15,
+        "unresolved",
+        {"category": "logging"},
+        "LOG.debug",
+    )  # nicht listen
     _control(db_session, project_id, edge_type, init, leaf, 22)
-    _control(db_session, project_id, edge_type, work, None, 31, "unresolved", None, "Unbekannt.call")
+    _control(
+        db_session, project_id, edge_type, work, None, 31, "unresolved", None, "Unbekannt.call"
+    )
     db_session.commit()
     user_obj = db_session.get(type(user), user.id)
 
     routine_flow = evidence.control_flow(db_session, user_obj, project_id, main)
     steps = routine_flow["flow"][0]["calls"]
-    assert [(s["to"], s["line"], s["status"]) for s in steps] == [("init", 12, "resolved"), ("work", 14, "resolved")]
+    assert [(s["to"], s["line"], s["status"]) for s in steps] == [
+        ("init", 12, "resolved"),
+        ("work", 14, "resolved"),
+    ]
     assert [t["to"] for t in steps[0]["then"]] == ["leaf"]  # zweite Stufe
     assert steps[1]["then"] if "then" in steps[1] else True
     assert steps[0]["cite"] == "src/Unit.src:12"
-    assert routine_flow["flow"][0].get("more_calls") == 1  # die unaufgelöste Bibliotheksstelle ist gezählt, nicht gelistet
+    assert (
+        routine_flow["flow"][0].get("more_calls") == 1
+    )  # die unaufgelöste Bibliotheksstelle ist gezählt, nicht gelistet
 
     unit_flow = evidence.control_flow(db_session, user_obj, project_id, unit)
-    assert [item["routine"] for item in unit_flow["flow"]] == ["UNIT.main", "UNIT.init", "UNIT.work"]  # Quelltextreihenfolge
+    assert [item["routine"] for item in unit_flow["flow"]] == [
+        "UNIT.main",
+        "UNIT.init",
+        "UNIT.work",
+    ]  # Quelltextreihenfolge
     assert unit_flow["routines_without_transfers"] == ["leaf"]
     # Unaufgelöste Aufrufe bleiben sichtbar, wenn eine Routine nur solche hat.
     assert unit_flow["flow"][2]["calls"][0]["status"] == "unresolved"
 
 
-def test_includes_block_serves_java_imports_and_inheritance_like_cobol_copy(db_session, mcp_project_context, monkeypatch):
+def test_includes_block_serves_java_imports_and_inheritance_like_cobol_copy(
+    db_session, mcp_project_context, monkeypatch
+):
     from services import evidence
 
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    cls = _method(project_id, "UserServiceImpl", "demo.UserServiceImpl", "src/UserServiceImpl.java", 1, 80, kind="class")
-    unit = _method(project_id, "UserServiceImpl.java", "src/UserServiceImpl.java", "src/UserServiceImpl.java", 1, 80, kind="compilation_unit")
+    cls = _method(
+        project_id,
+        "UserServiceImpl",
+        "demo.UserServiceImpl",
+        "src/UserServiceImpl.java",
+        1,
+        80,
+        kind="class",
+    )
+    unit = _method(
+        project_id,
+        "UserServiceImpl.java",
+        "src/UserServiceImpl.java",
+        "src/UserServiceImpl.java",
+        1,
+        80,
+        kind="compilation_unit",
+    )
     helper = _method(project_id, "UserCR", "demo.UserCR", "src/UserCR.java", 1, 10, kind="class")
     db_session.add_all([cls, unit, helper])
     db_session.flush()
 
     def edge(kind, source, name, line, resolution, target=None, external=None):
-        db_session.add(CodeEdge(project_id=project_id, src_entity_id=source.id, dst_entity_id=target.id if target else None,
-                                dst_name=name, type=kind, resolution=resolution, src_start_line=line, src_end_line=line,
-                                meta_json={"external": external} if external else None))
+        db_session.add(
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=source.id,
+                dst_entity_id=target.id if target else None,
+                dst_name=name,
+                type=kind,
+                resolution=resolution,
+                src_start_line=line,
+                src_end_line=line,
+                meta_json={"external": external} if external else None,
+            )
+        )
 
     edge("IMPORTS", unit, "demo.UserCR", 3, "resolved", helper)
-    edge("IMPORTS", unit, "java.time.OffsetDateTime", 4, "unresolved", external={"category": "jdk", "library": "java.time.OffsetDateTime"})
+    edge(
+        "IMPORTS",
+        unit,
+        "java.time.OffsetDateTime",
+        4,
+        "unresolved",
+        external={"category": "jdk", "library": "java.time.OffsetDateTime"},
+    )
     edge("IMPORTS", unit, "com.acme.Missing", 5, "unresolved")
     edge("EXTENDS", cls, "AbstractService", 12, "unresolved", external={"category": "library"})
     edge("IMPLEMENTS", cls, "UserService", 12, "resolved", helper)
@@ -1439,7 +2290,10 @@ def test_includes_block_serves_java_imports_and_inheritance_like_cobol_copy(db_s
 
     block = evidence.includes(db_session, db_session.get(type(user), user.id), project_id, cls)
     assert block["counts"] == {"resolved": 2, "external": 2, "unresolved": 1}
-    assert {(item["name"], item["kind"]) for item in block["resolved"]} == {("demo.UserCR", "imports"), ("UserService", "implements")}
+    assert {(item["name"], item["kind"]) for item in block["resolved"]} == {
+        ("demo.UserCR", "imports"),
+        ("UserService", "implements"),
+    }
     assert {item["category"] for item in block["external"]} == {"jdk", "library"}
     assert block["unresolved"][0]["cite"] == "src/UserServiceImpl.java:5"
 
@@ -1447,14 +2301,36 @@ def test_includes_block_serves_java_imports_and_inheritance_like_cobol_copy(db_s
 def test_evidence_pack_shrinking_keeps_the_answering_blocks_and_drops_redundant_extras_first():
     import json
 
-    flow = {"flow": [{"routine": f"R{i}", "line": i, "calls": [{"to": "x", "line": i, "edge": "PERFORM", "status": "resolved", "cite": "f:1"}]} for i in range(8)]}
-    entry = {"symbol": "S", "source": {"text": "x" * 900, "start_line": 1, "end_line": 20}, "callees": ["a", "b"], "callee_chain": [{"x": "y" * 400}],
-             "call_sites": [{"text": "z" * 2000}], "helper_methods": [{"x": "h" * 600}], "control_flow": flow}
+    flow = {
+        "flow": [
+            {
+                "routine": f"R{i}",
+                "line": i,
+                "calls": [
+                    {"to": "x", "line": i, "edge": "PERFORM", "status": "resolved", "cite": "f:1"}
+                ],
+            }
+            for i in range(8)
+        ]
+    }
+    entry = {
+        "symbol": "S",
+        "source": {"text": "x" * 900, "start_line": 1, "end_line": 20},
+        "callees": ["a", "b"],
+        "callee_chain": [{"x": "y" * 400}],
+        "call_sites": [{"text": "z" * 2000}],
+        "helper_methods": [{"x": "h" * 600}],
+        "control_flow": flow,
+    }
     pack = [entry]
     before = len(json.dumps(pack))
     mcp_server._fit_evidence(pack, before - 2500)
-    assert "control_flow" in pack[0] and len(pack[0]["control_flow"]["flow"]) == 8  # Block bleibt, solange andere Teile reichen
-    assert "callees" not in pack[0] and "callee_chain" not in pack[0]  # durch den Ablauf überflüssig
+    assert (
+        "control_flow" in pack[0] and len(pack[0]["control_flow"]["flow"]) == 8
+    )  # Block bleibt, solange andere Teile reichen
+    assert (
+        "callees" not in pack[0] and "callee_chain" not in pack[0]
+    )  # durch den Ablauf überflüssig
     mcp_server._fit_evidence(pack, 350)  # sehr knapp: erst jetzt wird der Ablauf selbst gekürzt
     assert 6 <= len(pack[0]["control_flow"]["flow"]) < 8
 
@@ -1465,22 +2341,57 @@ def test_symbols_with_hyphenated_cobol_names_and_bare_names_resolve_in_the_named
     """O-346/Q3: `PROG.PARA` und `1000-INIT` werden erkannt; ein Name, den viele Programme haben, gehört zum genannten."""
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    assert mcp_server._extract_symbols("Fluss von `COPAUA0C.MAIN-PARA` und `1000-INITIALIZE` bitte")[:2] == [
-        "COPAUA0C.MAIN-PARA", "1000-INITIALIZE"]
+    assert mcp_server._extract_symbols(
+        "Fluss von `COPAUA0C.MAIN-PARA` und `1000-INITIALIZE` bitte"
+    )[:2] == ["COPAUA0C.MAIN-PARA", "1000-INITIALIZE"]
     one = _method(project_id, "PROGONE", "PROGONE", "src/ONE.cbl", 1, 90, kind="program")
     two = _method(project_id, "PROGTWO", "PROGTWO", "src/TWO.cbl", 1, 90, kind="program")
-    para_one = _method(project_id, "MAIN-PARA", "PROGONE.MAIN-PARA", "src/ONE.cbl", 10, 20, kind="paragraph")
-    init_one = _method(project_id, "1000-INITIALIZE", "PROGONE.1000-INITIALIZE", "src/ONE.cbl", 30, 40, kind="paragraph")
-    init_two = _method(project_id, "1000-INITIALIZE", "PROGTWO.1000-INITIALIZE", "src/TWO.cbl", 30, 40, kind="paragraph")
+    para_one = _method(
+        project_id, "MAIN-PARA", "PROGONE.MAIN-PARA", "src/ONE.cbl", 10, 20, kind="paragraph"
+    )
+    init_one = _method(
+        project_id,
+        "1000-INITIALIZE",
+        "PROGONE.1000-INITIALIZE",
+        "src/ONE.cbl",
+        30,
+        40,
+        kind="paragraph",
+    )
+    init_two = _method(
+        project_id,
+        "1000-INITIALIZE",
+        "PROGTWO.1000-INITIALIZE",
+        "src/TWO.cbl",
+        30,
+        40,
+        kind="paragraph",
+    )
     db_session.add_all([one, two, para_one, init_one, init_two])
     db_session.commit()
-    monkeypatch.setattr(mcp_server, "trace_call_flow", lambda *_a, **_k: {
-        "status": "ok", "root": None, "nodes": [], "edges": [], "entry_candidates": []})
+    monkeypatch.setattr(
+        mcp_server,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
 
     result = mcp_server.build_answer_context(
-        db_session, db_session.get(type(user), user.id), project_id,
-        question="Beschreibe den Fluss von PROGONE.MAIN-PARA und was 1000-INITIALIZE aufruft.", use_embeddings=False)
-    assert sorted(item["symbol"] for item in result["resolved"]) == ["PROGONE.1000-INITIALIZE", "PROGONE.MAIN-PARA"]
+        db_session,
+        db_session.get(type(user), user.id),
+        project_id,
+        question="Beschreibe den Fluss von PROGONE.MAIN-PARA und was 1000-INITIALIZE aufruft.",
+        use_embeddings=False,
+    )
+    assert sorted(item["symbol"] for item in result["resolved"]) == [
+        "PROGONE.1000-INITIALIZE",
+        "PROGONE.MAIN-PARA",
+    ]
     assert result["unresolved_terms"] == []
 
 
@@ -1496,17 +2407,50 @@ def test_data_origin_follows_a_java_field_through_locals_parameters_and_the_call
     klass = _method(project_id, "Account", "demo.Account", file_path, 1, 60, kind="class")
     field = _method(project_id, "balance", "demo.Account#balance", file_path, 3, 3, kind="field")
     deposit_qn = "demo.Account#deposit(long)"
-    param_qn, net_qn, checked_qn = (f"{deposit_qn}@param:amount", f"{deposit_qn}@local:net:16:13", f"{deposit_qn}@local:checked:17:13")
+    param_qn, net_qn, checked_qn = (
+        f"{deposit_qn}@param:amount",
+        f"{deposit_qn}@local:net:16:13",
+        f"{deposit_qn}@local:checked:17:13",
+    )
     flow = [
-        {"line": 16, "end_line": 16, "operation": "init", "text": "long net = amount - 1;",
-         "target": {"kind": "local_variable", "name": "net", "qualified_name": net_qn},
-         "sources": [{"kind": "parameter", "name": "amount", "qualified_name": param_qn}]},
-        {"line": 17, "end_line": 17, "operation": "init", "text": "long checked = validate(net);",
-         "target": {"kind": "local_variable", "name": "checked", "qualified_name": checked_qn},
-         "sources": [{"kind": "call", "name": "validate"}, {"kind": "local_variable", "name": "net", "qualified_name": net_qn, "via": "call:validate"}]},
-        {"line": 18, "end_line": 18, "operation": "compound_assign", "text": "balance += checked;",
-         "target": {"kind": "field", "name": "balance", "qualified_name": "demo.Account#balance"},
-         "sources": [{"kind": "local_variable", "name": "checked", "qualified_name": checked_qn}]},
+        {
+            "line": 16,
+            "end_line": 16,
+            "operation": "init",
+            "text": "long net = amount - 1;",
+            "target": {"kind": "local_variable", "name": "net", "qualified_name": net_qn},
+            "sources": [{"kind": "parameter", "name": "amount", "qualified_name": param_qn}],
+        },
+        {
+            "line": 17,
+            "end_line": 17,
+            "operation": "init",
+            "text": "long checked = validate(net);",
+            "target": {"kind": "local_variable", "name": "checked", "qualified_name": checked_qn},
+            "sources": [
+                {"kind": "call", "name": "validate"},
+                {
+                    "kind": "local_variable",
+                    "name": "net",
+                    "qualified_name": net_qn,
+                    "via": "call:validate",
+                },
+            ],
+        },
+        {
+            "line": 18,
+            "end_line": 18,
+            "operation": "compound_assign",
+            "text": "balance += checked;",
+            "target": {
+                "kind": "field",
+                "name": "balance",
+                "qualified_name": "demo.Account#balance",
+            },
+            "sources": [
+                {"kind": "local_variable", "name": "checked", "qualified_name": checked_qn}
+            ],
+        },
     ]
     deposit = _method(project_id, "deposit", deposit_qn, file_path, 15, 20, kind="method")
     deposit.meta_json = {"data_flow": flow}
@@ -1516,9 +2460,18 @@ def test_data_origin_follows_a_java_field_through_locals_parameters_and_the_call
     amount.meta_json = {"declaration_column": 30}
     caller_qn, seed_qn = "demo.Main#run()", "demo.Main#run()@local:seed:5:13"
     caller = _method(project_id, "run", caller_qn, "src/Main.java", 4, 9, kind="method")
-    caller.meta_json = {"data_flow": [{"line": 5, "end_line": 5, "operation": "init", "text": "long seed = 7L;",
-                                       "target": {"kind": "local_variable", "name": "seed", "qualified_name": seed_qn},
-                                       "sources": [{"kind": "literal", "name": "7L"}]}]}
+    caller.meta_json = {
+        "data_flow": [
+            {
+                "line": 5,
+                "end_line": 5,
+                "operation": "init",
+                "text": "long seed = 7L;",
+                "target": {"kind": "local_variable", "name": "seed", "qualified_name": seed_qn},
+                "sources": [{"kind": "literal", "name": "7L"}],
+            }
+        ]
+    }
     seed = _method(project_id, "seed", seed_qn, "src/Main.java", 5, 5, kind="local_variable")
     db_session.add_all([klass, deposit, caller])
     db_session.flush()
@@ -1528,13 +2481,34 @@ def test_data_origin_follows_a_java_field_through_locals_parameters_and_the_call
     seed.parent_id = caller.id
     db_session.add_all([field, net, checked, amount, seed])
     db_session.flush()
-    db_session.add_all([
-        CodeEdge(project_id=project_id, src_entity_id=deposit.id, dst_entity_id=field.id, dst_name="balance", type="WRITES",
-                 resolution="resolved", src_start_line=18, src_end_line=18),
-        CodeEdge(project_id=project_id, src_entity_id=caller.id, dst_entity_id=deposit.id, dst_name="deposit", type="CALLS",
-                 resolution="resolved", src_start_line=6, src_end_line=6,
-                 meta_json={"argument_expressions": ["seed"], "argument_refs": [{"kind": "local_variable", "qualified_name": seed_qn}]}),
-    ])
+    db_session.add_all(
+        [
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=deposit.id,
+                dst_entity_id=field.id,
+                dst_name="balance",
+                type="WRITES",
+                resolution="resolved",
+                src_start_line=18,
+                src_end_line=18,
+            ),
+            CodeEdge(
+                project_id=project_id,
+                src_entity_id=caller.id,
+                dst_entity_id=deposit.id,
+                dst_name="deposit",
+                type="CALLS",
+                resolution="resolved",
+                src_start_line=6,
+                src_end_line=6,
+                meta_json={
+                    "argument_expressions": ["seed"],
+                    "argument_refs": [{"kind": "local_variable", "qualified_name": seed_qn}],
+                },
+            ),
+        ]
+    )
     db_session.commit()
 
     steps = evidence.data_origin(db_session, db_session.get(type(user), user.id), project_id, field)
@@ -1550,7 +2524,10 @@ def test_data_origin_follows_a_java_field_through_locals_parameters_and_the_call
     assert steps[3]["passed_by"] == "run" and steps[3]["reads"] == ["seed"]
 
 
-@pytest.mark.parametrize("container_type, routine_type, edge_type", [("program", "paragraph", "PERFORM"), ("class", "method", "CALLS")])
+@pytest.mark.parametrize(
+    "container_type, routine_type, edge_type",
+    [("program", "paragraph", "PERFORM"), ("class", "method", "CALLS")],
+)
 def test_drop_view_layers_directions_kinds_and_collapse(
     db_session, mcp_project_context, monkeypatch, container_type, routine_type, edge_type
 ):
@@ -1560,7 +2537,13 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     unit, (main, init, work, leaf) = _flow_entities(
-        db_session, project_id, container_type, routine_type, "src/Unit.src", ["main", "init", "work", "leaf"])
+        db_session,
+        project_id,
+        container_type,
+        routine_type,
+        "src/Unit.src",
+        ["main", "init", "work", "leaf"],
+    )
     other = _method(project_id, "other", "OTHER.other", "src/Other.src", 1, 9, kind=routine_type)
     db_session.add(other)
     db_session.flush()
@@ -1569,28 +2552,58 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     _control(db_session, project_id, edge_type, main, init, 12)
     _control(db_session, project_id, edge_type, main, work, 14)
     _control(db_session, project_id, edge_type, init, leaf, 22)
-    _control(db_session, project_id, edge_type, work, None, 31, "unresolved", None, "Unbekannt.call")
+    _control(
+        db_session, project_id, edge_type, work, None, 31, "unresolved", None, "Unbekannt.call"
+    )
     _control(db_session, project_id, "READS", leaf, other, 40)
     db_session.commit()
     user_obj = db_session.get(type(user), user.id)
 
     down = drop.drop(db_session, user_obj, project_id, main, layers=3)
-    assert [(lay["layer"], lay["count"]) for lay in down["layers"]] == [(0, 1), (1, 2), (2, 1), (3, 0)]
+    assert [(lay["layer"], lay["count"]) for lay in down["layers"]] == [
+        (0, 1),
+        (1, 2),
+        (2, 1),
+        (3, 0),
+    ]
     assert down["layers"][1]["edges"][0]["cite"] == "src/Unit.src:12"
     assert down["layers"][2]["unresolved"] == 1 and down["layers"][1]["unresolved"] == 0
     assert down["layers"][2]["nodes"][0]["name"] == "leaf" and down["stopped"] == "end"
 
-    with_data = drop.drop(db_session, user_obj, project_id, main, layers=4, kinds=["control", "data"])
-    assert [lay["count"] for lay in with_data["layers"]] == [1, 2, 1, 1, 0]  # leaf -> other nur mit der Art "data"
+    with_data = drop.drop(
+        db_session, user_obj, project_id, main, layers=4, kinds=["control", "data"]
+    )
+    assert [lay["count"] for lay in with_data["layers"]] == [
+        1,
+        2,
+        1,
+        1,
+        0,
+    ]  # leaf -> other nur mit der Art "data"
 
     up = drop.drop(db_session, user_obj, project_id, leaf, direction="up", layers=3)
     assert [n["name"] for lay in up["layers"][1:] for n in lay["nodes"]] == ["init", "main"]
 
     collapsed = drop.drop(db_session, user_obj, project_id, main, layers=3, collapse_above=1)
-    assert collapsed["layers"][1] == {"layer": 1, "count": 2, "unresolved": 0, "collapsed": True, "nodes": [], "edges": []}
+    assert collapsed["layers"][1] == {
+        "layer": 1,
+        "count": 2,
+        "unresolved": 0,
+        "collapsed": True,
+        "nodes": [],
+        "edges": [],
+    }
     assert collapsed["stopped"] == "collapsed" and len(collapsed["layers"]) == 2
-    reopened = drop.drop(db_session, user_obj, project_id, main, layers=3, collapse_above=1, expand=[1])
-    assert reopened["layers"][1]["count"] == 2 and reopened["layers"][1]["nodes"] and len(reopened["layers"]) == 4
+    reopened = drop.drop(
+        db_session, user_obj, project_id, main, layers=3, collapse_above=1, expand=[1]
+    )
+    assert (
+        reopened["layers"][1]["count"] == 2
+        and reopened["layers"][1]["nodes"]
+        and len(reopened["layers"]) == 4
+    )
 
     from_container = drop.drop(db_session, user_obj, project_id, unit, layers=2, kinds=["data"])
-    assert [n["name"] for n in from_container["layers"][1]["nodes"]] == ["other"]  # Kanten der Mitglieder zählen zum Container
+    assert [n["name"] for n in from_container["layers"][1]["nodes"]] == [
+        "other"
+    ]  # Kanten der Mitglieder zählen zum Container

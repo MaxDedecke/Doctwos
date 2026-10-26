@@ -14,9 +14,7 @@ def configure_test_encryption_key(monkeypatch):
     tests exercise the DB path without requiring a locally configured LLM or
     secret store.
     """
-    monkeypatch.setenv(
-        "MASTER_ENCRYPTION_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
-    )
+    monkeypatch.setenv("MASTER_ENCRYPTION_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
 
 
 @pytest.fixture(autouse=True)

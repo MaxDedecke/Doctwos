@@ -258,9 +258,7 @@ async def test_is_gpu_accelerated_true_when_size_vram_positive(monkeypatch):
 
 @pytest.mark.anyio
 async def test_is_gpu_accelerated_matches_implicit_latest_tag(monkeypatch):
-    fake_client = _fake_ps_client(
-        {"models": [{"model": "bge-m3:latest", "size_vram": 664000265}]}
-    )
+    fake_client = _fake_ps_client({"models": [{"model": "bge-m3:latest", "size_vram": 664000265}]})
     monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
 
     assert await ollama_client.is_gpu_accelerated("bge-m3") is True
@@ -327,13 +325,23 @@ def test_requested_model_equal_to_the_active_profile_model_uses_the_profile(monk
     import ollama_client as oc
 
     monkeypatch.setenv("LLM_MODEL", "qwen3:8b")
-    monkeypatch.setattr(oc, "_load_server_settings", lambda: {
-        "llm_model": "gpt-6-luna", "llm_base_url": "https://api.openai.com/v1", "llm_api_key": "k",
-        "protocol": "openai_responses", "llm_path": "/responses", "llm_context_length": 8192,
-    })
+    monkeypatch.setattr(
+        oc,
+        "_load_server_settings",
+        lambda: {
+            "llm_model": "gpt-6-luna",
+            "llm_base_url": "https://api.openai.com/v1",
+            "llm_api_key": "k",
+            "protocol": "openai_responses",
+            "llm_path": "/responses",
+            "llm_context_length": 8192,
+        },
+    )
     profile = oc._effective_llm_settings("gpt-6-luna")
     assert (profile["protocol"], profile["model"], profile["base_url"]) == (
-        "openai_responses", "gpt-6-luna", "https://api.openai.com/v1",
+        "openai_responses",
+        "gpt-6-luna",
+        "https://api.openai.com/v1",
     )
     # Ein fremdes Modell ohne Profilbezug bleibt eine direkte Ollama-Anfrage.
     other = oc._effective_llm_settings("some-other-model")
@@ -346,10 +354,18 @@ async def test_disabled_active_profile_is_not_overridden_by_the_env_model(monkey
     import ollama_client as oc
 
     monkeypatch.setenv("LLM_MODEL", "qwen3:8b")
-    monkeypatch.setattr(oc, "_load_server_settings", lambda: {
-        "llm_model": "disabled", "llm_base_url": "http://ollama:11434", "llm_api_key": "",
-        "protocol": "ollama", "llm_path": None, "llm_context_length": 8192,
-    })
+    monkeypatch.setattr(
+        oc,
+        "_load_server_settings",
+        lambda: {
+            "llm_model": "disabled",
+            "llm_base_url": "http://ollama:11434",
+            "llm_api_key": "",
+            "protocol": "ollama",
+            "llm_path": None,
+            "llm_context_length": 8192,
+        },
+    )
     called = []
     monkeypatch.setattr(oc, "admitted_post", lambda *a, **k: called.append(1))
     with pytest.raises(RuntimeError, match="deaktiviert"):
@@ -357,11 +373,15 @@ async def test_disabled_active_profile_is_not_overridden_by_the_env_model(monkey
     assert not called
 
 
-def test_missing_embedding_profile_gives_a_clear_error_instead_of_a_connection_to_ollama(monkeypatch):
+def test_missing_embedding_profile_gives_a_clear_error_instead_of_a_connection_to_ollama(
+    monkeypatch,
+):
     # Standard-Stack ohne LLM-Container: DB erreichbar, aber weder Profil noch Endpunkt in der Umgebung.
     monkeypatch.delenv("EMBEDDING_BASE_URL", raising=False)
     monkeypatch.delenv("OLLAMA_BASE_URL", raising=False)
-    monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: {"embedding_base_url": None})
+    monkeypatch.setattr(
+        ollama_client, "_load_server_settings", lambda: {"embedding_base_url": None}
+    )
     with pytest.raises(ollama_client.EmbeddingNotConfigured, match="Kein Embedding-Profil"):
         ollama_client._effective_embedding_settings()
     # Chunking braucht nur die Obergrenze und darf daran nicht scheitern.
@@ -370,8 +390,17 @@ def test_missing_embedding_profile_gives_a_clear_error_instead_of_a_connection_t
 
 def test_embedding_endpoint_from_the_worker_environment_still_counts_as_configured(monkeypatch):
     monkeypatch.setenv("OLLAMA_BASE_URL", "https://inference.internal:11434")
-    monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: {
-        "embedding_provider": "ollama", "embedding_base_url": None, "embedding_api_key": "", "embedding_path": None,
-        "embedding_model": "bge-m3", "embedding_dimension": 1024, "embedding_context_length": 8192,
-    })
+    monkeypatch.setattr(
+        ollama_client,
+        "_load_server_settings",
+        lambda: {
+            "embedding_provider": "ollama",
+            "embedding_base_url": None,
+            "embedding_api_key": "",
+            "embedding_path": None,
+            "embedding_model": "bge-m3",
+            "embedding_dimension": 1024,
+            "embedding_context_length": 8192,
+        },
+    )
     assert ollama_client._effective_embedding_settings()["model"] == "bge-m3"

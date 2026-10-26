@@ -40,7 +40,12 @@ def test_pptx_text_tables_and_notes_are_read(tmp_path):
     presentation.save(path)
 
     text = folder._extract_text(str(path))
-    assert "## Folie 1" in text and "Architektur" in text and "Dienst | Port" in text and "Notizen: Nur intern zeigen" in text
+    assert (
+        "## Folie 1" in text
+        and "Architektur" in text
+        and "Dienst | Port" in text
+        and "Notizen: Nur intern zeigen" in text
+    )
 
 
 def test_odt_paragraphs_are_read(tmp_path):
@@ -91,7 +96,9 @@ def test_confluence_attachments_cover_office_formats(tmp_path):
     workbook = openpyxl.Workbook()
     workbook.active.append(["Wert", 7])
     workbook.save(path)
-    text = _extract_attachment_text(path.read_bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    text = _extract_attachment_text(
+        path.read_bytes(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
     assert text and "Wert | 7" in text
     assert _extract_attachment_text(b"\xd0\xcf\x11\xe0 word97", "application/msword") is None
     assert "Straße" in _extract_attachment_text("Straße".encode("cp1252"), "text/plain")

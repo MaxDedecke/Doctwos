@@ -268,7 +268,9 @@ def test_scan_reuses_the_stored_hash_when_size_and_mtime_are_unchanged(tmp_path,
         raise AssertionError("unveraenderte Datei darf nicht erneut gelesen werden")
 
     monkeypatch.setattr(folder_module, "_md5", must_not_read)
-    second = folder_module._scan_folder(str(tmp_path), {str(path): (size, mtime_ns, first.files[str(path)])})
+    second = folder_module._scan_folder(
+        str(tmp_path), {str(path): (size, mtime_ns, first.files[str(path)])}
+    )
     assert second.files == first.files and second.reused_hashes == 1
 
     # Geänderte Größe -> wird neu gelesen
@@ -302,7 +304,9 @@ def test_files_over_the_size_limit_are_reported_not_indexed(tmp_path, monkeypatc
 
 
 @pytest.mark.anyio
-async def test_incomplete_scan_does_not_delete_the_index_of_files_it_could_not_see(db_session, test_source, tmp_path, monkeypatch):
+async def test_incomplete_scan_does_not_delete_the_index_of_files_it_could_not_see(
+    db_session, test_source, tmp_path, monkeypatch
+):
     keep = tmp_path / "bleibt.txt"
     keep.write_text("bleibt")
     gone = tmp_path / "unlesbar.txt"
@@ -333,9 +337,15 @@ async def test_incomplete_scan_does_not_delete_the_index_of_files_it_could_not_s
         await second.sync()
 
     db_session.expire_all()
-    paths = {r.file_path for r in db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id)}
+    paths = {
+        r.file_path
+        for r in db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id)
+    }
     assert str(gone) in paths and str(keep) in paths
-    chunk_paths = {c.file_path for c in db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id)}
+    chunk_paths = {
+        c.file_path
+        for c in db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id)
+    }
     assert str(gone) in chunk_paths
     stored = db_session.query(SourceScanFile).filter(SourceScanFile.file_path == str(keep)).one()
     assert stored.size_bytes == len("bleibt") and stored.mtime_ns
@@ -343,8 +353,11 @@ async def test_incomplete_scan_does_not_delete_the_index_of_files_it_could_not_s
 
 # --- Gebündelte Embeddings und Fehlerbehandlung ----------------------------------------------
 
+
 @pytest.mark.anyio
-async def test_all_chunks_of_a_document_are_embedded_in_one_batch_call(db_session, test_source, tmp_path):
+async def test_all_chunks_of_a_document_are_embedded_in_one_batch_call(
+    db_session, test_source, tmp_path
+):
     (tmp_path / "lang.txt").write_text("\n".join(f"Zeile {i} " + "x" * 80 for i in range(400)))
     calls = []
 
@@ -358,11 +371,16 @@ async def test_all_chunks_of_a_document_are_embedded_in_one_batch_call(db_sessio
 
     assert len(calls) == 1 and calls[0] > 1
     db_session.expire_all()
-    assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == calls[0]
+    assert (
+        db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count()
+        == calls[0]
+    )
 
 
 @pytest.mark.anyio
-async def test_a_failed_embedding_is_reported_not_swallowed_and_retried_next_time(db_session, test_source, tmp_path):
+async def test_a_failed_embedding_is_reported_not_swallowed_and_retried_next_time(
+    db_session, test_source, tmp_path
+):
     (tmp_path / "a.txt").write_text("Inhalt A")
     failing = AsyncMock(side_effect=RuntimeError("Embedding-Dienst down"))
 
@@ -375,8 +393,14 @@ async def test_a_failed_embedding_is_reported_not_swallowed_and_retried_next_tim
     assert source.sync_status == "error" and "nicht eingebettet" in source.last_error
     assert source.last_synced_at is None  # Zeitstempel bleibt stehen
     # Kein halbes Dokument im Index und die Datei gilt nicht als erledigt.
-    assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == 0
-    assert db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).count() == 0
+    assert (
+        db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count()
+        == 0
+    )
+    assert (
+        db_session.query(SourceScanFile).filter(SourceScanFile.source_id == test_source.id).count()
+        == 0
+    )
 
     db_session.commit()
     healthy = AsyncMock(return_value=[0.1] * 1024)
@@ -385,11 +409,16 @@ async def test_a_failed_embedding_is_reported_not_swallowed_and_retried_next_tim
         await again.sync()
     db_session.expire_all()
     assert db_session.get(KnowledgeSource, test_source.id).sync_status == "completed"
-    assert db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count() == 1
+    assert (
+        db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id).count()
+        == 1
+    )
 
 
 @pytest.mark.anyio
-async def test_folder_outside_the_watched_root_is_refused(db_session, test_source, tmp_path, monkeypatch):
+async def test_folder_outside_the_watched_root_is_refused(
+    db_session, test_source, tmp_path, monkeypatch
+):
     root = tmp_path / "watched"
     root.mkdir()
     monkeypatch.setattr(folder_module, "WATCHED_ROOT", str(root))
@@ -409,7 +438,9 @@ async def test_folder_outside_the_watched_root_is_refused(db_session, test_sourc
 
 
 @pytest.mark.anyio
-async def test_symlink_out_of_the_watched_root_does_not_slip_through(db_session, test_source, tmp_path, monkeypatch):
+async def test_symlink_out_of_the_watched_root_does_not_slip_through(
+    db_session, test_source, tmp_path, monkeypatch
+):
     root = tmp_path / "watched"
     root.mkdir()
     secret = tmp_path / "geheim"
@@ -432,7 +463,9 @@ from core import config as parser_config  # noqa: E402
 
 
 @pytest.mark.anyio
-async def test_documents_are_processed_in_parallel_up_to_the_limit(db_session, test_source, tmp_path, monkeypatch):
+async def test_documents_are_processed_in_parallel_up_to_the_limit(
+    db_session, test_source, tmp_path, monkeypatch
+):
     for i in range(8):
         (tmp_path / f"d{i}.txt").write_text(f"Dokument {i}")
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 3)
@@ -454,7 +487,10 @@ async def test_documents_are_processed_in_parallel_up_to_the_limit(db_session, t
 
     assert 2 <= peak <= 3
     db_session.expire_all()
-    paths = {c.file_path for c in db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id)}
+    paths = {
+        c.file_path
+        for c in db_session.query(DocumentChunk).filter(DocumentChunk.source_id == test_source.id)
+    }
     assert len(paths) == 8
     source = db_session.get(KnowledgeSource, test_source.id)
     assert source.sync_status == "completed" and source.sync_log.count("indexiert") == 8
@@ -471,7 +507,9 @@ async def test_concurrency_is_capped_by_the_free_batch_slots(db_session, test_so
 
 
 @pytest.mark.anyio
-async def test_automatic_concurrency_follows_the_gpu_and_never_exceeds_the_cpu_limit(db_session, test_source, monkeypatch):
+async def test_automatic_concurrency_follows_the_gpu_and_never_exceeds_the_cpu_limit(
+    db_session, test_source, monkeypatch
+):
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 0)
     monkeypatch.setattr(parser_config, "EMBED_CONCURRENCY", 3)
     monkeypatch.setattr(parser_config, "EMBED_CONCURRENCY_CPU_ONLY", 2)
@@ -480,12 +518,16 @@ async def test_automatic_concurrency_follows_the_gpu_and_never_exceeds_the_cpu_l
     for gpu, expected in ((True, 3), (False, 2)):
         monkeypatch.setattr("connectors.base.is_gpu_accelerated", AsyncMock(return_value=gpu))
         assert await connector._doc_concurrency() == expected
-    monkeypatch.setattr("connectors.base.is_gpu_accelerated", AsyncMock(side_effect=RuntimeError("weg")))
+    monkeypatch.setattr(
+        "connectors.base.is_gpu_accelerated", AsyncMock(side_effect=RuntimeError("weg"))
+    )
     assert await connector._doc_concurrency() == 1
 
 
 @pytest.mark.anyio
-async def test_one_failing_document_stops_the_sync_and_leaves_no_task_behind(db_session, test_source, tmp_path, monkeypatch):
+async def test_one_failing_document_stops_the_sync_and_leaves_no_task_behind(
+    db_session, test_source, tmp_path, monkeypatch
+):
     for i in range(5):
         (tmp_path / f"d{i}.txt").write_text(f"Dokument {i}")
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 3)
@@ -499,7 +541,9 @@ async def test_one_failing_document_stops_the_sync_and_leaves_no_task_behind(db_
         nonlocal calls
         calls += 1
         if calls == 2:
-            raise RuntimeError("kaputt")  # Datenbankfehler o. ä.: kein Embedding-Fehler, der Lauf muss abbrechen
+            raise RuntimeError(
+                "kaputt"
+            )  # Datenbankfehler o. ä.: kein Embedding-Fehler, der Lauf muss abbrechen
         await asyncio.sleep(0.02)
         return await real_reindex(*args, **kwargs)
 
@@ -507,13 +551,18 @@ async def test_one_failing_document_stops_the_sync_and_leaves_no_task_behind(db_
         return [[0.1] * 1024 for _ in texts]
 
     connector = FolderConnector(test_source.id)
-    with patch("connectors.base.get_embeddings_batch", side_effect=batch), patch(
-        "connectors.base.reindex_chunks_preserving_links", side_effect=broken_reindex
+    with (
+        patch("connectors.base.get_embeddings_batch", side_effect=batch),
+        patch("connectors.base.reindex_chunks_preserving_links", side_effect=broken_reindex),
     ):
         await connector.sync()
 
     db_session.expire_all()
     source = db_session.get(KnowledgeSource, test_source.id)
     assert source.sync_status == "error" and "kaputt" in (source.last_error or "")
-    leftover = [t for t in asyncio.all_tasks() if not t.done() and "_process_one" in getattr(t.get_coro(), "__qualname__", "")]
+    leftover = [
+        t
+        for t in asyncio.all_tasks()
+        if not t.done() and "_process_one" in getattr(t.get_coro(), "__qualname__", "")
+    ]
     assert leftover == []

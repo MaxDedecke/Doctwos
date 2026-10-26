@@ -87,7 +87,9 @@ def test_cics_dynamic_program_and_explicit_web_resources_stay_visible_without_gu
     }
     call = next(edge for edge in result.edges if edge.type == "CALL")
     assert (call.dst_name, call.resolution, call.meta["invocation_kind"]) == (
-        "WS-NEXT-PGM", "dynamic", "cics_xctl"
+        "WS-NEXT-PGM",
+        "dynamic",
+        "cics_xctl",
     )
 
 
@@ -119,8 +121,7 @@ def test_cics_read_classifies_into_and_resp_as_written_data():
     for entity in result.entities:
         by_name.setdefault(entity.name.upper(), []).append(entity)
     assert {
-        edge.dst_name: resolve_local_target(edge, by_qname, by_name).type
-        for edge in accesses
+        edge.dst_name: resolve_local_target(edge, by_qname, by_name).type for edge in accesses
     } == {"WS-RECORD": "data_item", "WS-STATUS": "data_item"}
 
 

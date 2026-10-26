@@ -239,7 +239,9 @@ def parse_program(
             # O-359: Wenn nach Syntaxfehlern oder unvollständiger Grammatikabdeckung
             # Codebereiche nicht durch Paragraphenchunks abgedeckt sind,
             # diese als Fallback-Chunks erfassen, damit kein Quelltext still verloren geht.
-            uncovered_chunks = _collect_uncovered_chunks(program, program_chunks, source_lines, source_format)
+            uncovered_chunks = _collect_uncovered_chunks(
+                program, program_chunks, source_lines, source_format
+            )
             program_chunks.extend(uncovered_chunks)
             # O-384: Kopfbereich (IDENTIFICATION/ENVIRONMENT/DATA DIVISION) bis zum ersten Absatz, damit
             # programmlokale Datenfelder, FDs und EXEC SQL INCLUDE/DECLARE abrufbaren Originaltext haben.
@@ -341,9 +343,7 @@ def _build_entities(
         )
 
     entities.extend(
-        _build_field_entities(
-            program.name, items, file_descriptors, used_qnames=used_qnames
-        )
+        _build_field_entities(program.name, items, file_descriptors, used_qnames=used_qnames)
     )
 
     for entry in program.entry_points:
@@ -720,6 +720,7 @@ def _drop_xref_edges_covered_by_io(
     Mehrfach vorkommende gleiche Referenzen auf einer Zeile bleiben erhalten, weil je
     I/O-Kante nur ein Xref-Treffer verbraucht wird.
     """
+
     def key(edge: ParsedEdge) -> tuple:
         return (edge.type, edge.src_name, edge.dst_name, edge.src_start_line)
 
@@ -766,7 +767,9 @@ def _head_chunks(
             end_line=end_line,
             meta={"program": program.name, "format": source_format, "division": "declarations"},
         )
-        for content, start_line, end_line in _pack_whole_file(source_lines, chunk_size, (head_start, head_end))
+        for content, start_line, end_line in _pack_whole_file(
+            source_lines, chunk_size, (head_start, head_end)
+        )
     ]
 
 
@@ -824,10 +827,10 @@ def _collect_uncovered_chunks(
             if ln - 1 < len(source_lines) and _is_code_line(source_lines[ln - 1], source_format)
         ]
         # Avoid creating chunks for lone END PROGRAM statements or trailing blank/comments
-        if code_lines and any(not cl.strip().upper().startswith("END PROGRAM") for cl in code_lines):
-            for content, s, e in _pack_whole_file(
-                source_lines, chunk_size, (tail_start, tail_end)
-            ):
+        if code_lines and any(
+            not cl.strip().upper().startswith("END PROGRAM") for cl in code_lines
+        ):
+            for content, s, e in _pack_whole_file(source_lines, chunk_size, (tail_start, tail_end)):
                 uncovered.append(
                     Chunk(
                         content=content,
@@ -847,11 +850,39 @@ def _collect_uncovered_chunks(
 
 
 _PROCEDURE_COPYBOOK_VERBS = {
-    "CALL", "PERFORM", "MOVE", "GO", "GOTO", "COMPUTE", "ADD", "SUBTRACT",
-    "MULTIPLY", "DIVIDE", "DISPLAY", "ACCEPT", "STOP", "GOBACK", "EXIT",
-    "IF", "EVALUATE", "INITIALIZE", "STRING", "UNSTRING", "INSPECT", "SEARCH",
-    "READ", "WRITE", "REWRITE", "OPEN", "CLOSE", "DELETE", "START", "ALTER",
-    "CONTINUE", "NEXT", "SET",
+    "CALL",
+    "PERFORM",
+    "MOVE",
+    "GO",
+    "GOTO",
+    "COMPUTE",
+    "ADD",
+    "SUBTRACT",
+    "MULTIPLY",
+    "DIVIDE",
+    "DISPLAY",
+    "ACCEPT",
+    "STOP",
+    "GOBACK",
+    "EXIT",
+    "IF",
+    "EVALUATE",
+    "INITIALIZE",
+    "STRING",
+    "UNSTRING",
+    "INSPECT",
+    "SEARCH",
+    "READ",
+    "WRITE",
+    "REWRITE",
+    "OPEN",
+    "CLOSE",
+    "DELETE",
+    "START",
+    "ALTER",
+    "CONTINUE",
+    "NEXT",
+    "SET",
 }
 
 
@@ -977,7 +1008,9 @@ def parse_copybook(
         if _has_word_sequence(tokens, "PROCEDURE", "DIVISION"):
             header = "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER."
         else:
-            header = "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER. PROCEDURE DIVISION."
+            header = (
+                "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER. PROCEDURE DIVISION."
+            )
         tree, source_text, diags = antlr_bridge.build_tree(masked_lines, header=header)
         visitor = divisions_mod._StructureVisitor(source_text)
         visitor.visit(tree)
@@ -1097,7 +1130,9 @@ def parse_copybook(
             )
         ]
         used_qnames = {name}
-        entities.extend(_build_field_entities(name, items, file_descriptors, used_qnames=used_qnames))
+        entities.extend(
+            _build_field_entities(name, items, file_descriptors, used_qnames=used_qnames)
+        )
         for sb in sql_blocks:
             entities.append(
                 Entity(

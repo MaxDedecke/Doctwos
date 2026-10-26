@@ -139,6 +139,7 @@ def test_graph_export_respects_project_visibility(client, db_session, test_proje
 
 def test_graph_export_neo4j_and_undirected_links(client, db_session, test_project, test_team):
     from models.database import KnowledgeLink
+
     source, entity, chunk, link = _fixture_graph(db_session, test_project, test_team)
     klink = KnowledgeLink(
         source_a_type="entity",
@@ -159,7 +160,10 @@ def test_graph_export_neo4j_and_undirected_links(client, db_session, test_projec
         assert resp.status_code == 200
         cypher = resp.json()["cypher"]
         assert "MERGE (a)-[:SEMANTIC {score: 0.87}]->(b);" in cypher
-        assert "MERGE (a)-[:RELATED {score: 0.95}]->(b) MERGE (b)-[:RELATED {score: 0.95}]->(a);" in cypher
+        assert (
+            "MERGE (a)-[:RELATED {score: 0.95}]->(b) MERGE (b)-[:RELATED {score: 0.95}]->(a);"
+            in cypher
+        )
 
         csv_resp = client.get(f"/graph/export?format=csv&project_id={test_project}")
         assert "undirected" in csv_resp.text

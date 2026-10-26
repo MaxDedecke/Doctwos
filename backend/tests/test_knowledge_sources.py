@@ -460,7 +460,9 @@ def test_upload_local_document_accepts_office_formats(client, make_project, db_s
     resp = client.post(
         "/knowledge-sources/upload",
         data={"name": "Preise.xlsx", "project_id": str(project_id)},
-        files={"file": ("Preise.xlsx", b"nur fuer den Allowlist-Check", "application/octet-stream")},
+        files={
+            "file": ("Preise.xlsx", b"nur fuer den Allowlist-Check", "application/octet-stream")
+        },
     )
     assert resp.status_code == 200, resp.text
     source_id = resp.json()["id"]
@@ -470,7 +472,9 @@ def test_upload_local_document_accepts_office_formats(client, make_project, db_s
     db_session.commit()
 
 
-def test_upload_larger_than_the_limit_is_rejected_and_leaves_nothing_behind(client, make_project, db_session, monkeypatch):
+def test_upload_larger_than_the_limit_is_rejected_and_leaves_nothing_behind(
+    client, make_project, db_session, monkeypatch
+):
     from api import knowledge_sources
 
     monkeypatch.setattr(knowledge_sources, "UPLOAD_MAX_BYTES", 10)
@@ -481,11 +485,15 @@ def test_upload_larger_than_the_limit_is_rejected_and_leaves_nothing_behind(clie
         files={"file": ("gross.txt", b"x" * 100, "text/plain")},
     )
     assert resp.status_code == 413 and "UPLOAD_MAX_MB" in resp.json()["detail"]
-    assert db_session.query(KnowledgeSource).filter(KnowledgeSource.name == "gross.txt").first() is None
+    assert (
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.name == "gross.txt").first()
+        is None
+    )
     assert not [f for f in os.listdir(UPLOADS_DIR) if f.endswith("_gross.txt")]
 
 
 # --- Ordnerquellen: nur unterhalb von WATCHED_ROOT --------------------------------------------
+
 
 @pytest.fixture
 def watched_root(tmp_path, monkeypatch):
@@ -505,15 +513,22 @@ def test_folder_listing_shows_subfolders_without_hidden_ones_or_files(client, wa
     assert [f["name"] for f in body["folders"]] == ["ausschreibungen", "normen"]
     assert body["parent"] is None and body["path"] == str(watched_root)
 
-    sub = client.get("/knowledge-sources/folders", params={"path": str(watched_root / "normen")}).json()
+    sub = client.get(
+        "/knowledge-sources/folders", params={"path": str(watched_root / "normen")}
+    ).json()
     assert sub["folders"] == [] and sub["parent"] == str(watched_root)
 
 
-def test_folder_listing_and_creation_refuse_paths_outside_the_root(client, watched_root, make_project, tmp_path):
+def test_folder_listing_and_creation_refuse_paths_outside_the_root(
+    client, watched_root, make_project, tmp_path
+):
     for path in ("/etc", str(watched_root / ".." / "watched" / ".." / ".."), "/"):
         assert client.get("/knowledge-sources/folders", params={"path": path}).status_code == 400
     project_id = make_project()
-    refused = client.post("/knowledge-sources/folder", json={"name": "x", "folder_path": "/app", "project_id": project_id})
+    refused = client.post(
+        "/knowledge-sources/folder",
+        json={"name": "x", "folder_path": "/app", "project_id": project_id},
+    )
     assert refused.status_code == 400 and "unterhalb" in refused.json()["detail"]
 
 
@@ -521,4 +536,9 @@ def test_symlink_pointing_out_of_the_root_is_refused(client, watched_root, tmp_p
     outside = tmp_path / "ausserhalb"
     outside.mkdir()
     (watched_root / "link").symlink_to(outside)
-    assert client.get("/knowledge-sources/folders", params={"path": str(watched_root / "link")}).status_code == 400
+    assert (
+        client.get(
+            "/knowledge-sources/folders", params={"path": str(watched_root / "link")}
+        ).status_code
+        == 400
+    )

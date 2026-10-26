@@ -24,10 +24,16 @@ def upgrade() -> None:
     )
     op.add_column("code_entities", sa.Column("embedding_model", sa.String(), nullable=True))
 
-    op.add_column("entity_doc_links", sa.Column("entity_content_hash", sa.String(length=64), nullable=True))
-    op.add_column("entity_doc_links", sa.Column("chunk_content_hash", sa.String(length=64), nullable=True))
+    op.add_column(
+        "entity_doc_links", sa.Column("entity_content_hash", sa.String(length=64), nullable=True)
+    )
+    op.add_column(
+        "entity_doc_links", sa.Column("chunk_content_hash", sa.String(length=64), nullable=True)
+    )
     op.add_column("entity_doc_links", sa.Column("embedding_model", sa.String(), nullable=True))
-    op.add_column("entity_doc_links", sa.Column("entity_link_revision", sa.Integer(), nullable=True))
+    op.add_column(
+        "entity_doc_links", sa.Column("entity_link_revision", sa.Integer(), nullable=True)
+    )
     op.add_column("entity_doc_links", sa.Column("chunk_link_revision", sa.Integer(), nullable=True))
 
     op.create_table(
@@ -53,7 +59,9 @@ def upgrade() -> None:
         ),
         sa.Column("reason", sa.String(length=40), nullable=False, server_default="content_changed"),
         sa.Column("status", sa.String(length=20), nullable=False, server_default="pending"),
-        sa.Column("created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()
+        ),
         sa.Column("processed_at", sa.DateTime(timezone=True), nullable=True),
     )
     op.create_index("ix_link_builder_dirty_items_id", "link_builder_dirty_items", ["id"])
@@ -62,9 +70,15 @@ def upgrade() -> None:
         "link_builder_dirty_items",
         ["project_id", "status", "entity_id", "chunk_id"],
     )
-    op.create_index("ix_link_builder_dirty_items_project_id", "link_builder_dirty_items", ["project_id"])
-    op.create_index("ix_link_builder_dirty_items_entity_id", "link_builder_dirty_items", ["entity_id"])
-    op.create_index("ix_link_builder_dirty_items_chunk_id", "link_builder_dirty_items", ["chunk_id"])
+    op.create_index(
+        "ix_link_builder_dirty_items_project_id", "link_builder_dirty_items", ["project_id"]
+    )
+    op.create_index(
+        "ix_link_builder_dirty_items_entity_id", "link_builder_dirty_items", ["entity_id"]
+    )
+    op.create_index(
+        "ix_link_builder_dirty_items_chunk_id", "link_builder_dirty_items", ["chunk_id"]
+    )
     op.create_index("ix_link_builder_dirty_items_status", "link_builder_dirty_items", ["status"])
 
 

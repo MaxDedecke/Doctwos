@@ -2,7 +2,7 @@
 
 from java.parse import parse_java_file
 
-SOURCE = '''package demo;
+SOURCE = """package demo;
 public class UserLogic {
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public Result create(final User user, final boolean flag) {
@@ -18,7 +18,7 @@ public class UserLogic {
         return create(user, true);
     }
 }
-'''
+"""
 
 
 def _methods():
@@ -31,7 +31,10 @@ def test_return_expressions_are_captured_with_lines():
     two = methods["demo.UserLogic#create(User,boolean)"].meta["return_expressions"]
     assert [(r["expression"], r["start_line"]) for r in two] == [("r", 7)]
     one = methods["demo.UserLogic#create(User)"].meta["return_expressions"]
-    assert [(r["expression"], r["start_line"]) for r in one] == [("null", 12), ("create(user, true)", 14)]
+    assert [(r["expression"], r["start_line"]) for r in one] == [
+        ("null", 12),
+        ("create(user, true)", 14),
+    ]
 
 
 def test_transaction_annotation_is_inside_the_method_range_with_values():
@@ -47,13 +50,14 @@ def test_call_arguments_are_kept_and_overloads_stay_distinct():
     methods, result = _methods()
     assert len({q for q in methods if q.startswith("demo.UserLogic#create(")}) == 2
     args = [
-        e.meta["argument_expressions"] for e in result.edges
+        e.meta["argument_expressions"]
+        for e in result.edges
         if e.type == "CALLS" and e.meta and e.meta.get("argument_count") == 3
     ]
     assert args == [["user", "flag", "null"]]
 
 
-EXC_SOURCE = '''package demo;
+EXC_SOURCE = """package demo;
 public class Pay {
     public void run(Path p) throws IOException {
         try (InputStream in = open(p); Reader r = wrap(in)) {
@@ -69,7 +73,7 @@ public class Pay {
         }
     }
 }
-'''
+"""
 
 
 def test_exception_flow_records_throws_catches_finally_and_resources():
@@ -77,10 +81,13 @@ def test_exception_flow_records_throws_catches_finally_and_resources():
     method = next(e for e in result.entities if e.type == "method")
     flow = method.meta["exception_flow"]
     kinds = [item["kind"] for item in flow]
-    assert kinds.count("try_resource") == 2 and all(i["implicit_close"] for i in flow if i["kind"] == "try_resource")
+    assert kinds.count("try_resource") == 2 and all(
+        i["implicit_close"] for i in flow if i["kind"] == "try_resource"
+    )
     throws = [i for i in flow if i["kind"] == "throw"]
     assert [(t["exception_type"], t["control_context"]) for t in throws] == [
-        ("IllegalStateException", "try"), (None, "catch(IOException|RuntimeException)"),
+        ("IllegalStateException", "try"),
+        (None, "catch(IOException|RuntimeException)"),
     ]
     assert throws[1]["expression"] == "wrap(e)"
     catch = next(i for i in flow if i["kind"] == "catch")
@@ -89,7 +96,7 @@ def test_exception_flow_records_throws_catches_finally_and_resources():
     assert method.meta["throws_types"] == ["IOException"]
 
 
-VOID_SOURCE = '''package demo;
+VOID_SOURCE = """package demo;
 public class Filter {
     public void run(final Request req) {
         if (req == null) {
@@ -114,7 +121,7 @@ public class Filter {
         return req.size();
     }
 }
-'''
+"""
 
 
 def test_bare_return_does_not_abort_structure_parsing():

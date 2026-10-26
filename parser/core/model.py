@@ -251,7 +251,8 @@ def classify_completeness(result: ParseResult) -> tuple[AnalysisStatus, list[str
         if e.type in _STRUCTURED_BLOCK_TYPES and e.start_line and e.end_line
     ]
     open_gaps = [
-        chunk for chunk in fallback_chunks
+        chunk
+        for chunk in fallback_chunks
         if not any(lo <= chunk.start_line and chunk.end_line <= hi for lo, hi in block_ranges)
     ]
     if open_gaps:

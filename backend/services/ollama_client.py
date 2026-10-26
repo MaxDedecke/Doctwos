@@ -282,9 +282,7 @@ async def ask_llm_json_for_profile(
                 "instructions": "Return only a valid JSON object.",
             }
             async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await admitted_post(
-                    client, url, kind="batch", json=payload, headers=headers
-                )
+                resp = await admitted_post(client, url, kind="batch", json=payload, headers=headers)
                 resp.raise_for_status()
                 data = resp.json()
                 content = data.get("output_text") or "".join(
@@ -304,9 +302,7 @@ async def ask_llm_json_for_profile(
             "response_format": {"type": "json_object"},
         }
         async with httpx.AsyncClient(timeout=timeout) as client:
-            resp = await admitted_post(
-                client, url, kind="batch", json=payload, headers=headers
-            )
+            resp = await admitted_post(client, url, kind="batch", json=payload, headers=headers)
             raise_for_inference_status(resp, provider)
             return _extract_json_object(resp.json()["choices"][0]["message"]["content"])
 

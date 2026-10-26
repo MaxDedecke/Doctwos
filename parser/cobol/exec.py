@@ -120,15 +120,14 @@ def scan(
         # Literal and dynamic resource arguments are handled separately above;
         # unknown CICS/IMS parameters remain visible only in the source text.
         role_map = (
-            _CICS_DATA_ROLES if dialect == "CICS"
-            else _DLI_DATA_ROLES if dialect == "DLI"
-            else {}
+            _CICS_DATA_ROLES if dialect == "CICS" else _DLI_DATA_ROLES if dialect == "DLI" else {}
         )
         for match in _DATA_OPERAND_RE.finditer(body):
             parameter = match.group("parameter").upper()
             name_value = match.group("name")
             edge_type = (
-                "WRITES" if parameter in {"RESP", "RESP2"}
+                "WRITES"
+                if parameter in {"RESP", "RESP2"}
                 else role_map.get(operation, {}).get(parameter)
             )
             if edge_type is None:

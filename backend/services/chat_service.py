@@ -81,7 +81,9 @@ class ChatIntent:
     use_agent: bool
 
 
-def extract_explicit_file_targets(message: str, pinned_file: Optional[str] = None) -> tuple[str, ...]:
+def extract_explicit_file_targets(
+    message: str, pinned_file: Optional[str] = None
+) -> tuple[str, ...]:
     """Return the file scope explicitly requested by the user.
 
     A file mentioned in a question is a retrieval boundary, not merely a
@@ -112,7 +114,9 @@ def _file_target_clause(targets: tuple[str, ...]):
     return or_(*clauses) if clauses else None
 
 
-def _restrict_to_file_targets(chunks: list[DocumentChunk], targets: tuple[str, ...]) -> list[DocumentChunk]:
+def _restrict_to_file_targets(
+    chunks: list[DocumentChunk], targets: tuple[str, ...]
+) -> list[DocumentChunk]:
     """Keep graph-expanded chunks inside the original explicit file scope."""
     if not targets:
         return chunks
@@ -365,7 +369,9 @@ def _code_focus_metadata(
             "type": source.type if source else None,
             "branch": source.branch if source else None,
             "revision": revision,
-            "last_synced_at": source.last_synced_at.isoformat() if source and source.last_synced_at else None,
+            "last_synced_at": source.last_synced_at.isoformat()
+            if source and source.last_synced_at
+            else None,
         },
         "focus": {
             "entity_id": entity.id if entity else None,
@@ -387,9 +393,7 @@ def _code_focus_metadata(
     return f"<untrusted_code_focus>{escape(encoded)}</untrusted_code_focus>\n"
 
 
-def _embedding_query_with_code_focus(
-    message: str, metadata: str, pinned_code_context: str
-) -> str:
+def _embedding_query_with_code_focus(message: str, metadata: str, pinned_code_context: str) -> str:
     """Include focused code in the embedding query without changing exact-query checks."""
     focus_parts = []
     if metadata:
@@ -601,14 +605,24 @@ async def retrieve_chat_context(
         query_text = message
         embed_kwargs = {}
         if embedding_profile is not None:
-            profile_provider = getattr(embedding_profile, "embedding_provider", None) or getattr(embedding_profile, "provider", None)
-            profile_base_url = getattr(embedding_profile, "embedding_base_url", None) or getattr(embedding_profile, "base_url", None)
-            profile_path = getattr(embedding_profile, "embedding_path", None) or getattr(embedding_profile, "path", None)
+            profile_provider = getattr(embedding_profile, "embedding_provider", None) or getattr(
+                embedding_profile, "provider", None
+            )
+            profile_base_url = getattr(embedding_profile, "embedding_base_url", None) or getattr(
+                embedding_profile, "base_url", None
+            )
+            profile_path = getattr(embedding_profile, "embedding_path", None) or getattr(
+                embedding_profile, "path", None
+            )
             profile_api_key = getattr(embedding_profile, "embedding_api_key", None)
             if profile_api_key is None:
                 profile_api_key = getattr(embedding_profile, "api_key", None)
-            profile_dimension = getattr(embedding_profile, "embedding_dimension", None) or getattr(embedding_profile, "dimension", None)
-            profile_context = getattr(embedding_profile, "embedding_context_length", None) or getattr(embedding_profile, "context_length", None)
+            profile_dimension = getattr(embedding_profile, "embedding_dimension", None) or getattr(
+                embedding_profile, "dimension", None
+            )
+            profile_context = getattr(
+                embedding_profile, "embedding_context_length", None
+            ) or getattr(embedding_profile, "context_length", None)
             embed_kwargs = {
                 "provider": profile_provider,
                 "base_url": profile_base_url,
@@ -622,9 +636,9 @@ async def retrieve_chat_context(
         )
 
         if source_id:
-            base_query = in_file_scope(db.query(DocumentChunk).filter(
-                DocumentChunk.source_id == source_id, model_filter
-            ))
+            base_query = in_file_scope(
+                db.query(DocumentChunk).filter(DocumentChunk.source_id == source_id, model_filter)
+            )
             results = hybrid_chunk_search(base_query, query_embedding, query_text, 4)
             results = keep_file_scope(
                 gate_graph_neighbors(db, expand_chunks_with_graph(db, results), project_id)
@@ -637,37 +651,47 @@ async def retrieve_chat_context(
                 .filter(KnowledgeSource.project_id == project_id)
                 .all()
             ]
-            repo_query = in_file_scope(db.query(DocumentChunk).filter(
-                DocumentChunk.project_id == project_id,
-                DocumentChunk.source_id.is_(None),
-                model_filter,
-            ))
+            repo_query = in_file_scope(
+                db.query(DocumentChunk).filter(
+                    DocumentChunk.project_id == project_id,
+                    DocumentChunk.source_id.is_(None),
+                    model_filter,
+                )
+            )
             repo_results = hybrid_chunk_search(repo_query, query_embedding, query_text, 4)
-            repo_results = keep_file_scope(gate_graph_neighbors(
-                db, expand_chunks_with_graph(db, repo_results), project_id
-            ))
+            repo_results = keep_file_scope(
+                gate_graph_neighbors(db, expand_chunks_with_graph(db, repo_results), project_id)
+            )
 
             project_source_results: list[DocumentChunk] = []
             if project_source_ids and not file_targets:
-                source_query = in_file_scope(db.query(DocumentChunk).filter(
-                    DocumentChunk.source_id.in_(project_source_ids), model_filter
-                ))
+                source_query = in_file_scope(
+                    db.query(DocumentChunk).filter(
+                        DocumentChunk.source_id.in_(project_source_ids), model_filter
+                    )
+                )
                 project_source_results = hybrid_chunk_search(
                     source_query, query_embedding, query_text, 4
                 )
-                project_source_results = keep_file_scope(gate_graph_neighbors(
-                    db, expand_chunks_with_graph(db, project_source_results), project_id
-                ))
+                project_source_results = keep_file_scope(
+                    gate_graph_neighbors(
+                        db, expand_chunks_with_graph(db, project_source_results), project_id
+                    )
+                )
 
             global_results: list[DocumentChunk] = []
             if global_source_ids and not file_targets:
-                global_query = in_file_scope(db.query(DocumentChunk).filter(
-                    DocumentChunk.source_id.in_(global_source_ids), model_filter
-                ))
+                global_query = in_file_scope(
+                    db.query(DocumentChunk).filter(
+                        DocumentChunk.source_id.in_(global_source_ids), model_filter
+                    )
+                )
                 global_results = hybrid_chunk_search(global_query, query_embedding, query_text, 2)
-                global_results = keep_file_scope(gate_graph_neighbors(
-                    db, expand_chunks_with_graph(db, global_results), project_id
-                ))
+                global_results = keep_file_scope(
+                    gate_graph_neighbors(
+                        db, expand_chunks_with_graph(db, global_results), project_id
+                    )
+                )
 
             results = repo_results + project_source_results + global_results
             context_parts = []
@@ -722,9 +746,9 @@ async def retrieve_chat_context(
                     base_query = base_query.filter(code_gate)
                 base_query = in_file_scope(base_query.filter(model_filter))
                 results = hybrid_chunk_search(base_query, query_embedding, query_text, 6)
-                results = keep_file_scope(gate_graph_neighbors(
-                    db, expand_chunks_with_graph(db, results), None
-                ))
+                results = keep_file_scope(
+                    gate_graph_neighbors(db, expand_chunks_with_graph(db, results), None)
+                )
 
             result_project_ids = sorted(
                 {row.project_id for row in results if row.project_id is not None}

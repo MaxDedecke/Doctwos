@@ -585,7 +585,9 @@ class Client {
     calls = [edge for edge in result.edges if edge.type == "CALLS" and edge.src_name == method]
     by_name = {edge.meta["method_name"]: edge for edge in calls}
     assert by_name["risky"].meta["control_role"] == "try_body"
-    risky = next(entity for entity in result.entities if entity.qualified_name == "demo.Client#risky()")
+    risky = next(
+        entity for entity in result.entities if entity.qualified_name == "demo.Client#risky()"
+    )
     assert risky.meta["throws_types"] == ["IllegalStateException"]
     assert by_name["recover"].meta["control_role"] == "exception_handler"
     assert by_name["recover"].meta["control_context"] == "catch(IllegalStateException)"
@@ -611,7 +613,11 @@ class Flow {
 """,
         "demo/Flow.java",
     )
-    calls = [edge for edge in result.edges if edge.type == "CALLS" and edge.src_name.startswith("demo.Flow#run(")]
+    calls = [
+        edge
+        for edge in result.edges
+        if edge.type == "CALLS" and edge.src_name.startswith("demo.Flow#run(")
+    ]
     by_name = {edge.meta["method_name"]: edge for edge in calls if edge.meta["method_name"] != "a"}
     path = lambda name: by_name[name].meta.get("control_path")  # noqa: E731
 
@@ -629,7 +635,10 @@ class Flow {
 
 
 def test_java_imports_resolve_to_repository_types_and_packages_only() -> None:
-    api = parse_java_file("package api; public class Service { static int parse() { return 1; } }\n", "api/Service.java")
+    api = parse_java_file(
+        "package api; public class Service { static int parse() { return 1; } }\n",
+        "api/Service.java",
+    )
     client = parse_java_file(
         """package app;
 import api.Service;
@@ -663,19 +672,24 @@ def test_overload_is_chosen_from_inferred_argument_types():
         "  void put(Class<?> type) {}\n"
         "  void put(String name) {}\n"
         "  void run(Object o) {\n"
-        "    setChoices(List.of(\"a\"));\n"
+        '    setChoices(List.of("a"));\n'
         "    put(Panel.class);\n"
-        "    put(\"x\" + o);\n"
+        '    put("x" + o);\n'
         "    setChoices(o);\n"
-        "    setChoices(List.of(\"a\").get(0));\n"
+        '    setChoices(List.of("a").get(0));\n'
         "  }\n"
         "}\n"
     )
     result = parse_java_file(source, "app/Panel.java")
     resolve_global_edges([result])
     calls = {(e.src_start_line, e.dst_name): e for e in result.edges if e.type == "CALLS"}
-    assert calls[(9, "setChoices")].meta["target_qualified_name"] == "app.Panel#setChoices(List<String>)"
+    assert (
+        calls[(9, "setChoices")].meta["target_qualified_name"]
+        == "app.Panel#setChoices(List<String>)"
+    )
     assert calls[(10, "put")].meta["target_qualified_name"] == "app.Panel#put(Class<?>)"
     assert calls[(11, "put")].meta["target_qualified_name"] == "app.Panel#put(String)"
     assert calls[(12, "setChoices")].resolution == "unresolved"  # `o` hat keinen belegbaren Typ
-    assert calls[(13, "setChoices")].resolution == "unresolved"  # `.get(0)` ist nicht die Fabrik selbst
+    assert (
+        calls[(13, "setChoices")].resolution == "unresolved"
+    )  # `.get(0)` ist nicht die Fabrik selbst

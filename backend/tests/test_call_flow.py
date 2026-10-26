@@ -189,9 +189,7 @@ def test_resource_flow_preserves_types_evidence_and_open_targets(
 
 
 def test_execute_edges_are_classified_by_language_metadata(db_session, test_project):
-    step = CodeEntity(
-        project_id=test_project, name="STEP1", type="jcl_step", file_path="JOB.jcl"
-    )
+    step = CodeEntity(project_id=test_project, name="STEP1", type="jcl_step", file_path="JOB.jcl")
     jcl_target = CodeEntity(
         project_id=test_project, name="PROGRAM1", type="program", file_path="PROGRAM1.cbl"
     )
@@ -202,13 +200,21 @@ def test_execute_edges_are_classified_by_language_metadata(db_session, test_proj
     db_session.flush()
     edges = [
         CodeEdge(
-            project_id=test_project, src_entity_id=step.id, dst_entity_id=jcl_target.id,
-            dst_name="PROGRAM1", type="EXECUTES", resolution="resolved",
+            project_id=test_project,
+            src_entity_id=step.id,
+            dst_entity_id=jcl_target.id,
+            dst_name="PROGRAM1",
+            type="EXECUTES",
+            resolution="resolved",
             meta_json={"language": "jcl"},
         ),
         CodeEdge(
-            project_id=test_project, src_entity_id=step.id, dst_entity_id=cobol_operation.id,
-            dst_name="EXEC-SQL", type="EXECUTES", resolution="resolved",
+            project_id=test_project,
+            src_entity_id=step.id,
+            dst_entity_id=cobol_operation.id,
+            dst_name="EXEC-SQL",
+            type="EXECUTES",
+            resolution="resolved",
             meta_json={"language": "cobol"},
         ),
     ]
@@ -324,16 +330,26 @@ def test_java_class_entry_selection(db_session, test_project, test_team, mode):
 def test_include_tests_false_hides_callers_from_test_code(db_session, test_project, test_team):
     """O-377: Aufrufer aus Testcode dürfen Impact-/Caller-Fragen nicht überdecken."""
     source = KnowledgeSource(
-        name="call-flow-tests", type="Git", url="https://example.test/t.git", branch="main",
-        project_id=test_project, team_id=test_team,
+        name="call-flow-tests",
+        type="Git",
+        url="https://example.test/t.git",
+        branch="main",
+        project_id=test_project,
+        team_id=test_team,
     )
     db_session.add(source)
     db_session.flush()
 
     def entity(path, name):
         item = CodeEntity(
-            project_id=test_project, source_id=source.id, file_path=path, name=name,
-            qualified_name=name, type="method", start_line=1, end_line=5,
+            project_id=test_project,
+            source_id=source.id,
+            file_path=path,
+            name=name,
+            qualified_name=name,
+            type="method",
+            start_line=1,
+            end_line=5,
         )
         db_session.add(item)
         db_session.flush()
@@ -345,21 +361,39 @@ def test_include_tests_false_hides_callers_from_test_code(db_session, test_proje
     named = entity("core/src/main/java/FooIT.java", "run")
     lookalike = entity("core/src/main/java/EditService.java", "edit")
     for caller in (prod, unit, named, lookalike):
-        db_session.add(CodeEdge(
-            project_id=test_project, source_id=source.id, src_entity_id=caller.id,
-            dst_entity_id=target.id, dst_name="load", type="CALLS", resolution="resolved",
-        ))
+        db_session.add(
+            CodeEdge(
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=caller.id,
+                dst_entity_id=target.id,
+                dst_name="load",
+                type="CALLS",
+                resolution="resolved",
+            )
+        )
     db_session.commit()
     try:
         everything = trace_call_flow(
-            db_session, project_id=test_project, entity_id=target.id, hops=1, direction="incoming",
+            db_session,
+            project_id=test_project,
+            entity_id=target.id,
+            hops=1,
+            direction="incoming",
         )
         assert {edge["source"] for edge in everything["edges"]} == {
-            prod.id, unit.id, named.id, lookalike.id,
+            prod.id,
+            unit.id,
+            named.id,
+            lookalike.id,
         }
         production = trace_call_flow(
-            db_session, project_id=test_project, entity_id=target.id, hops=1,
-            direction="incoming", include_tests=False,
+            db_session,
+            project_id=test_project,
+            entity_id=target.id,
+            hops=1,
+            direction="incoming",
+            include_tests=False,
         )
         assert {edge["source"] for edge in production["edges"]} == {prod.id, lookalike.id}
     finally:
@@ -367,16 +401,28 @@ def test_include_tests_false_hides_callers_from_test_code(db_session, test_proje
         db_session.commit()
 
 
-def test_direction_both_resolves_the_entry_and_keeps_callers_of_the_program(db_session, test_project, test_team):
+def test_direction_both_resolves_the_entry_and_keeps_callers_of_the_program(
+    db_session, test_project, test_team
+):
     """O-349: `both` liefert ausgehende Aufrufe ab dem Einstiegsabsatz und eingehende Aufrufe des Programms."""
-    source = KnowledgeSource(name="both-entry", type="Git", project_id=test_project, team_id=test_team)
+    source = KnowledgeSource(
+        name="both-entry", type="Git", project_id=test_project, team_id=test_team
+    )
     db_session.add(source)
     db_session.flush()
 
     def entity(name, type_, parent=None):
-        item = CodeEntity(project_id=test_project, source_id=source.id, file_path=f"{name}.cbl", name=name,
-                          qualified_name=name if parent is None else f"{parent.name}.{name}", type=type_,
-                          parent_id=parent.id if parent else None, start_line=1, end_line=2)
+        item = CodeEntity(
+            project_id=test_project,
+            source_id=source.id,
+            file_path=f"{name}.cbl",
+            name=name,
+            qualified_name=name if parent is None else f"{parent.name}.{name}",
+            type=type_,
+            parent_id=parent.id if parent else None,
+            start_line=1,
+            end_line=2,
+        )
         db_session.add(item)
         db_session.flush()
         return item
@@ -387,19 +433,38 @@ def test_direction_both_resolves_the_entry_and_keeps_callers_of_the_program(db_s
     entry = entity("MAIN-PARA", "paragraph", program)
     step = entity("1000-STEP", "paragraph", program)
     for src, dst, kind in ((caller_para, program, "CALL"), (entry, step, "PERFORM")):
-        db_session.add(CodeEdge(project_id=test_project, source_id=source.id, src_entity_id=src.id,
-                                dst_entity_id=dst.id, dst_name=dst.name, type=kind, resolution="resolved"))
+        db_session.add(
+            CodeEdge(
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=src.id,
+                dst_entity_id=dst.id,
+                dst_name=dst.name,
+                type=kind,
+                resolution="resolved",
+            )
+        )
     db_session.commit()
     try:
-        both = trace_call_flow(db_session, project_id=test_project, entity_id=program.id, direction="both", hops=1)
+        both = trace_call_flow(
+            db_session, project_id=test_project, entity_id=program.id, direction="both", hops=1
+        )
         assert both["entry_resolution"] == "unique_cobol_entry"
         assert both["root"]["id"] == entry.id and both["requested_root"]["id"] == program.id
         pairs = {(edge["source"], edge["target"]) for edge in both["edges"]}
         assert pairs == {(entry.id, step.id), (caller_para.id, program.id)}
-        outgoing = trace_call_flow(db_session, project_id=test_project, entity_id=program.id, direction="outgoing", hops=1)
-        assert {(edge["source"], edge["target"]) for edge in outgoing["edges"]} == {(entry.id, step.id)}
-        incoming = trace_call_flow(db_session, project_id=test_project, entity_id=program.id, direction="incoming", hops=1)
-        assert {(edge["source"], edge["target"]) for edge in incoming["edges"]} == {(caller_para.id, program.id)}
+        outgoing = trace_call_flow(
+            db_session, project_id=test_project, entity_id=program.id, direction="outgoing", hops=1
+        )
+        assert {(edge["source"], edge["target"]) for edge in outgoing["edges"]} == {
+            (entry.id, step.id)
+        }
+        incoming = trace_call_flow(
+            db_session, project_id=test_project, entity_id=program.id, direction="incoming", hops=1
+        )
+        assert {(edge["source"], edge["target"]) for edge in incoming["edges"]} == {
+            (caller_para.id, program.id)
+        }
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()

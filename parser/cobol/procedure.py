@@ -125,7 +125,7 @@ def _clause_text(tokens: list[Token], start: int, chars: Chars | None = None) ->
     Mit ``chars`` bleiben Operatoren erhalten; ohne fällt er auf die Token-Werte zurück.
     """
     taken: list[Token] = []
-    for token in tokens[start:start + _CLAUSE_MAX_TOKENS]:
+    for token in tokens[start : start + _CLAUSE_MAX_TOKENS]:
         if token.kind == "PERIOD":
             break
         if token.kind == "WORD" and canonical_identifier(token.value) in _STATEMENT_DELIMITERS:
@@ -152,7 +152,11 @@ def _loop_of(tokens: list[Token], start: int, chars: Chars | None = None) -> dic
     """Schleifenkopf einer PERFORM-Anweisung ab ``start`` (Token nach dem Namen bzw. nach PERFORM)."""
     n = len(tokens)
     i = start
-    while i < n and tokens[i].kind == "WORD" and canonical_identifier(tokens[i].value) in _LOOP_HEAD_WORDS:
+    while (
+        i < n
+        and tokens[i].kind == "WORD"
+        and canonical_identifier(tokens[i].value) in _LOOP_HEAD_WORDS
+    ):
         i += 1
     if i >= n:
         return None
@@ -237,7 +241,13 @@ def scan(
                     control_stack.pop()
 
             if w == "IF":
-                path_stack.append({"type": "IF", "branch": "THEN", "condition": _clause_text(proc_tokens, i + 1, chars)})
+                path_stack.append(
+                    {
+                        "type": "IF",
+                        "branch": "THEN",
+                        "condition": _clause_text(proc_tokens, i + 1, chars),
+                    }
+                )
             elif w == "ELSE":
                 if path_stack and path_stack[-1]["type"] == "IF":
                     path_stack[-1]["branch"] = "ELSE"
@@ -245,15 +255,36 @@ def scan(
                 if path_stack and path_stack[-1]["type"] == "IF":
                     path_stack.pop()
             elif w == "EVALUATE":
-                path_stack.append({"type": "EVALUATE", "branch": "WHEN", "subject": _clause_text(proc_tokens, i + 1, chars), "when": ""})
+                path_stack.append(
+                    {
+                        "type": "EVALUATE",
+                        "branch": "WHEN",
+                        "subject": _clause_text(proc_tokens, i + 1, chars),
+                        "when": "",
+                    }
+                )
             elif w == "WHEN":
                 # Ein nicht mit END-IF geschlossenes IF im vorigen WHEN-Zweig verwerfen.
-                index = next((k for k in range(len(path_stack) - 1, -1, -1) if path_stack[k]["type"] == "EVALUATE"), None)
+                index = next(
+                    (
+                        k
+                        for k in range(len(path_stack) - 1, -1, -1)
+                        if path_stack[k]["type"] == "EVALUATE"
+                    ),
+                    None,
+                )
                 if index is not None:
-                    del path_stack[index + 1:]
+                    del path_stack[index + 1 :]
                     path_stack[index]["when"] = _clause_text(proc_tokens, i + 1, chars)
             elif w == "END-EVALUATE":
-                index = next((k for k in range(len(path_stack) - 1, -1, -1) if path_stack[k]["type"] == "EVALUATE"), None)
+                index = next(
+                    (
+                        k
+                        for k in range(len(path_stack) - 1, -1, -1)
+                        if path_stack[k]["type"] == "EVALUATE"
+                    ),
+                    None,
+                )
                 if index is not None:
                     del path_stack[index:]
             elif w == "END-PERFORM":
@@ -355,9 +386,7 @@ def scan(
                 if loop is not None:
                     meta["loop"] = loop
                 resolved = len(local_targets.get(canonical_identifier(nxt.value), [])) == 1
-                end_line = _statement_end_line(
-                    proc_tokens, end_idx, proc_tokens[end_idx].phys_line
-                )
+                end_line = _statement_end_line(proc_tokens, end_idx, proc_tokens[end_idx].phys_line)
                 edges.append(
                     ParsedEdge(
                         type="PERFORM",
@@ -400,7 +429,8 @@ def scan(
                 for idx in range(j, depending_idx):
                     if (
                         proc_tokens[idx].kind == "WORD"
-                        and canonical_identifier(proc_tokens[idx].value) not in _STATEMENT_DELIMITERS
+                        and canonical_identifier(proc_tokens[idx].value)
+                        not in _STATEMENT_DELIMITERS
                     ):
                         targets.append(proc_tokens[idx])
                 end_line = _statement_end_line(

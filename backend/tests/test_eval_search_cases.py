@@ -16,7 +16,9 @@ def test_catalogue_pins_a_source_revision_per_project():
         if project.get("synthetic"):  # Testdokumente aus dem Repository (O-284), keine Git-Revision
             assert project["note"]
             continue
-        assert len(project["revision"]) == 40 and set(project["revision"]) <= set("0123456789abcdef")
+        assert len(project["revision"]) == 40 and set(project["revision"]) <= set(
+            "0123456789abcdef"
+        )
 
 
 def test_case_ids_are_unique_and_projects_are_declared():

@@ -151,6 +151,7 @@ class ChatSseTelemetry:
             "model_end_ms": self.model_end_ms,
         }
 
+
 # The agent loop has provider-specific tool contracts for these protocols.  In
 # particular, ``ollama`` is also the protocol used by remote Ollama profiles:
 # the loop talks to their OpenAI-compatible ``/v1/chat/completions`` endpoint.
@@ -209,7 +210,15 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
     if event.get("type") != "tool_result":
         return
     tool_name = event.get("name")
-    if tool_name not in ("view_repo_file", "search_repo_code", "get_repo_entities", "trace_call_flow", "inspect_change_impact", "inspect_change_package", "answer_context"):
+    if tool_name not in (
+        "view_repo_file",
+        "search_repo_code",
+        "get_repo_entities",
+        "trace_call_flow",
+        "inspect_change_impact",
+        "inspect_change_package",
+        "answer_context",
+    ):
         return
 
     result = event.get("result")
@@ -268,35 +277,74 @@ def _extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[
         for entry in result.get("evidence", []):
             if not isinstance(entry, dict):
                 continue
-            located = [(entry.get("entity") or {}).get("file_path") or (entry.get("entity") or {}).get("file"),
-                       (entry.get("entity") or {}).get("start_line"), (entry.get("entity") or {}).get("end_line")]
+            located = [
+                (entry.get("entity") or {}).get("file_path")
+                or (entry.get("entity") or {}).get("file"),
+                (entry.get("entity") or {}).get("start_line"),
+                (entry.get("entity") or {}).get("end_line"),
+            ]
             if located[0]:
-                _record_agent_source(agent_sources, located[0], located[1] or 1, located[2] or located[1] or 1, source_id)
+                _record_agent_source(
+                    agent_sources,
+                    located[0],
+                    located[1] or 1,
+                    located[2] or located[1] or 1,
+                    source_id,
+                )
             for caller in entry.get("callers") or []:
                 location = caller.get("location") if isinstance(caller, dict) else None
                 match = _FILE_LINE_RE.match(str(location or ""))
                 if match:
-                    _record_agent_source(agent_sources, match.group(1), int(match.group(2)), int(match.group(2)), source_id)
+                    _record_agent_source(
+                        agent_sources,
+                        match.group(1),
+                        int(match.group(2)),
+                        int(match.group(2)),
+                        source_id,
+                    )
             for site in entry.get("call_sites") or []:
-                numbers = [int(n) for n in re.findall(r"(?m)^(\d+):", site.get("text") or "")] if isinstance(site, dict) else []
+                numbers = (
+                    [int(n) for n in re.findall(r"(?m)^(\d+):", site.get("text") or "")]
+                    if isinstance(site, dict)
+                    else []
+                )
                 if isinstance(site, dict) and site.get("file") and numbers:
-                    _record_agent_source(agent_sources, site["file"], min(numbers), max(numbers), source_id)
+                    _record_agent_source(
+                        agent_sources, site["file"], min(numbers), max(numbers), source_id
+                    )
             # Herkunftskette und COPY-Liste tragen ihre Fundstellen selbst; sie werden zu klickbaren Quellen.
             for step in entry.get("data_origin") or []:
                 if isinstance(step, dict) and step.get("file") and step.get("line"):
-                    _record_agent_source(agent_sources, step["file"], int(step["line"]), int(step["line"]), source_id)
+                    _record_agent_source(
+                        agent_sources, step["file"], int(step["line"]), int(step["line"]), source_id
+                    )
             for group in ("resolved", "external", "unresolved"):
                 for item in (entry.get("includes") or {}).get(group) or []:
-                    match = _FILE_LINE_RE.match(str(item.get("cite") or "")) if isinstance(item, dict) else None
+                    match = (
+                        _FILE_LINE_RE.match(str(item.get("cite") or ""))
+                        if isinstance(item, dict)
+                        else None
+                    )
                     if match:
-                        _record_agent_source(agent_sources, match.group(1), int(match.group(2)), int(match.group(2)), source_id)
+                        _record_agent_source(
+                            agent_sources,
+                            match.group(1),
+                            int(match.group(2)),
+                            int(match.group(2)),
+                            source_id,
+                        )
             for key in ("expanded", "helper_methods", "callee_chain"):
                 for part in entry.get(key) or []:
-                    text = (part.get("source") or {})
+                    text = part.get("source") or {}
                     file_path = part.get("file") or located[0]
                     if file_path and text.get("start_line"):
-                        _record_agent_source(agent_sources, file_path, text["start_line"],
-                                             text.get("end_line") or text["start_line"], source_id)
+                        _record_agent_source(
+                            agent_sources,
+                            file_path,
+                            text["start_line"],
+                            text.get("end_line") or text["start_line"],
+                            source_id,
+                        )
     elif tool_name == "inspect_change_package":
         # The package's compact result retains the indexed source locations so
         # citations in the assistant answer remain clickable.
@@ -320,10 +368,7 @@ def _derive_view_action(
     call_flow_results: Optional[dict[str, dict]] = None,
 ) -> Optional[dict]:
     """Build one bounded walkthrough from the agent's explicit, validated offer."""
-    if (
-        event.get("type") != "tool_result"
-        or not isinstance(event.get("id"), str)
-    ):
+    if event.get("type") != "tool_result" or not isinstance(event.get("id"), str):
         return None
     result = event.get("result")
     if isinstance(result, str):
@@ -343,10 +388,14 @@ def _derive_view_action(
         relationships = result.get("relationships")
         direction = result.get("direction")
         result_limit = result.get("limit")
-        focus_node = next(
-            (node for node in nodes if isinstance(node, dict) and node.get("id") == focus_id),
-            None,
-        ) if isinstance(nodes, list) else None
+        focus_node = (
+            next(
+                (node for node in nodes if isinstance(node, dict) and node.get("id") == focus_id),
+                None,
+            )
+            if isinstance(nodes, list)
+            else None
+        )
         allowed_relationships = {"code_dependency", "documented", "manual"}
         if (
             result.get("status") != "ok"
@@ -362,7 +411,10 @@ def _derive_view_action(
             or not isinstance(relationships, list)
             or not relationships
             or len(relationships) > len(allowed_relationships)
-            or any(not isinstance(item, str) or item not in allowed_relationships for item in relationships)
+            or any(
+                not isinstance(item, str) or item not in allowed_relationships
+                for item in relationships
+            )
             or len(set(relationships)) != len(relationships)
             or direction not in {"incoming", "outgoing", "both"}
             or result_limit != 40
@@ -377,7 +429,9 @@ def _derive_view_action(
             "relationships": relationships,
         }
         view = "graph"
-        target_key = hashlib.sha256(json.dumps(target, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        target_key = hashlib.sha256(json.dumps(target, sort_keys=True).encode("utf-8")).hexdigest()[
+            :16
+        ]
         action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
         action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
         return {
@@ -410,11 +464,16 @@ def _derive_view_action(
             return None
         view = "callgraph"
         target = {"entity_id": root["id"]}
-        target_key = hashlib.sha256(json.dumps({
-            "root": root["id"],
-            "edge_ids": [edge.get("id") for edge in edges[:120] if isinstance(edge, dict)],
-            "summary": summary,
-        }, sort_keys=True).encode("utf-8")).hexdigest()[:16]
+        target_key = hashlib.sha256(
+            json.dumps(
+                {
+                    "root": root["id"],
+                    "edge_ids": [edge.get("id") for edge in edges[:120] if isinstance(edge, dict)],
+                    "summary": summary,
+                },
+                sort_keys=True,
+            ).encode("utf-8")
+        ).hexdigest()[:16]
         action_key = f"{session_id}:{turn_id}:{event['id']}:{view}:{target_key}"
         action_id = hashlib.sha256(action_key.encode("utf-8")).hexdigest()[:24]
         return {
@@ -429,13 +488,21 @@ def _derive_view_action(
             "status": "requested",
         }
 
-    if tool_name not in {"offer_code_walkthrough", "offer_source_walkthrough"} or result.get("status") != "ok":
+    if (
+        tool_name not in {"offer_code_walkthrough", "offer_source_walkthrough"}
+        or result.get("status") != "ok"
+    ):
         return None
 
     title = result.get("title")
     raw_steps = result.get("steps")
     minimum_steps = 1 if tool_name == "offer_source_walkthrough" else 2
-    if not isinstance(title, str) or not title.strip() or not isinstance(raw_steps, list) or not minimum_steps <= len(raw_steps) <= 6:
+    if (
+        not isinstance(title, str)
+        or not title.strip()
+        or not isinstance(raw_steps, list)
+        or not minimum_steps <= len(raw_steps) <= 6
+    ):
         return None
     steps = []
     for raw_step in raw_steps:
@@ -446,15 +513,28 @@ def _derive_view_action(
                 return None
             trace_tool_call_id = raw_step.get("trace_tool_call_id")
             edge_id = raw_step.get("edge_id")
-            flow = call_flow_results.get(trace_tool_call_id) if isinstance(call_flow_results, dict) and isinstance(trace_tool_call_id, str) else None
+            flow = (
+                call_flow_results.get(trace_tool_call_id)
+                if isinstance(call_flow_results, dict) and isinstance(trace_tool_call_id, str)
+                else None
+            )
             if (
                 not isinstance(edge_id, int)
                 or isinstance(edge_id, bool)
                 or not isinstance(flow, dict)
             ):
                 return None
-            edge = next((item for item in flow.get("edges", []) if isinstance(item, dict) and item.get("id") == edge_id), None)
-            nodes = {item.get("id"): item for item in flow.get("nodes", []) if isinstance(item, dict)}
+            edge = next(
+                (
+                    item
+                    for item in flow.get("edges", [])
+                    if isinstance(item, dict) and item.get("id") == edge_id
+                ),
+                None,
+            )
+            nodes = {
+                item.get("id"): item for item in flow.get("nodes", []) if isinstance(item, dict)
+            }
             source_id = edge.get("source") if edge else None
             target_id = edge.get("target") if edge else None
             source = nodes.get(source_id)
@@ -475,19 +555,21 @@ def _derive_view_action(
                 or not explanation.strip()
             ):
                 return None
-            steps.append({
-                "kind": "callgraph",
-                "trace_tool_call_id": trace_tool_call_id,
-                "edge_id": edge_id,
-                "source_entity_id": source_id,
-                "target_entity_id": target_id,
-                "source_name": str(source.get("name") or "")[:240],
-                "target_name": str(target.get("name") or "")[:240],
-                "file_path": str(source.get("file_path") or "").replace("\\", "/")[:1000],
-                "start_line": edge.get("start_line"),
-                "end_line": edge.get("end_line"),
-                "explanation": explanation.strip()[:500],
-            })
+            steps.append(
+                {
+                    "kind": "callgraph",
+                    "trace_tool_call_id": trace_tool_call_id,
+                    "edge_id": edge_id,
+                    "source_entity_id": source_id,
+                    "target_entity_id": target_id,
+                    "source_name": str(source.get("name") or "")[:240],
+                    "target_name": str(target.get("name") or "")[:240],
+                    "file_path": str(source.get("file_path") or "").replace("\\", "/")[:1000],
+                    "start_line": edge.get("start_line"),
+                    "end_line": edge.get("end_line"),
+                    "explanation": explanation.strip()[:500],
+                }
+            )
             continue
         if raw_step.get("kind") not in (None, "code", "document"):
             return None
@@ -507,20 +589,22 @@ def _derive_view_action(
                 or not explanation.strip()
             ):
                 return None
-            steps.append({
-                "kind": "document",
-                "chunk_id": chunk_id,
-                "source_id": source_id,
-                "file_path": file_path.strip()[:1000],
-                "start_line": raw_step.get("start_line"),
-                "end_line": raw_step.get("end_line"),
-                "page": raw_step.get("page"),
-                "section": raw_step.get("section"),
-                "source_type": raw_step.get("source_type"),
-                "url": raw_step.get("url"),
-                "excerpt": str(raw_step.get("excerpt") or "")[:1200],
-                "explanation": explanation.strip()[:500],
-            })
+            steps.append(
+                {
+                    "kind": "document",
+                    "chunk_id": chunk_id,
+                    "source_id": source_id,
+                    "file_path": file_path.strip()[:1000],
+                    "start_line": raw_step.get("start_line"),
+                    "end_line": raw_step.get("end_line"),
+                    "page": raw_step.get("page"),
+                    "section": raw_step.get("section"),
+                    "source_type": raw_step.get("source_type"),
+                    "url": raw_step.get("url"),
+                    "excerpt": str(raw_step.get("excerpt") or "")[:1200],
+                    "explanation": explanation.strip()[:500],
+                }
+            )
             continue
         file_path = raw_step.get("file_path")
         normalized_path = file_path.replace("\\", "/") if isinstance(file_path, str) else ""
@@ -541,12 +625,14 @@ def _derive_view_action(
             or not explanation.strip()
         ):
             return None
-        steps.append({
-            "file_path": normalized_path,
-            "start_line": start_line,
-            "end_line": end_line,
-            "explanation": explanation.strip()[:500],
-        })
+        steps.append(
+            {
+                "file_path": normalized_path,
+                "start_line": start_line,
+                "end_line": end_line,
+                "explanation": explanation.strip()[:500],
+            }
+        )
 
     view = "walkthrough"
     target = {"title": title.strip()[:120], "steps": steps}
@@ -578,7 +664,8 @@ _FENCE_RE = re.compile(r"```.*?```", re.DOTALL)
 _FILE_LINE_RE = re.compile(r"^(.+\.\w+):(\d+)(?:-\d+)?$")
 # Backtick-Dateiname ohne Zeile (`CMQV.cpy`): wird gegen die abgerufenen Werkzeugergebnisse geprüft.
 _BARE_SOURCE_FILE_RE = re.compile(
-    r"^[\w./-]+\.(?:cbl|cob|cobol|cpy|copy|jcl|prc|proc|java|groovy|xml|xsl|xslt|sh|sql|properties|html|js)$", re.I
+    r"^[\w./-]+\.(?:cbl|cob|cobol|cpy|copy|jcl|prc|proc|java|groovy|xml|xsl|xslt|sh|sql|properties|html|js)$",
+    re.I,
 )
 _EMPTY_ANSWER_NOTICE = (
     "Das Modell hat nach der Recherche keine Antwort geliefert. Es ist deshalb nichts belegt. "
@@ -592,7 +679,11 @@ def _tool_evidence_text(agent_steps: list, question: str = "") -> str:
     for step in agent_steps:
         if isinstance(step, dict) and step.get("type") == "tool_result":
             result = step.get("result")
-            parts.append(result if isinstance(result, str) else json.dumps(result, ensure_ascii=False, default=str))
+            parts.append(
+                result
+                if isinstance(result, str)
+                else json.dumps(result, ensure_ascii=False, default=str)
+            )
     return "\n".join(parts).casefold()
 
 
@@ -821,7 +912,9 @@ def _answer_context_edge_pairs(result: dict) -> set[tuple[str, str]]:
         if not isinstance(entry, dict):
             continue
         entity = entry.get("entity") or {}
-        symbol = _symbol_tail(entry.get("symbol") or entity.get("qualified_name") or entity.get("name"))
+        symbol = _symbol_tail(
+            entry.get("symbol") or entity.get("qualified_name") or entity.get("name")
+        )
         if not symbol:
             continue
         for callee in entry.get("callees") or []:
@@ -867,7 +960,11 @@ def _answer_context_edge_pairs(result: dict) -> set[tuple[str, str]]:
                 if name:
                     pairs.add((symbol, name))
         for step in entry.get("data_origin") or []:
-            if isinstance(step, dict) and step.get("operation") == "argument" and step.get("passed_by"):
+            if (
+                isinstance(step, dict)
+                and step.get("operation") == "argument"
+                and step.get("passed_by")
+            ):
                 callee = _symbol_tail(str(step.get("statement") or "").split("(", 1)[0])
                 if callee:
                     pairs.add((_symbol_tail(step["passed_by"]), callee))
@@ -876,7 +973,10 @@ def _answer_context_edge_pairs(result: dict) -> set[tuple[str, str]]:
 
 def _extract_tool_edge_pairs(event: dict) -> set[tuple[str, str]]:
     """Return directed entity-name pairs from a successful flow-tool result."""
-    if event.get("type") != "tool_result" or event.get("name") not in ("trace_call_flow", "answer_context"):
+    if event.get("type") != "tool_result" or event.get("name") not in (
+        "trace_call_flow",
+        "answer_context",
+    ):
         return set()
     result = event.get("result")
     if isinstance(result, str):
@@ -955,7 +1055,10 @@ def _validate_answer_sources(
         match = _FILE_LINE_RE.match(raw.strip())
         if not match:
             continue
-        claimed_path, claimed_line = match.group(1).replace("\\", "/").lstrip("./"), int(match.group(2))
+        claimed_path, claimed_line = (
+            match.group(1).replace("\\", "/").lstrip("./"),
+            int(match.group(2)),
+        )
         path_key = claimed_path.lower()
         ranges = evidence.get(path_key)
         # A basename may be convenient in a human-written citation, but never
@@ -1052,7 +1155,10 @@ def _validate_answer_sources(
     if unsupported_claims:
         if not (verified or supported_claims):
             # Nur unbelegte Kanten: keine Ersatzkante als Antwort anbieten.
-            logger.warning("Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung: %s", unsupported_claims[0][:200])
+            logger.warning(
+                "Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung: %s",
+                unsupported_claims[0][:200],
+            )
             return (
                 "Die behauptete Codebeziehung ist in den abgerufenen Analyseergebnissen "
                 "nicht belegt. Ich nenne deshalb keine plausible Ersatzkante; bitte die "
@@ -1061,7 +1167,9 @@ def _validate_answer_sources(
             )
         # O-346: Belegte Antwort mit einer zusätzlichen Kantenaussage ohne Index-Beleg:
         # Der Satz bleibt, wird aber als nicht belegt gekennzeichnet.
-        logger.warning("Markiere unbelegte Kantenbehauptung(en): %s", [c[:120] for c in unsupported_claims])
+        logger.warning(
+            "Markiere unbelegte Kantenbehauptung(en): %s", [c[:120] for c in unsupported_claims]
+        )
         for claim in unsupported_claims:
             if claim and claim in answer:
                 answer = answer.replace(claim, f"{claim} (Beziehung nicht im Index belegt)", 1)
@@ -1086,25 +1194,37 @@ def _attach_analysis_status(db: Session, sources: list[dict]) -> list[dict]:
         db, {(source.get("source_id"), source.get("file")) for source in sources}
     )
     source_ids = {
-        source.get("source_id")
-        for source in sources
-        if isinstance(source.get("source_id"), int)
+        source.get("source_id") for source in sources if isinstance(source.get("source_id"), int)
     }
-    source_by_id = {
-        source.id: source
-        for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
-    } if source_ids else {}
+    source_by_id = (
+        {
+            source.id: source
+            for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
+        }
+        if source_ids
+        else {}
+    )
     for source in sources:
         info = status_by_key.get((source.get("source_id"), source.get("file")))
         if info:
             source["analysis_status"] = info["status"]
             source["analysis_reasons"] = info["reasons"]
         knowledge_source = source_by_id.get(source.get("source_id"))
-        is_code_source = bool(knowledge_source and (knowledge_source.type or "").casefold() == "git")
+        is_code_source = bool(
+            knowledge_source and (knowledge_source.type or "").casefold() == "git"
+        )
         source["provenance"] = build_provenance(
             knowledge_source,
-            kind="code_fact" if is_code_source else "document_claim" if knowledge_source else "unknown",
-            verification_status="indexed_unreviewed" if is_code_source else "unverified" if knowledge_source else "unavailable",
+            kind="code_fact"
+            if is_code_source
+            else "document_claim"
+            if knowledge_source
+            else "unknown",
+            verification_status="indexed_unreviewed"
+            if is_code_source
+            else "unverified"
+            if knowledge_source
+            else "unavailable",
             detail=(
                 "Die Verknüpfung belegt die Fundstelle, nicht die fachliche Richtigkeit der Aussage."
                 if knowledge_source and not is_code_source
@@ -1367,13 +1487,15 @@ async def chat(
 
         async def inner_generator():
             nonlocal answer, sources, agent_steps
-            chat_intent = classify_chat_intent(
-                request.message,
-                project_id=request.project_id,
-                pinned_file=request.pinned_file,
-                mcp_scope=bool(request.source_id),
-            ) if request.mode == "evidence" else ChatIntent(
-                "normal", use_retrieval=False, use_agent=False
+            chat_intent = (
+                classify_chat_intent(
+                    request.message,
+                    project_id=request.project_id,
+                    pinned_file=request.pinned_file,
+                    mcp_scope=bool(request.source_id),
+                )
+                if request.mode == "evidence"
+                else ChatIntent("normal", use_retrieval=False, use_agent=False)
             )
             if chat_intent.use_retrieval:
                 retrieval_started_at = monotonic()
@@ -1538,7 +1660,8 @@ async def chat(
                     db.query(KnowledgeSource)
                     .filter(KnowledgeSource.id.in_(document_source_ids))
                     .all()
-                    if document_source_ids else []
+                    if document_source_ids
+                    else []
                 )
             }
             walkthrough_documents = []
@@ -1549,18 +1672,20 @@ async def chat(
                 if (source.type or "").lower() == "git":
                     continue
                 metadata = chunk.metadata_json or {}
-                walkthrough_documents.append({
-                    "chunk_id": chunk.id,
-                    "source_id": chunk.source_id,
-                    "file_path": chunk.file_path,
-                    "start_line": chunk.start_line,
-                    "end_line": chunk.end_line,
-                    "page": metadata.get("page"),
-                    "section": metadata.get("section"),
-                    "source_type": metadata.get("source_type") or source.type,
-                    "url": metadata.get("url") or source.url,
-                    "excerpt": (chunk.content or "").strip()[:1200],
-                })
+                walkthrough_documents.append(
+                    {
+                        "chunk_id": chunk.id,
+                        "source_id": chunk.source_id,
+                        "file_path": chunk.file_path,
+                        "start_line": chunk.start_line,
+                        "end_line": chunk.end_line,
+                        "page": metadata.get("page"),
+                        "section": metadata.get("section"),
+                        "source_type": metadata.get("source_type") or source.type,
+                        "url": metadata.get("url") or source.url,
+                        "excerpt": (chunk.content or "").strip()[:1200],
+                    }
+                )
 
             try:
                 if chat_intent.use_agent and request.source_id:
@@ -1599,7 +1724,13 @@ async def chat(
 
                 if (
                     chat_intent.use_agent
-                    and (request.project_id or resolved_repo_id or walkthrough_documents or mcp_clients or mcp_initialization_status)
+                    and (
+                        request.project_id
+                        or resolved_repo_id
+                        or walkthrough_documents
+                        or mcp_clients
+                        or mcp_initialization_status
+                    )
                     and _agent_profile_supports_tools(selected_profile)
                 ):
                     agent_ran = True
@@ -1617,7 +1748,9 @@ async def chat(
                         system_prompt=full_system_prompt_for_chat,
                         prompt=prompt,
                         temperature=(
-                            request.temperature if request.temperature is not None else selected_profile.llm_temperature
+                            request.temperature
+                            if request.temperature is not None
+                            else selected_profile.llm_temperature
                         ),
                         repository_id=resolved_repo_id,
                         db=db,
@@ -1663,10 +1796,16 @@ async def chat(
                             if model_end:
                                 yield f"data: {json.dumps(model_end)}\n\n"
                             answer, answer_is_source_consistent = _validate_answer_sources(
-                                event["content"], agent_sources, agent_edge_pairs,
+                                event["content"],
+                                agent_sources,
+                                agent_edge_pairs,
                                 evidence_text=(
-                                    _tool_evidence_text(list(event.get("agent_steps") or agent_steps), request.message)
-                                    if (event.get("agent_steps") or agent_steps) else None
+                                    _tool_evidence_text(
+                                        list(event.get("agent_steps") or agent_steps),
+                                        request.message,
+                                    )
+                                    if (event.get("agent_steps") or agent_steps)
+                                    else None
                                 ),
                             )
                             agent_steps = list(event.get("agent_steps") or [])
@@ -1679,11 +1818,20 @@ async def chat(
                                 if action["action_id"] not in known_action_ids:
                                     agent_steps.append(action)
                             event = {**event, "content": answer, "agent_steps": agent_steps}
-                        elif event["type"] in ("thought", "tool_call", "tool_result", "mcp_preflight"):
+                        elif event["type"] in (
+                            "thought",
+                            "tool_call",
+                            "tool_result",
+                            "mcp_preflight",
+                        ):
                             agent_steps.append(event)
                             _extract_tool_sources(event, agent_sources, resolved_repo_id)
                             agent_edge_pairs.update(_extract_tool_edge_pairs(event))
-                            if event.get("type") == "tool_result" and event.get("name") == "trace_call_flow" and isinstance(event.get("id"), str):
+                            if (
+                                event.get("type") == "tool_result"
+                                and event.get("name") == "trace_call_flow"
+                                and isinstance(event.get("id"), str)
+                            ):
                                 result = event.get("result")
                                 if isinstance(result, str):
                                     try:
@@ -1699,7 +1847,10 @@ async def chat(
                                 project_id=request.project_id,
                                 call_flow_results=agent_call_flows,
                             )
-                            if action and all(existing["action_id"] != action["action_id"] for existing in view_actions):
+                            if action and all(
+                                existing["action_id"] != action["action_id"]
+                                for existing in view_actions
+                            ):
                                 view_actions.append(action)
                                 agent_steps.append(action)
                                 yield f"data: {json.dumps(event)}\n\n"
@@ -1743,7 +1894,9 @@ async def chat(
                     api_key=selected_profile.llm_api_key,
                     base_url=selected_profile.llm_base_url,
                     temperature=(
-                        request.temperature if request.temperature is not None else selected_profile.llm_temperature
+                        request.temperature
+                        if request.temperature is not None
+                        else selected_profile.llm_temperature
                     ),
                     system_prompt=full_system_prompt_for_chat,
                     history=history_messages,
@@ -2031,7 +2184,15 @@ def update_chat_message_view_action(
     user: User = Depends(get_current_user),
 ):
     """Persist the client-observed result without presenting it as a model result."""
-    allowed_statuses = {"opened", "updated", "manual", "declined", "no_space", "rejected", "stale_context"}
+    allowed_statuses = {
+        "opened",
+        "updated",
+        "manual",
+        "declined",
+        "no_space",
+        "rejected",
+        "stale_context",
+    }
     if body.status not in allowed_statuses:
         raise HTTPException(status_code=400, detail="Ungültiger View-Aktionsstatus")
 
@@ -2067,10 +2228,14 @@ def update_chat_message_view_action(
                     for item in target.get("steps", [])
                     if isinstance(item, dict) and item.get("kind") == "document"
                 }
-                if not source_ids or any(not isinstance(source_id, int) for source_id in source_ids):
+                if not source_ids or any(
+                    not isinstance(source_id, int) for source_id in source_ids
+                ):
                     raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
                 for source_id in source_ids:
-                    source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+                    source = (
+                        db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+                    )
                     if not source:
                         raise HTTPException(status_code=404, detail="View-Aktion nicht gefunden")
                     assert_knowledge_source_visible(source, user, db, "View-Aktion nicht gefunden")
@@ -2260,12 +2425,14 @@ def _sanitize_workspace_snapshot(snapshot: dict | None, user: User) -> dict | No
         if isinstance(values, list):
             sanitized[key] = [values[index] for index in keep if index < len(values)]
     if isinstance(sanitized.get("panelSelections"), list) and not sanitized["panelSelections"]:
-        sanitized["panelSelections"] = [{
-            "selectedFile": None,
-            "selectedDoc": None,
-            "selectedEntity": None,
-            "selectedLine": None,
-        }]
+        sanitized["panelSelections"] = [
+            {
+                "selectedFile": None,
+                "selectedDoc": None,
+                "selectedEntity": None,
+                "selectedLine": None,
+            }
+        ]
     return sanitized
 
 
@@ -2385,12 +2552,20 @@ async def get_typing_statement():
 # COBOL- und Java-Typen; die Startansicht leitet daraus ab, zu welchem
 # Technologie-Stack des Projekts sie Karten und Beispielfragen zeigt.
 PULSE_ENTITY_TYPES = (
-    "program", "copybook", "sql_table", "jcl_job",
-    "class", "interface", "method", "maven_module",
+    "program",
+    "copybook",
+    "sql_table",
+    "jcl_job",
+    "class",
+    "interface",
+    "method",
+    "maven_module",
 )
 # Für diese Typen gibt es Namensstichproben; Methoden (Getter, Setter, ...)
 # und Maven-Module taugen nicht als Beispielfrage und werden nur gezählt.
-PULSE_SAMPLED_TYPES = frozenset({"program", "copybook", "sql_table", "jcl_job", "class", "interface"})
+PULSE_SAMPLED_TYPES = frozenset(
+    {"program", "copybook", "sql_table", "jcl_job", "class", "interface"}
+)
 PULSE_SAMPLES_PER_TYPE = 3
 
 
@@ -2422,7 +2597,9 @@ def get_project_pulse(
         total = base.count()
         counts[entity_type] = total
         picked: list[str] = []
-        sample_count = min(PULSE_SAMPLES_PER_TYPE, total) if entity_type in PULSE_SAMPLED_TYPES else 0
+        sample_count = (
+            min(PULSE_SAMPLES_PER_TYPE, total) if entity_type in PULSE_SAMPLED_TYPES else 0
+        )
         for _ in range(sample_count):
             row = (
                 base.with_entities(CodeEntity.name)

@@ -29,7 +29,12 @@ _BASIS = (
 def assignment_key(record: dict[str, Any]) -> tuple[int, int, int, str]:
     """Identität einer abgeleiteten Kante: Datei, Dataset, Step, DD-Name."""
     meta = record["meta"]
-    return (record["src_entity_id"], record["dst_entity_id"], meta["jcl_step_entity_id"], meta["ddname"])
+    return (
+        record["src_entity_id"],
+        record["dst_entity_id"],
+        meta["jcl_step_entity_id"],
+        meta["ddname"],
+    )
 
 
 def derive_assignments(entities: Iterable[Any], edges: Iterable[Any]) -> list[dict[str, Any]]:
@@ -42,7 +47,11 @@ def derive_assignments(entities: Iterable[Any], edges: Iterable[Any]) -> list[di
         if source is None or source.type != "jcl_step":
             continue
         meta = edge.meta_json or {}
-        if edge.type == "EXECUTES" and edge.resolution == "resolved" and edge.dst_entity_id in by_id:
+        if (
+            edge.type == "EXECUTES"
+            and edge.resolution == "resolved"
+            and edge.dst_entity_id in by_id
+        ):
             target = by_id[edge.dst_entity_id]
             if target.type == "program":
                 program_of_step[source.id] = target

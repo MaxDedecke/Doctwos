@@ -416,7 +416,10 @@ def test_llm_review_updates_score_and_context_but_not_status(
         assert res.status_code == 200
         body = res.json()
         assert body["score"] == pytest.approx(0.87)
-        assert body["context"] == "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt."
+        assert (
+            body["context"]
+            == "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt."
+        )
         assert body["status"] == "pending"  # unverändert — Nutzer entscheidet
     finally:
         db_session.query(KnowledgeLink).filter(KnowledgeLink.id == link.id).delete()
@@ -534,12 +537,15 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
         calls.append((task_name, args, kwargs))
 
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=fake_send_tracked_task):
-        res = client.post("/knowledge-links/compute", params={
-            "project_id": project_id,
-            "source_ids": [source.id, second_source.id],
-            "min_confidence": 70,
-            "confirm": True,
-        })
+        res = client.post(
+            "/knowledge-links/compute",
+            params={
+                "project_id": project_id,
+                "source_ids": [source.id, second_source.id],
+                "min_confidence": 70,
+                "confirm": True,
+            },
+        )
     assert res.status_code == 200
     run_id = res.json()["run_id"]
 
@@ -621,13 +627,14 @@ def test_trigger_computation_reuses_active_run_for_same_project_scope(
         db_session.commit()
 
 
-def test_trigger_computation_preserves_pending_and_reviewed_links(
-    client, db_session, two_chunks
-):
+def test_trigger_computation_preserves_pending_and_reviewed_links(client, db_session, two_chunks):
     source, chunk_a, chunk_b = two_chunks
     project = db_session.query(Project).filter(Project.id == chunk_a.project_id).first()
     second_source = KnowledgeSource(
-        name="KL Refresh Source", type="Local", project_id=chunk_a.project_id, team_id=project.team_id
+        name="KL Refresh Source",
+        type="Local",
+        project_id=chunk_a.project_id,
+        team_id=project.team_id,
     )
     db_session.add(second_source)
     db_session.commit()
@@ -642,11 +649,14 @@ def test_trigger_computation_preserves_pending_and_reviewed_links(
     rejected_id = _make_link(db_session, chunk_a, chunk_b, status="rejected").id
 
     with patch.object(knowledge_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
-        res = client.post("/knowledge-links/compute", params={
-            "project_id": chunk_a.project_id,
-            "source_ids": [source.id, second_source.id],
-            "confirm": True,
-        })
+        res = client.post(
+            "/knowledge-links/compute",
+            params={
+                "project_id": chunk_a.project_id,
+                "source_ids": [source.id, second_source.id],
+                "confirm": True,
+            },
+        )
     assert res.status_code == 200
     run_id = res.json()["run_id"]
 
@@ -688,10 +698,13 @@ def test_trigger_computation_requires_explicit_confirmation(client, db_session, 
         )
     }
     try:
-        res = client.post("/knowledge-links/compute", params={
-            "project_id": project.id,
-            "source_ids": [source.id, second_source.id],
-        })
+        res = client.post(
+            "/knowledge-links/compute",
+            params={
+                "project_id": project.id,
+                "source_ids": [source.id, second_source.id],
+            },
+        )
         assert res.status_code == 428
         after_ids = {
             row.id

@@ -23,14 +23,29 @@ def upgrade() -> None:
         sa.Column("dimension", sa.Integer(), nullable=False, server_default="1024"),
         sa.Column("context_length", sa.Integer(), nullable=False, server_default="8192"),
         sa.Column("is_system", sa.Boolean(), nullable=False, server_default=sa.false()),
-        sa.Column("created_by_user_id", sa.Integer(), sa.ForeignKey("users.id", ondelete="SET NULL"), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False),
+        sa.Column(
+            "created_by_user_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id", ondelete="SET NULL"),
+            nullable=True,
+        ),
+        sa.Column(
+            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
+        sa.Column(
+            "updated_at", sa.DateTime(timezone=True), server_default=sa.func.now(), nullable=False
+        ),
     )
-    op.add_column("ai_settings", sa.Column("active_embedding_profile_id", sa.Integer(), nullable=True))
+    op.add_column(
+        "ai_settings", sa.Column("active_embedding_profile_id", sa.Integer(), nullable=True)
+    )
     op.create_foreign_key(
         "fk_ai_settings_active_embedding_profile",
-        "ai_settings", "embedding_profiles", ["active_embedding_profile_id"], ["id"], ondelete="SET NULL",
+        "ai_settings",
+        "embedding_profiles",
+        ["active_embedding_profile_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
     # Copy the effective embedding configuration out of the legacy combined
     # profile. Existing installations keep their current import/retrieval setup.

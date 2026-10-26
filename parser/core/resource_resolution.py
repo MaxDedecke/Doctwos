@@ -7,10 +7,21 @@ from java.modules import module_from_path
 from core.evidence import source_evidence
 
 
-RESOURCE_EDGE_TYPES = frozenset({
-    "USES_RESOURCE", "INCLUDES", "IMPORTS", "TRANSFORMS_WITH", "READS_XML",
-    "SOURCES", "EXECUTES_SCRIPT", "STARTS_JAVA", "REFERENCES_RESOURCE", "REFERENCES_PROPERTY_KEY", "LINKS_TO",
-})
+RESOURCE_EDGE_TYPES = frozenset(
+    {
+        "USES_RESOURCE",
+        "INCLUDES",
+        "IMPORTS",
+        "TRANSFORMS_WITH",
+        "READS_XML",
+        "SOURCES",
+        "EXECUTES_SCRIPT",
+        "STARTS_JAVA",
+        "REFERENCES_RESOURCE",
+        "REFERENCES_PROPERTY_KEY",
+        "LINKS_TO",
+    }
+)
 
 
 def resolve_resource_edges(entities, edges):
@@ -22,17 +33,23 @@ def resolve_resource_edges(entities, edges):
         by_path[(entity.variant_key, entity.file_path)].append(entity)
         by_qname[(entity.variant_key, entity.qualified_name)].append(entity)
         entity_meta = entity.meta_json or {}
-        if (entity.type == "method" and entity.qualified_name
-                and "#main(" in entity.qualified_name
-                and {"public", "static"} <= set(entity_meta.get("modifiers", []))
-                and entity_meta.get("return_type") == "void"
-                and entity_meta.get("parameter_types") in (["String[]"], ["java.lang.String[]"])):
-            entrypoints[(entity.variant_key, entity.file_path,
-                         entity.qualified_name.split("#", 1)[0])].append(entity)
+        if (
+            entity.type == "method"
+            and entity.qualified_name
+            and "#main(" in entity.qualified_name
+            and {"public", "static"} <= set(entity_meta.get("modifiers", []))
+            and entity_meta.get("return_type") == "void"
+            and entity_meta.get("parameter_types") in (["String[]"], ["java.lang.String[]"])
+        ):
+            entrypoints[
+                (entity.variant_key, entity.file_path, entity.qualified_name.split("#", 1)[0])
+            ].append(entity)
     properties_by_key = defaultdict(list)
     for entity in entities:
         if entity.type == "property":
-            properties_by_key[((entity.meta_json or {}).get("property_key"), entity.variant_key)].append(entity)
+            properties_by_key[
+                ((entity.meta_json or {}).get("property_key"), entity.variant_key)
+            ].append(entity)
     resolved = 0
     for edge in edges:
         if edge.type == "REFERENCES_PROPERTY_KEY":
@@ -40,7 +57,11 @@ def resolve_resource_edges(entities, edges):
             continue
         meta = dict(edge.meta_json or {})
         if edge.type not in RESOURCE_EDGE_TYPES or meta.get("language") not in {
-            "java", "shell", "xslt", "jsp", "html"
+            "java",
+            "shell",
+            "xslt",
+            "jsp",
+            "html",
         }:
             continue
         if edge.type == "IMPORTS" and meta.get("language") != "xslt":
@@ -63,11 +84,15 @@ def resolve_resource_edges(entities, edges):
                 if candidate.startswith(root + "/"):
                     paths.add(candidate)
         candidates = []
-        pool = {entity.id: entity for path in paths
-                for entity in by_path[(edge.variant_key, path)]}
+        pool = {entity.id: entity for path in paths for entity in by_path[(edge.variant_key, path)]}
         if qname:
-            pool.update({entity.id: entity for entity in by_qname[(edge.variant_key, qname)]
-                         if entity.type in {"class", "enum", "record"}})
+            pool.update(
+                {
+                    entity.id: entity
+                    for entity in by_qname[(edge.variant_key, qname)]
+                    if entity.type in {"class", "enum", "record"}
+                }
+            )
         for entity in pool.values():
             target_type = meta.get("target_entity_type")
             if target_type and entity.type != target_type:
@@ -94,12 +119,21 @@ def resolve_resource_edges(entities, edges):
         else:
             edge.resolution = "unresolved"
             reason = "ambiguous_resource_target" if candidates else "resource_target_not_found"
-        meta.update(resolution_reason=reason, candidate_count=len(candidates),
-                    source_file_path=source.file_path, relationship_kind="resource")
-        meta.setdefault("evidence", source_evidence(
-            path=source.file_path, start_line=edge.src_start_line,
-            end_line=getattr(edge, "src_end_line", edge.src_start_line), profile=None,
-        ))
+        meta.update(
+            resolution_reason=reason,
+            candidate_count=len(candidates),
+            source_file_path=source.file_path,
+            relationship_kind="resource",
+        )
+        meta.setdefault(
+            "evidence",
+            source_evidence(
+                path=source.file_path,
+                start_line=edge.src_start_line,
+                end_line=getattr(edge, "src_end_line", edge.src_start_line),
+                profile=None,
+            ),
+        )
         meta["evidence"]["variant"]["key"] = edge.variant_key
         edge.meta_json = meta
     return resolved
@@ -115,15 +149,20 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
     candidates = properties_by_key.get((key, edge.variant_key), [])
     module = module_from_path(source.file_path)
     scope = "project"
-    local = [c for c in candidates if module is not None and module_from_path(c.file_path) == module]
+    local = [
+        c for c in candidates if module is not None and module_from_path(c.file_path) == module
+    ]
     if local:
         candidates, scope = local, "module"
     if len(candidates) > 1:
         # Wicket-Konvention: `<Klasse>.properties` bzw. `package.properties` im
         # selben Paketpfad wie die Java-Datei geht dem Modul-Bestand vor.
         stem, package_dir = _component_bundle_location(source.file_path)
-        near = [c for c in candidates
-                if _bundle_matches(c.file_path, package_dir, stem)] if package_dir is not None else []
+        near = (
+            [c for c in candidates if _bundle_matches(c.file_path, package_dir, stem)]
+            if package_dir is not None
+            else []
+        )
         if len(near) == 1:
             candidates, scope = near, "component_bundle"
     was_resolved = edge.resolution == "resolved"
@@ -135,8 +174,13 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
     else:
         edge.resolution = "unresolved"
         reason = "ambiguous_property_key" if candidates else "property_key_not_found"
-    meta.update(resolution_reason=reason, candidate_count=len(candidates), resolution_scope=scope,
-                source_file_path=source.file_path, relationship_kind="resource")
+    meta.update(
+        resolution_reason=reason,
+        candidate_count=len(candidates),
+        resolution_scope=scope,
+        source_file_path=source.file_path,
+        relationship_kind="resource",
+    )
     edge.meta_json = meta
     return int(edge.resolution == "resolved" and not was_resolved)
 

@@ -224,7 +224,10 @@ requires_ollama = pytest.mark.skipif(
 )
 
 
-def make_fake_llm_json(confidence: float = 87, reason: str = "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt."):
+def make_fake_llm_json(
+    confidence: float = 87,
+    reason: str = "Der Code verarbeitet denselben fachlichen Vorgang wie der Dokumentabschnitt und beide nennen denselben Verarbeitungsschritt.",
+):
     """Fake für `services.ollama_client.ask_llm_json_for_profile`, geteilt
     zwischen den llm-review-Tests in test_entity_links.py (O-108) und
     test_knowledge_links.py (O-109) -- beide Routen rufen dieselbe Funktion

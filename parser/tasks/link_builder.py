@@ -122,9 +122,7 @@ def _entity_code_excerpt(
     entity: CodeEntity,
     project_id: int,
     db,
-    chunks_by_file_window: dict[
-        tuple[int, str, int], list[tuple[int | None, int | None, str]]
-    ],
+    chunks_by_file_window: dict[tuple[int, str, int], list[tuple[int | None, int | None, str]]],
 ) -> str:
     """Read a short, line-bounded excerpt from this repository's indexed source."""
     if not entity.source_id or not entity.file_path or not entity.start_line:
@@ -136,7 +134,9 @@ def _entity_code_excerpt(
     # Ein Feld endet an seiner Deklarationszeile; ein `COPY`/`REDEFINES` direkt darunter gehört dazu.
     trailing = 2 if entity.type in _FIELD_LEVEL_TYPES and entity.end_line else 0
     window_end = min(
-        (entity.end_line + trailing) if entity.end_line else (window_start + ENTITY_EXCERPT_MAX_LINES - 1),
+        (entity.end_line + trailing)
+        if entity.end_line
+        else (window_start + ENTITY_EXCERPT_MAX_LINES - 1),
         window_start + ENTITY_EXCERPT_MAX_LINES - 1,
         bucket_end,
     )
@@ -156,9 +156,7 @@ def _entity_code_excerpt(
             .limit(100)
             .all()
         )
-        cached_chunks = [
-            (chunk.start_line, chunk.end_line, chunk.content or "") for chunk in rows
-        ]
+        cached_chunks = [(chunk.start_line, chunk.end_line, chunk.content or "") for chunk in rows]
         chunks_by_file_window[cache_key] = cached_chunks
     if not cached_chunks:
         return ""
@@ -219,9 +217,16 @@ def _build_relationship_index(
         query = query.filter(or_(*source_scope))
 
     selected: dict[int, list[tuple[bool, str, int, str]]] = {}
-    for edge_id, source_id, variant_key, src_id, dst_id, dst_name, edge_type, resolution in query.order_by(
-        CodeEdge.id
-    ).yield_per(2000):
+    for (
+        edge_id,
+        source_id,
+        variant_key,
+        src_id,
+        dst_id,
+        dst_name,
+        edge_type,
+        resolution,
+    ) in query.order_by(CodeEdge.id).yield_per(2000):
         src = entities_by_id.get(src_id)
         dst = entities_by_id.get(dst_id) if dst_id is not None else None
         if src is not None and (src.source_id != source_id or src.variant_key != variant_key):
@@ -261,9 +266,7 @@ def _build_entity_context(
     db,
     breadcrumb: str,
     relationships_by_entity: dict[int, list[str]],
-    chunks_by_file_window: dict[
-        tuple[int, str, int], list[tuple[int | None, int | None, str]]
-    ],
+    chunks_by_file_window: dict[tuple[int, str, int], list[tuple[int | None, int | None, str]]],
 ) -> str:
     """Combine bounded source, hierarchy, and direct-edge context for retrieval."""
     parts = [f"Entity: {entity.type}: {entity.name}"]
@@ -386,28 +389,47 @@ class LinkRunParams:
     merge_threshold: float = MERGE_SCORE_THRESHOLD
     min_confidence: int = LLM_MIN_CONFIDENCE
     dedupe_by_chunk: bool = False
-    keyword_selection: str = "best"  # "best": höchster Trefferanteil zuerst; "first": erste Treffer nach Chunk-ID
-    max_review_candidates: int = 0  # Obergrenze der Kandidaten je Entity vor der Modellbewertung; 0 = keine
-    review_batch_size: int = 0  # Kandidaten je Modellaufruf; 0 = alle Kandidaten einer Entity in einem Aufruf
+    keyword_selection: str = (
+        "best"  # "best": höchster Trefferanteil zuerst; "first": erste Treffer nach Chunk-ID
+    )
+    max_review_candidates: int = (
+        0  # Obergrenze der Kandidaten je Entity vor der Modellbewertung; 0 = keine
+    )
+    review_batch_size: int = (
+        0  # Kandidaten je Modellaufruf; 0 = alle Kandidaten einer Entity in einem Aufruf
+    )
     review_concurrency: int = 1  # Entities, deren Bewertung gleichzeitig läuft
     embed_window: int = _DEFAULT_EMBED_WINDOW
 
     # (Mindestwert, Höchstwert) je Feld; die API prüft dieselben Grenzen.
     LIMITS = {
-        "top_k_semantic": (1, 200), "top_k_keyword": (1, 500),
-        "min_score_semantic": (0.0, 1.0), "min_score_keyword": (0.0, 1.0), "merge_threshold": (0.0, 1.0),
-        "min_confidence": (0, 100), "review_batch_size": (0, 50), "review_concurrency": (1, 8), "embed_window": (1, 20),
+        "top_k_semantic": (1, 200),
+        "top_k_keyword": (1, 500),
+        "min_score_semantic": (0.0, 1.0),
+        "min_score_keyword": (0.0, 1.0),
+        "merge_threshold": (0.0, 1.0),
+        "min_confidence": (0, 100),
+        "review_batch_size": (0, 50),
+        "review_concurrency": (1, 8),
+        "embed_window": (1, 20),
         "max_review_candidates": (0, 100),
     }
 
     # Gemessen nur mit `qwen3:8b` auf einer 8-GB-GPU (CardDemo/Syncope, 05.10.2026): 2 gleichzeitige Bewertungen und
     # 3 Kandidaten je Aufruf; höchstens 8 Kandidaten je Entity (bei „beste 50“ liegen 90 % der Entities bei höchstens 7).
     # Entfernte und Cloud-Profile behalten die allgemeinen Standardwerte.
-    LOCAL_PROFILE_DEFAULTS = {"review_concurrency": 2, "review_batch_size": 3, "max_review_candidates": 8}
+    LOCAL_PROFILE_DEFAULTS = {
+        "review_concurrency": 2,
+        "review_batch_size": 3,
+        "max_review_candidates": 8,
+    }
 
     @classmethod
     def from_scope(
-        cls, scope: dict | None, min_confidence: int | None = None, profile_defaults: dict | None = None
+        cls,
+        scope: dict | None,
+        min_confidence: int | None = None,
+        profile_defaults: dict | None = None,
     ) -> "LinkRunParams":
         """Werte des Laufs; was dort fehlt, kommt aus ``profile_defaults``, sonst aus den Modulkonstanten."""
         raw = {**(profile_defaults or {}), **dict((scope or {}).get("params") or {})}
@@ -444,7 +466,9 @@ LLM_REVIEW_TIMEOUT = float(os.getenv("LINK_LLM_REVIEW_TIMEOUT", "180"))
 LINK_EMBED_WINDOW = _DEFAULT_EMBED_WINDOW
 
 
-async def _embed_context_window(contexts: dict[int, str], embedding_model: str | None) -> dict[int, list[float]]:
+async def _embed_context_window(
+    contexts: dict[int, str], embedding_model: str | None
+) -> dict[int, list[float]]:
     """Embeddings for several entity contexts in one batched call; empty on failure (the caller embeds singly)."""
     if len(contexts) < 2:
         return {}
@@ -452,7 +476,9 @@ async def _embed_context_window(contexts: dict[int, str], embedding_model: str |
     try:
         vectors = await get_embeddings_batch([contexts[i] for i in ids], model=embedding_model)
     except Exception as e:
-        logger.warning(f"[LinkBuilder] Gebündeltes Embedding fehlgeschlagen, wechsle auf Einzelaufrufe: {e}")
+        logger.warning(
+            f"[LinkBuilder] Gebündeltes Embedding fehlgeschlagen, wechsle auf Einzelaufrufe: {e}"
+        )
         return {}
     return dict(zip(ids, vectors)) if len(vectors) == len(ids) else {}
 
@@ -489,7 +515,10 @@ class KeywordCorpus:
             total += len(text)
             if total > KEYWORD_CORPUS_MAX_CHARS:
                 self.items = None
-                logger.warning("[LinkBuilder] Keyword-Korpus über %s Zeichen; lese je Entity", KEYWORD_CORPUS_MAX_CHARS)
+                logger.warning(
+                    "[LinkBuilder] Keyword-Korpus über %s Zeichen; lese je Entity",
+                    KEYWORD_CORPUS_MAX_CHARS,
+                )
                 return
             self.items.append((chunk_id, text))
 
@@ -542,7 +571,9 @@ def _pass_keyword(
             return {}
         by_id = {
             chunk.id: chunk
-            for chunk in db.query(DocumentChunk).filter(DocumentChunk.id.in_([chunk_id for chunk_id, _ in wanted]))
+            for chunk in db.query(DocumentChunk).filter(
+                DocumentChunk.id.in_([chunk_id for chunk_id, _ in wanted])
+            )
         }
         result: dict[str, tuple] = {}
         for chunk_id, score in wanted:
@@ -586,7 +617,9 @@ def _pass_keyword(
     return result
 
 
-def _merge_passes(*passes, threshold: float | None = None) -> list[tuple[DocumentChunk, float, str]]:
+def _merge_passes(
+    *passes, threshold: float | None = None
+) -> list[tuple[DocumentChunk, float, str]]:
     merged: dict[str, tuple[DocumentChunk, float, str]] = {}
     for data, name in passes:
         for title, (chunk, score) in data.items():
@@ -601,14 +634,22 @@ def _merge_passes(*passes, threshold: float | None = None) -> list[tuple[Documen
 def _exclude_own_source(entity: CodeEntity, pages: list) -> list:
     """Ein Chunk der eigenen Quelldatei ist der Code selbst, keine Dokumentation dazu."""
     return [
-        page for page in pages
+        page
+        for page in pages
         if not (page[0].source_id == entity.source_id and page[0].file_path == entity.file_path)
     ]
 
 
 # Felder und Variablen tragen selten eigene Dokumentation; ein Dokument, das nur das umgebende Programm
 # nennt, belegt sie nicht (beobachtet: 3 von 5 Vorschlägen eines kleinen Modells waren solche Übergriffe).
-_FIELD_LEVEL_TYPES = {"data_item", "field", "local_variable", "parameter", "record_component", "constant"}
+_FIELD_LEVEL_TYPES = {
+    "data_item",
+    "field",
+    "local_variable",
+    "parameter",
+    "record_component",
+    "constant",
+}
 _CODE_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*(?:-[A-Za-z0-9_]+)+|[A-Z][A-Z0-9_]{5,}")
 
 
@@ -622,8 +663,15 @@ def _document_names_field(entity: CodeEntity, content: str, entity_context: str 
     text = content or ""
     if entity.name and re.search(rf"(?<![\w-]){re.escape(entity.name)}(?![\w-])", text, flags=re.I):
         return True
-    excerpt = (entity_context or "").split("Indexed code excerpt:\n", 1)[-1] if "Indexed code excerpt:" in (entity_context or "") else ""
-    own = {name.casefold() for name in re.findall(r"[\w-]+", f"{entity.qualified_name or ''} {entity.file_path or ''}")}
+    excerpt = (
+        (entity_context or "").split("Indexed code excerpt:\n", 1)[-1]
+        if "Indexed code excerpt:" in (entity_context or "")
+        else ""
+    )
+    own = {
+        name.casefold()
+        for name in re.findall(r"[\w-]+", f"{entity.qualified_name or ''} {entity.file_path or ''}")
+    }
     excerpt_names = {name.casefold() for name in _CODE_NAME.findall(excerpt)} - own
     return any(name.casefold() in excerpt_names for name in _CODE_NAME.findall(text))
 
@@ -640,7 +688,8 @@ async def _llm_review(
     Kleine Modelle bewerten bei vielen Kandidaten in einem Aufruf oft nur den ersten."""
     if top_pages and entity.type in _FIELD_LEVEL_TYPES:
         top_pages = [
-            page for page in top_pages
+            page
+            for page in top_pages
             if _document_names_field(entity, page[0].content, entity_context)
         ]
     if not batch_size or len(top_pages) <= batch_size:
@@ -648,7 +697,9 @@ async def _llm_review(
     reviewed: list[tuple[DocumentChunk, float, str, str]] = []
     for start in range(0, len(top_pages), batch_size):
         reviewed.extend(
-            await _llm_review_once(entity, top_pages[start : start + batch_size], min_confidence, entity_context)
+            await _llm_review_once(
+                entity, top_pages[start : start + batch_size], min_confidence, entity_context
+            )
         )
     return reviewed
 
@@ -661,7 +712,8 @@ async def _llm_review_once(
 ) -> list[tuple[DocumentChunk, float, str, str]]:
     if top_pages and entity.type in _FIELD_LEVEL_TYPES:
         top_pages = [
-            page for page in top_pages
+            page
+            for page in top_pages
             if _document_names_field(entity, page[0].content, entity_context)
         ]
     if not top_pages:
@@ -679,11 +731,13 @@ async def _llm_review_once(
         meta = chunk.metadata_json or {}
         title = meta.get("title") or chunk.file_path
         place = ", ".join(
-            part for part in (
+            part
+            for part in (
                 f"Abschnitt {meta['section']}" if meta.get("section") else None,
                 f"Seite {meta['page']}" if meta.get("page") else None,
                 f"Zeilen {chunk.start_line}-{chunk.end_line}" if chunk.start_line else None,
-            ) if part
+            )
+            if part
         )
         prompt += f"Index {idx}: [{meta.get('source_type')}] '{title}'{f' ({place})' if place else ''}\nInhalt: {(chunk.content or '')[:900]}\n\n"
 
@@ -706,7 +760,10 @@ async def _llm_review_once(
         try:
             response = await get_chat_json(prompt, config.LLM_MODEL, timeout=LLM_REVIEW_TIMEOUT)
         except httpx.TimeoutException:
-            logger.warning("[LinkBuilder] LLM-Bewertung für %s: Zeitüberschreitung, zweiter Versuch", entity.name)
+            logger.warning(
+                "[LinkBuilder] LLM-Bewertung für %s: Zeitüberschreitung, zweiter Versuch",
+                entity.name,
+            )
             response = await get_chat_json(prompt, config.LLM_MODEL, timeout=LLM_REVIEW_TIMEOUT)
         # Ollamas format="json" erzwingt beim Modell ein JSON-*Objekt*, nie ein
         # rohes Top-Level-Array (beobachtet z.B. {"valid_json_array": [...]}
@@ -721,7 +778,9 @@ async def _llm_review_once(
         else:
             response_arr = response if isinstance(response, list) else []
         if not response_arr:
-            raise ValueError(f"LLM lieferte keine Kandidatenbewertung (Antwort: {json.dumps(response, ensure_ascii=False)[:300]})")
+            raise ValueError(
+                f"LLM lieferte keine Kandidatenbewertung (Antwort: {json.dumps(response, ensure_ascii=False)[:300]})"
+            )
         reviewed = []
         for r in response_arr:
             if not isinstance(r, dict):
@@ -739,7 +798,9 @@ async def _llm_review_once(
             reviewed.append((chunk, confidence / 100.0, link_type, reason))
         return reviewed
     except Exception as e:
-        raise RuntimeError(f"LLM-Prüfung für {entity.name} fehlgeschlagen: {type(e).__name__}: {e}") from e
+        raise RuntimeError(
+            f"LLM-Prüfung für {entity.name} fehlgeschlagen: {type(e).__name__}: {e}"
+        ) from e
 
 
 def _entity_content_hash(entity: CodeEntity) -> str:
@@ -760,7 +821,9 @@ def _entity_content_hash(entity: CodeEntity) -> str:
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
-def _stamp_link_snapshot(link: EntityDocLink, entity: CodeEntity, chunk: DocumentChunk, model: str) -> None:
+def _stamp_link_snapshot(
+    link: EntityDocLink, entity: CodeEntity, chunk: DocumentChunk, model: str
+) -> None:
     """Persist the exact endpoint state used for one recommendation."""
     link.entity_content_hash = _entity_content_hash(entity)
     link.chunk_content_hash = chunk.content_hash or content_fingerprint(chunk.content or "")
@@ -788,7 +851,9 @@ def _undecided_pages(db, entity: CodeEntity, top_pages: list) -> list:
     return [page for page in top_pages if page[0].id not in decided]
 
 
-def _store_reviewed_links(db, project_id: int, entity: CodeEntity, reviewed: list, embedding_model: str) -> None:
+def _store_reviewed_links(
+    db, project_id: int, entity: CodeEntity, reviewed: list, embedding_model: str
+) -> None:
     """Legt bewertete Vorschläge an oder aktualisiert sie; bestehende Links werden gebündelt gelesen."""
     if not reviewed:
         return
@@ -806,7 +871,11 @@ def _store_reviewed_links(db, project_id: int, entity: CodeEntity, reviewed: lis
         meta = chunk.metadata_json or {}
         if link is None:
             link = EntityDocLink(
-                project_id=project_id, entity_id=entity.id, chunk_id=chunk.id, status="pending", created_by="auto",
+                project_id=project_id,
+                entity_id=entity.id,
+                chunk_id=chunk.id,
+                status="pending",
+                created_by="auto",
             )
             db.add(link)
             existing[chunk.id] = link
@@ -826,9 +895,15 @@ def _profile_run_defaults(db) -> dict:
     gemessenen Werte aus ``LinkRunParams.LOCAL_PROFILE_DEFAULTS``, entfernte und Cloud-Profile die allgemeinen."""
     try:
         settings = db.query(AISettings).order_by(AISettings.id).first()
-        profile = db.get(AIProfile, settings.active_profile_id) if settings and settings.active_profile_id else None
+        profile = (
+            db.get(AIProfile, settings.active_profile_id)
+            if settings and settings.active_profile_id
+            else None
+        )
     except Exception:
-        logger.warning("[LinkBuilder] Aktives KI-Profil nicht lesbar; allgemeine Standardwerte", exc_info=True)
+        logger.warning(
+            "[LinkBuilder] Aktives KI-Profil nicht lesbar; allgemeine Standardwerte", exc_info=True
+        )
         return {}
     return _defaults_for_profile_kind(profile.kind if profile is not None else None)
 
@@ -1015,13 +1090,25 @@ async def compute_entity_links_async(
 
         scope = dict(run.scope_json or {})
         resume_after_id = int(scope.get("resume_after_id") or 0)
-        entities = sorted((entity for entity in entities if entity.id > resume_after_id), key=lambda entity: entity.id)
+        entities = sorted(
+            (entity for entity in entities if entity.id > resume_after_id),
+            key=lambda entity: entity.id,
+        )
         processed_before = int(scope.get("processed_items") or 0) if resume_after_id else 0
         max_items = max(1, min(5000, int(scope.get("max_items") or 200)))
-        total_items = int(scope.get("total_items") or len(entities)) if resume_after_id else len(entities)
-        scope.update(total_items=total_items, processed_items=processed_before, max_items=max_items, params=params.as_dict())
+        total_items = (
+            int(scope.get("total_items") or len(entities)) if resume_after_id else len(entities)
+        )
+        scope.update(
+            total_items=total_items,
+            processed_items=processed_before,
+            max_items=max_items,
+            params=params.as_dict(),
+        )
         run.scope_json = scope
-        run.progress_message = f"{processed_before} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
+        run.progress_message = (
+            f"{processed_before} von {total_items} Code-Entitäten geprüft (Budget: {max_items})."
+        )
         db.commit()
 
         if not entities:
@@ -1064,7 +1151,12 @@ async def compute_entity_links_async(
             todo = [e for e in window if bootstrap or e.id in dirty_entity_ids or dirty_chunk_ids]
             contexts = {
                 e.id: _build_entity_context(
-                    e, project_id, db, breadcrumbs_by_entity.get(e.id, ""), relationships_by_entity, chunks_by_file_window
+                    e,
+                    project_id,
+                    db,
+                    breadcrumbs_by_entity.get(e.id, ""),
+                    relationships_by_entity,
+                    chunks_by_file_window,
                 )
                 for e in todo
             }
@@ -1072,21 +1164,44 @@ async def compute_entity_links_async(
 
             prepared = []
             for entity in todo:
-                candidate_chunk_ids = None if (bootstrap or entity.id in dirty_entity_ids) else dirty_chunk_ids
+                candidate_chunk_ids = (
+                    None if (bootstrap or entity.id in dirty_entity_ids) else dirty_chunk_ids
+                )
                 semantic = await _pass_semantic(
-                    entity, project_id, db, selected_embedding_model, candidate_chunk_ids,
-                    entity_context=contexts[entity.id], embedding=embeddings.get(entity.id),
-                    top_k=params.top_k_semantic, min_score=params.min_score_semantic, per_chunk=params.dedupe_by_chunk,
+                    entity,
+                    project_id,
+                    db,
+                    selected_embedding_model,
+                    candidate_chunk_ids,
+                    entity_context=contexts[entity.id],
+                    embedding=embeddings.get(entity.id),
+                    top_k=params.top_k_semantic,
+                    min_score=params.min_score_semantic,
+                    per_chunk=params.dedupe_by_chunk,
                 )
                 keyword = _pass_keyword(
-                    entity, project_id, db, selected_embedding_model, candidate_chunk_ids, corpus=keyword_corpus,
-                    top_k=params.top_k_keyword, min_score=params.min_score_keyword, per_chunk=params.dedupe_by_chunk,
+                    entity,
+                    project_id,
+                    db,
+                    selected_embedding_model,
+                    candidate_chunk_ids,
+                    corpus=keyword_corpus,
+                    top_k=params.top_k_keyword,
+                    min_score=params.min_score_keyword,
+                    per_chunk=params.dedupe_by_chunk,
                     selection=params.keyword_selection,
                 )
-                top_pages = _exclude_own_source(entity, _merge_passes(
-                    (semantic, "semantic"), (keyword, "keyword"), threshold=params.merge_threshold,
-                ))
-                undecided = _undecided_pages(db, entity, top_pages)  # nach Score absteigend sortiert
+                top_pages = _exclude_own_source(
+                    entity,
+                    _merge_passes(
+                        (semantic, "semantic"),
+                        (keyword, "keyword"),
+                        threshold=params.merge_threshold,
+                    ),
+                )
+                undecided = _undecided_pages(
+                    db, entity, top_pages
+                )  # nach Score absteigend sortiert
                 if params.max_review_candidates:
                     undecided = undecided[: params.max_review_candidates]
                 prepared.append((entity, contexts[entity.id], undecided))
@@ -1099,18 +1214,25 @@ async def compute_entity_links_async(
                     return []
                 async with gate:
                     return await _llm_review(
-                        entity, pages, min_confidence=params.min_confidence, entity_context=context,
+                        entity,
+                        pages,
+                        min_confidence=params.min_confidence,
+                        entity_context=context,
                         batch_size=params.review_batch_size,
                     )
 
-            reviews = await asyncio.gather(*(review(item) for item in prepared), return_exceptions=True)
+            reviews = await asyncio.gather(
+                *(review(item) for item in prepared), return_exceptions=True
+            )
 
             for offset, ((entity, _context, _pages), reviewed) in enumerate(zip(prepared, reviews)):
                 if isinstance(reviewed, BaseException):
                     raise reviewed  # frühere Entities des Fensters sind bereits gespeichert
                 db.refresh(run)
                 if run.status == "cancelled":
-                    logger.info(f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen.")
+                    logger.info(
+                        f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen."
+                    )
                     return
                 # Veraltete automatische Vorschläge nur dieser Entity ersetzen; ein begrenzter oder
                 # fehlgeschlagener Lauf lässt die Links unberührter Entities stehen.
@@ -1121,7 +1243,9 @@ async def compute_entity_links_async(
                         EntityDocLink.status == "pending",
                     )
                     if entity.id not in dirty_entity_ids:
-                        stale_query = stale_query.filter(EntityDocLink.chunk_id.in_(dirty_chunk_ids))
+                        stale_query = stale_query.filter(
+                            EntityDocLink.chunk_id.in_(dirty_chunk_ids)
+                        )
                     for link in stale_query.all():
                         if _is_auto_link(link):
                             db.delete(link)
@@ -1131,9 +1255,9 @@ async def compute_entity_links_async(
                 entity.embedding_model = selected_embedding_model
                 done_ids = dirty_by_entity.pop(entity.id, [])
                 if done_ids:
-                    db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id.in_(done_ids)).delete(
-                        synchronize_session=False
-                    )
+                    db.query(LinkBuilderDirtyItem).filter(
+                        LinkBuilderDirtyItem.id.in_(done_ids)
+                    ).delete(synchronize_session=False)
 
                 processed_index = position + window.index(entity) + 1
                 scope = dict(run.scope_json or {})
@@ -1148,9 +1272,13 @@ async def compute_entity_links_async(
             if position >= max_items and overall_processed < total_items:
                 run.status = "cancelled"
                 run.progress_message = f"Budget nach {overall_processed} von {total_items} Entitäten erreicht; im Job Center fortsetzen."
-                run.links_created = db.query(EntityDocLink).filter(
-                    EntityDocLink.project_id == project_id, EntityDocLink.status == "pending"
-                ).count()
+                run.links_created = (
+                    db.query(EntityDocLink)
+                    .filter(
+                        EntityDocLink.project_id == project_id, EntityDocLink.status == "pending"
+                    )
+                    .count()
+                )
                 run.finished_at = datetime.now(timezone.utc)
                 db.commit()
                 return
@@ -1158,7 +1286,9 @@ async def compute_entity_links_async(
         # A changed document affects every entity. Remove its dirty marker only
         # after the entire scan has finished, including across budgeted runs.
         if dirty_chunk_ids:
-            db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id.in_(queue_ids)).delete(synchronize_session=False)
+            db.query(LinkBuilderDirtyItem).filter(LinkBuilderDirtyItem.id.in_(queue_ids)).delete(
+                synchronize_session=False
+            )
             db.commit()
 
         total_new = (
@@ -1220,8 +1350,12 @@ async def compute_entity_links_async(
                 requeue_db.commit()
                 requeue_db.refresh(new_run)
                 result = current_app.send_task(
-                    "compute_entity_links", args=[new_run.id, project_id],
-                    kwargs={"min_confidence": effective_min_confidence, "embedding_model": selected_embedding_model},
+                    "compute_entity_links",
+                    args=[new_run.id, project_id],
+                    kwargs={
+                        "min_confidence": effective_min_confidence,
+                        "embedding_model": selected_embedding_model,
+                    },
                 )
                 if getattr(result, "id", None):
                     new_run.celery_task_id = result.id
