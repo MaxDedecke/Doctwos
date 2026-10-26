@@ -158,7 +158,7 @@ def test_graph_export_neo4j_and_undirected_links(client, db_session, test_projec
         resp = client.get(f"/graph/export/neo4j?project_id={test_project}")
         assert resp.status_code == 200
         cypher = resp.json()["cypher"]
-        assert f"MERGE (a)-[:SEMANTIC {{score: 0.87}}]->(b);" in cypher
+        assert "MERGE (a)-[:SEMANTIC {score: 0.87}]->(b);" in cypher
         assert "MERGE (a)-[:RELATED {score: 0.95}]->(b) MERGE (b)-[:RELATED {score: 0.95}]->(a);" in cypher
 
         csv_resp = client.get(f"/graph/export?format=csv&project_id={test_project}")

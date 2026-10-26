@@ -1,6 +1,5 @@
 """Hochgeladene Dokumente: Abschnittsgrenzen, Metadaten, Fehlerstatus und Chunk-Kandidaten pro Stelle."""
 
-import os
 
 import pytest
 from sqlalchemy import text

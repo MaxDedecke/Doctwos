@@ -7,7 +7,6 @@ Validates:
 - Shared constants and synchronization across backend and parser models
 """
 
-import pytest
 from sqlalchemy.orm import Session
 
 from models.database import (
@@ -16,12 +15,8 @@ from models.database import (
     EDGE_DIRECTION_UNDIRECTED,
     VALID_EDGE_DIRECTIONS,
     CodeEdge,
-    CodeEntity,
-    DocumentChunk,
     EntityDocLink,
     KnowledgeLink,
-    KnowledgeSource,
-    Project,
 )
 
 

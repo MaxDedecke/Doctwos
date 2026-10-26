@@ -1575,16 +1575,16 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     user_obj = db_session.get(type(user), user.id)
 
     down = drop.drop(db_session, user_obj, project_id, main, layers=3)
-    assert [(l["layer"], l["count"]) for l in down["layers"]] == [(0, 1), (1, 2), (2, 1), (3, 0)]
+    assert [(lay["layer"], lay["count"]) for lay in down["layers"]] == [(0, 1), (1, 2), (2, 1), (3, 0)]
     assert down["layers"][1]["edges"][0]["cite"] == "src/Unit.src:12"
     assert down["layers"][2]["unresolved"] == 1 and down["layers"][1]["unresolved"] == 0
     assert down["layers"][2]["nodes"][0]["name"] == "leaf" and down["stopped"] == "end"
 
     with_data = drop.drop(db_session, user_obj, project_id, main, layers=4, kinds=["control", "data"])
-    assert [l["count"] for l in with_data["layers"]] == [1, 2, 1, 1, 0]  # leaf -> other nur mit der Art "data"
+    assert [lay["count"] for lay in with_data["layers"]] == [1, 2, 1, 1, 0]  # leaf -> other nur mit der Art "data"
 
     up = drop.drop(db_session, user_obj, project_id, leaf, direction="up", layers=3)
-    assert [n["name"] for l in up["layers"][1:] for n in l["nodes"]] == ["init", "main"]
+    assert [n["name"] for lay in up["layers"][1:] for n in lay["nodes"]] == ["init", "main"]
 
     collapsed = drop.drop(db_session, user_obj, project_id, main, layers=3, collapse_above=1)
     assert collapsed["layers"][1] == {"layer": 1, "count": 2, "unresolved": 0, "collapsed": True, "nodes": [], "edges": []}

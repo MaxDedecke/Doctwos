@@ -2,7 +2,6 @@
 Tests für backend/api/config_router.py — System- und SSO-Konfigurations-Endpoints.
 """
 
-import pytest
 
 
 def test_get_features_unauthenticated(unauthenticated_client):

@@ -297,7 +297,7 @@ async def test_java_reparse_preserves_incoming_edge_and_resume_skips_unchanged_f
         )
         .one()
     )
-    call_before = next(
+    _call_before = next(
         edge
         for edge in db_session.query(CodeEdge)
         .filter(CodeEdge.source_id == java_source.id, CodeEdge.type == "CALLS")

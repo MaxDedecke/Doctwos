@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import re
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, ROUTINE_TYPES, role_of

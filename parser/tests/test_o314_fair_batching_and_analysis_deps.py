@@ -1,7 +1,7 @@
 import asyncio
 import os
 import pytest
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -10,14 +10,13 @@ from connectors.git import (
     GitConnector,
     _analysis_dependency_paths,
 )
-from core import config
 from core.inference_admission import (
     CHAT_RESERVE,
     MAX_CONCURRENCY,
     admission_wait_tracker,
     track_admission_wait,
 )
-from models.database import Base, CodeEdge, CodeEntity, KnowledgeSource
+from models.database import Base, CodeEdge, CodeEntity
 
 
 def test_analysis_dependency_paths_targeted_sql_join():

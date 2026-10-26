@@ -50,7 +50,6 @@ from services.search import search_nodes
 from core.language_profile import role_of
 from services import drop as drop_view
 from services import evidence as evidence_blocks
-from services.source_access import COMMENT_START as _COMMENT_START
 from services.source_access import numbered as _numbered
 from services.source_access import site_excerpt as _site_excerpt
 from services.source_access import source_visible as _source_visible
@@ -1418,8 +1417,6 @@ def research_project(ctx: Context, project_id: int, query: str, limit: int = 8, 
             if resolved_mentions:
                 prose_query, terms = terms[0], resolved_mentions
         by_id: dict[int, CodeEntity] = {}
-        visible_teams = get_visible_team_ids(user, db)
-        visible_projects = get_visible_project_ids(user, db)
         for term in terms:
             found_entities, _suggestions, _mode = _find_entities(db, user, project_id, term, limit)
             needle = term.replace("\\", "/").casefold()
