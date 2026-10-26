@@ -3,11 +3,15 @@
 from core.model import Entity, ParseResult
 
 
-def scope_candidates(candidates: list[Entity], result: ParseResult) -> list[Entity]:
+def scope_candidates(
+    candidates: list[Entity], result: ParseResult, *, runtime=False
+) -> list[Entity]:
     root_meta = next((e.meta for e in result.entities if e.meta.get("is_file_root")), {})
     module = root_meta.get("module")
     source_set = root_meta.get("source_set")
     visibility = root_meta.get("maven_visibility")
+    if runtime:
+        visibility = root_meta.get("maven_runtime_visibility", visibility)
     scoped = candidates
     if visibility is not None:
         scoped = [e for e in scoped if e.meta.get("module") in visibility]

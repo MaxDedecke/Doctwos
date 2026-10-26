@@ -17,7 +17,7 @@ def apply_maven_scopes(results, projects, *, active_profiles=None):
     for path, model in effective.items():
         coordinates[(model["groupId"], model["artifactId"])].append(path)
 
-    def visible(path, is_test):
+    def visible(path, is_test, runtime=False):
         found, issues = {path}, []
         queue = [(path, True, frozenset())]
         while queue:
@@ -29,7 +29,9 @@ def apply_maven_scopes(results, projects, *, active_profiles=None):
                     continue
                 if scope == "test" and (not is_test or not direct):
                     continue
-                if (scope == "runtime" and not is_test) or (scope == "provided" and not direct):
+                if (scope == "runtime" and not is_test and not runtime) or (
+                    scope == "provided" and not direct
+                ):
                     continue
                 if scope not in {"compile", "provided", "test", "runtime"} or dep.get("classifier"):
                     continue
@@ -66,11 +68,13 @@ def apply_maven_scopes(results, projects, *, active_profiles=None):
             continue
         _, path, source_set = max(matches)
         visibility, issues = visible(path, source_set != "main")
+        runtime_visibility, _ = visible(path, source_set != "main", runtime=True)
         for entity in result.entities:
             entity.meta.update(module=posixpath.dirname(path) or ".", source_set=source_set)
             if entity.meta.get("is_file_root"):
                 entity.meta.update(
                     maven_visibility=visibility,
+                    maven_runtime_visibility=runtime_visibility,
                     maven_issues=effective[path]["issues"] + issues,
                     maven_active_profiles=effective[path]["active_profiles"],
                 )

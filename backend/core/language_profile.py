@@ -37,10 +37,10 @@ JAVA = LanguageProfile(
     containers=frozenset(
         {"class", "interface", "enum", "record", "annotation_type", "anonymous_class"}
     ),
-    routines=frozenset({"method", "constructor", "lambda", "initializer"}),
+    routines=frozenset({"method", "constructor", "lambda", "initializer", "endpoint"}),
     data=frozenset({"field", "local_variable", "parameter", "record_component"}),
-    control_edges=frozenset({"CALLS"}),
-    include_edges=frozenset({"IMPORTS", "EXTENDS", "IMPLEMENTS"}),
+    control_edges=frozenset({"CALLS", "EXPOSES", "DISPATCHES_TO"}),
+    include_edges=frozenset({"IMPORTS", "IMPORTS_MODULE", "EXTENDS", "IMPLEMENTS", "INJECTS"}),
 )
 JCL = LanguageProfile(
     name="jcl",

@@ -16,6 +16,7 @@ from maven.parse import parse_maven_pom
 from markup.parse import parse_xml_document
 from markup.jsp_html import parse_jsp_or_html
 from resources.asciidoc import parse_asciidoc_file
+from resources.configuration import parse_configuration
 from resources.groovy import parse_groovy_file
 from resources.javascript import parse_javascript_file
 from resources.properties import parse_properties_file
@@ -66,6 +67,11 @@ def _parse_java(text: str, path: str, *, prepared_source: Any = None, **kwargs: 
 
 
 STRUCTURE_PARSERS: dict[str, ParserEntry] = {
+    "configuration": ParserEntry(
+        parse=parse_configuration,
+        root_entity_types=("configuration_file",),
+        parser_version="configuration-structure-1",
+    ),
     "jcl": ParserEntry(
         parse=parse_jcl_file,
         root_entity_types=("jcl_file",),
@@ -88,7 +94,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "java": ParserEntry(
         parse=_parse_java,
         root_entity_types=("compilation_unit",),
-        parser_version="java-structure-9",
+        parser_version="java-structure-10",
         grammar_fingerprint=java_grammar_fingerprint,
     ),
     "maven": ParserEntry(
@@ -107,7 +113,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "xml": ParserEntry(
         parse=parse_xml_document,
         root_entity_types=("xml_document",),
-        parser_version="xml-root-3",
+        parser_version="xml-enterprise-4",
     ),
     "html": ParserEntry(
         parse=parse_jsp_or_html,

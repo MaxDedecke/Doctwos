@@ -11,6 +11,8 @@ from .chunking import chunk_java_source
 from .modern import ModernDeclarationVisitor, ModernRelationshipVisitor
 from .modules import module_from_path, source_kind_from_path, source_set_from_path
 from .resolution import resolve_global_edges, resolve_local_edges
+from .endpoints import add_endpoints
+from .injection import add_bean_metadata
 from ._antlr.JavaParser import JavaParser
 
 
@@ -92,4 +94,6 @@ def parse_java_file(
     # local declaration pass.  Repository persistence runs the same resolver
     # again across all files after the sync.
     resolve_global_edges([result])
+    add_bean_metadata(result)
+    add_endpoints(result)
     return result

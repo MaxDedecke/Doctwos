@@ -45,6 +45,7 @@ from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
 from maven.workspace import resolve_scoped_java
+from tasks.framework_resolver import resolve_framework_edges
 
 # CALL-Ziele sind Programme, COPY-Ziele sind Copybooks — getrennt statt über
 # einen gemeinsamen Namensindex, damit ein Programm und ein gleichnamiges
@@ -708,6 +709,7 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     """
     resolved = _resolve_cobol_edges(db, source_id)
     resolved += _resolve_java_edges(db, source_id)
+    resolved += resolve_framework_edges(db, source_id)
     resolved += _resolve_xslt_edges(db, source_id)
     resolved += _resolve_markup_edges(db, source_id)
     resolved += _resolve_shell_edges(db, source_id)

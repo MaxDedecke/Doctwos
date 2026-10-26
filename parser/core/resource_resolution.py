@@ -147,6 +147,15 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
         return 0
     key = meta.get("property_key")
     candidates = properties_by_key.get((key, edge.variant_key), [])
+    import os
+
+    profiles = set(filter(None, os.getenv("DOCTUS_SPRING_PROFILES", "").split(","))) or {"default"}
+    candidates = [
+        c
+        for c in candidates
+        if not (c.meta_json or {}).get("configuration_profile")
+        or (c.meta_json or {}).get("configuration_profile") in profiles
+    ]
     module = module_from_path(source.file_path)
     scope = "project"
     local = [
@@ -154,6 +163,11 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
     ]
     if local:
         candidates, scope = local, "module"
+    overrides = [
+        c for c in candidates if (c.meta_json or {}).get("configuration_profile") in profiles
+    ]
+    if overrides:
+        candidates = overrides
     if len(candidates) > 1:
         # Wicket-Konvention: `<Klasse>.properties` bzw. `package.properties` im
         # selben Paketpfad wie die Java-Datei geht dem Modul-Bestand vor.

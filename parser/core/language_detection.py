@@ -20,6 +20,7 @@ import re
 # O-249) without pretending that every vocabulary has full semantic support.
 DEFAULT_LANGUAGE_EXTENSIONS: dict[str, set[str]] = {
     "asciidoc": {".adoc", ".asciidoc"},
+    "configuration": {".yaml", ".yml", ".json", ".ini", ".cfg", ".conf"},
     "c": {".c", ".h"},
     "cpp": {".cc", ".cpp", ".cxx", ".hxx", ".hpp"},
     "csharp": {".cs"},

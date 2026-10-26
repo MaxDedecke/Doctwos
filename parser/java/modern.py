@@ -8,6 +8,44 @@ from .relationships import JavaRelationshipVisitor
 
 
 class ModernDeclarationVisitor(JavaDeclarationVisitor):
+    def _parameters(self, owner, context, **kwargs):
+        before = len(self.entities)
+        super()._parameters(owner, context, **kwargs)
+        if context is None:
+            return
+        from ._antlr.JavaParser import JavaParser
+
+        def formal(node):
+            if getattr(node, "getRuleIndex", lambda: -1)() == JavaParser.RULE_formalParameter:
+                return [node]
+            return [p for c in getattr(node, "children", []) or [] for p in formal(c)]
+
+        parameters = formal(context)
+        for entity in self.entities[before:]:
+            if entity.type == "parameter" and entity.meta["index"] < len(parameters):
+                node = parameters[entity.meta["index"]]
+                details = []
+                for modifier in node.variableModifier():
+                    annotation = modifier.annotation()
+                    if annotation is None:
+                        continue
+                    values = {}
+                    fields = annotation.annotationFieldValues()
+                    for item in fields.annotationFieldValue() if fields is not None else []:
+                        key = item.identifier().getText() if item.identifier() else "value"
+                        values[key] = item.annotationValue().getText()[:500]
+                    details.append(
+                        {
+                            "name": annotation.qualifiedName().getText(),
+                            "values": values,
+                            "source": annotation.getText()[:1000],
+                        }
+                    )
+                if details:
+                    entity.meta.update(
+                        annotation_details=details, annotations=[a["name"] for a in details]
+                    )
+
     def visitModuleDeclaration(self, context):
         super().visitModuleDeclaration(context)
         module = self.entities[-1]

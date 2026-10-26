@@ -143,10 +143,14 @@ def parse_xml_document(source: str, path: str, **_: object) -> ParseResult:
             "namespace": root.tag.split("}", 1)[0][1:] if root.tag.startswith("{") else None,
         },
     )
-    return ParseResult(
+    result = ParseResult(
         program_name=PurePosixPath(path).stem or name,
         path=path,
         source_format="free",
         entities=[entity],
         chunks=chunks,
     )
+    from .enterprise import add_enterprise_xml
+
+    add_enterprise_xml(result, _without_html_named_entities(parse_source))
+    return result
