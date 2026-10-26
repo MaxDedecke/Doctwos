@@ -102,6 +102,10 @@ def _declarations(method, owner, result):
             "operation": next(iter(strings(operation.get("operationName"))), method.name),
             "namespace": next(iter(strings(service.get("targetNamespace"))), None),
             "service_name": next(iter(strings(service.get("serviceName"))), None),
+            "port_type": next(
+                iter(strings(service.get("name"))),
+                owner.name if owner.type == "interface" else None,
+            ),
             "endpoint_interface": next(iter(strings(service.get("endpointInterface"))), None),
             "wsdl_location": next(iter(strings(service.get("wsdlLocation"))), None),
         }
@@ -145,6 +149,8 @@ def add_endpoints(result):
                 },
             )
             result.entities.append(entity)
+            if metadata["protocol"] == "soap":
+                _schema_edge(result, qname, method, metadata)
             result.edges.append(
                 ParsedEdge(
                     "EXPOSES",
@@ -162,3 +168,31 @@ def add_endpoints(result):
                     },
                 )
             )
+
+
+def _schema_edge(result, qname, method, metadata):
+    namespace, operation = metadata.get("namespace"), metadata.get("operation")
+    spring = metadata["framework"] == "spring-ws"
+    result.edges.append(
+        ParsedEdge(
+            "HANDLES_XML_ELEMENT" if spring else "IMPLEMENTS_OPERATION",
+            qname,
+            operation or method.name,
+            "unresolved",
+            method.start_line,
+            method.start_line,
+            meta={
+                "language": "java",
+                "source_qualified_name": qname,
+                "soap_endpoint": True,
+                "target_xml_qname": "{" + namespace + "}" + operation
+                if namespace is not None and operation
+                else None,
+                "target_entity_types": ["xsd_element"] if spring else ["wsdl_operation"],
+                "target_operation_role": None if spring else "port_type",
+                "target_owner_xml_qname": "{" + namespace + "}" + metadata["port_type"]
+                if namespace is not None and metadata.get("port_type")
+                else None,
+            },
+        )
+    )

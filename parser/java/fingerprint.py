@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 from pathlib import Path
 
 
@@ -14,4 +15,7 @@ def grammar_fingerprint() -> str:
         digest.update(b"\0")
         digest.update(grammar.read_bytes())
         digest.update(b"\0")
+    digest.update(
+        str(os.getenv("DOCTUS_INCLUDE_GENERATED_JAVA", "").lower() in {"1", "true", "yes"}).encode()
+    )
     return digest.hexdigest()

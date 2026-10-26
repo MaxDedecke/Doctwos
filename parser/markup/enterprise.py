@@ -6,8 +6,8 @@ from .xml_facts import xml_facts
 SPRING_BEANS = "http://www.springframework.org/schema/beans}"
 
 
-def add_enterprise_xml(result, source):
-    facts = xml_facts(source)
+def add_enterprise_xml(result, source, *, facts=None):
+    facts = xml_facts(source) if facts is None else facts
     root = result.entities[0]
     beans = {}
     for index, fact in enumerate(facts):

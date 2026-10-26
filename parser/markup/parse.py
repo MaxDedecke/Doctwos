@@ -72,7 +72,7 @@ def parse_xml_document(source: str, path: str, **_: object) -> ParseResult:
 
     XML vocabularies such as XSD and WSDL remain deliberately represented as a
     single document entity.  Dedicated vocabulary parsers can be added later
-    without changing the registry contract.
+    without changing the registry schema.
     """
 
     normalized_path = PurePosixPath(path.replace("\\", "/")).as_posix()
@@ -151,6 +151,10 @@ def parse_xml_document(source: str, path: str, **_: object) -> ParseResult:
         chunks=chunks,
     )
     from .enterprise import add_enterprise_xml
+    from .schemas import add_schema_xml
+    from .xml_facts import xml_facts
 
-    add_enterprise_xml(result, _without_html_named_entities(parse_source))
+    facts = xml_facts(_without_html_named_entities(parse_source))
+    add_enterprise_xml(result, parse_source, facts=facts)
+    add_schema_xml(result, facts)
     return result

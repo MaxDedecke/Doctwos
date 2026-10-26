@@ -13,6 +13,7 @@ from .modules import module_from_path, source_kind_from_path, source_set_from_pa
 from .resolution import resolve_global_edges, resolve_local_edges
 from .endpoints import add_endpoints
 from .injection import add_bean_metadata
+from .jaxb import add_jaxb_edges
 from ._antlr.JavaParser import JavaParser
 
 
@@ -96,4 +97,5 @@ def parse_java_file(
     resolve_global_edges([result])
     add_bean_metadata(result)
     add_endpoints(result)
+    add_jaxb_edges(result)
     return result

@@ -64,3 +64,30 @@ def module_from_path(path: str) -> str | None:
         ] == ["src", "generated"]:
             return "/".join(parts[:index]) or "."
     return None
+
+
+_BUILD_EXCLUDED_DIRS = {
+    "target",
+    "build",
+    ".gradle",
+    "bin",
+    "out",
+    ".idea",
+    ".settings",
+}
+
+
+def is_build_excluded(path, extensions):
+    import os
+    from core.language_detection import detect_language
+
+    if detect_language(path, extensions) != "java":
+        return False
+    parts = path.replace("\\", "/").split("/")
+    enabled = os.getenv("DOCTUS_INCLUDE_GENERATED_JAVA", "").lower() in {"1", "true", "yes"}
+    generated = any(
+        parts[i : i + 2] == ["target", "generated-sources"] for i in range(len(parts) - 2)
+    )
+    if enabled and generated:
+        return False
+    return any(p.lower() in _BUILD_EXCLUDED_DIRS for p in parts[:-1])

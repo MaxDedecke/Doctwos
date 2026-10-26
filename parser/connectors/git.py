@@ -53,6 +53,7 @@ from core.registry import STRUCTURE_PARSERS
 from structure_persist import persist_parse_result, rehome_shared_java_container
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
 from db import REPOS_ROOT
+from java.modules import is_build_excluded as _is_java_build_excluded
 from java.modules import module_from_path
 from models.database import (
     CodeEdge,
@@ -90,16 +91,6 @@ _DEFAULT_EXTENSIONS: dict[str, set[str]] = {
     "copybook": {".cpy", ".copy"},
     "jcl": {".jcl", ".proc", ".prc"},
 }
-_JAVA_BUILD_EXCLUDED_DIRS = {
-    "target",
-    "build",
-    ".gradle",
-    "bin",
-    "out",
-    ".idea",
-    ".settings",
-}
-
 _JAVA_MODULE_METADATA_NAMES = {
     "pom.xml",
     "build.gradle",
@@ -317,15 +308,6 @@ def classify_extension(
 ) -> str:
     """Backward-compatible name for the repository language detector."""
     return detect_language(path, extensions, content=content)
-
-
-def _is_java_build_excluded(path: str, extensions: dict[str, set[str]]) -> bool:
-    if classify_extension(path, extensions) != "java":
-        return False
-    return any(
-        part.lower() in _JAVA_BUILD_EXCLUDED_DIRS
-        for part in path.replace("\\", "/").split("/")[:-1]
-    )
 
 
 def _fingerprint_libraries(

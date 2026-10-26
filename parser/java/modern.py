@@ -65,7 +65,13 @@ class ModernDeclarationVisitor(JavaDeclarationVisitor):
     def visitCompilationUnit(self, context):
         compact = context.compactCompilationUnit()
         if compact is None:
-            return super().visitCompilationUnit(context)
+            value = super().visitCompilationUnit(context)
+            if context.packageDeclaration() is not None:
+                details = self._annotation_metadata(context.packageDeclaration())
+                if details:
+                    package = next(e for e in self.entities if e.type == "package")
+                    package.meta["annotation_details"] = details
+            return value
         if not any(
             (
                 compact.methodDeclaration(),

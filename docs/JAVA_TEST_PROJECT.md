@@ -60,3 +60,26 @@ inkrementelle Neuverarbeitung erhöht.
 
 Abnahme: `test_java_frameworks.py`, `test_enterprise_configuration.py` und
 `test_framework_persistence.py` einschließlich wiederholter Auflösung.
+
+## SOAP-Schnittstellen und generierte Quellen
+
+- WSDL 1.1 wird in Services, Ports, Bindings, Port-Types, Operationen, Nachrichten
+  und Parts zerlegt; SOAP-Actions und Endpoint-Adressen bleiben erhalten.
+- XSDs liefern globale/lokale Elemente, Attribute und benannte/anonyme Typen.
+  Typverwendung, Ableitung, Referenzen und lokale Schema-/WSDL-Imports werden
+  über Namespace-QNames verbunden. Eingebaute XSD-Typen sind ausdrücklich extern.
+- JAX-WS-Endpunkte werden mit WSDL-Operationen, Spring-WS-Endpunkte mit ihren
+  Request-Elementen verbunden. JAXB-Annotationen verbinden Java-Typen und Felder
+  mit XSDs; `package-info.java` liefert modulbezogene Namespace-Defaults.
+- `DOCTUS_INCLUDE_GENERATED_JAVA=true` erlaubt vorhandene Java-Dateien unter
+  `target/generated-sources`. Andere Build-Artefakte bleiben ausgeschlossen.
+  Die Einstellung geht in den Analyse-Fingerprint ein. Doctus startet weder
+  Maven-Plugins noch `wsimport`/`xjc`; fehlende generierte Quellen sind eine Lücke.
+- Umbenannte/entfernte Zieltypen löschen die ursprüngliche Quellbeziehung nicht;
+  sie wird neu aufgelöst oder bleibt mit Begründung unaufgelöst.
+- Externe Schemas/URLs werden nicht heruntergeladen. Die Strukturanalyse ersetzt
+  keine vollständige XSD-Validierung und keine JAX-WS-/JAXB-Laufzeit; komplexe
+  Adapter und herstellerspezifische Bindings brauchen eigene Abnahmefälle.
+
+Abnahme: `test_soap_schemas.py` prüft die Kette Java-Endpunkt → WSDL-Operation →
+Nachricht → XSD einschließlich JAXB, Namespaces, Wiederholung und Zieländerung.

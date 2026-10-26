@@ -58,7 +58,7 @@ def _parse_copybook(
 
 
 def _parse_java(text: str, path: str, *, prepared_source: Any = None, **kwargs: Any) -> ParseResult:
-    """Adapt the generic registry contract to Java's source-only parser."""
+    """Adapt the generic registry schema to Java's source-only parser."""
     return parse_java_file(
         text,
         path,
@@ -94,7 +94,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "java": ParserEntry(
         parse=_parse_java,
         root_entity_types=("compilation_unit",),
-        parser_version="java-structure-10",
+        parser_version="java-structure-11",
         grammar_fingerprint=java_grammar_fingerprint,
     ),
     "maven": ParserEntry(
@@ -113,7 +113,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "xml": ParserEntry(
         parse=parse_xml_document,
         root_entity_types=("xml_document",),
-        parser_version="xml-enterprise-4",
+        parser_version="xml-schemas-5",
     ),
     "html": ParserEntry(
         parse=parse_jsp_or_html,

@@ -44,6 +44,8 @@ def xml_facts(source):
 
 
 def qname(value, namespaces, default_namespace=""):
+    if value.startswith("{") and "}" in value:
+        return value
     if ":" in value:
         prefix, local = value.split(":", 1)
         namespace = namespaces.get(prefix)

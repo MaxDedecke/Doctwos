@@ -227,23 +227,7 @@ def persist_parse_result(
                 reason="content_changed" if not was_new else "entity_added",
             )
 
-    stale_qnames = set(existing) - seen_qnames
-    for qname in list(stale_qnames):
-        row = existing[qname]
-        if (
-            row.type in SHARED_JAVA_CONTAINER_TYPES
-            and (row.meta_json or {}).get("language") == "java"
-            and row.file_path == file_path
-            and rehome_shared_java_container(db, row, dying_file_path=file_path)
-        ):
-            stale_qnames.discard(qname)
-    if stale_qnames:
-        db.query(CodeEntity).filter(
-            CodeEntity.source_id == source_id,
-            CodeEntity.file_path == file_path,
-            CodeEntity.variant_key == result.variant_key,
-            CodeEntity.qualified_name.in_(stale_qnames),
-        ).delete(synchronize_session=False)
+    _remove_stale_entities(db, existing, seen_qnames, source_id, file_path, result.variant_key)
 
     by_name: dict[str, list[CodeEntity]] = {}
     for row in by_qname.values():
@@ -279,6 +263,46 @@ def persist_parse_result(
 
     db.flush()
     return {"entities": len(by_qname), "edges": edge_count}
+
+
+def _remove_stale_entities(db, existing, seen_qnames, source_id, file_path, variant_key):
+    stale_qnames = set(existing) - seen_qnames
+    for qname in list(stale_qnames):
+        row = existing[qname]
+        if (
+            row.type in SHARED_JAVA_CONTAINER_TYPES
+            and (row.meta_json or {}).get("language") == "java"
+            and row.file_path == file_path
+            and rehome_shared_java_container(db, row, dying_file_path=file_path)
+        ):
+            stale_qnames.discard(qname)
+    if stale_qnames:
+        # Preserve the source fact when its former destination disappears.
+        # Otherwise ON DELETE CASCADE would erase incoming contract links.
+        stale_ids = [existing[name].id for name in stale_qnames]
+        incoming = (
+            db.query(CodeEdge)
+            .filter(
+                CodeEdge.source_id == source_id,
+                CodeEdge.variant_key == variant_key,
+                CodeEdge.dst_entity_id.in_(stale_ids),
+            )
+            .all()
+        )
+        for edge in incoming:
+            edge.dst_entity_id = None
+            edge.resolution = "unresolved"
+            meta = dict(edge.meta_json or {})
+            meta.pop("target_qualified_name", None)
+            meta["resolution_reason"] = "target_removed"
+            edge.meta_json = meta
+        db.flush()
+        db.query(CodeEntity).filter(
+            CodeEntity.source_id == source_id,
+            CodeEntity.file_path == file_path,
+            CodeEntity.variant_key == variant_key,
+            CodeEntity.qualified_name.in_(stale_qnames),
+        ).delete(synchronize_session=False)
 
 
 def _parent_id(
