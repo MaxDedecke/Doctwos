@@ -387,7 +387,8 @@ function AppContent() {
     const project = projects.find(item => item.id === ideLink.projectId);
     if (!project || !Number.isSafeInteger(ideLink.sourceId) || ideLink.sourceId <= 0 ||
         !Number.isSafeInteger(ideLink.line) || ideLink.line <= 0 || !ideLink.path) {
-      showToast('IDE-Link ist ungültig oder das Projekt ist nicht zugänglich.', 'error');
+      // Der Effekt darf den Toast-State nicht synchron setzen (Render-Kaskade).
+      queueMicrotask(() => showToast('IDE-Link ist ungültig oder das Projekt ist nicht zugänglich.', 'error'));
       return;
     }
     let cancelled = false;

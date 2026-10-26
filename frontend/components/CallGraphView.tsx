@@ -392,6 +392,9 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
   const zonesRef = useRef<Zone[]>([]);
   const nodesRef = useRef<CallNode[]>([]);
   const [layoutVersion, setLayoutVersion] = useState(0);
+  // Die Versätze liegen bewusst in einem Ref (Ziehen schreibt sie fort, ohne bei jeder Mausbewegung neu zu
+  // layouten) und werden nur bei einem Wurzelwechsel oder über layoutVersion neu eingelesen.
+  /* eslint-disable react-hooks/refs */
   const offsetOwnerRef = useRef<number | null | undefined>(undefined);
   const layoutOwner = currentRoot?.id ?? null;
   if (offsetOwnerRef.current !== layoutOwner) {
@@ -438,6 +441,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
     // layoutVersion: "Layout zurücksetzen" leert die Offsets und erzwingt Neuberechnung.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [graph, enabledTypes, currentRoot?.id, aspect, layoutVersion]);
+  /* eslint-enable react-hooks/refs */
 
   useEffect(() => {
     zonesRef.current = zones;
