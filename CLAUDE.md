@@ -22,7 +22,8 @@ offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 2. **Strikt Open Source.** Nur MIT/BSD/Apache-2.0. Jede neue Abhängigkeit muss in
    im für AP-9 vorgesehenen Lizenz-/Provenienzartefakt nachgetragen werden
    (Release-Voraussetzung).
-3. **Keine zusätzlichen Services.** Kein Neo4j, kein ElasticSearch, keine
+3. **Keine zusätzlichen Datenbank-/Such-Services.** Neben Backend, Frontend, Parser-Worker/Beat, DB, Redis und Ollama gibt es
+   `link-worker` (Verknüpfungen) und `deployer` (optional, Compose-Profil, siehe Arbeitsleitlinie Tag 2). Kein Neo4j, kein ElasticSearch, keine
    ANTLR-/tree-sitter-Runtime. Jede Komponente kostet OSS-Clearing,
    Offline-Bundle-Aufwand und Betriebsrisiko. **Ausnahme (E-11):** eine
    aktiv genutzte Sprachparser-Grammatik-Runtime (`antlr4-python3-runtime`,
@@ -69,7 +70,7 @@ Regeln dafür:
 - **Parser:** Celery-Worker — `parser/`, COBOL-Parser unter `parser/cobol/`
 - **DB:** PostgreSQL + pgvector (HNSW, bge-m3 = 1024 Dimensionen)
 - **Queue:** Redis/Valkey
-- **LLM:** Ollama (`mistral-nemo`), Embeddings `bge-m3`
+- **LLM:** Ollama (`qwen3:8b` als Standard, nur Untergrenze/Demo), Embeddings `bge-m3`
 - **Modell-Duplikat:** `backend/models/database.py` und `parser/models/database.py`
   sind getrennte physische Dateien (getrennte Docker-Build-Kontexte) und müssen
   **byte-identisch** bleiben — dasselbe gilt für `crypto_types.py`. Wer ORM-Modelle
