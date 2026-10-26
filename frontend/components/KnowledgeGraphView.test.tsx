@@ -757,10 +757,10 @@ describe('KnowledgeGraphView directed edge rendering (O-266)', () => {
     renderGraph();
 
     const linkEl = await screen.findByTestId('link-code:1');
-    // Distance = 100px. Der Zielknoten hat Grad 1: Radius = 8 + sqrt(1) * 1.8 = 9.8px,
-    // Abstand zur Umrandung 10.8px. Relative Position = 1 - 10.8/100 = 0.892
+    // Distance = 100px. Der Zielknoten hat Grad 1: Radius = (8 + sqrt(1) * 1.8) * NODE_RADIUS_SCALE (2,5) = 24.5px,
+    // Abstand zur Umrandung 25.5px. Relative Position = 1 - 25.5/100 = 0.745
     const relPos = Number(linkEl.getAttribute('data-arrow-rel-pos'));
-    expect(relPos).toBeCloseTo(0.892, 2);
+    expect(relPos).toBeCloseTo(0.745, 2);
   });
 });
 

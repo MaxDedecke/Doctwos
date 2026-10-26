@@ -71,7 +71,7 @@ describe.each(['dark', 'light'] as const)('shared tab design (%s)', (theme) => {
   it('System & SSO', async () => {
     setup();
     const { container } = render(<ConfigSettingsTab />);
-    await waitFor(() => expect(screen.getByText('System- & Laufzeit-Konfiguration')).toBeTruthy());
+    await waitFor(() => expect(screen.getByText('settings.configTab.systemSection')).toBeTruthy());
     expectSharedDesign(container, theme);
   });
 });

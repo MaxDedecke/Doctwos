@@ -78,8 +78,9 @@ function tokenize(text: string): string[] {
 
 function nameOf(token: string): string | null {
   const upper = token.toUpperCase();
-  if (/^['"]/.test(token) || /^[+-]?\d/.test(token) || upper === '.') return null;
-  return /^[A-Z][\w-]*$/.test(upper) ? upper : null;
+  // Absatznamen wie 2000-READ beginnen oft mit einer Ziffer; Zahlenliterale bestehen nur aus Ziffern.
+  if (/^['"]/.test(token) || /^[+-]?\d+(?:\.\d+)?$/.test(token) || upper === '.') return null;
+  return /^(?=[\w-]*[A-Z])[A-Z0-9][\w-]*$/.test(upper) ? upper : null;
 }
 
 /**

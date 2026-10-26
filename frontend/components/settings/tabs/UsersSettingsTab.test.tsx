@@ -296,8 +296,8 @@ describe('UsersSettingsTab', () => {
       render(<UsersSettingsTab />);
       await waitFor(() => expect(screen.getByText('bob')).toBeTruthy());
 
-      // Zweite Combobox: die erste ist die Rollen-Auswahl im "Neu anlegen"-Formular oben.
-      fireEvent.click(screen.getAllByRole('combobox')[1]);
+      // Das "Neu anlegen"-Formular ist eingeklappt; die einzige Combobox gehört zur Nutzerzeile.
+      fireEvent.click(screen.getAllByRole('combobox')[0]);
       fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.users.roleSuperuser'));
 
       await waitFor(() => expect(apiMocks.updateUser).toHaveBeenCalledWith(2, { role: 'superuser' }));
@@ -311,8 +311,8 @@ describe('UsersSettingsTab', () => {
       render(<UsersSettingsTab />);
       await waitFor(() => expect(screen.getByText('admin')).toBeTruthy());
 
-      // Zweite Combobox: die erste ist die Rollen-Auswahl im "Neu anlegen"-Formular oben.
-      expect(screen.getAllByRole('combobox')[1].getAttribute('data-disabled')).not.toBeNull();
+      // Das "Neu anlegen"-Formular ist eingeklappt; die einzige Combobox gehört zur Nutzerzeile.
+      expect(screen.getAllByRole('combobox')[0].getAttribute('data-disabled')).not.toBeNull();
     });
   });
 

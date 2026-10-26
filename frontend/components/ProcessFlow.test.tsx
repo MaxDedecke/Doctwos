@@ -64,7 +64,9 @@ describe('ProcessView – Ablauf', () => {
     fireEvent.click(screen.getByRole('button', { name: 'INIT einklappen' }));
     expect(screen.queryByText('OPEN-FILES')).toBeNull();
 
-    fireEvent.click(screen.getByText('WRITE-OUT'));
+    // Der Klick auf den Schritt hebt den Lauf hervor; der Quellcode-Sprung ist ein eigenes Symbol.
+    const row = screen.getByText('WRITE-OUT').closest('[role="row"]') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Im Quellcode öffnen' }));
     expect(onFileSelect).toHaveBeenCalledWith('MAIN.CBL', 40, 5);
   });
 
