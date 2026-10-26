@@ -1,0 +1,1 @@
+<project><modelVersion>4.0.0</modelVersion><parent><groupId>demo</groupId><artifactId>enterprise-parent</artifactId><version>1</version></parent><artifactId>impl</artifactId><dependencies><dependency><groupId>demo</groupId><artifactId>api</artifactId></dependency></dependencies></project>

@@ -60,6 +60,7 @@ for prefix in ("jakarta", "javax"):
             "XmlAttribute",
             "XmlElementRef",
             "XmlAccessorType",
+            "XmlTransient",
             "XmlSchema",
         ],
     }.items():
@@ -95,6 +96,14 @@ def annotations(entity, result):
                 prefix + name for prefix in wildcards if name in KNOWN.get(prefix[:-1], [])
             ]
             name = explicit.get(name) or (candidates[0] if len(candidates) == 1 else name)
+            if "." not in name:
+                local = [
+                    e.qualified_name
+                    for e in result.entities
+                    if e.type == "annotation_type" and e.name == name
+                ]
+                if len(local) == 1:
+                    name = local[0]
         found[name] = annotation.get("values", {})
     return found
 
@@ -109,11 +118,34 @@ def matching(entity, result, names):
 
 def qualified_type(raw, result):
     name = re.sub(r"<.*>", "", raw or "").replace("[]", "").strip()
+    if name in {"void", "boolean", "byte", "short", "int", "long", "char", "float", "double"}:
+        return name
     if "." in name:
         return name
     for edge in result.edges:
         if edge.type == "IMPORTS" and edge.dst_name.endswith("." + name):
             return edge.dst_name
+    local = [
+        e.qualified_name
+        for e in result.entities
+        if e.name == name and e.type in {"class", "interface", "record", "enum"}
+    ]
+    if len(local) == 1:
+        return local[0]
+    if name in {
+        "String",
+        "Object",
+        "Integer",
+        "Long",
+        "Double",
+        "Float",
+        "Boolean",
+        "Byte",
+        "Short",
+        "Character",
+        "Class",
+    }:
+        return "java.lang." + name
     package = next((e.name for e in result.entities if e.type == "package"), "")
     return package + "." + name if package else name
 

@@ -1,0 +1,11 @@
+<definitions xmlns="http://schemas.xmlsoap.org/wsdl/" xmlns:t="urn:orders"
+ xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/"
+ targetNamespace="urn:orders">
+  <types><xs:schema><xs:import namespace="urn:orders" schemaLocation="types.xsd"/></xs:schema></types>
+  <message name="SubmitRequest"><part name="request" element="t:submit"/></message>
+  <portType name="OrdersPort"><operation name="submit"><input message="t:SubmitRequest"/></operation></portType>
+  <binding name="OrdersBinding" type="t:OrdersPort"><soap:binding transport="http://schemas.xmlsoap.org/soap/http"/>
+    <operation name="submit"><soap:operation soapAction="urn:submit"/></operation>
+  </binding>
+  <service name="Orders"><port name="OrdersPort" binding="t:OrdersBinding"><soap:address location="https://example.invalid/orders"/></port></service>
+</definitions>

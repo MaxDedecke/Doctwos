@@ -41,7 +41,7 @@ import git_utils
 import parse_pool
 from git_utils import MAX_READ_BYTES
 from core.model import ParseResult, classify_completeness
-from core.analysis_fingerprint import analysis_fingerprint
+from core.dependency_fingerprints import DependencyFingerprints
 from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.failure_location import describe_failure
@@ -52,6 +52,7 @@ from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_
 from core.registry import STRUCTURE_PARSERS
 from structure_persist import persist_parse_result, rehome_shared_java_container
 from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
+from connectors.finalize import finalize_source
 from db import REPOS_ROOT
 from java.modules import is_build_excluded as _is_java_build_excluded
 from java.modules import module_from_path
@@ -1216,41 +1217,14 @@ class GitConnector(BaseConnector):
                     if profile is None or not profile.encoding
                     else f"properties-explicit-{profile.encoding}-v1"
                 )
-        base_fingerprints = {
-            path: analysis_fingerprint(**inputs) for path, inputs in fingerprint_inputs.items()
-        }
-
-        fingerprint_cache: dict[str, str] = {}
-
-        def expected_fingerprint(path: str, stack: frozenset[str] = frozenset()) -> str:
-            """Build the current fingerprint including persisted dependencies."""
-            inputs = fingerprint_inputs.get(path)
-            if inputs is None:
-                existing = existing_records.get(path)
-                return existing.analysis_fingerprint or "" if existing else ""
-            if path in stack:
-                # Cyclic includes/imports are valid. The base fingerprint keeps
-                # the cycle finite while direct content/model/parser changes
-                # still invalidate every member of the cycle.
-                return base_fingerprints[path]
-            if path in fingerprint_cache:
-                return fingerprint_cache[path]
-            dependencies = dict(inputs.get("dependencies") or {})
-            for dependency in sorted(analysis_dependencies.get(path, ())):
-                dependencies[f"source:{dependency}:content_hash"] = current_hashes.get(
-                    dependency, ""
-                )
-                dependencies[f"source:{dependency}:analysis_fingerprint"] = expected_fingerprint(
-                    dependency, stack | {path}
-                )
-            result = analysis_fingerprint(**{**inputs, "dependencies": dependencies})
-            fingerprint_cache[path] = result
-            return result
+        self._dependency_fingerprints = DependencyFingerprints(
+            fingerprint_inputs, current_hashes, analysis_dependencies
+        )
 
         for path, blob_sha in sorted(current_hashes.items()):
             content_hash = git_utils.blob_content_hash(blob_sha)
             language = classify_extension(path, extensions)
-            fingerprint = expected_fingerprint(path)
+            fingerprint = self._dependency_fingerprints.for_path(path)
             if path in excluded_java_paths:
                 excluded_fingerprints[path] = (content_hash, fingerprint, language)
                 continue
@@ -1539,12 +1513,10 @@ class GitConnector(BaseConnector):
                 for t in done:
                     await finish(t)
 
-            # Pass 2 (Plan §6.4, E-1): globale Kanten (CALL/COPY) über den
-            # gesamten Sync-Lauf hinweg nachauflösen - erst jetzt sind alle in
-            # diesem Lauf geparsten Programme/Copybooks als Entities da.
-            resolved = await asyncio.to_thread(resolve_global_edges, self.db, self.source_id)
-            if resolved:
-                self._log(f"Kanten-Nachauflösung: {resolved} CALL/COPY-Kante(n) aufgelöst.")
+            if failed_files:
+                await asyncio.to_thread(resolve_global_edges, self.db, self.source_id)
+            else:
+                await finalize_source(self, resolve_global_edges, _analysis_dependency_paths)
 
             # sync_cursor erst nach erfolgreichem Durchlauf vorrücken, damit ein
             # Abbruch den nächsten Sync exakt denselben Diff neu berechnen lässt

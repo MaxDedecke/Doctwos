@@ -1,0 +1,7 @@
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema" xmlns:t="urn:orders"
+ targetNamespace="urn:orders" elementFormDefault="qualified">
+  <xs:complexType name="OrderType">
+    <xs:sequence><xs:element name="id" type="xs:string"/></xs:sequence>
+  </xs:complexType>
+  <xs:element name="submit" type="t:OrderType"/>
+</xs:schema>

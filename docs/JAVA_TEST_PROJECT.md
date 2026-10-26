@@ -111,3 +111,32 @@ Nachricht → XSD einschließlich JAXB, Namespaces, Wiederholung und Zieländeru
   Die ausgeschlossenen Erweiterungen aus Paket 5 bleiben ausgeschlossen.
 
 Abnahme: `test_asciidoc_composition.py` und der bestehende AsciiDoc-Korpus.
+
+## Gemeinsame Abnahme
+
+`parser/tests/fixtures/java25_enterprise` enthält einen versionierten Korpus mit
+fünf Maven-Modulen, Java 25, zwei Implementierungen, Runtime-DI, Spring-Endpunkt,
+JAX-WS/JAXB, WSDL/XSD, Properties/YAML und einem zusammengesetzten Handbuch.
+`test_java_enterprise_acceptance.py` führt Git-Import, Parser, Datenbank und
+Backend-Graph-Retrieval gemeinsam aus. Lediglich Embeddings werden ersetzt.
+
+Geprüft werden ausgewählte statt beliebiger Implementierungen, eine durchgängige
+SOAP-/XSD-Verbindung, Originalzeilen eingebundener Ausschnitte, Modulgrenzen,
+UTF-8, unveränderter Folgeimport, geänderte Dokumentattribute und eine entfernte
+Runtime-Abhängigkeit. Abhängigkeiten, die erst beim Import entdeckt werden,
+fließen am Laufende in den stabilisierten Fingerprint ein; dadurch verursacht
+der unveränderte zweite Import keine unnötige Neuverarbeitung.
+
+Ausführen (getrennte Parser-/Backend-Umgebungen mit Test-DB und Test-Redis):
+
+```bash
+cd parser
+python -m pytest tests/test_java_enterprise_acceptance.py -q
+python -m pytest tests/ -q
+cd ../backend
+python -m pytest tests/ -q
+```
+
+Die Abnahme misst Parser- und Retrieval-Verhalten. Fachliche Antwortqualität
+und kundenspezifische Framework-/Generatorvarianten müssen am echten Zielprojekt
+mit eigenen erwarteten Ergebnissen gemessen werden.

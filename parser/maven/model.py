@@ -125,7 +125,13 @@ def effective_models(models, *, active_profiles=(), properties=None):
         if declaration.get("artifactId"):
             if declaration.get("relativePath") and parent_path in models:
                 parent = effective(parent_path, (*stack, path))
-                if parent.get("artifactId") != declaration["artifactId"]:
+                mismatch = parent.get("artifactId") != declaration["artifactId"]
+                for key in ("groupId", "version"):
+                    expected = declaration.get(key)
+                    mismatch |= bool(
+                        expected and "${" not in expected and parent.get(key) != expected
+                    )
+                if mismatch:
                     issues.append("parent coordinates do not match relativePath")
                     parent = {}
             else:
@@ -142,7 +148,7 @@ def effective_models(models, *, active_profiles=(), properties=None):
         profiles = raw.pop("profiles", [])
         selected = [p for p in profiles if p["id"] in active]
         if not selected:
-            selected = [p for p in profiles if p["default"] and not active]
+            selected = [p for p in profiles if p["default"]]
         for profile in selected:
             raw["properties"].update(profile["properties"])
             raw["dependencies"].extend(profile["dependencies"])

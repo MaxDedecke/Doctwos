@@ -94,6 +94,22 @@ def add_schema_xml(result, facts):
         )
         by_index[index] = entity
         result.entities.append(entity)
+        result.edges.append(
+            ParsedEdge(
+                "CONTAINS",
+                parent.qualified_name,
+                identity,
+                "resolved",
+                fact["start_line"],
+                fact["end_line"],
+                meta={
+                    "language": "xml",
+                    "source_qualified_name": parent.qualified_name,
+                    "target_qualified_name": identity,
+                    "target_file_path": result.path,
+                },
+            )
+        )
     for index, fact in enumerate(facts):
         _references(result, index, fact, facts, contexts, by_index)
     root.meta["target_namespace"] = facts[0]["attrs"].get("targetNamespace", "") if facts else ""

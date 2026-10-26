@@ -1,0 +1,5 @@
+= Enterprise-Handbuch
+include::attributes.adoc[]
+ifdef::lang-de[]
+include::{chapters}/api.adoc[leveloffset=+1]
+endif::[]

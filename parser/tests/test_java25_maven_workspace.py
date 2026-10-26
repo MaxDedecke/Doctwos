@@ -137,3 +137,23 @@ def test_pom_change_invalidates_a_resolved_call_and_dependency_test_classes_stay
     apply_maven_scopes([api, helper, client], [available, denied])
     resolve_global_edges([api, helper, client])
     assert next(e for e in client.edges if e.type == "CALLS").resolution != "resolved"
+
+
+def test_default_profile_is_local_to_its_pom_and_parent_coordinates_are_checked():
+    model = read_model(
+        "<project><artifactId>app</artifactId><profiles><profile><id>defaults</id><activation><activeByDefault>true</activeByDefault></activation><properties><label>default</label></properties></profile></profiles></project>"
+    )
+    assert (
+        effective_models({"pom.xml": model}, active_profiles=["other-module-profile"])["pom.xml"][
+            "properties"
+        ]["label"]
+        == "default"
+    )
+    parent = read_model(
+        "<project><groupId>x</groupId><artifactId>parent</artifactId><version>2</version><properties><unexpected>wrong</unexpected></properties></project>"
+    )
+    child = read_model(
+        "<project><artifactId>app</artifactId><parent><groupId>x</groupId><artifactId>parent</artifactId><version>1</version></parent></project>"
+    )
+    resolved = effective_models({"pom.xml": parent, "app/pom.xml": child})["app/pom.xml"]
+    assert resolved["issues"] and "unexpected" not in resolved["properties"]

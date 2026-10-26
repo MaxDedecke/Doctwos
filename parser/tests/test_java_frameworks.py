@@ -133,3 +133,31 @@ def test_unrelated_annotation_names_are_not_framework_endpoints():
         'import example.GetMapping; class API { @GetMapping("/fake") public void run() {} }'
     )
     assert not any(e.type == "endpoint" for e in result.entities)
+
+
+def test_custom_cdi_qualifier_in_the_same_package_selects_the_annotated_bean():
+    result = parse("""package app; import jakarta.inject.*; import jakarta.enterprise.context.*;
+@Qualifier @interface FastChoice {} interface Port {}
+@ApplicationScoped @FastChoice class FastPort implements Port {}
+@ApplicationScoped class SlowPort implements Port {}
+class Client { @Inject @FastChoice Port port; }""")
+    injection = next(e for _, e in derive_injection_edges([result]) if e.type == "INJECTS")
+    assert injection.meta["target_qualified_name"] == "app.FastPort"
+
+
+def test_explicit_type_import_takes_priority_over_java_lang_in_injection():
+    custom = parse(
+        "package custom; import org.springframework.stereotype.Component; @Component public class String {}",
+        "app/src/main/java/custom/String.java",
+    )
+    factory = parse(
+        'package config; import org.springframework.context.annotation.*; @Configuration class Config { @Bean String text() { return "text"; } }',
+        "app/src/main/java/config/Config.java",
+    )
+    client = parse(
+        "package app; import custom.String; import org.springframework.beans.factory.annotation.Autowired; class Client { @Autowired String value; }"
+    )
+    injection = next(
+        e for _, e in derive_injection_edges([custom, factory, client]) if e.type == "INJECTS"
+    )
+    assert injection.meta["target_qualified_name"] == "custom.String"

@@ -1,0 +1,9 @@
+= {product} Schnittstellen
+
+== Überweisung
+Der Endpunkt delegiert an den ausgewählten Dienst.
+
+[source,java]
+----
+include::../../web/src/main/java/demo/web/OrderController.java[tag=endpoint]
+----
