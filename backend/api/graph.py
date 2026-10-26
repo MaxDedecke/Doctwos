@@ -28,6 +28,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from core import config as cfg
+from services.graph_overview_sampling import compute_degree, select_overview_nodes
 from core.db_setup import get_db
 from core.analysis_status import load_analysis_status
 from models.database import (
@@ -599,11 +600,13 @@ def get_graph(
     ),
     limit: Optional[int] = Query(None, description="Optional custom node cap for the overview"),
     cursor: Optional[str] = Query(None, description="Optional cursor for overview pagination"),
+    focus_source_id: Optional[int] = None,
+    min_per_kind: int = Query(3, ge=0, le=20),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
-    Returns the global knowledge graph.
+    Returns the global knowledge graph (focus_source_id: Quelle bevorzugen; min_per_kind: Mindestmenge je Art).
     Nodes are either code entities or document chunks.
     Code edges are projected as type-neutral dependencies. Documentation edges keep
     their semantic link type and evidence location.
@@ -616,6 +619,10 @@ def get_graph(
         include_isolated = False
     if not isinstance(status, str):
         status = "approved"
+    if not isinstance(focus_source_id, int):
+        focus_source_id = None
+    if not isinstance(min_per_kind, int):
+        min_per_kind = 3
 
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
@@ -797,7 +804,10 @@ def get_graph(
         include_isolated=include_isolated,
         preserved_node_ids=preserved_node_ids,
         limit=limit,
+        min_per_kind=min_per_kind,
+        focus_source_id=focus_source_id,
     )
+    result["focus_source_id"] = focus_source_id
     # `edges_sampled` trennt die Kürzung der Code-Beziehungen von der Knotenkappung: Die Knoten
     # der Übersicht sind Dateien, die sich erst aus den ausgewählten Beziehungen ergeben. Ist nur
     # das Beziehungsbudget erschöpft, stimmt "total_nodes" nicht mit dem echten Umfang des Projekts
@@ -820,6 +830,8 @@ def get_graph_overview(
     limit: Optional[int] = Query(None),
     cursor: Optional[str] = Query(None),
     include_isolated: bool = Query(False),
+    focus_source_id: Optional[int] = None,
+    min_per_kind: int = Query(3, ge=0, le=20),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -830,6 +842,8 @@ def get_graph_overview(
         include_isolated=include_isolated,
         limit=limit,
         cursor=cursor,
+        focus_source_id=focus_source_id,
+        min_per_kind=min_per_kind,
         db=db,
         user=user,
     )
@@ -841,6 +855,8 @@ def _capped_overview(
     include_isolated: bool = False,
     preserved_node_ids: Optional[set[str]] = None,
     limit: Optional[int] = None,
+    min_per_kind: int = 0,
+    focus_source_id: Optional[int] = None,
 ) -> dict:
     """O-053 / O-285 / O-298: Harter Deckel für die Übersicht mit Erhalt aller Beziehungsklassen.
     O-285: Isolierte Knoten (Grad 0) werden standardmäßig vor dem Capping gefiltert
@@ -849,14 +865,7 @@ def _capped_overview(
     O-298: Dokumentierte Entities und Knowledge-Link-Endpunkte werden vor beliebigen
     Code-Knoten geschützt, damit keine Beziehungsklassen durch Capping verloren gehen.
     """
-    degree: dict[str, int] = {nid: 0 for nid in nodes}
-    for edge in edges:
-        src = edge["source"] if isinstance(edge["source"], str) else edge["source"]["id"]
-        tgt = edge["target"] if isinstance(edge["target"], str) else edge["target"]["id"]
-        if src in degree:
-            degree[src] += 1
-        if tgt in degree:
-            degree[tgt] += 1
+    degree = compute_degree(nodes, edges)
 
     if not include_isolated:
         nodes = {nid: node for nid, node in nodes.items() if degree[nid] > 0}
@@ -873,27 +882,17 @@ def _capped_overview(
             "total_edges": total_edges,
         }
 
-    ranked_ids = sorted(nodes.keys(), key=lambda nid: (-degree[nid], nid))
-
-    representative_ids: list[str] = []
-    if preserved_node_ids:
-        for nid in ranked_ids:
-            if nid in preserved_node_ids and nid not in representative_ids:
-                representative_ids.append(nid)
-
-    represented_sources: set[object] = set()
-    for nid in ranked_ids:
-        node = nodes[nid]
-        source_id = node.get("source_id")
-        if node.get("type") != "document" or source_id is None or source_id in represented_sources:
-            continue
-        represented_sources.add(source_id)
-        if nid not in representative_ids:
-            representative_ids.append(nid)
-
-    kept_order = representative_ids[:max_nodes]
-    kept_order.extend(nid for nid in ranked_ids if nid not in kept_order)
-    kept_ids = set(kept_order[:max_nodes])
+    kept_ids = set(
+        select_overview_nodes(
+            nodes,
+            edges,
+            degree,
+            max_nodes,
+            preserved_node_ids=preserved_node_ids,
+            min_per_kind=min_per_kind,
+            focus_source_id=focus_source_id,
+        )
+    )
     kept_nodes = [n for nid, n in nodes.items() if nid in kept_ids]
     kept_edges = [
         e
