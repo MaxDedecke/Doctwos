@@ -86,6 +86,9 @@ Regeln dafür:
 
 ## Arbeitsweise
 
+- **Expliziter Auftrag 26.10.2026:** Die Parser-Erweiterungen aus
+  `docs/JAVA_TEST_PROJECT.md` sind beauftragt; Paket 5 ist ausgenommen.
+
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
   `parser`-Service, nie in einen Request-Handler.

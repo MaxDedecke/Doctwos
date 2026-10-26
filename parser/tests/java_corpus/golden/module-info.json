@@ -31,8 +31,12 @@
     {
       "end_line": 4,
       "meta": {
+        "exports": [
+          "corpus.api"
+        ],
         "language": "java",
-        "module": "corpus.application"
+        "module": "corpus.application",
+        "requires_transitive": []
       },
       "name": "corpus.application",
       "parent_qualified_name": "module-info.java",

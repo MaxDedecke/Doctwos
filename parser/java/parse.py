@@ -8,9 +8,8 @@ from core.model import Entity, ParseDiagnostic, ParseResult
 
 from .antlr_bridge import parse_java_source
 from .chunking import chunk_java_source
-from .declarations import JavaDeclarationVisitor
+from .modern import ModernDeclarationVisitor, ModernRelationshipVisitor
 from .modules import module_from_path, source_kind_from_path, source_set_from_path
-from .relationships import JavaRelationshipVisitor
 from .resolution import resolve_global_edges, resolve_local_edges
 from ._antlr.JavaParser import JavaParser
 
@@ -44,10 +43,10 @@ def parse_java_file(
         qualified_name=normalized_path or root_name,
         meta=root_meta,
     )
-    visitor = JavaDeclarationVisitor(root)
+    visitor = ModernDeclarationVisitor(root)
     if isinstance(parsed.tree, JavaParser.CompilationUnitContext):
         visitor.visit(parsed.tree)
-    relationships = JavaRelationshipVisitor(root, visitor.entities)
+    relationships = ModernRelationshipVisitor(root, visitor.entities)
     if isinstance(parsed.tree, JavaParser.CompilationUnitContext):
         relationships.visit(parsed.tree)
         for entity in visitor.entities:

@@ -24,6 +24,12 @@ The generator and runtime are both pinned to ANTLR 4.13.2, matching
 installed in the runtime image. The upstream license is included at
 `../LICENSE-upstream-grammars-v4-java`.
 
+Doctus adds Java 25 module import declarations and compact compilation units
+to this pinned grammar. The additions live in `JavaParser.g4` and the visitors
+in `../modern.py`; `test_java25_maven_workspace.py` covers source ownership,
+physical lines, module exports and calls. Flexible constructor bodies use the
+existing block grammar. Preview features require separate acceptance cases.
+
 `parser/java/generate_parser.sh` is the supported offline regeneration entry
 point. Provide a local ANTLR 4.13.2 complete JAR through `ANTLR_JAR`; the script
 generates the Python 3 lexer, parser and visitor under `parser/java/_antlr/`.

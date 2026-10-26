@@ -40,8 +40,19 @@ options {
 }
 
 compilationUnit
-    : packageDeclaration? (importDeclaration | ';')* (typeDeclaration | ';')* EOF
+    : packageDeclaration? (importDeclaration | moduleImportDeclaration | ';')* (typeDeclaration | ';')* EOF
     | modularCompulationUnit EOF
+    | compactCompilationUnit EOF
+    ;
+
+// Doctus Java 25 additions (JEP 511/512). Keep original physical lines.
+moduleImportDeclaration
+    : IMPORT MODULE qualifiedName ';'
+    ;
+
+compactCompilationUnit
+    : (importDeclaration | moduleImportDeclaration)* modifier*
+      (methodDeclaration | genericMethodDeclaration | fieldDeclaration) classBodyDeclaration*
     ;
 
 modularCompulationUnit

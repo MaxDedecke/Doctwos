@@ -44,6 +44,7 @@ from core.doc_resolution import (
 from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from models.database import CodeEdge, CodeEntity
+from maven.workspace import resolve_scoped_java
 
 # CALL-Ziele sind Programme, COPY-Ziele sind Copybooks — getrennt statt über
 # einen gemeinsamen Namensindex, damit ein Programm und ein gleichnamiges
@@ -205,7 +206,16 @@ def _resolve_java_edges(db: Session, source_id: int) -> int:
     if not result_pairs:
         return 0
 
-    resolved = resolve_java_global_edges(pair[0] for pair in result_pairs)
+    resolved = resolve_scoped_java(
+        [p[0] for p in result_pairs], entities, resolve_java_global_edges
+    )
+    by_file = {(e.variant_key, e.file_path, e.qualified_name): e for e in entities}
+    for result, _, _ in result_pairs:
+        for entity in result.entities:
+            row = by_file.get((result.variant_key, result.path, entity.qualified_name))
+            if row is not None:
+                row.meta_json = dict(entity.meta)
+
     entity_by_variant_qname: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
     for entity in entities:
         if entity.qualified_name:

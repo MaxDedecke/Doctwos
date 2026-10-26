@@ -14,6 +14,16 @@ class JavaParserVisitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by JavaParser#moduleImportDeclaration.
+    def visitModuleImportDeclaration(self, ctx:JavaParser.ModuleImportDeclarationContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by JavaParser#compactCompilationUnit.
+    def visitCompactCompilationUnit(self, ctx:JavaParser.CompactCompilationUnitContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by JavaParser#modularCompulationUnit.
     def visitModularCompulationUnit(self, ctx:JavaParser.ModularCompulationUnitContext):
         return self.visitChildren(ctx)

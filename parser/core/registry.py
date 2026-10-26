@@ -88,13 +88,13 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "java": ParserEntry(
         parse=_parse_java,
         root_entity_types=("compilation_unit",),
-        parser_version="java-structure-8",
+        parser_version="java-structure-9",
         grammar_fingerprint=java_grammar_fingerprint,
     ),
     "maven": ParserEntry(
         parse=parse_maven_pom,
         root_entity_types=("maven_project",),
-        parser_version="maven-structure-1",
+        parser_version="maven-structure-2",
     ),
     "xslt": ParserEntry(
         parse=parse_xslt_file,

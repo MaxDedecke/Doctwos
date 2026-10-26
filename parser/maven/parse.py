@@ -7,6 +7,7 @@ from pathlib import PurePosixPath
 
 from code_parser import CodeParser
 from core.model import Chunk, Entity, ParseDiagnostic, ParseResult, ParsedEdge
+from .model import read_model
 
 
 def _local_name(tag: str) -> str:
@@ -123,6 +124,7 @@ def parse_maven_pom(source: str, path: str, **_: object) -> ParseResult:
             "version": version or parent_version,
             "packaging": packaging,
             "parent_group_id": parent_group,
+            "maven_model": read_model(source),
         },
     )
     entities = [root]

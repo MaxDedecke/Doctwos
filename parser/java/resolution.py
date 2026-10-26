@@ -12,7 +12,12 @@ from collections.abc import Iterable
 
 from core.model import Entity, ParseResult, ParsedEdge
 
+from .module_imports import imports_for as _imports_for, resolve_module_imports
 from .variables import select_visible_variable
+from .scope import (
+    scope_candidates as _scope_candidates,
+    same_declaration_scope as _same_declaration_scope,
+)
 
 
 _TYPE_ENTITY_TYPES = {
@@ -378,10 +383,6 @@ def _package_for(result: ParseResult) -> str | None:
     )
 
 
-def _imports_for(result: ParseResult) -> list[ParsedEdge]:
-    return [edge for edge in result.edges if edge.type == "IMPORTS"]
-
-
 def _candidates_at_stage(
     qnames: Iterable[str], entities_by_qname: dict[str, list[Entity]]
 ) -> list[Entity]:
@@ -389,53 +390,6 @@ def _candidates_at_stage(
     for qname in dict.fromkeys(qnames):
         candidates.extend(entities_by_qname.get(qname, []))
     return candidates
-
-
-def _scope_candidates(candidates: list[Entity], result: ParseResult) -> list[Entity]:
-    """Prefer symbols visible from the caller's Maven module/source set.
-
-    Maven does not permit a main source set to use a test-only class.  A test
-    source set may use its module's main classes, though.  We deliberately do
-    not infer inter-module dependencies from a POM here: when no local module
-    candidate exists, the normal import/ambiguity rules still decide whether a
-    repository target is safe to use.
-    """
-    root_meta = next(
-        (entity.meta for entity in result.entities if entity.meta.get("is_file_root")),
-        {},
-    )
-    module = root_meta.get("module")
-    source_set = root_meta.get("source_set")
-    scoped = candidates
-    if module is not None:
-        local = [item for item in scoped if item.meta.get("module") == module]
-        if local:
-            scoped = local
-    if source_set is None:
-        return scoped
-
-    exact = [item for item in scoped if item.meta.get("source_set") == source_set]
-    if exact:
-        return exact
-    # Test-like source sets inherit main; main must never fall through to a
-    # test-only declaration.  Untagged legacy paths remain eligible.
-    if source_set != "main":
-        main = [item for item in scoped if item.meta.get("source_set") == "main"]
-        if main:
-            return main
-    if any(item.meta.get("source_set") is not None for item in scoped):
-        return []
-    return scoped
-
-
-def _same_declaration_scope(left: Entity, right: Entity) -> bool:
-    """Whether two Java declarations belong to the same build scope."""
-    left_meta, right_meta = left.meta or {}, right.meta or {}
-    for key in ("module", "source_set"):
-        left_value, right_value = left_meta.get(key), right_meta.get(key)
-        if left_value is not None and right_value is not None and left_value != right_value:
-            return False
-    return True
 
 
 def _global_type_candidates(
@@ -1244,6 +1198,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
     number of newly resolved edges.
     """
     java_results = list(results)
+    resolve_module_imports(java_results)
     entities = [entity for result in java_results for entity in result.entities]
     entity_paths = {
         id(entity): result.path for result in java_results for entity in result.entities
