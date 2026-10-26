@@ -14,10 +14,22 @@ const edges = [
 const base = { isNodeHidden: (n: { type: string }) => n.type === 'code_file', isEdgeHidden: () => false };
 
 describe('filterVisibleGraph', () => {
-  it('lässt Dokumente sichtbar, wenn nur ihre verknüpften Code-Knoten ausgeblendet sind', () => {
+  it('zeigt ausgeblendete Nachbarn sichtbarer Knoten als Platzhalter mit ihrer Kante', () => {
     const result = filterVisibleGraph(nodes, edges, { ...base, onlyLinked: true });
-    expect(result.nodes.map(n => n.id)).toEqual(['doc:jira']);
-    expect(result.links).toEqual([]);
+    expect(result.nodes.map(n => n.id)).toEqual(['file:1', 'doc:jira']);
+    expect([...result.ghostIds]).toEqual(['file:1']);
+    expect(result.links.map(e => e.id)).toEqual(['e1']);
+  });
+
+  it('lässt Kanten zwischen zwei Platzhaltern weg', () => {
+    const result = filterVisibleGraph(nodes, edges, { ...base, onlyLinked: true });
+    expect(result.nodes.map(n => n.id)).not.toContain('file:2');
+    expect(result.links.map(e => e.id)).not.toContain('e2');
+  });
+
+  it('hat ohne ausgeblendete Knotenarten keine Platzhalter', () => {
+    const result = filterVisibleGraph(nodes, edges, { isNodeHidden: () => false, isEdgeHidden: () => false, onlyLinked: true });
+    expect(result.ghostIds.size).toBe(0);
   });
 
   it('entfernt Knoten ohne jede Verbindung weiterhin', () => {
@@ -33,6 +45,7 @@ describe('filterVisibleGraph', () => {
       onlyLinked: true,
     });
     expect(result.nodes.map(n => n.id)).toEqual(['file:1', 'file:2']);
+    expect(result.ghostIds.size).toBe(0);
   });
 
   it('zeigt ohne onlyLinked auch unverbundene Knoten', () => {

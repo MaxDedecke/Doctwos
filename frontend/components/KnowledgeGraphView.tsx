@@ -757,6 +757,7 @@ export function KnowledgeGraphView({
     isEdgeHidden: e => hiddenLinkTypes.has(graphEdgeType(e)) || hiddenEdgeDirections.has(graphEdgeDirection(e)),
     onlyLinked,
   }), [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
+  const { ghostIds } = filteredData;
 
   const nodeDegrees = useMemo(() => {
     const degrees = new Map<string, number>();
@@ -1112,10 +1113,11 @@ export function KnowledgeGraphView({
     const isFocus = node.id === focusNodeId;
     const isPrimary = isSelected || isFocus;
     const isDimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
-    const color = resolveDsColor(nodeColor(node));
+    const isGhost = ghostIds.has(node.id);
+    const color = isGhost ? canvasColor('neutral-400') : resolveDsColor(nodeColor(node));
 
     ctx.save();
-    ctx.globalAlpha = isDimmed ? 0.15 : 1;
+    ctx.globalAlpha = isDimmed ? 0.15 : isGhost ? 0.4 : 1;
 
     const now = performance.now();
 
@@ -1180,7 +1182,11 @@ export function KnowledgeGraphView({
     ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI);
     ctx.fillStyle = color;
     ctx.fill();
-    drawKnowledgeNodeIcon(node, ctx, globalScale, NODE_RADIUS_SCALE);
+    drawKnowledgeNodeIcon(node, ctx, globalScale, NODE_RADIUS_SCALE, r);
+    // Dunkler Rand, damit helle Füllungen auch im Light Mode und beim Herauszoomen als Knoten erkennbar bleiben.
+    ctx.lineWidth = Math.min(1.6 / globalScale, r * 0.18);
+    ctx.strokeStyle = isDark ? canvasColor('white', 0.4) : canvasColor('neutral-900', 0.5);
+    ctx.stroke();
 
     if (isPrimary) {
       ctx.strokeStyle = isDark ? canvasColor('accent') : canvasColor('white');
@@ -1200,7 +1206,7 @@ export function KnowledgeGraphView({
       ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + r + 3 / globalScale);
     }
     ctx.restore();
-  }, [selectedNodeId, focusNodeId, isDark, focusNeighborIds, nodeDegrees]);
+  }, [selectedNodeId, focusNodeId, isDark, focusNeighborIds, nodeDegrees, ghostIds]);
 
   const toggleNodeType = (type: string) => {
     setHiddenNodeTypes(prev => {
@@ -1946,6 +1952,7 @@ export function KnowledgeGraphView({
                 if (l.id === selectedEdgeId) {
                   return canvasColor('accent');
                 }
+                if (ghostIds.has(typeof l.source === 'object' ? l.source.id : l.source) || ghostIds.has(typeof l.target === 'object' ? l.target.id : l.target)) return canvasColor('neutral-400', 0.45);
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
                 return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
               }}
