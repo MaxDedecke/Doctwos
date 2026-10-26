@@ -16,6 +16,7 @@ import {
   type GraphEdgeDirection,
 } from '@/lib/graphTaxonomy';
 import { canvasColor, resolveDsColor } from '@/lib/designTokens';
+import { useGraphSourceFocus } from '@/hooks/useGraphSourceFocus';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
@@ -37,6 +38,7 @@ import {
 import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { GraphSourceFocus } from './GraphSourceFocus';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ForceGraph2D will be loaded dynamically on mount
@@ -274,6 +276,7 @@ export function KnowledgeGraphView({
   // Keep the expensive initial overview alive while a node neighborhood is shown.
   // The neighborhood replaces the rendered data temporarily, but must not discard
   // the large overview which the user already waited for.
+  const { focusSourceId, resetFocus, changeFocus, addFocusParam } = useGraphSourceFocus();
   const overviewCacheRef = useRef<{
     projectId: number | null;
     includeIsolated: boolean;
@@ -368,6 +371,7 @@ export function KnowledgeGraphView({
       const params = new URLSearchParams({ status: 'approved' });
       if (projectId) params.set('project_id', String(projectId));
       if (includeIsolated) params.set('include_isolated', 'true');
+      addFocusParam(params);
       const res = await api.fetch(`${API_URL}/graph?${params}`);
       const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; edges_sampled?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
       const nodes = data.nodes ?? [];
@@ -406,7 +410,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedProject, selectedDoc, onlyLinked]);
+  }, [selectedProject, selectedDoc, onlyLinked, addFocusParam]);
 
   const neighborhoodProjectId = useCallback((node: GraphNode): number | null => {
     return node.project_id ?? selectedProject?.id ?? null;
@@ -688,6 +692,7 @@ export function KnowledgeGraphView({
   // target contains a server-validated graph node ID; no free-form path is used.
   useEffect(() => {
     if (agentGraphFocus) return;
+    resetFocus();
     void loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.id]);
@@ -1863,6 +1868,7 @@ export function KnowledgeGraphView({
               {filteredData.nodes.length} · {filteredData.links.length}
             </span>
           )}
+          <GraphSourceFocus isDark={isDark} projectId={selectedProject?.id ?? null} value={focusSourceId} disabled={isLoading} onChange={id => changeFocus(id, loadOverview)} />
           <button onClick={handleZoomIn} title={t('knowledgeGraphView.zoomIn')}
             className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
             <ZoomIn className="w-3.5 h-3.5" />
