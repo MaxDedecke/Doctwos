@@ -16,6 +16,7 @@ from maven.parse import parse_maven_pom
 from markup.parse import parse_xml_document
 from markup.jsp_html import parse_jsp_or_html
 from resources.asciidoc import parse_asciidoc_file
+from resources.asciidoc_prepare import prepare_asciidoc_source, configuration_fingerprint
 from resources.configuration import parse_configuration
 from resources.groovy import parse_groovy_file
 from resources.javascript import parse_javascript_file
@@ -145,8 +146,10 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     ),
     "asciidoc": ParserEntry(
         parse=parse_asciidoc_file,
+        prepare_source=prepare_asciidoc_source,
         root_entity_types=("asciidoc_document",),
-        parser_version="asciidoc-structure-1",
+        parser_version="asciidoc-structure-2",
+        grammar_fingerprint=configuration_fingerprint,
     ),
     "shell": ParserEntry(
         parse=parse_shell_file,

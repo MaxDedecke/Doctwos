@@ -16,7 +16,8 @@ import re
 from pathlib import PurePosixPath
 
 from code_parser import CodeParser
-from core.model import Chunk, Entity, ParseResult, ParsedEdge
+from core.model import Chunk, Entity, ParseResult, ParsedEdge, ParseDiagnostic
+from .asciidoc_composition import compose_asciidoc
 
 _HEADING = re.compile(r"^(={1,6})\s+(\S.*?)\s*=*\s*$")
 _ANCHOR = re.compile(r"^\[\[([^\],\s]+)(?:,[^\]]*)?\]\]\s*$|^\[#([^\],\s]+)[^\]]*\]\s*$")
@@ -68,7 +69,7 @@ def _relative(path: str, value: str) -> str | None:
     return None if resolved.startswith("..") else resolved.lstrip("./")
 
 
-def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
+def _parse_structure(source: str, path: str) -> ParseResult:
     normalized = PurePosixPath(path.replace("\\", "/")).as_posix()
     lines = source.splitlines()
     last_line = max(1, len(lines))
@@ -233,3 +234,53 @@ def parse_asciidoc_file(source: str, path: str, **_: object) -> ParseResult:
         edges=edges,
         chunks=chunks,
     )
+
+
+def parse_asciidoc_file(
+    source: str, path: str, *, prepared_source=None, **_: object
+) -> ParseResult:
+    composition = compose_asciidoc(source, path, prepared_source)
+    effective = "\n".join(composition.effective)
+    result = _parse_structure(effective, path)
+    root = result.entities[0]
+    root.meta.update(
+        composition_outline=composition.outline, attribute_sources=composition.attribute_sources
+    )
+    result.edges = [e for e in result.edges if e.type != "INCLUDES"]
+    for include in composition.includes:
+        candidates = [
+            e
+            for e in result.entities
+            if e.type == "doc_section" and e.start_line <= include["line"] <= e.end_line
+        ]
+        section = min(candidates, key=lambda e: e.end_line - e.start_line) if candidates else root
+        result.edges.append(
+            ParsedEdge(
+                "INCLUDES",
+                section.qualified_name,
+                include["target_file_path"] or include["target"],
+                include["resolution"],
+                include["line"],
+                include["line"],
+                meta={
+                    "language": "asciidoc",
+                    "source_qualified_name": section.qualified_name,
+                    "source_file_path": path,
+                    "target_file_path": include["target_file_path"],
+                    "include_options": include["options"],
+                    "selection_ranges": include["selection_ranges"],
+                    "literal_include": include["literal"],
+                },
+            )
+        )
+    for chunk in result.chunks:
+        chunk.meta.update(
+            physical_file_path=path,
+            source_derived=effective != source.rstrip("\n"),
+            attribute_sources=composition.attribute_sources,
+        )
+    result.diagnostics.extend(
+        ParseDiagnostic("ASCIIDOC_COMPOSITION", "warning", "parser", message, line, 0)
+        for line, message in composition.issues
+    )
+    return result

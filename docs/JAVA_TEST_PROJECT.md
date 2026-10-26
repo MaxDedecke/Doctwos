@@ -83,3 +83,31 @@ Abnahme: `test_java_frameworks.py`, `test_enterprise_configuration.py` und
 
 Abnahme: `test_soap_schemas.py` prüft die Kette Java-Endpunkt → WSDL-Operation →
 Nachricht → XSD einschließlich JAXB, Namespaces, Wiederholung und Zieländerung.
+
+## AsciiDoc-Zusammensetzung
+
+- Der Git-Parser verarbeitet Dokumentattribute, Attribute aus eingebundenen
+  Dateien, `ifdef`/`ifndef`/`ifeval`, verschachtelte lokale Includes sowie
+  `leveloffset`, `lines` und Tag-Auswahl. Includes in Quellcodeblöcken werden
+  ebenfalls erkannt; deren Inhalt wird nicht als Kapitel interpretiert.
+- `DOCTUS_ASCIIDOC_ATTRIBUTES='{"lang-de":"","product":"Doctus"}'` setzt
+  explizite Buildattribute. Diese haben Vorrang vor Dokumentdefinitionen;
+  Änderungen invalidieren den Analyse-Fingerprint.
+- Das Dateiwurzelobjekt enthält unter `composition_outline` die logische
+  Kapitelreihenfolge mit Quelldatei und physischer Zeile. Die Dateien werden
+  weiterhin einzeln indexiert; eingebundene Dateien werden nicht unter falschen
+  Zeilennummern in den Haupttext kopiert. Kapitel und Text der Hauptdatei erhalten
+  die wirksamen Attribute und Bedingungen, inklusive Herkunftsangaben.
+- Include-Beziehungen tragen Optionen und ausgewählte Originalzeilen. Das
+  Retrieval verfolgt verschachtelte Includes begrenzt und liefert Ausschnitte
+  aus ihren Originaldateien, ohne persistierte Chunks zu verändern.
+- Zyklen, fehlende Dateien und nicht auswertbare Bedingungen erzeugen Diagnosen.
+  Externe URLs werden nur als externe Referenzen geführt. Repository-Grenzen,
+  maximal 32 Include-Ebenen, 4 MiB pro Include und 50000 verarbeitete Zeilen
+  begrenzen die Verarbeitung.
+- Dies ist eine Quellenanalyse mit logischer Buchgliederung, kein Asciidoctor-
+  HTML-Renderer. Ein Fragment kann in mehreren Büchern unterschiedliche
+  Attributkontexte haben; die jeweilige Gliederung steht am Buchwurzelobjekt.
+  Die ausgeschlossenen Erweiterungen aus Paket 5 bleiben ausgeschlossen.
+
+Abnahme: `test_asciidoc_composition.py` und der bestehende AsciiDoc-Korpus.

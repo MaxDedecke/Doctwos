@@ -58,13 +58,16 @@ def resolve_documentation_edges(entities, edges) -> int:
                 by_property[(variant, key)].append(entity)
         if entity.type in FILE_ROOT_TYPES:
             roots.append(entity)
-        if entity.type == "asciidoc_document":
-            docs_by_path[(variant, entity.file_path)].append(entity)
+            docs_by_path[(variant, getattr(entity, "source_id", None), entity.file_path)].append(
+                entity
+            )
 
     def candidates_for(edge, meta) -> list:
         variant = edge.variant_key
         if edge.type == "INCLUDES":
-            return docs_by_path.get((variant, meta.get("target_file_path") or ""), [])
+            return docs_by_path.get(
+                (variant, getattr(edge, "source_id", None), meta.get("target_file_path") or ""), []
+            )
         kind = meta.get("mention_kind")
         name = edge.dst_name
         if kind == "type_name":
@@ -97,7 +100,7 @@ def resolve_documentation_edges(entities, edges) -> int:
             edge.resolution = "resolved"
             updated["resolution_scope"] = "documentation"
         else:
-            if edge.resolution != "dynamic":
+            if edge.resolution not in {"dynamic", "external"}:
                 edge.resolution = "unresolved"
             edge.dst_entity_id = None
             updated.pop("resolution_scope", None)

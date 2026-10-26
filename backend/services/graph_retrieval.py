@@ -10,6 +10,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from models.database import CodeEdge, CodeEntity, DocumentChunk
+from services.document_includes import include_context, selected_excerpts
 
 
 DEFAULT_GRAPH_TOKEN_BUDGET = 1800
@@ -115,6 +116,8 @@ def expand_chunks_with_graph(
         for edge in edges
     }
     neighbor_ids.discard(None)
+    included_ids, selections = include_context(db, entity_ids, edges)
+    neighbor_ids.update(included_ids)
     if not neighbor_ids:
         return picked
 
@@ -122,7 +125,10 @@ def expand_chunks_with_graph(
         db.query(CodeEntity).filter(CodeEntity.id.in_(neighbor_ids)).order_by(CodeEntity.id).all()
     )
     remaining_chars = token_budget * 4
+    source_scopes = {(c.project_id, c.source_id) for c in chunks}
     for entity in neighbors:
+        if (entity.project_id, entity.source_id) not in source_scopes:
+            continue
         definitions = db.query(DocumentChunk).filter(
             DocumentChunk.project_id == entity.project_id,
             DocumentChunk.source_id == entity.source_id,
@@ -136,12 +142,13 @@ def expand_chunks_with_graph(
         for chunk in definitions.order_by(DocumentChunk.start_line, DocumentChunk.id).all():
             if chunk.id in picked_ids:
                 continue
-            size = len(chunk.content or "")
-            if size > remaining_chars:
-                continue
-            picked.append(chunk)
+            for excerpt in selected_excerpts(chunk, selections.get(entity.id)):
+                size = len(excerpt.content or "")
+                if size > remaining_chars:
+                    continue
+                picked.append(excerpt)
+                remaining_chars -= size
             picked_ids.add(chunk.id)
-            remaining_chars -= size
             if remaining_chars <= 0:
                 return picked
     return picked
