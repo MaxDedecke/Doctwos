@@ -1133,11 +1133,11 @@ def _resolve_jira(
 
     fields = issue_data.get("fields", {})
     summary = fields.get("summary", "Kein Titel")
-    status = fields.get("status", {}).get("name", "Unbekannt")
-    priority = fields.get("priority", {}).get("name", "Mittel")
-    assignee = fields.get("assignee", {}).get("displayName", "Nicht zugewiesen")
+    status = (fields.get("status") or {}).get("name", "Unbekannt")
+    priority = (fields.get("priority") or {}).get("name", "Mittel")
+    assignee = (fields.get("assignee") or {}).get("displayName", "Nicht zugewiesen")
 
-    desc_html = _adf_to_html(fields.get("description"))
+    desc_html = _jira_body_to_html(fields.get("description"))
 
     if theme == "light":
         body_bg = "#ffffff"
@@ -1182,13 +1182,9 @@ def _resolve_jira(
 
     comments_html = ""
     for c in fields.get("comment", {}).get("comments", []):
-        author = c.get("author", {}).get("displayName", "User")
-        created = c.get("created", "")[:10]
-        body_html = (
-            _adf_to_html(c.get("body"))
-            if isinstance(c.get("body"), dict)
-            else str(c.get("body", "")).replace("\n", "<br>")
-        )
+        author = (c.get("author") or {}).get("displayName", "User")
+        created = (c.get("created") or "")[:10]
+        body_html = _jira_body_to_html(c.get("body"))
         comments_html += (
             f'<div style="background-color:{comment_bg};border:1px solid {comment_border};border-radius:8px;padding:12px 16px;margin-bottom:12px;">'
             f'<div style="font-size:11px;font-weight:600;color:{comment_meta_color};margin-bottom:6px;">{author} &bull; {created}</div>'
@@ -1227,6 +1223,17 @@ html {{ scrollbar-width: thin; scrollbar-color: {scrollbar_thumb} transparent; }
 </body></html>"""
 
     return {"content": html, "format": "html", "url": url}
+
+
+def _jira_body_to_html(body) -> str:
+    """Jira Cloud liefert Beschreibungen und Kommentare als ADF-Baum, Jira Server (z. B. issues.apache.org) als Text."""
+    if isinstance(body, dict):
+        return _adf_to_html(body)
+    if not body:
+        return ""
+    from html import escape
+
+    return escape(str(body)).replace("\n", "<br>")
 
 
 def _adf_to_html(node) -> str:
