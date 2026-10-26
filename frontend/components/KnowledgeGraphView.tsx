@@ -17,6 +17,7 @@ import {
 } from '@/lib/graphTaxonomy';
 import { canvasColor, resolveDsColor } from '@/lib/designTokens';
 import { useGraphSourceFocus } from '@/hooks/useGraphSourceFocus';
+import { filterVisibleGraph } from '@/lib/graphVisibility';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
@@ -751,32 +752,11 @@ export function KnowledgeGraphView({
   }
 
   // Filtered data for the graph
-  const filteredData = useMemo(() => {
-    const candidateNodes = rawNodes.filter(n => !hiddenNodeTypes.has(nodeTypeKey(n)));
-    const candidateIds = new Set(candidateNodes.map(n => n.id));
-    const visibleEdges = rawEdges.filter(e => {
-      const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
-      const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
-      return !hiddenLinkTypes.has(graphEdgeType(e))
-        && !hiddenEdgeDirections.has(graphEdgeDirection(e))
-        && candidateIds.has(src)
-        && candidateIds.has(tgt);
-    });
-
-    let visibleNodes = candidateNodes;
-    if (onlyLinked) {
-      const connectedNodeIds = new Set<string>();
-      for (const e of visibleEdges) {
-        const src = typeof e.source === 'object' ? (e.source as GraphNode).id : e.source;
-        const tgt = typeof e.target === 'object' ? (e.target as GraphNode).id : e.target;
-        connectedNodeIds.add(src);
-        connectedNodeIds.add(tgt);
-      }
-      visibleNodes = candidateNodes.filter(n => connectedNodeIds.has(n.id));
-    }
-
-    return { nodes: visibleNodes, links: visibleEdges };
-  }, [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
+  const filteredData = useMemo(() => filterVisibleGraph(rawNodes, rawEdges, {
+    isNodeHidden: n => hiddenNodeTypes.has(nodeTypeKey(n)),
+    isEdgeHidden: e => hiddenLinkTypes.has(graphEdgeType(e)) || hiddenEdgeDirections.has(graphEdgeDirection(e)),
+    onlyLinked,
+  }), [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
 
   const nodeDegrees = useMemo(() => {
     const degrees = new Map<string, number>();
