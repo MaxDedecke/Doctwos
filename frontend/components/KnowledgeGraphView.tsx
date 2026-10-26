@@ -15,7 +15,7 @@ import {
   getGraphNodeColor,
   type GraphEdgeDirection,
 } from '@/lib/graphTaxonomy';
-import { resolveDsColor } from '@/lib/designTokens';
+import { canvasColor, resolveDsColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
@@ -1081,7 +1081,7 @@ export function KnowledgeGraphView({
 
     ctx.save();
     ctx.fillStyle = edge.id === selectedEdgeId
-      ? (isDark ? '#38bdf8' : '#0284c7')
+      ? (canvasColor('accent'))
       : resolveDsColor(getGraphEdgeColor(graphEdgeType(edge)));
     ctx.beginPath();
     ctx.moveTo(tipX, tipY);
@@ -1170,7 +1170,7 @@ export function KnowledgeGraphView({
         ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
         ctx.shadowBlur = 8;
       }
-      ctx.strokeStyle = '#ffffff';
+      ctx.strokeStyle = canvasColor('white');
       ctx.stroke();
 
       // 4. White comet head orb
@@ -1179,12 +1179,12 @@ export function KnowledgeGraphView({
       const headY = (node.y ?? 0) + trackR * Math.sin(headAngle);
       ctx.beginPath();
       ctx.arc(headX, headY, 2.5 / globalScale, 0, 2 * Math.PI);
-      ctx.fillStyle = '#ffffff';
+      ctx.fillStyle = canvasColor('white');
       if (!isDark) {
         ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
         ctx.shadowBlur = 3;
       } else {
-        ctx.shadowColor = '#38bdf8';
+        ctx.shadowColor = canvasColor('accent');
         ctx.shadowBlur = 6;
       }
       ctx.fill();
@@ -1198,7 +1198,7 @@ export function KnowledgeGraphView({
     drawKnowledgeNodeIcon(node, ctx, globalScale, NODE_RADIUS_SCALE);
 
     if (isPrimary) {
-      ctx.strokeStyle = isDark ? '#38bdf8' : '#ffffff';
+      ctx.strokeStyle = isDark ? canvasColor('accent') : canvasColor('white');
       ctx.lineWidth = 2 / globalScale;
       ctx.stroke();
     }
@@ -1210,7 +1210,7 @@ export function KnowledgeGraphView({
       ctx.textAlign = 'center';
       ctx.textBaseline = 'top';
       ctx.fillStyle = isPrimary
-        ? (isDark ? '#f8fafc' : '#0f172a')
+        ? (canvasColor('foreground'))
         : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
       ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + r + 3 / globalScale);
     }
@@ -1896,7 +1896,7 @@ export function KnowledgeGraphView({
         {/* Canvas */}
         <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative">
           {isLoading && (
-            <div className={cn('absolute inset-0 z-20 flex items-center justify-center', isDark ? 'bg-ds-zinc-950/60' : 'bg-white/65')}>
+            <div className={cn('absolute inset-0 z-20 flex items-center justify-center', isDark ? 'bg-ds-zinc-950/60' : 'bg-ds-white/65')}>
               <div className="flex w-[min(90%,26rem)] flex-col items-center gap-3 px-6 py-7 text-center">
                 <p className={cn('text-sm font-medium', textMain)}>{t('knowledgeGraphView.loadingTitle')}</p>
                 <p className={cn('max-w-md text-xs leading-relaxed', textMuted)}>{t('knowledgeGraphView.loadingDescription')}</p>
@@ -1958,7 +1958,7 @@ export function KnowledgeGraphView({
               }}
               linkColor={(l: GraphEdge) => {
                 if (l.id === selectedEdgeId) {
-                  return isDark ? '#38bdf8' : '#0284c7';
+                  return canvasColor('accent');
                 }
                 if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
                 return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
@@ -1980,16 +1980,16 @@ export function KnowledgeGraphView({
                 ctx.beginPath();
                 ctx.arc(x, y, pR, 0, 2 * Math.PI);
                 if (!isDark) {
-                  ctx.fillStyle = '#ffffff';
+                  ctx.fillStyle = canvasColor('white');
                   ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
                   ctx.shadowBlur = 3;
                   ctx.fill();
                   ctx.lineWidth = 1.2 / globalScale;
-                  ctx.strokeStyle = isSelected ? '#0284c7' : '#64748b';
+                  ctx.strokeStyle = isSelected ? canvasColor('info-base') : canvasColor('neutral-500');
                   ctx.stroke();
                 } else {
-                  ctx.fillStyle = '#ffffff';
-                  ctx.shadowColor = isSelected ? '#38bdf8' : '#94a3b8';
+                  ctx.fillStyle = canvasColor('white');
+                  ctx.shadowColor = isSelected ? canvasColor('accent') : canvasColor('neutral-400');
                   ctx.shadowBlur = isSelected ? 8 : 4;
                   ctx.fill();
                 }

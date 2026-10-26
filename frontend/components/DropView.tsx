@@ -7,6 +7,7 @@ import {
   type DropDirection, type DropEdge, type DropKind, type DropNode, type DropResult,
 } from '@/lib/dropView';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { dsColor } from '@/lib/designTokens';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ArrowDown, ArrowUp, ChevronsUpDown, Droplet, FileCode, Loader2, Target, ExternalLink } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
@@ -24,13 +25,13 @@ const ROLE_STYLE: Record<string, string> = {
   data: 'border-ds-amber-500/60',
 };
 
-/** Farbe einer Verbindung nach Art: Daten cyan, Einbindung orange, Kontrollfluss blau. */
+/** Farbe einer Verbindung nach Art: Daten grün, Einbindung orange, Kontrollfluss blau. */
 const EDGE_DATA = new Set(['READS', 'WRITES', 'USES', 'USES_DATASET', 'USES_TYPE', 'ASSIGNED_DATASET']);
 const EDGE_INCLUDE = new Set(['COPY', 'INCLUDES', 'IMPORTS', 'EXTENDS', 'IMPLEMENTS', 'DEPENDS_ON']);
 function edgeColor(type: string): string {
-  if (EDGE_DATA.has(type)) return '#06b6d4';
-  if (EDGE_INCLUDE.has(type)) return '#f59e0b';
-  return '#6366f1';
+  if (EDGE_DATA.has(type)) return 'success-base';
+  if (EDGE_INCLUDE.has(type)) return 'warning-base';
+  return 'accent-base';
 }
 
 interface Connector { key: string; d: string; color: string; from: number; to: number; reversed: boolean; type: string }
@@ -208,9 +209,9 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
       <div ref={canvasRef} className="relative flex flex-col items-center gap-8 p-4" data-testid="drop-pyramid">
         <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" aria-hidden="true" data-testid="drop-connectors">
           <defs>
-            {['#6366f1', '#06b6d4', '#f59e0b'].map(color => (
-              <marker key={color} id={`drop-arrow-${color.slice(1)}`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-                <path d="M0,0 L8,4 L0,8 z" fill={color} />
+            {['accent-base', 'success-base', 'warning-base'].map(color => (
+              <marker key={color} id={`drop-arrow-${color}`} viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+                <path d="M0,0 L8,4 L0,8 z" fill={dsColor(color)} />
               </marker>
             ))}
           </defs>
@@ -219,10 +220,10 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
             const active = focus ? run.keys.has(connector.key) : hoveredId == null || connector.from === hoveredId || connector.to === hoveredId;
             const emphasized = focus ? active : active && hoveredId != null;
             return (
-              <path key={connector.key} d={connector.d} fill="none" stroke={connector.color}
+              <path key={connector.key} d={connector.d} fill="none" stroke={dsColor(connector.color)}
                 strokeWidth={emphasized ? 2.5 : 1.5} strokeOpacity={active ? 0.85 : 0.12}
-                markerEnd={connector.reversed ? undefined : `url(#drop-arrow-${connector.color.slice(1)})`}
-                markerStart={connector.reversed ? `url(#drop-arrow-${connector.color.slice(1)})` : undefined}
+                markerEnd={connector.reversed ? undefined : `url(#drop-arrow-${connector.color})`}
+                markerStart={connector.reversed ? `url(#drop-arrow-${connector.color})` : undefined}
                 data-edge={connector.key}>
                 <title>{connector.type}</title>
               </path>

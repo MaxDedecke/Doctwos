@@ -1,7 +1,8 @@
 "use client";
+import { canvasColor } from '@/lib/designTokens';
 import React from 'react';
 
-const BRAND_COLORS = ['#d60055', '#7047eb', '#0064d2'];
+const BRAND_COLOR_TOKENS = ['danger-base', 'graph-a-base', 'accent-base'];
 const CLUSTER_MS = 7000;
 const SPAWN_EVERY_MS = 1300;
 const MAX_CLUSTERS = 7;
@@ -47,7 +48,7 @@ function buildCluster(width: number, height: number, now: number): Cluster {
   const edges: Edge[] = [];
   const distance = (i: number, j: number) => Math.hypot(points[i].x - points[j].x, points[i].y - points[j].y);
   points.forEach((p, i) => {
-    const color = BRAND_COLORS[Math.floor(Math.random() * BRAND_COLORS.length)];
+    const color = canvasColor(BRAND_COLOR_TOKENS[Math.floor(Math.random() * BRAND_COLOR_TOKENS.length)]);
     if (i === 0) {
       nodes.push({ ...p, color, appearAt: 0 });
       return;
@@ -102,7 +103,7 @@ function drawCluster(ctx: CanvasRenderingContext2D, cluster: Cluster, now: numbe
     ctx.beginPath();
     ctx.arc(node.x, node.y, 3.5 * scale, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = isDark ? '#09090b' : '#ffffff';
+    ctx.fillStyle = canvasColor(isDark ? 'neutral-950' : 'white');
     ctx.beginPath();
     ctx.arc(node.x, node.y, 1.4 * scale, 0, Math.PI * 2);
     ctx.fill();

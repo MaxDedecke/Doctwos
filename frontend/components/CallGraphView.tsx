@@ -6,7 +6,7 @@ import type { CallFlowData, CallFlowEdge } from '@/lib/callFlow';
 
 import { api, API_URL } from '@/app/services/api';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip, type AnalysisStatus } from '@/lib/analysisStatus';
-import { resolveDsColor } from '@/lib/designTokens';
+import { canvasColor, resolveDsColor } from '@/lib/designTokens';
 import { layoutZones, type Zone } from '@/lib/processZones';
 import { buildFlowPaths } from '@/lib/processFlowPaths';
 import { useFlowAnimation } from '@/hooks/useFlowAnimation';
@@ -82,11 +82,13 @@ interface Props {
   onOpenDoc?: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
 }
 
-const PROCESS_COLORS: Record<string, string> = {
-  entry: '#0ea5e9', step: '#3b82f6', call: '#8b5cf6', branch: '#f59e0b',
-  jump: '#f97316', iteration: '#14b8a6', data_access: '#06b6d4',
-  external_call: '#ef4444', exit: '#64748b',
+const PROCESS_COLOR_TOKENS: Record<string, string> = {
+  entry: 'info-base', step: 'info-strong', call: 'graph-a-base', branch: 'warning-base',
+  jump: 'warning-strong', iteration: 'success-base', data_access: 'graph-b-base',
+  external_call: 'danger-base', exit: 'neutral-500',
 };
+const processColor = (type: string | undefined, fallback = 'neutral-500') =>
+  canvasColor((type && PROCESS_COLOR_TOKENS[type]) || fallback);
 
 function traceProcessNodeShape(ctx: CanvasRenderingContext2D, node: CallNode, radius: number) {
   const x = node.x ?? 0;
@@ -702,7 +704,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
       </div>
       <div className={cn('px-3 py-1.5 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-900' : 'border-ds-zinc-100')}>
         {availableTypes.map(type => {
-          const color = PROCESS_COLORS[type] ?? '#64748b';
+          const color = processColor(type);
           return <button key={type} onClick={() => setEnabledTypes(previous => { const next = new Set(previous); next.has(type) ? next.delete(type) : next.add(type); return next; })} className={cn('px-2 py-1 rounded border text-[0.5625rem] font-bold', enabledTypes.has(type) ? 'opacity-100' : 'opacity-35')} style={{ borderColor: color, color }}>{kindLabel(type)}</button>;
         })}
       </div>
@@ -719,7 +721,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
           backgroundColor={resolveDsColor(isDark ? 'rgb(var(--ds-neutral-950))' : 'rgb(var(--ds-white))')}
           onRenderFramePre={(ctx: CanvasRenderingContext2D, globalScale: number) => {
             zones.forEach(zone => {
-              const color = PROCESS_COLORS[zone.type] ?? '#64748b';
+              const color = processColor(zone.type);
               ctx.save();
               ctx.beginPath();
               ctx.roundRect(zone.x, zone.y, zone.w, zone.h, 10);
@@ -746,9 +748,9 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
           }}
           nodeColor={(node: CallNode) => {
             if (node.unresolved) return resolveDsColor('rgb(var(--ds-warning-base))');
-            if (isNodePrimary(node)) return isDark ? '#0284c7' : '#0284c7';
-            if (isNodeSource(node)) return isDark ? '#047857' : '#059669';
-            return PROCESS_COLORS[node.type] ?? resolveDsColor('rgb(var(--ds-info-base))');
+            if (isNodePrimary(node)) return canvasColor('info-base');
+            if (isNodeSource(node)) return canvasColor('success-strong');
+            return processColor(node.type, 'info-base');
           }}
           nodeVal={(node: CallNode) => isNodePrimary(node) ? 8 : (isNodeSource(node) ? 6 : 4)}
           nodeCanvasObjectMode={() => 'replace'}
@@ -803,7 +805,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
                 ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
                 ctx.shadowBlur = 8;
               }
-              ctx.strokeStyle = '#ffffff';
+              ctx.strokeStyle = canvasColor('white');
               ctx.stroke();
 
               // 4. White comet head orb
@@ -812,12 +814,12 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
               const headY = (node.y ?? 0) + trackR * Math.sin(headAngle);
               ctx.beginPath();
               ctx.arc(headX, headY, 2.5 / globalScale, 0, 2 * Math.PI);
-              ctx.fillStyle = '#ffffff';
+              ctx.fillStyle = canvasColor('white');
               if (!isDark) {
                 ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
                 ctx.shadowBlur = 3;
               } else {
-                ctx.shadowColor = '#38bdf8';
+                ctx.shadowColor = canvasColor('accent');
                 ctx.shadowBlur = 6;
               }
               ctx.fill();
@@ -827,7 +829,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
               const sourceR = radius + 2.5 / globalScale;
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, sourceR, 0, 2 * Math.PI);
-              ctx.strokeStyle = isDark ? '#10b981' : '#059669';
+              ctx.strokeStyle = canvasColor('success-base');
               ctx.lineWidth = 2.5 / globalScale;
               ctx.stroke();
             }
@@ -837,16 +839,16 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             if (node.unresolved) {
               ctx.fillStyle = resolveDsColor('rgb(var(--ds-warning-base))');
             } else if (isPrimary) {
-              ctx.fillStyle = isDark ? '#0284c7' : '#0284c7';
+              ctx.fillStyle = canvasColor('info-base');
             } else if (isSource) {
-              ctx.fillStyle = isDark ? '#047857' : '#059669';
+              ctx.fillStyle = canvasColor('success-strong');
             } else {
-              ctx.fillStyle = PROCESS_COLORS[node.type] ?? resolveDsColor('rgb(var(--ds-info-base))');
+              ctx.fillStyle = processColor(node.type, 'info-base');
             }
             ctx.fill();
             ctx.save();
             ctx.lineWidth = 1.25 / globalScale;
-            ctx.strokeStyle = isPrimary ? (isDark ? '#38bdf8' : '#ffffff') : (isDark ? 'rgba(255,255,255,0.75)' : 'rgba(15,23,42,0.6)');
+            ctx.strokeStyle = isPrimary ? (isDark ? canvasColor('accent') : canvasColor('white')) : (isDark ? canvasColor('white', 0.75) : canvasColor('neutral-900', 0.6));
             if (node.type === 'external_call') ctx.setLineDash([2 / globalScale, 1.5 / globalScale]);
             ctx.stroke();
             ctx.restore();
@@ -854,7 +856,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             // Inner border for primary node
             if (isPrimary) {
               traceProcessNodeShape(ctx, node, radius);
-              ctx.strokeStyle = isDark ? '#38bdf8' : '#ffffff';
+              ctx.strokeStyle = isDark ? canvasColor('accent') : canvasColor('white');
               ctx.lineWidth = 2 / globalScale;
               ctx.stroke();
             }
@@ -863,7 +865,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             if (node.type === 'entry') {
               ctx.beginPath();
               ctx.arc(node.x ?? 0, node.y ?? 0, radius * 0.58, 0, 2 * Math.PI);
-              ctx.strokeStyle = isDark ? '#e0f2fe' : '#075985';
+              ctx.strokeStyle = isDark ? canvasColor('info-soft') : canvasColor('info-strong');
               ctx.lineWidth = 1.25 / globalScale;
               ctx.stroke();
             }
@@ -878,9 +880,9 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
               ctx.lineTo(badgeX, badgeY + badgeRadius);
               ctx.lineTo(badgeX - badgeRadius, badgeY);
               ctx.closePath();
-              ctx.fillStyle = PROCESS_COLORS.branch;
+              ctx.fillStyle = processColor('branch');
               ctx.fill();
-              ctx.strokeStyle = isDark ? '#fff7ed' : '#7c2d12';
+              ctx.strokeStyle = isDark ? canvasColor('warning-soft') : canvasColor('warning-strong');
               ctx.lineWidth = 1 / globalScale;
               ctx.stroke();
             }
@@ -907,7 +909,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
               ctx.textAlign = 'center';
               ctx.textBaseline = 'top';
               ctx.fillStyle = isPrimary
-                ? (isDark ? '#f8fafc' : '#0f172a')
+                ? (canvasColor('foreground'))
                 : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
               ctx.fillText(truncated, node.x ?? 0, (node.y ?? 0) + radius + 3 / globalScale);
             }
@@ -924,19 +926,19 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
           }}
           linkColor={(edge: CallEdge) => {
             const flowKind = flowEdgeKind(edge);
-            if (flowKind === 'active') return isDark ? '#38bdf8' : '#0284c7';
+            if (flowKind === 'active') return canvasColor('accent');
             if (flowKind === 'trail') return isDark ? 'rgba(56, 189, 248, 0.55)' : 'rgba(2, 132, 199, 0.55)';
             if (flowKind === 'dim') return isDark ? 'rgba(148, 163, 184, 0.10)' : 'rgba(100, 116, 139, 0.18)';
             const isHighlighted = isEdgeHighlighted(edge);
             if (isHighlighted) {
-              return isDark ? '#38bdf8' : '#0284c7';
+              return canvasColor('accent');
             }
             if (highlightedEdgeId != null) {
               return isDark ? 'rgba(148, 163, 184, 0.15)' : 'rgba(100, 116, 139, 0.25)';
             }
-            if (edge.certainty === 'unresolved') return resolveDsColor('rgb(var(--ds-error-base))');
+            if (edge.certainty === 'unresolved') return canvasColor('danger-base');
             if (edge.certainty === 'possible') return resolveDsColor('rgb(var(--ds-warning-base))');
-            return PROCESS_COLORS[edge.type] ?? resolveDsColor('rgb(var(--ds-info-base))');
+            return processColor(edge.type, 'info-base');
           }}
           linkWidth={(edge: CallEdge) => {
             const flowKind = flowEdgeKind(edge);
@@ -964,16 +966,16 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             ctx.beginPath();
             ctx.arc(x, y, r, 0, 2 * Math.PI);
             if (!isDark) {
-              ctx.fillStyle = '#ffffff';
+              ctx.fillStyle = canvasColor('white');
               ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
               ctx.shadowBlur = 3;
               ctx.fill();
               ctx.lineWidth = 1.2 / globalScale;
-              ctx.strokeStyle = isHighlighted ? '#0284c7' : '#64748b';
+              ctx.strokeStyle = isHighlighted ? canvasColor('info-base') : canvasColor('neutral-500');
               ctx.stroke();
             } else {
-              ctx.fillStyle = '#ffffff';
-              ctx.shadowColor = isHighlighted ? '#38bdf8' : '#94a3b8';
+              ctx.fillStyle = canvasColor('white');
+              ctx.shadowColor = isHighlighted ? canvasColor('accent') : canvasColor('neutral-400');
               ctx.shadowBlur = isHighlighted ? 8 : 4;
               ctx.fill();
             }
@@ -1012,7 +1014,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
                 <span>{selectedEdgeSource?.name ?? (typeof selectedEdge.source === 'string' ? selectedEdge.source : selectedEdge.source.name)}</span>
                 <span className="text-ds-zinc-500" aria-hidden="true">→</span>
                 <span>{selectedEdgeTarget?.name ?? (typeof selectedEdge.target === 'string' ? selectedEdge.target : selectedEdge.target.name)}</span>
-                <span className="rounded border px-1.5 py-0.5 text-[0.5625rem]" style={{ borderColor: PROCESS_COLORS[selectedEdge.type] ?? '#64748b', color: PROCESS_COLORS[selectedEdge.type] ?? '#64748b' }}>
+                <span className="rounded border px-1.5 py-0.5 text-[0.5625rem]" style={{ borderColor: processColor(selectedEdge.type), color: processColor(selectedEdge.type) }}>
                   {kindLabel(selectedEdge.type)}
                 </span>
               </div>

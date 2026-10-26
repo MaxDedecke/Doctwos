@@ -263,13 +263,13 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
               </div>
               {inputMode === 'diff' && <div className="mt-2 flex flex-wrap gap-2">
                 <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-base">{t('changePackage.baseRevision')}
-                  <input id="change-package-base" value={baseRef} onChange={event => setBaseRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
+                  <input id="change-package-base" value={baseRef} onChange={event => setBaseRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-900'}`} />
                 </label>
                 <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-head">{t('changePackage.headRevision')}
-                  <input id="change-package-head" value={headRef} onChange={event => setHeadRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
+                  <input id="change-package-head" value={headRef} onChange={event => setHeadRef(event.target.value)} maxLength={256} required className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-900'}`} />
                 </label>
                 <label className={`flex flex-col gap-1 text-[0.625rem] ${muted}`} htmlFor="change-package-source">{t('changePackage.sourceId')}
-                  <input id="change-package-source" type="number" min="1" step="1" value={diffSourceId || String(target.sourceId ?? '')} onChange={event => setDiffSourceId(event.target.value)} className={`h-8 w-24 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-white text-ds-zinc-900'}`} />
+                  <input id="change-package-source" type="number" min="1" step="1" value={diffSourceId || String(target.sourceId ?? '')} onChange={event => setDiffSourceId(event.target.value)} className={`h-8 w-24 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-900'}`} />
                 </label>
                 <p className={`self-end pb-1 text-[0.625rem] ${muted}`}>{t('changePackage.diffHint')}</p>
               </div>}
@@ -282,14 +282,14 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                       id="change-package-direction"
                       value={direction}
                       onChange={event => setDirection(event.target.value as 'incoming' | 'outgoing' | 'both')}
-                      className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200' : 'border-ds-zinc-300 bg-white text-ds-zinc-800'}`}
+                      className={`h-8 rounded-md border px-2 text-xs ${isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-800'}`}
                     >
                       <option value="incoming">{t('changePackage.directionIncoming')}</option>
                       <option value="outgoing">{t('changePackage.directionOutgoing')}</option>
                       <option value="both">{t('changePackage.directionBoth')}</option>
                     </select>
                   </label>
-                  <button type="submit" disabled={loading || !description.trim() || (inputMode === 'diff' && (!baseRef.trim() || !headRef.trim()))} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-ds-indigo-600 px-3 text-xs font-semibold text-white hover:bg-ds-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
+                  <button type="submit" disabled={loading || !description.trim() || (inputMode === 'diff' && (!baseRef.trim() || !headRef.trim()))} className="inline-flex h-8 items-center gap-1.5 rounded-md bg-ds-indigo-600 px-3 text-xs font-semibold text-ds-white hover:bg-ds-indigo-500 disabled:cursor-not-allowed disabled:opacity-50">
                     {loading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
                     {loading ? t('changePackage.loading') : t('changePackage.run')}
                   </button>

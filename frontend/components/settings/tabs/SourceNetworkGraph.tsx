@@ -2,6 +2,7 @@
 import type { KnowledgeSource } from '@/types/domain';
 
 import { DoctusIcon } from '@/components/Logo';
+import { canvasColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getConnectorMetadata } from '@/lib/sourceConnectors';
 import { cn } from "@/lib/utils";
@@ -79,9 +80,9 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
   const ARROW_FRACTIONS = [0.22, 0.5, 0.78];
 
   const edgeColor = (status: Node['status']) => {
-    if (status === 'error') return theme === 'dark' ? '#f87171' : '#dc2626';
-    if (status === 'syncing') return theme === 'dark' ? '#60a5fa' : '#2563eb';
-    return theme === 'dark' ? '#52525b' : '#a1a1aa';
+    if (status === 'error') return canvasColor('danger');
+    if (status === 'syncing') return canvasColor('accent');
+    return canvasColor('neutral-500');
   };
 
   return (

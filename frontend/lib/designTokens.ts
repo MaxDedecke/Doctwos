@@ -11,3 +11,9 @@ export const resolveDsColor = (color: string) => {
   const channels = getComputedStyle(document.documentElement).getPropertyValue(match[1]).trim();
   return channels ? `rgb(${channels})` : color;
 };
+
+/** Auflösung eines Design-Tokens für Canvas-Zeichnung; `alpha` ergänzt die Deckkraft (0–1). */
+export const canvasColor = (token: string, alpha?: number) => {
+  const color = resolveDsColor(dsColor(token));
+  return alpha === undefined ? color : color.replace(/^rgb\((.*)\)$/, `rgb($1 / ${alpha})`);
+};

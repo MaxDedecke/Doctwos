@@ -272,9 +272,9 @@ export function ChatView({
             <button key={mode} type="button" aria-pressed={chatMode === mode} disabled={isLoading}
               onClick={() => setChatMode?.(mode)} title={t(`chatView.mode.${mode}Description`)}
               className={cn('rounded-full px-3 py-1 text-xs font-semibold transition-colors disabled:opacity-60', chatMode === mode
-                // `text-white` existiert im Tailwind-Theme nicht (colors ersetzt die Defaults),
-                // die Beschriftung erbte daher im Light-Mode die dunkle Textfarbe.
-                ? cn('bg-ds-indigo-600', theme === 'dark' ? 'text-white' : 'text-ds-white')
+                // Nur die ds-Variante existiert im Tailwind-Theme (colors ersetzt die Defaults),
+                // die Beschriftung erbte daher die dunkle Textfarbe.
+                ? 'bg-ds-indigo-600 text-ds-white'
                 : 'text-ds-zinc-500 hover:text-ds-zinc-200')}>
               {t(`chatView.mode.${mode}`)}
             </button>
@@ -557,7 +557,7 @@ export function ChatView({
                                     size="sm"
                                     id={`chat-callgraph-open-btn-${i}`}
                                     onClick={() => handleOpenFlow(callFlow, decisionKey, viewAction)}
-                                    className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                    className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-ds-white shadow-sm cursor-pointer"
                                   >
                                     <GitBranch className="w-3.5 h-3.5 mr-1.5" />
                                     {t('chatView.callGraphInvestigateButton')}
@@ -635,7 +635,7 @@ export function ChatView({
                                         type="button"
                                         size="sm"
                                         onClick={() => handleOpenFlow(impact.flow, decisionKey, viewAction)}
-                                        className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                        className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-ds-white shadow-sm cursor-pointer"
                                       >
                                         <GitBranch className="w-3.5 h-3.5 mr-1.5" />
                                         {decision === 'open' ? t('chatView.changeImpactReopen') : t('chatView.changeImpactOpenButton')}
@@ -704,7 +704,7 @@ export function ChatView({
                                       type="button"
                                       size="sm"
                                       onClick={() => handleOpenGraphNeighborhood(action)}
-                                      className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                      className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-ds-white shadow-sm cursor-pointer"
                                     >
                                       <GitBranch className="w-3.5 h-3.5 mr-1.5" />
                                       {isOpen || isDeclined ? t('chatView.graphNeighborhoodReopen') : t('chatView.graphNeighborhoodOpenButton')}
@@ -788,7 +788,7 @@ export function ChatView({
                                         type="button"
                                         size="sm"
                                         onClick={() => handleOpenCodeLocation(action)}
-                                        className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shadow-sm cursor-pointer"
+                                        className="h-7 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-ds-white shadow-sm cursor-pointer"
                                       >
                                         <Code className="w-3.5 h-3.5 mr-1.5" />
                                         {t('chatView.callGraphOpenButton')}
@@ -840,7 +840,7 @@ export function ChatView({
                                       type="button"
                                       size="sm"
                                       onClick={() => openWalkthroughStep(action, 0, m.metadata?.agent_steps)}
-                                      className="h-8 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white shrink-0 cursor-pointer"
+                                      className="h-8 px-3 text-xs font-semibold bg-ds-indigo-600 hover:bg-ds-indigo-500 text-ds-white shrink-0 cursor-pointer"
                                     >
                                       <Play className="w-3.5 h-3.5 mr-1.5" />
                                       {wasStarted ? t('chatView.walkthroughRepeat') : t('chatView.walkthroughStart')}
@@ -855,7 +855,7 @@ export function ChatView({
                                 {activeStep && (
                                   <div className={cn(
                                     'border-t px-3.5 py-3',
-                                    theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-zinc-950/25' : 'border-ds-indigo-200 bg-white/60',
+                                    theme === 'dark' ? 'border-ds-indigo-500/20 bg-ds-zinc-950/25' : 'border-ds-indigo-200 bg-ds-white/60',
                                   )}>
                                     <div className="flex items-center justify-between gap-3 mb-2">
                                       <span className="text-[0.625rem] font-bold uppercase tracking-wider text-ds-indigo-400">
@@ -898,7 +898,7 @@ export function ChatView({
                                           type="button"
                                           size="sm"
                                           onClick={() => openWalkthroughStep(action, activeStepIndex + 1, m.metadata?.agent_steps)}
-                                          className="h-7 px-3 text-xs bg-ds-indigo-600 hover:bg-ds-indigo-500 text-white cursor-pointer"
+                                          className="h-7 px-3 text-xs bg-ds-indigo-600 hover:bg-ds-indigo-500 text-ds-white cursor-pointer"
                                         >
                                           {t('chatView.walkthroughNext')}
                                           <ChevronRight className="w-3.5 h-3.5 ml-1" />
@@ -908,7 +908,7 @@ export function ChatView({
                                           type="button"
                                           size="sm"
                                           onClick={() => setWalkthroughProgress(previous => ({ ...previous, [action.action_id]: null }))}
-                                          className="h-7 px-3 text-xs bg-ds-emerald-600 hover:bg-ds-emerald-500 text-white cursor-pointer"
+                                          className="h-7 px-3 text-xs bg-ds-emerald-600 hover:bg-ds-emerald-500 text-ds-white cursor-pointer"
                                         >
                                           {t('chatView.walkthroughFinish')}
                                         </Button>

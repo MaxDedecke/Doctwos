@@ -144,7 +144,7 @@ export const EvaluationSettingsTab: React.FC = () => {
             <p className={cn('mt-1 max-w-3xl text-[0.625rem]', muted)}>{t('settings.evaluationTab.feedbackDescription')}</p>
           </div>
           <Button type="button" size="sm" variant="outline" disabled={loading} onClick={() => void refresh()}
-            className={cn('h-7 shrink-0 gap-1.5 px-2.5 text-[0.625rem] focus:ring-0', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'border-ds-zinc-200 bg-white text-ds-zinc-700 hover:bg-ds-zinc-100')}>
+            className={cn('h-7 shrink-0 gap-1.5 px-2.5 text-[0.625rem] focus:ring-0', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-700 hover:bg-ds-zinc-100')}>
             {loading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}{t('settings.evaluationTab.feedbackRefresh')}
           </Button>
         </div>
@@ -154,7 +154,7 @@ export const EvaluationSettingsTab: React.FC = () => {
           <input type="search" value={queryInput} onChange={event => setQueryInput(event.target.value)}
             placeholder={t('settings.evaluationTab.feedbackSearch')}
             aria-label={t('settings.evaluationTab.feedbackSearch')}
-            className={cn('h-8 w-full rounded-md border px-2 text-xs outline-none focus:border-ds-indigo-500 sm:w-64', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100 placeholder:text-ds-zinc-500' : 'border-ds-zinc-300 bg-white text-ds-zinc-900 placeholder:text-ds-zinc-400')} />
+            className={cn('h-8 w-full rounded-md border px-2 text-xs outline-none focus:border-ds-indigo-500 sm:w-64', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100 placeholder:text-ds-zinc-500' : 'border-ds-zinc-300 bg-ds-white text-ds-zinc-900 placeholder:text-ds-zinc-400')} />
         </div>
 
         {loading && entries.length === 0 ? (
@@ -219,7 +219,7 @@ export const EvaluationSettingsTab: React.FC = () => {
           <input type="number" min={1} max={365} value={diagnosticSettings.retention_days} disabled={settingsSaving}
             onChange={event => setDiagnosticSettings({ ...diagnosticSettings, retention_days: Math.max(1, Math.min(365, Number(event.target.value) || 1)) })}
             onBlur={() => void saveDiagnosticSettings({ collection_enabled: diagnosticSettings.collection_enabled, support_export_enabled: diagnosticSettings.support_export_enabled, retention_days: diagnosticSettings.retention_days })}
-            className={cn('ml-2 h-7 w-16 rounded border px-2 text-xs', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-300 bg-white')} />
+            className={cn('ml-2 h-7 w-16 rounded border px-2 text-xs', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-300 bg-ds-white')} />
         </label>
         <div className="flex flex-wrap gap-3">
           {diagnosticSettings.collection_enabled && diagnosticSettings.support_export_enabled && <a href={`${API_URL}/feedback-diagnostics/export`} download className="text-[0.625rem] text-ds-indigo-500 hover:underline">{t('settings.evaluationTab.diagnosticsDownload')}</a>}

@@ -13,6 +13,8 @@ function visit(path) {
     const child = join(path, entry.name);
     if (entry.isDirectory()) visit(child);
     if (!entry.isFile() || !sourceExtensions.has(extname(entry.name))) continue;
+    // Tests prüfen die verbotenen Klassen und liefern Fixture-Farben; sie rendern nichts.
+    if (/\.test\.[jt]sx?$/.test(entry.name)) continue;
 
     readFileSync(child, 'utf8').split(/\r?\n/).forEach((line, index) => {
       if (hardTailwindColor.test(line) || hexColor.test(line)) {
