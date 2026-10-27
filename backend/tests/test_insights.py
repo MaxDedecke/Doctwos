@@ -126,3 +126,36 @@ def test_insight_needs_a_different_project_admin_for_verification(
     listed = client.get(f"/projects/{test_project}/insights", params={"status": "verified"})
     assert listed.status_code == 200
     assert [row["id"] for row in listed.json()] == [insight_id]
+
+
+def test_global_admin_can_verify_own_insight(client, db_session, test_project):
+    admin = User(
+        username=f"superadmin-{uuid4().hex}",
+        email=f"superadmin-{uuid4().hex}@example.com",
+        password_hash="$argon2id$fixture",
+        role="superuser",
+    )
+    db_session.add(admin)
+    db_session.commit()
+
+    _as_user(client, admin)
+    created = client.post(
+        f"/projects/{test_project}/insights",
+        json={
+            "title": "Admin Insight",
+            "content": "Admin content.",
+            "origin_kind": "code",
+            "evidence": [{"file": "test.cbl"}],
+        },
+    )
+    assert created.status_code == 201
+    insight_id = created.json()["id"]
+
+    verified = client.post(
+        f"/projects/{test_project}/insights/{insight_id}/verify", json={"confirm": True}
+    )
+    assert verified.status_code == 200
+    assert verified.json()["status"] == "verified"
+    assert verified.json()["verified_by_id"] == admin.id
+    assert verified.json()["verified_at"] is not None
+

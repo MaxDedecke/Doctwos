@@ -9,6 +9,7 @@ from api.schemas import InsightCreate, InsightVerification
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
+from core.teams import is_admin
 from models.database import Insight, KnowledgeSource, User
 
 
@@ -132,7 +133,7 @@ def verify_insight(
         raise HTTPException(status_code=404, detail="Erkenntnis nicht gefunden")
     if insight.status != "draft":
         raise HTTPException(status_code=409, detail="Erkenntnis wurde bereits freigegeben")
-    if insight.created_by_id == user.id:
+    if insight.created_by_id == user.id and not is_admin(user):
         raise HTTPException(
             status_code=403, detail="Ersteller dürfen ihre eigene Erkenntnis nicht freigeben"
         )
