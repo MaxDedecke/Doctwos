@@ -869,7 +869,7 @@ describe('LinkManagerView', () => {
       await screen.findByText('ZAHLUNG');
 
       fireEvent.click(screen.getByTitle('Doku-Seite öffnen'));
-      expect(onOpenDoc).toHaveBeenCalledWith('Zahlungslauf-Handbuch', 9);
+      expect(onOpenDoc).toHaveBeenCalledWith('Zahlungslauf-Handbuch', 9, expect.objectContaining({ url: 'https://wiki/zahlung' }));
     });
 
     it('bietet keinen Doku-Sprung an, wenn der Link keinen Chunk-Bezug hat (manuell angelegt)', async () => {
@@ -892,9 +892,9 @@ describe('LinkManagerView', () => {
       const buttons = screen.getAllByTitle('Doku-Seite öffnen');
       expect(buttons).toHaveLength(2);
       fireEvent.click(buttons[0]);
-      expect(onOpenDoc).toHaveBeenCalledWith('Fachkonzept', 21);
+      expect(onOpenDoc).toHaveBeenCalledWith('Fachkonzept', 21, expect.objectContaining({ url: null }));
       fireEvent.click(buttons[1]);
-      expect(onOpenDoc).toHaveBeenCalledWith('Betriebshandbuch', 22);
+      expect(onOpenDoc).toHaveBeenCalledWith('Betriebshandbuch', 22, expect.objectContaining({ url: null }));
       // Doc↔Doc hat keine Code-Seite.
       expect(screen.queryByTitle('Code-Seite öffnen')).toBeNull();
     });

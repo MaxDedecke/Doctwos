@@ -51,7 +51,7 @@ interface LinkManagerViewProps {
   // O-114: dieselben Navigations-Rückrufe, die jedes andere Panel schon über
   // PanelContentRenderer bekommt — der Link-Manager war das einzige ohne.
   onOpenCode?: (filePath: string, line: number | null, sourceId: number | string | null) => void;
-  onOpenDoc?: (filePath: string, sourceId: number | string | null) => void;
+  onOpenDoc?: (filePath: string, sourceId: number | string | null, locator?: Partial<import('@/types/domain').WorkspaceDocument>) => void;
 }
 
 type Segment = 'links' | 'topics';
@@ -808,7 +808,7 @@ function ProjectLinkManagerView({
           </button>
         )}
         {onOpenDoc && side.docSourceId != null && (
-          <button onClick={() => onOpenDoc(side.label, side.docSourceId!)}
+          <button onClick={() => onOpenDoc(side.label, side.docSourceId!, { url: side.url, section: side.location?.section, page: side.location?.page, startLine: side.location?.start_line, endLine: side.location?.end_line })}
             title={t('linkManagerView.actions.openDoc')}
             className={cn('shrink-0', isDark ? 'text-ds-zinc-600 hover:text-ds-zinc-400' : 'text-ds-zinc-400 hover:text-ds-zinc-600')}>
             <BookOpen className="w-3 h-3" />

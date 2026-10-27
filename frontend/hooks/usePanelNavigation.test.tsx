@@ -216,6 +216,35 @@ describe('usePanelNavigation', () => {
     expect(result.current.selectedDoc).toEqual({ id: 8, name: 'manual.pdf', isWebOrigin: false, url: null, type: 'local' });
   });
 
+  it('opens distinct review documents in independent frozen panels without changing the global focus', () => {
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['linkmanager'] }));
+    act(() => {
+      result.current.navigation.handleDocFocusRequest('first.pdf', 8, { page: 2 }, true, true);
+      result.current.navigation.handleDocFocusRequest('second.pdf', 8, undefined, true, true);
+    });
+    expect(result.current.addPanel).toHaveBeenCalledTimes(2);
+    expect(result.current.addPanel).toHaveBeenNthCalledWith(1, 'doc', expect.objectContaining({
+      selectedDoc: expect.objectContaining({ id: 8, name: 'first.pdf', page: 2 }),
+    }), true);
+    expect(result.current.addPanel).toHaveBeenNthCalledWith(2, 'doc', expect.objectContaining({
+      selectedDoc: expect.objectContaining({ id: 8, name: 'second.pdf' }),
+    }), true);
+    expect(result.current.selectedDoc).toBeNull();
+  });
+
+  it('reuses an already open review document and reports a full workspace', () => {
+    const { result } = renderHook(() => useNavigationHarness({
+      panelConfigs: ['doc'], panelFrozen: [true], panelSelections: [{
+        selectedFile: null, selectedDoc: { id: 8, name: 'first.pdf' }, selectedEntity: null, selectedLine: null,
+      }],
+    }));
+    act(() => result.current.navigation.handleDocFocusRequest('first.pdf', 8, undefined, true, true));
+    expect(result.current.addPanel).not.toHaveBeenCalled();
+    result.current.addPanel.mockReturnValue(false);
+    act(() => result.current.navigation.handleDocFocusRequest('second.pdf', 8, undefined, true, true));
+    expect(result.current.showToast).toHaveBeenCalledWith('page.toast.noPanelSpace', 'error');
+  });
+
   // O-090: an entity focus must carry its own end line, so the chat backend can
   // hand the LLM exactly this object's excerpt instead of the whole RAG chunk.
   it('pins an entity focus with its own end line', async () => {

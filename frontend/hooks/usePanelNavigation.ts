@@ -9,6 +9,7 @@ import { isAxiosError } from 'axios';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { useCallback } from 'react';
 import type { PinnedCode } from './useWorkspaceLayout';
+import { useDocumentNavigation } from './useDocumentNavigation';
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 type Setter<T> = Dispatch<SetStateAction<T>>;
@@ -265,49 +266,9 @@ export function usePanelNavigation({
     }
   }, [addPanel, connectedSources, panelConfigs, panelFrozen, panelSelections, pinEntityFocus, pinFileFocus, projectEntities, selectedProject, setActiveMobileTab, setPanelHistory, setPanelSelections, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, isPanelHistoryNavRef, showToast, t]);
 
-  const handleDocFocusRequest = useCallback((
-    filePath: string,
-    sourceId: number | string | null,
-    locatorOrOpenIfMissing?: Partial<WorkspaceDocument> | boolean,
-    openIfMissing = true,
-  ) => {
-    if (!sourceId) return;
-    // Keep the old third-argument boolean accepted for existing callers while
-    // reference navigation now supplies the locator as a document object.
-    const locator = typeof locatorOrOpenIfMissing === 'object' ? locatorOrOpenIfMissing : undefined;
-    const shouldOpen = typeof locatorOrOpenIfMissing === 'boolean' ? locatorOrOpenIfMissing : openIfMissing;
-    const { isWebOrigin } = resolveReferenceTarget(filePath, sourceId, connectedSources);
-    const source = connectedSources.find(candidate => Number(candidate.id) === Number(sourceId));
-    const targetType = isWebOrigin ? 'webview' : 'doc';
-    const baseUrl = locator?.url || (isWebOrigin ? filePath : null);
-    const viewerUrl = baseUrl && locator?.urlAnchor && !baseUrl.includes('#')
-      ? `${baseUrl}#${locator.urlAnchor}`
-      : baseUrl;
-    const selectedDocument: WorkspaceDocument = {
-      ...locator,
-      id: sourceId,
-      name: filePath,
-      isWebOrigin,
-      url: viewerUrl,
-      type: locator?.type || source?.type,
-    };
-    const hasLiveTargetPanel = panelConfigs.some((config, index) => config === targetType && !panelFrozen[index]);
-    if (!hasLiveTargetPanel && !shouldOpen) return;
-    const selectionOverride = {
-      selectedFile: null,
-      selectedDoc: selectedDocument,
-      selectedEntity: null,
-    };
-    if (!ensureLivePanelType(targetType, selectionOverride)) {
-      showToast(t('page.toast.noPanelSpace'), 'error');
-      return;
-    }
-    pinFileFocus(filePath, null, sourceId);
-    setSelectedDoc(selectedDocument);
-    setSelectedFile(null);
-    setSelectedEntity(null);
-    setSelectedLine(null);
-  }, [connectedSources, ensureLivePanelType, panelConfigs, panelFrozen, pinFileFocus, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, t]);
+  const handleDocFocusRequest = useDocumentNavigation({ connectedSources, panelConfigs, panelFrozen,
+    panelSelections, addPanel, ensureLivePanelType, pinFileFocus, setSelectedDoc, setSelectedFile,
+    setSelectedEntity, setSelectedLine, showToast, t });
 
   const handleGutterClick = useCallback((panelIndex: number, lineNumber: number, lineContent: string) => {
     const selection = panelSelections[panelIndex];

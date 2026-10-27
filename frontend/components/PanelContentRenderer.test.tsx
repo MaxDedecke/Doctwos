@@ -176,7 +176,7 @@ describe('PanelContentRenderer', () => {
       expect(handlePanelFileSelect).toHaveBeenCalledWith(2, 'src/ZAHLUNG.cbl', 12, 5, true);
 
       getCaptured('linkmanager-view').onOpenDoc?.('Handbuch.pdf', 9);
-      expect(handleDocFocusRequest).toHaveBeenCalledWith('Handbuch.pdf', 9);
+      expect(handleDocFocusRequest).toHaveBeenCalledWith('Handbuch.pdf', 9, undefined, true, true);
     });
 
     it.each([

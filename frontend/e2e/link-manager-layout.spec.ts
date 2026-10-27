@@ -3,8 +3,8 @@ import { expect, test, type Page } from '@playwright/test';
 const project = { id: 1, name: 'Java Maven – Architecture and integration reference project', status: 'completed' };
 const codeA = { type: 'entity', title: 'OrderController', code_ref: { file_path: 'src/OrderController.java', line: 10, source_id: 7 } };
 const codeB = { type: 'entity', title: 'OrderService', code_ref: { file_path: 'src/OrderService.java', line: 20, source_id: 7 } };
-const docA = { type: 'document', title: 'Architecture guide', source_type: 'Confluence' };
-const docB = { type: 'document', title: 'Operations handbook', source_type: 'Local' };
+const docA = { type: 'document', title: 'Architecture guide', source_type: 'Local', doc_source_id: 9 };
+const docB = { type: 'document', title: 'Operations handbook', source_type: 'Local', doc_source_id: 9 };
 const links = [[codeA, codeB], [docA, codeB], [docA, docB]].map(([source_a, source_b], index) => ({
   id: index + 1, source_a, source_b, score: 1, status: 'pending', created_by: 'auto',
   context: 'Verified relation with original source references.', link_type: 'semantic',
@@ -32,6 +32,7 @@ async function openManager(page: Page, baseURL: string, views: number, split = 5
       { id: 7, project_id: 1, name: 'Java sources – modules and generated interfaces', type: 'Git' },
       { id: 9, project_id: 1, name: 'Architecture and operations documentation', type: 'Local' },
     ];
+    else if (url.pathname.endsWith('/content')) body = { content: `Content of ${url.searchParams.get('path')}`, format: 'text' };
     else if (url.pathname.endsWith('/link-recommendations/estimate')) body = { entities_to_scan: 12, estimated_llm_reviews_max: 12, estimated_embedding_calls_max: 12 };
     else if (url.pathname === '/knowledge-links/estimate') body = { chunk_count: 4, estimated_llm_reviews_max: 20 };
     else if (url.pathname.endsWith('/compute')) body = { run_id: 100, started: true };
@@ -153,4 +154,25 @@ test('dialog remains usable with enlarged desktop text, light theme, English and
   await expect(dialog).toBeHidden();
   await expect(trigger).toBeFocused();
   expect(posts.filter(path => path.endsWith('/compute'))).toHaveLength(0);
+});
+
+test('opens both sides of a document relationship in independent panels', async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  const { view } = await openManager(page, baseURL!, 2);
+  const kind = view.getByRole('combobox', { name: 'Beziehungsart' });
+  if (await kind.isVisible()) await kind.selectOption('docDoc');
+  else await view.getByRole('button', { name: 'Doc ↔ Doc', exact: true }).click();
+  const buttons = view.getByTitle('Doku-Seite öffnen');
+  await expect(buttons).toHaveCount(2);
+  await buttons.nth(0).click();
+  await expect(page.locator('[title="Architecture guide"]').last()).toBeVisible();
+  await buttons.nth(1).click();
+  await expect(page.locator('[title="Architecture guide"]').last()).toBeVisible();
+  await expect(page.locator('[title="Operations handbook"]').last()).toBeVisible();
+  await expect(page.getByText('Content of Architecture guide')).toBeVisible();
+  await expect(page.getByText('Content of Operations handbook')).toBeVisible();
+  await buttons.nth(0).click();
+  await expect(page.locator('[title="Architecture guide"]')).toHaveCount(1);
+  await expect(page.locator('[title="Operations handbook"]')).toHaveCount(1);
+  await expect(view).toBeVisible();
 });

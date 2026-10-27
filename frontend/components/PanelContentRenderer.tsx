@@ -66,7 +66,7 @@ type PanelContentRendererProps = {
   projectEntities: CodeEntity[];
   fileNavStack: Array<{ file: string | null; doc: WorkspaceDocument | null; tab: PanelTab }>;
   handleNavigateBack: () => Promise<void> | void;
-  handleDocFocusRequest: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
+  handleDocFocusRequest: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>, openIfMissing?: boolean, comparison?: boolean) => void;
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
   chatEndRef: React.RefObject<HTMLDivElement>;
   currentUser: User | null;
@@ -216,7 +216,7 @@ export function PanelContentRenderer({
         // O-114: dieselben Rückrufe, die jedes andere Panel schon bekommt (z. B.
         // CallGraphView.onFileSelect) — der Link-Manager war die einzige Insel.
         onOpenCode={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
-        onOpenDoc={(filePath, sourceId) => handleDocFocusRequest(filePath, sourceId)}
+        onOpenDoc={(filePath, sourceId, locator) => handleDocFocusRequest(filePath, sourceId, locator, true, true)}
       />
     );
   }
