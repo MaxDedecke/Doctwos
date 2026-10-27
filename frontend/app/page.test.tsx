@@ -270,6 +270,49 @@ describe('app/page.tsx — Orchestrierung', () => {
       routerPush.mockClear();
     }
 
+    it('asks before opening the graph and keeps the session and chat on cancel', async () => {
+      await loginWithActiveSession(chatSession({ snapshot_json: { panelConfigs: ['chat', 'code'] } }));
+      fireEvent.click(screen.getByText('open-graph'));
+
+      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(screen.getByTestId('sidebar-active-session').textContent).toBe('7');
+      expect(screen.getByTestId('panel-messages-0').textContent).toBe('2');
+      expect(screen.queryByText('graph')).toBeNull();
+      expect(screen.getByTestId('panel-type-1').textContent).toBe('code');
+      expect(routerPush).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.queryByText('graph')).toBeNull();
+      expect(screen.getByTestId('sidebar-active-session').textContent).toBe('7');
+      expect(routerPush).not.toHaveBeenCalled();
+    });
+
+    it('opens the graph in the current session without clearing messages or changing the URL', async () => {
+      await loginWithActiveSession(chatSession({ snapshot_json: { panelConfigs: ['chat', 'code'] } }));
+      fireEvent.click(screen.getByText('open-graph'));
+      fireEvent.click(screen.getByRole('button', { name: 'In Session bleiben' }));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('panel-type-1').textContent).toBe('code');
+      expect(screen.getByTestId('panel-type-2').textContent).toBe('graph');
+      expect(screen.getByTestId('sidebar-active-session').textContent).toBe('7');
+      expect(screen.getByTestId('panel-messages-0').textContent).toBe('2');
+      expect(routerPush).not.toHaveBeenCalled();
+    });
+
+    it('clears the session and opens the graph only after choosing a new session', async () => {
+      await loginWithActiveSession(chatSession({ snapshot_json: { panelConfigs: ['chat', 'code'] } }));
+      fireEvent.click(screen.getByText('open-graph'));
+      fireEvent.click(screen.getByRole('button', { name: 'Neue Session starten' }));
+
+      expect(screen.queryByRole('dialog')).toBeNull();
+      expect(screen.getByTestId('panel-type-2').textContent).toBe('graph');
+      expect(screen.getByTestId('sidebar-active-session').textContent).toBe('none');
+      expect(screen.getByTestId('panel-messages-0').textContent).toBe('0');
+      expect(routerPush).toHaveBeenCalledWith('/workspace');
+    });
+
     it('resets the chat when switching to a project different from the active session\'s own project', async () => {
       await loginWithActiveSession(chatSession());
 

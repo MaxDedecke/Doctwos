@@ -1173,6 +1173,13 @@
       "programsCopybooksRelations": "Programme, Copybooks, Zusammenhänge"
     }
   },
+  "openGraphDialog": {
+    "title": "Wissensgraph öffnen",
+    "description": "Das Öffnen des Wissensgraphen hat bisher automatisch eine neue Session gestartet. Du kannst eine neue Session mit leerem Chat starten oder den Wissensgraphen in der aktuellen Session öffnen und den Chat behalten. Abbrechen lässt den Arbeitsbereich unverändert.",
+    "newSession": "Neue Session starten",
+    "cancel": "Abbrechen",
+    "stayInSession": "In Session bleiben"
+  },
   "saveSessionDialog": {
     "title": "Sitzung speichern",
     "description": "Der Chat wurde nicht benutzt, aber der aktuelle Stand über mehrere Ansichten lässt sich trotzdem als benannte Sitzung sichern und später teilen.",

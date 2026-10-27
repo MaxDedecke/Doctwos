@@ -1173,6 +1173,13 @@
       "programsCopybooksRelations": "Programs, copybooks, relationships"
     }
   },
+  "openGraphDialog": {
+    "title": "Open knowledge graph",
+    "description": "Opening the knowledge graph previously started a new session automatically. You can start a new session with an empty chat or open the knowledge graph in the current session and keep the chat. Cancel leaves the workspace unchanged.",
+    "newSession": "Start new session",
+    "cancel": "Cancel",
+    "stayInSession": "Stay in session"
+  },
   "saveSessionDialog": {
     "title": "Save session",
     "description": "The chat was never used, but the current state across multiple views can still be saved as a named session and shared later.",

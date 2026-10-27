@@ -14,6 +14,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginView } from "@/components/LoginView";
+import { OpenGraphDialog } from "@/components/OpenGraphDialog";
 import { PanelContentRenderer } from "@/components/PanelContentRenderer";
 import { ProjectEdgeBar } from "@/components/ProjectEdgeBar";
 import { PanelRenderer } from "@/components/PanelRenderer";
@@ -97,6 +98,7 @@ function AppContent() {
 
   // --- Settings & Design (Workspace Split) ---
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isOpenGraphDialogOpen, setIsOpenGraphDialogOpen] = useState(false);
   const [chatMode, setChatMode] = useState<'normal' | 'evidence'>('normal');
   useEffect(() => {
     if (window.localStorage.getItem('doctus-chat-mode') === 'evidence') {
@@ -848,8 +850,7 @@ function AppContent() {
     }
   }, [handleProjectSelect, panelConfigs, projects, selectedProject, setPanelSelections, updatePanelEntitySelection]);
 
-  const handleOpenGraphView = useCallback(() => {
-    resetChatSession();
+  const openGraphView = useCallback(() => {
     setActiveRightTab('graph');
     setActiveMobileTab('graph');
 
@@ -868,7 +869,15 @@ function AppContent() {
         return next;
       });
     }
-  }, [ensurePanelType, panelConfigs, resetChatSession, setActiveMobileTab, setActiveRightTab, setPanelFrozen, setPanelSelections]);
+  }, [ensurePanelType, panelConfigs, setActiveMobileTab, setActiveRightTab, setPanelFrozen, setPanelSelections]);
+
+  const handleOpenGraphView = useCallback(() => {
+    if (activeSessionId !== null || chatMessages.length > 0 || (panelConfigs.includes('chat') && panelConfigs.length > 1)) {
+      setIsOpenGraphDialogOpen(true);
+      return;
+    }
+    openGraphView();
+  }, [activeSessionId, chatMessages.length, panelConfigs, openGraphView]);
 
   const handleCloseSettings = useCallback(() => setIsSettingsOpen(false), []);
   const handleSidebarFileSelect = useCallback((path: string, line?: number, sourceId?: string) => {
@@ -1146,6 +1155,20 @@ function AppContent() {
       </AnimatePresence>
 
       {/* Advanced Settings Modal Dialog */}
+      <OpenGraphDialog
+        isOpen={isOpenGraphDialogOpen}
+        theme={theme}
+        onClose={() => setIsOpenGraphDialogOpen(false)}
+        onNewSession={() => {
+          setIsOpenGraphDialogOpen(false);
+          resetChatSession();
+          openGraphView();
+        }}
+        onStayInSession={() => {
+          setIsOpenGraphDialogOpen(false);
+          openGraphView();
+        }}
+      />
       <SettingsProvider
         value={settingsContextValue}
       >
