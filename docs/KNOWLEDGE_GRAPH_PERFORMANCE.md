@@ -95,3 +95,15 @@ Standard-Stack (`halfvec` wird benötigt). Der datenbankfreie Golden-Job wählt
 explizit `test_cobol_*.py`, statt über `-k cobol` versehentlich einen Java-DB-Test
 mit `not_cobol` im Namen auszuwählen. 250 Golden-/COBOL-Tests bestehen ohne Netz
 oder Datenbank.
+
+Der Parser-CI-Job erhält außerdem einen eigenen Redis-kompatiblen Valkey-Dienst.
+Der E2E-Aufbau führt den vorgeschriebenen ersten Passwortwechsel aus, bevor
+Login- und Accessibility-Smokes parallel dasselbe Testkonto verwenden. Damit
+ist CI auf `6a53b4b` vollständig grün (11 Jobs).
+
+Alle 13 Browser-Smokes (Login, Accessibility und Graph-Bedienung bei mehreren
+Panelgrößen) bestehen lokal gegen eine isolierte Produktionsinstallation.
+Der Opazitätstest liest die tatsächliche Knotenfüllung, statt von der
+zoomabhängigen Sichtbarkeit einer Beschriftung abzuhängen. Der CI-E2E-Job
+enthält diese Graph-Fälle und einen zusätzlichen funktionalen Worker-Smoke
+mit 200 nicht vorpositionierten Knoten. Bildraten sind keine CI-Grenzwerte.

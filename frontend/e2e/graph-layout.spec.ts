@@ -149,15 +149,23 @@ test('keeps the canvas and explicit inspector state when resizing and using Engl
 
 test('clearing a pinned selection restores the actual canvas opacity without rebuilding the graph', async ({ page, baseURL }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.addInitScript(() => {
+  const booking = nodes.find(node => node.label === 'Booking processor')!;
+  await page.addInitScript(({ x, y }) => {
     const state = window as Window & { graphTestNodeAlpha?: number };
-    const original = CanvasRenderingContext2D.prototype.fillText;
-    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxWidth) {
-      if (text === 'Booking processor') state.graphTestNodeAlpha = this.globalAlpha;
-      if (maxWidth === undefined) original.call(this, text, x, y);
-      else original.call(this, text, x, y, maxWidth);
+    const target = new WeakSet<CanvasRenderingContext2D>();
+    const arc = CanvasRenderingContext2D.prototype.arc;
+    const fill = CanvasRenderingContext2D.prototype.fill;
+    CanvasRenderingContext2D.prototype.arc = function (cx, cy, radius, start, end, counterclockwise) {
+      if (Math.abs(cx - x) < 0.001 && Math.abs(cy - y) < 0.001) target.add(this);
+      else target.delete(this);
+      return arc.call(this, cx, cy, radius, start, end, counterclockwise);
     };
-  });
+    CanvasRenderingContext2D.prototype.fill = function (this: CanvasRenderingContext2D, ...args: unknown[]) {
+      // Read the node fill, independently of zoom-dependent labels and icons.
+      if (target.has(this) && this.canvas.isConnected) state.graphTestNodeAlpha = this.globalAlpha;
+      return Reflect.apply(fill, this, args);
+    };
+  }, { x: booking.fx, y: booking.fy });
   const graph = await openGraph(page, baseURL!, 1, 50);
   await graph.locator('canvas').first().evaluate(canvas => canvas.setAttribute('data-focus-reset-marker', 'original'));
   await graph.getByRole('button', { name: 'Auf diesen Knoten fokussieren', exact: true }).click();

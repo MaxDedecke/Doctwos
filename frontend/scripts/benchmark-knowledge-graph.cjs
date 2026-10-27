@@ -162,6 +162,7 @@ async function measure(page, action) {
       const worker = await page.evaluate(() => ({ count: window.graphBench.workers, done: window.graphBench.workerDone }));
       if (!selectedVerified) throw new Error(`Selection probe failed for ${count} nodes`);
       if (!fixed && (!worker.count || !worker.done)) throw new Error('Worker layout did not finish');
+      if (errors.length) throw new Error(`Browser errors: ${errors.join('; ')}`);
       const result = { nodes: count, edges: graph.edges.length, firstCanvasMs, selectedVerified, worker, idle, selected, interaction, errors };
       results.push(result);
       console.log(JSON.stringify(result));

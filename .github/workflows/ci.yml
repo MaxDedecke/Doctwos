@@ -343,7 +343,16 @@ jobs:
 
       - name: Run e2e smoke test
         working-directory: frontend
-        run: npx playwright test e2e/login.spec.ts e2e/accessibility.spec.ts
+        run: npx playwright test e2e/login.spec.ts e2e/accessibility.spec.ts e2e/graph-layout.spec.ts
+
+      - name: Verify production graph worker and selection
+        working-directory: frontend
+        env:
+          GRAPH_BENCH_URL: http://localhost:3000
+          GRAPH_BENCH_NODES: "200"
+          GRAPH_BENCH_FIXED: "false"
+        # Functional smoke only; hardware-dependent FPS values are not a CI threshold.
+        run: node scripts/benchmark-knowledge-graph.cjs /tmp/graph-worker-smoke.json
 
       - name: Upload logs on failure
         if: failure()
