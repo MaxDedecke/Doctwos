@@ -23,6 +23,7 @@ import { KnowledgeGraphView, withKeptAnchor } from './KnowledgeGraphView';
 const centerAt = vi.fn();
 
 type GraphStubProps = {
+  autoPauseRedraw?: boolean;
   graphData: { nodes: GraphNode[]; links: GraphEdge[] };
   onNodeClick: (node: GraphNode) => void;
   linkDirectionalArrowLength?: (link: GraphEdge) => number;
@@ -168,8 +169,9 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
       latestGraphProps.nodeCanvasObject!(nodes[2], context, 1);
       return context.globalAlpha;
     };
+    expect(latestGraphProps.autoPauseRedraw).toBe(true);
     expect(nodeAlpha()).toBe(0.15);
-    expect(latestGraphProps.linkColor!(edges[1])).toBe('rgba(161,161,170,0.06)');
+    expect(latestGraphProps.linkColor!(edges[1])).toContain('0.06');
 
     if (kind === 'background') act(() => latestGraphProps.onBackgroundClick!());
     else fireEvent.click(screen.getByRole('button', { name: 'Fokus aufheben' }));

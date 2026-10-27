@@ -2,6 +2,8 @@
 import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
+import type { GraphNode, GraphEdge } from '@/lib/knowledgeGraphTypes';
+import { createKnowledgeGraphRenderer, nodeRadius, getNodeDisplayLabel, isEdgeDirected, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
 import { api, API_URL } from '@/app/services/api';
 import {
   EDGE_TYPE_COLORS,
@@ -10,7 +12,6 @@ import {
   EDGE_DIRECTION_TAXONOMY,
   getGraphEdgeColor,
   getGraphEdgeLabelKey,
-  normalizeGraphEdgeDirection,
   getGraphNodeCategory,
   getGraphNodeColor,
   type GraphEdgeDirection,
@@ -22,14 +23,12 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
 import {
-  BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO,
   CHARGE_DISTANCE_MAX,
   GRAPH_ALPHA_DECAY,
   GRAPH_COOLDOWN_MS,
   NODE_RADIUS_SCALE,
   NEIGHBORHOOD_LAYER_GAP,
   NEIGHBORHOOD_ROW_GAP,
-  arrowLength,
   chargeStrength,
   collisionRadius,
   edgeLineWidth,
@@ -43,7 +42,7 @@ import { GraphSourceFocus } from './GraphSourceFocus';
 import { GraphFilterPanel } from './GraphFilterPanel';
 import { GraphToolPanel } from './GraphToolPanel';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
-import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
+import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ForceGraph2D will be loaded dynamically on mount
 
@@ -81,15 +80,6 @@ export function withKeptAnchor(
   return { nodes: [...nodes, keep.node], edges: [...edges, ...extraEdges] };
 }
 
-// Shared by the canvas drawing and the collision force below so the physics
-// always matches what's actually painted — a mismatch would leave nodes
-// either overlapping (radius too small) or spaced needlessly far apart
-// (radius too large).
-function nodeRadius(node: GraphNode, degree = 0): number {
-  const baseRadius = node?.type === 'entity' || node?.type === 'code_file' ? 8 : 7;
-  return (baseRadius + Math.min(9, Math.sqrt(degree) * 1.8)) * NODE_RADIUS_SCALE;
-}
-
 export const LINK_COLORS = EDGE_TYPE_COLORS;
 
 export function getLinkLabel(t: (key: string) => string, type: string): string | undefined {
@@ -114,85 +104,8 @@ function extractEntityDbId(id: unknown): number | null {
 
 /* ── Types ───────────────────────────────────────────────────────────────────── */
 
-export interface GraphNode {
-  id: string;
-  type: 'entity' | 'code_file' | 'document' | 'copybook' | 'external';
-  label: string;
-  entity_type?: string;
-  language?: string;
-  analysis_status?: 'partial' | 'text_fallback' | 'skipped' | 'error';
-  analysis_reasons?: string[];
-  file_path?: string;
-  start_line?: number;
-  source_type?: string;
-  url?: string;
-  project_id?: number;
-  unresolved?: boolean;
-  source_id?: number | string | null;
-  entity_ids?: number[];
-  resource_type?: string;
-  resource_id?: string | number | null;
-  x?: number;
-  y?: number;
-  fx?: number;
-  fy?: number;
-}
-
-function getNodeDisplayLabel(node: GraphNode): string {
-  if (node.type !== 'code_file' || !node.file_path) return node.label;
-  return node.file_path.split(/[\\/]/).filter(Boolean).pop() || node.label;
-}
-
-export interface GraphEdge {
-  id: string;
-  source: string | GraphNode;
-  target: string | GraphNode;
-  link_type: string;
-  /** Broad graph relationship family, e.g. `documented` for EntityDocLink. */
-  relation_type?: string;
-  /** O-264/O-265: Directionality of the relationship ('directed' | 'undirected' | 'bidirectional') */
-  direction?: 'directed' | 'undirected' | 'bidirectional';
-  score: number | null;
-  context: string | null;
-  /** Optional code-edge fields; relationship types remain open strings. */
-  type?: string;
-  resolution?: string | null;
-  meta?: Record<string, unknown>;
-  start_line?: number | null;
-  end_line?: number | null;
-  chunk_id?: number | null;
-  document_file_path?: string | null;
-  document_source_id?: number | string | null;
-  document_start_line?: number | null;
-  document_end_line?: number | null;
-  document_page?: number | string | null;
-  document_section?: string | null;
-  document_url_anchor?: string | null;
-  document_url?: string | null;
-  code_file_path?: string | null;
-  code_entity_id?: number | null;
-  code_entity_name?: string | null;
-  code_entity_type?: string | null;
-  code_start_line?: number | null;
-}
-
-export function isEdgeDirected(edge: GraphEdge): boolean {
-  const legacyFallback = edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:')
-    ? 'directed'
-    : 'undirected';
-  return EDGE_DIRECTION_TAXONOMY[normalizeGraphEdgeDirection(edge.direction, legacyFallback)].arrowheads > 0;
-}
-
-function graphEdgeDirection(edge: GraphEdge): GraphEdgeDirection {
-  const legacyFallback = edge.id.startsWith('code:') || edge.id.startsWith('edl:') || edge.id.startsWith('ref:')
-    ? 'directed'
-    : 'undirected';
-  return normalizeGraphEdgeDirection(edge.direction, legacyFallback);
-}
-
-function graphEdgeType(edge: Pick<GraphEdge, 'link_type' | 'relation_type'>): string {
-  return edge.relation_type ?? edge.link_type;
-}
+export type { GraphNode, GraphEdge } from '@/lib/knowledgeGraphTypes';
+export { isEdgeDirected } from '@/lib/knowledgeGraphRendering';
 
 interface Props {
   theme: string;
@@ -972,146 +885,26 @@ export function KnowledgeGraphView({
     return null;
   }, [activeFocusNodeId, selectedEdgeId, filteredData]);
 
-  // Keep only edges incident to the focused/selected node at full color. Edges
-  // between two highlighted neighbors dim so the one-hop star stays readable.
-  // An edge selection without a node focus keeps only that edge colored.
-  const isLinkTouchingFocus = useCallback((l: GraphEdge) => {
-    if (activeFocusNodeId) {
-      const src = typeof l.source === 'object' ? l.source.id : l.source;
-      const tgt = typeof l.target === 'object' ? l.target.id : l.target;
-      return src === activeFocusNodeId || tgt === activeFocusNodeId;
-    }
-    if (selectedEdgeId) return l.id === selectedEdgeId;
-    return true;
-  }, [activeFocusNodeId, selectedEdgeId]);
-
   const selectedNode = useMemo(() => rawNodes.find(n => n.id === selectedNodeId) ?? null, [rawNodes, selectedNodeId]);
   const selectedEdge = useMemo(() => rawEdges.find(e => e.id === selectedEdgeId) ?? null, [rawEdges, selectedEdgeId]);
 
-  // O-266: Pair mapping to compute linkCurvature for opposing or parallel edges between the same two nodes
-  const edgePairMap = useMemo(() => {
-    const map = new Map<string, GraphEdge[]>();
-    filteredData.links.forEach((l: GraphEdge) => {
-      const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-      const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-      if (!s || !t) return;
-      const key = s < t ? `${s}--${t}` : `${t}--${s}`;
-      const list = map.get(key) || [];
-      list.push(l);
-      map.set(key, list);
-    });
-    return map;
-  }, [filteredData.links]);
-
-  const getLinkCurvature = useCallback((l: GraphEdge) => {
-    const s = typeof l.source === 'object' ? (l.source as GraphNode).id : l.source;
-    const t = typeof l.target === 'object' ? (l.target as GraphNode).id : l.target;
-    if (!s || !t) return 0;
-    const key = s < t ? `${s}--${t}` : `${t}--${s}`;
-    const pairList = edgePairMap.get(key);
-    if (!pairList || pairList.length <= 1) {
-      return l.id.startsWith('kl:') ? 0.08 : 0;
-    }
-    const idx = pairList.findIndex(e => e.id === l.id);
-    if (pairList.length === 2) {
-      const [e1, e2] = pairList;
-      const s1 = typeof e1.source === 'object' ? (e1.source as GraphNode).id : e1.source;
-      const s2 = typeof e2.source === 'object' ? (e2.source as GraphNode).id : e2.source;
-      // If opposing directions (A->B and B->A), both curve positively relative to their direction,
-      // which curves them away from each other on canvas.
-      if (s1 !== s2) {
-        return 0.2;
-      }
-      return idx === 0 ? 0.2 : -0.2;
-    }
-    const offset = ((idx - (pairList.length - 1) / 2) / (pairList.length - 1)) * 0.4;
-    return offset || 0.05;
-  }, [edgePairMap]);
-
-  // Aktueller Zoomfaktor des Graphen; die Pfeillänge wird pro Zeichenvorgang daraus abgeleitet,
-  // damit die Richtung auch weit herausgezoomt sichtbar bleibt (siehe lib/graphLayout.ts).
   const zoomRef = useRef(1);
-
-  const getEdgeArrowLength = useCallback((l: GraphEdge) => {
-    const selected = l.id === selectedEdgeId;
-    const source = typeof l.source === 'object' && l.source !== null ? (l.source as GraphNode) : null;
-    const target = typeof l.target === 'object' && l.target !== null ? (l.target as GraphNode) : null;
-    let exposedLength: number | null = null;
-    if (source && target && source.x != null && source.y != null && target.x != null && target.y != null) {
-      exposedLength = Math.hypot(target.x - source.x, target.y - source.y)
-        - nodeRadius(source, nodeDegrees.get(source.id) ?? 0)
-        - nodeRadius(target, nodeDegrees.get(target.id) ?? 0);
-    }
-    const smallestRadius = Math.min(
-      source ? nodeRadius(source, nodeDegrees.get(source.id) ?? 0) : Infinity,
-      target ? nodeRadius(target, nodeDegrees.get(target.id) ?? 0) : Infinity,
-    );
-    return arrowLength({
-      selected,
-      lineWidth: edgeLineWidth(selected, l.score),
-      zoom: zoomRef.current,
-      exposedLength,
-      maxLength: Number.isFinite(smallestRadius) ? smallestRadius : null,
-    });
-  }, [selectedEdgeId, nodeDegrees]);
-
-  const getLinkArrowLength = useCallback((l: GraphEdge) => {
-    if (!isEdgeDirected(l)) return 0;
-    return getEdgeArrowLength(l);
-  }, [getEdgeArrowLength]);
-
-  const getLinkArrowRelPos = useCallback((l: GraphEdge) => {
-    if (!isEdgeDirected(l)) return 0.5;
-    const targetNode = typeof l.target === 'object' && l.target !== null ? (l.target as GraphNode) : null;
-    const sourceNode = typeof l.source === 'object' && l.source !== null ? (l.source as GraphNode) : null;
-    if (targetNode && sourceNode && targetNode.x != null && targetNode.y != null && sourceNode.x != null && sourceNode.y != null) {
-      const dx = targetNode.x - sourceNode.x;
-      const dy = targetNode.y - sourceNode.y;
-      const dist = Math.sqrt(dx * dx + dy * dy);
-      if (dist > 0) {
-    const r = nodeRadius(targetNode, nodeDegrees.get(targetNode.id) ?? 0);
-        const targetOffset = (r + 1) / dist;
-        return Math.max(0.1, Math.min(0.95, 1 - targetOffset));
-      }
-    }
-    return 0.88;
-  }, [nodeDegrees]);
-
-  const drawBidirectionalSourceArrow = useCallback((edge: GraphEdge, ctx: CanvasRenderingContext2D) => {
-    if (graphEdgeDirection(edge) !== 'bidirectional') return;
-    const source = resolveNode(edge.source);
-    const target = resolveNode(edge.target);
-    if (!source || !target || source.x == null || source.y == null || target.x == null || target.y == null) return;
-
-    const dx = source.x - target.x;
-    const dy = source.y - target.y;
-    const distance = Math.hypot(dx, dy);
-    if (distance === 0) return;
-
-    const ux = dx / distance;
-    const uy = dy / distance;
-    const px = -uy;
-    const py = ux;
-    const tipDistance = nodeRadius(source, nodeDegrees.get(source.id) ?? 0) + 1;
-    const tipX = source.x + ux * tipDistance;
-    const tipY = source.y + uy * tipDistance;
-    const arrowSize = getEdgeArrowLength(edge);
-    const halfWidth = arrowSize * BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO;
-    const baseX = tipX - ux * arrowSize;
-    const baseY = tipY - uy * arrowSize;
-
-    ctx.save();
-    ctx.fillStyle = edge.id === selectedEdgeId
-      ? (canvasColor('accent'))
-      : resolveDsColor(getGraphEdgeColor(graphEdgeType(edge)));
-    ctx.beginPath();
-    ctx.moveTo(tipX, tipY);
-    ctx.lineTo(baseX + px * halfWidth, baseY + py * halfWidth);
-    ctx.lineTo(baseX - px * halfWidth, baseY - py * halfWidth);
-    ctx.closePath();
-    ctx.fill();
-    ctx.restore();
-  }, [isDark, selectedEdgeId, rawNodes, nodeDegrees, getEdgeArrowLength]);
+  const viewportRef = useRef<GraphViewport | null>(null);
+  // The factory captures getters; only Canvas/event callbacks invoke them.
+  // eslint-disable-next-line react-hooks/refs
+  const renderer = useMemo(() => createKnowledgeGraphRenderer({
+    nodes: filteredData.nodes, links: filteredData.links, degrees: nodeDegrees, ghostIds,
+    selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark,
+    viewport: () => viewportRef.current, zoom: () => zoomRef.current,
+  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark]);
+  const updateViewport = useCallback(() => {
+    const graph = graphRef.current;
+    if (!graph?.screen2GraphCoords) return;
+    const center = graph.screen2GraphCoords(dimensions.width / 2, dimensions.height / 2);
+    const k = graph.zoom();
+    zoomRef.current = k;
+    viewportRef.current = { x: center.x, y: center.y, k, ...dimensions };
+  }, [dimensions]);
 
   // Shared by the click handlers below and the sidebar's "open" action so they
   // resolve a document/external node's file + source id identically. The graph
@@ -1142,107 +935,6 @@ export function KnowledgeGraphView({
   }, [rawNodes, selectedNode, linkPickerQuery]);
 
   // Canvas node drawing — Neo4j style circles with labels
-  const drawNode = useCallback((node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => {
-    const r = nodeRadius(node, nodeDegrees.get(node.id) ?? 0);
-    const isSelected = node.id === selectedNodeId;
-    const isFocus = node.id === focusNodeId;
-    const isPrimary = isSelected || isFocus;
-    const isDimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
-    const isGhost = ghostIds.has(node.id);
-    const color = isGhost ? canvasColor('neutral-400') : resolveDsColor(nodeColor(node));
-
-    ctx.save();
-    ctx.globalAlpha = isDimmed ? 0.15 : isGhost ? 0.4 : 1;
-
-    const now = performance.now();
-
-    if (isPrimary) {
-      // 1. Radar pulse
-      const pulseProgress = (now % 1200) / 1200;
-      const pulseR = r + (pulseProgress * 12) / globalScale;
-      const pulseAlpha = (1 - pulseProgress) * (isDark ? 0.75 : 0.55);
-      ctx.beginPath();
-      ctx.arc(node.x ?? 0, node.y ?? 0, pulseR, 0, 2 * Math.PI);
-      ctx.strokeStyle = isDark
-        ? `rgba(56, 189, 248, ${pulseAlpha})`
-        : `rgba(2, 132, 199, ${pulseAlpha})`;
-      ctx.lineWidth = 2 / globalScale;
-      ctx.stroke();
-
-      // 2. High-contrast guide track (provides contrast on white canvas!)
-      const trackR = r + 2.8 / globalScale;
-      ctx.beginPath();
-      ctx.arc(node.x ?? 0, node.y ?? 0, trackR, 0, 2 * Math.PI);
-      ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.25)' : 'rgba(15, 23, 42, 0.35)';
-      ctx.lineWidth = 2.5 / globalScale;
-      ctx.stroke();
-
-      // 3. Circling white animation (rotating arc)
-      const spinAngle = (now / 360) % (2 * Math.PI);
-      const arcLength = Math.PI * 0.75;
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(node.x ?? 0, node.y ?? 0, trackR, spinAngle, spinAngle + arcLength);
-      ctx.lineWidth = 3.5 / globalScale;
-      ctx.lineCap = 'round';
-      if (!isDark) {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.7)';
-        ctx.shadowBlur = 4;
-      } else {
-        ctx.shadowColor = 'rgba(255, 255, 255, 0.95)';
-        ctx.shadowBlur = 8;
-      }
-      ctx.strokeStyle = canvasColor('white');
-      ctx.stroke();
-
-      // 4. White comet head orb
-      const headAngle = spinAngle + arcLength;
-      const headX = (node.x ?? 0) + trackR * Math.cos(headAngle);
-      const headY = (node.y ?? 0) + trackR * Math.sin(headAngle);
-      ctx.beginPath();
-      ctx.arc(headX, headY, 2.5 / globalScale, 0, 2 * Math.PI);
-      ctx.fillStyle = canvasColor('white');
-      if (!isDark) {
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.8)';
-        ctx.shadowBlur = 3;
-      } else {
-        ctx.shadowColor = canvasColor('accent');
-        ctx.shadowBlur = 6;
-      }
-      ctx.fill();
-      ctx.restore();
-    }
-
-    ctx.beginPath();
-    ctx.arc(node.x ?? 0, node.y ?? 0, r, 0, 2 * Math.PI);
-    ctx.fillStyle = color;
-    ctx.fill();
-    drawKnowledgeNodeIcon(node, ctx, globalScale, NODE_RADIUS_SCALE, r);
-    // Dunkler Rand, damit helle Füllungen auch im Light Mode und beim Herauszoomen als Knoten erkennbar bleiben.
-    ctx.lineWidth = Math.min(1.6 / globalScale, r * 0.18);
-    ctx.strokeStyle = isDark ? canvasColor('white', 0.4) : canvasColor('neutral-900', 0.5);
-    ctx.stroke();
-
-    if (isPrimary) {
-      ctx.strokeStyle = isDark ? canvasColor('accent') : canvasColor('white');
-      ctx.lineWidth = 2 / globalScale;
-      ctx.stroke();
-    }
-
-    if (globalScale > 0.45) {
-      const label = getNodeDisplayLabel(node) ?? '';
-      const fontSize = Math.min(11, 8 / globalScale * 1.8);
-      ctx.font = `${isPrimary ? 'bold ' : ''}${fontSize}px Inter, system-ui, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'top';
-      ctx.fillStyle = isPrimary
-        ? (canvasColor('foreground'))
-        : resolveDsColor(isDark ? 'rgb(var(--ds-neutral-200))' : 'rgb(var(--ds-neutral-600))');
-      ctx.fillText(label, node.x ?? 0, (node.y ?? 0) + r + 3 / globalScale);
-    }
-    ctx.restore();
-  }, [selectedNodeId, focusNodeId, isDark, focusNeighborIds, nodeDegrees, ghostIds]);
-
   const toggleNodeType = (type: string) => {
     setHiddenNodeTypes(prev => {
       const next = new Set(prev);
@@ -1868,7 +1560,10 @@ export function KnowledgeGraphView({
               width={dimensions.width}
               height={dimensions.height}
               backgroundColor={graphBg}
-              nodeCanvasObject={drawNode}
+              nodeCanvasObject={renderer.drawNode}
+              nodeVisibility={renderer.nodeVisible}
+              linkVisibility={renderer.linkVisible}
+              onRenderFramePre={updateViewport}
               nodeCanvasObjectMode={() => 'replace'}
               nodePointerAreaPaint={(node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
                 ctx.fillStyle = color;
@@ -1876,47 +1571,15 @@ export function KnowledgeGraphView({
                 ctx.arc(node.x ?? 0, node.y ?? 0, nodeRadius(node, nodeDegrees.get(node.id) ?? 0) + 4, 0, 2 * Math.PI);
                 ctx.fill();
               }}
-              linkColor={(l: GraphEdge) => {
-                if (l.id === selectedEdgeId) {
-                  return canvasColor('accent');
-                }
-                if (ghostIds.has(typeof l.source === 'object' ? l.source.id : l.source) || ghostIds.has(typeof l.target === 'object' ? l.target.id : l.target)) return canvasColor('neutral-400', 0.45);
-                if (!isLinkTouchingFocus(l)) return isDark ? 'rgba(161,161,170,0.06)' : 'rgba(161,161,170,0.12)';
-                return resolveDsColor(getGraphEdgeColor(graphEdgeType(l)));
-              }}
+              linkColor={renderer.linkColor}
               linkWidth={(l: GraphEdge) => edgeLineWidth(l.id === selectedEdgeId, l.score)}
               onZoom={(transform: { k: number }) => { zoomRef.current = transform.k; }}
-              linkDirectionalArrowLength={getLinkArrowLength}
-              linkDirectionalArrowRelPos={getLinkArrowRelPos}
-              linkCanvasObject={drawBidirectionalSourceArrow}
+              linkDirectionalArrowLength={renderer.arrowLength}
+              linkDirectionalArrowRelPos={renderer.arrowRelPos}
+              linkCanvasObject={renderer.drawSourceArrow}
               linkCanvasObjectMode={() => 'after'}
-              linkCurvature={getLinkCurvature}
-              linkDirectionalParticles={(l: GraphEdge) => l.id === selectedEdgeId ? 3 : 0}
-              linkDirectionalParticleSpeed={(l: GraphEdge) => l.id === selectedEdgeId ? 0.012 : 0.005}
-              linkDirectionalParticleWidth={(l: GraphEdge) => l.id === selectedEdgeId ? 5 : 2.5}
-              linkDirectionalParticleCanvasObject={(x: number, y: number, l: GraphEdge, ctx: CanvasRenderingContext2D, globalScale: number) => {
-                const isSelected = l.id === selectedEdgeId;
-                const pR = (isSelected ? 3.5 : 2) / globalScale;
-                ctx.save();
-                ctx.beginPath();
-                ctx.arc(x, y, pR, 0, 2 * Math.PI);
-                if (!isDark) {
-                  ctx.fillStyle = canvasColor('white');
-                  ctx.shadowColor = 'rgba(0, 0, 0, 0.65)';
-                  ctx.shadowBlur = 3;
-                  ctx.fill();
-                  ctx.lineWidth = 1.2 / globalScale;
-                  ctx.strokeStyle = isSelected ? canvasColor('info-base') : canvasColor('neutral-500');
-                  ctx.stroke();
-                } else {
-                  ctx.fillStyle = canvasColor('white');
-                  ctx.shadowColor = isSelected ? canvasColor('accent') : canvasColor('neutral-400');
-                  ctx.shadowBlur = isSelected ? 8 : 4;
-                  ctx.fill();
-                }
-                ctx.restore();
-              }}
-              autoPauseRedraw={!selectedNodeId && !focusNodeId && !selectedEdgeId}
+              linkCurvature={renderer.curvature}
+              autoPauseRedraw
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
