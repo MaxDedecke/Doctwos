@@ -31,8 +31,13 @@ type GraphStubProps = {
   linkCanvasObject?: (link: GraphEdge, ctx: CanvasRenderingContext2D, globalScale: number) => void;
   linkCanvasObjectMode?: () => string;
   onLinkClick?: (link: GraphEdge) => void;
+  onBackgroundClick?: () => void;
+  nodeCanvasObject?: (node: GraphNode, ctx: CanvasRenderingContext2D, globalScale: number) => void;
+  linkColor?: (link: GraphEdge) => string;
 };
+let latestGraphProps: GraphStubProps;
 const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () => void }, GraphStubProps>((props, ref) => {
+  latestGraphProps = props;
   React.useImperativeHandle(ref, () => ({
     zoom: () => 1,
     centerAt,
@@ -136,6 +141,45 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     node.y = 34;
     // Auswahl blendet nur die übrigen Knoten aus; der Ausschnitt bleibt unverändert.
     await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(centerAt).not.toHaveBeenCalled();
+  });
+
+  it.each(['node', 'edge', 'pinned', 'background'] as const)('removes all dimming when clearing a %s highlight', async kind => {
+    const nodes: GraphNode[] = [1, 2, 3, 4].map(id => ({ id: `entity:${id}`, type: 'entity', label: `Program ${id}` }));
+    const edges: GraphEdge[] = [
+      { id: 'edge:1', source: 'entity:1', target: 'entity:2', link_type: 'manual', score: null, context: null },
+      { id: 'edge:2', source: 'entity:3', target: 'entity:4', link_type: 'manual', score: null, context: null },
+    ];
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ nodes, edges }) });
+    vi.stubGlobal('fetch', fetchMock);
+    renderGraph();
+    await screen.findByTestId('node-entity:1');
+    const graphInstance = screen.getByTestId('force-graph-stub');
+    if (kind === 'edge') fireEvent.click(screen.getByTestId('link-edge:1'));
+    else {
+      fireEvent.click(screen.getByTestId('node-entity:1'));
+      if (kind === 'pinned' || kind === 'background') fireEvent.click(screen.getByRole('button', { name: 'Auf diesen Knoten fokussieren' }));
+    }
+    const nodeAlpha = () => {
+      const context = {
+        globalAlpha: 1,
+        ...Object.fromEntries(['save', 'restore', 'beginPath', 'arc', 'stroke', 'fill', 'fillText', 'rect', 'ellipse', 'moveTo', 'lineTo'].map(method => [method, () => {}])),
+      } as unknown as CanvasRenderingContext2D;
+      latestGraphProps.nodeCanvasObject!(nodes[2], context, 1);
+      return context.globalAlpha;
+    };
+    expect(nodeAlpha()).toBe(0.15);
+    expect(latestGraphProps.linkColor!(edges[1])).toBe('rgba(161,161,170,0.06)');
+
+    if (kind === 'background') act(() => latestGraphProps.onBackgroundClick!());
+    else fireEvent.click(screen.getByRole('button', { name: 'Fokus aufheben' }));
+
+    expect(nodeAlpha()).toBe(1);
+    expect(latestGraphProps.linkColor!(edges[1])).not.toBe('rgba(161,161,170,0.06)');
+    expect(screen.queryByRole('button', { name: 'Fokus aufheben' })).toBeNull();
+    expect(screen.queryByTestId('graph-tool-panel')).toBeNull();
+    expect(screen.getByTestId('force-graph-stub')).toBe(graphInstance);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(centerAt).not.toHaveBeenCalled();
   });
 

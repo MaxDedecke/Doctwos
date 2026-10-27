@@ -146,3 +146,27 @@ test('keeps the canvas and explicit inspector state when resizing and using Engl
   await page.getByTestId('knowledge-graph-view').getByRole('button', { name: 'Filters', exact: true }).click();
   await expect(page.getByRole('region', { name: 'Filters', exact: true })).toBeVisible();
 });
+
+test('clearing a pinned selection restores the actual canvas opacity without rebuilding the graph', async ({ page, baseURL }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    const state = window as Window & { graphTestNodeAlpha?: number };
+    const original = CanvasRenderingContext2D.prototype.fillText;
+    CanvasRenderingContext2D.prototype.fillText = function (text, x, y, maxWidth) {
+      if (text === 'Booking processor') state.graphTestNodeAlpha = this.globalAlpha;
+      if (maxWidth === undefined) original.call(this, text, x, y);
+      else original.call(this, text, x, y, maxWidth);
+    };
+  });
+  const graph = await openGraph(page, baseURL!, 1, 50);
+  await graph.locator('canvas').first().evaluate(canvas => canvas.setAttribute('data-focus-reset-marker', 'original'));
+  await graph.getByRole('button', { name: 'Auf diesen Knoten fokussieren', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => (window as Window & { graphTestNodeAlpha?: number }).graphTestNodeAlpha)).toBe(0.15);
+
+  await graph.getByRole('button', { name: 'Fokus aufheben', exact: true }).click();
+
+  await expect.poll(() => page.evaluate(() => (window as Window & { graphTestNodeAlpha?: number }).graphTestNodeAlpha)).toBe(1);
+  await expect(graph.getByRole('button', { name: 'Fokus aufheben', exact: true })).toHaveCount(0);
+  await expect(graph.getByTestId('graph-tool-panel')).toHaveCount(0);
+  await expect(graph.locator('canvas').first()).toHaveAttribute('data-focus-reset-marker', 'original');
+});

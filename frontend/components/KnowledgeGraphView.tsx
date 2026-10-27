@@ -327,6 +327,14 @@ export function KnowledgeGraphView({
     requestAnimationFrame(() => { if (trigger?.isConnected) trigger.focus(); });
   };
 
+  // Both a selection and an explicit focus dim the graph. Reset them together
+  // so clearing one cannot leave the other highlighting the same neighborhood.
+  const clearGraphHighlight = useCallback(() => {
+    setFocusNodeId(null);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+  }, []);
+
   const handleZoomIn = () => {
     if (!graphRef.current) return;
     const currentZoom = graphRef.current.zoom();
@@ -1776,7 +1784,7 @@ export function KnowledgeGraphView({
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => { menuOpensPanelRef.current = toolSurface !== 'legend'; setToolSurface(current => current === 'legend' ? null : 'legend'); }}><Workflow className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.legendLabel')}</DropdownMenuItem>
               <DropdownMenuItem disabled={!panelOpen} onSelect={() => { menuOpensPanelRef.current = !showDetails; setToolSurface(null); setFocusDetails(!showDetails); setDetailsExpanded(!showDetails); }}><Info className="mr-2 h-3.5 w-3.5" />{t(showDetails ? 'knowledgeGraphView.hideDetails' : 'knowledgeGraphView.showDetails')}</DropdownMenuItem>
-              <DropdownMenuItem disabled={!panelOpen} onSelect={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}><X className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.clearSelection')}</DropdownMenuItem>
+              <DropdownMenuItem disabled={!panelOpen} onSelect={clearGraphHighlight}><X className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.clearSelection')}</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -1798,7 +1806,7 @@ export function KnowledgeGraphView({
           {agentGraphFocus && viewMode === 'neighborhood' && neighborhoodFocusNode?.id === agentGraphFocus.focus_id && <span className="min-w-0 flex-1 truncate" title={t('knowledgeGraphView.agentNeighborhoodScope', { focus: agentGraphFocus.focus_label, direction: agentDirectionLabel, relationships: agentRelationshipLabels ?? '', limit: neighborhoodLimit })}>
             {t('knowledgeGraphView.agentNeighborhoodScope', { focus: agentGraphFocus.focus_label, direction: agentDirectionLabel, relationships: agentRelationshipLabels ?? '', limit: neighborhoodLimit })}
           </span>}
-          {focusNodeId && <button onClick={() => setFocusNodeId(null)} title={t('knowledgeGraphView.clearFocusTitle')} className="ml-auto shrink-0 text-ds-indigo-400 underline underline-offset-2">{t('knowledgeGraphView.clearFocus')}</button>}
+          {(activeFocusNodeId || selectedEdgeId) && <button onClick={clearGraphHighlight} title={t('knowledgeGraphView.clearFocusTitle')} className="ml-auto shrink-0 text-ds-indigo-400 underline underline-offset-2">{t('knowledgeGraphView.clearFocus')}</button>}
         </div>}
       </div>
 
@@ -1908,7 +1916,7 @@ export function KnowledgeGraphView({
                 }
                 ctx.restore();
               }}
-              autoPauseRedraw={!selectedNodeId && !focusNodeId}
+              autoPauseRedraw={!selectedNodeId && !focusNodeId && !selectedEdgeId}
               onNodeClick={(node: GraphNode) => {
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
@@ -1955,7 +1963,7 @@ export function KnowledgeGraphView({
                 setSelectedEdgeId(prev => prev === link.id ? null : link.id);
                 setSelectedNodeId(null);
               }}
-              onBackgroundClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
+              onBackgroundClick={clearGraphHighlight}
               d3AlphaDecay={GRAPH_ALPHA_DECAY}
               d3VelocityDecay={0.3}
               cooldownTime={GRAPH_COOLDOWN_MS}
@@ -1997,7 +2005,7 @@ export function KnowledgeGraphView({
           <Info className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400" /><span className="min-w-0 flex-1 truncate text-left">{selectionLabel}</span>
           <span className="shrink-0 text-ds-indigo-400">{t('knowledgeGraphView.details')}</span>
         </button>
-        <button onClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }} title={t('knowledgeGraphView.clearSelection')} aria-label={t('knowledgeGraphView.clearSelection')} className={cn('shrink-0 rounded p-1', iconBtn)}><X className="h-3.5 w-3.5" /></button>
+        <button onClick={clearGraphHighlight} title={t('knowledgeGraphView.clearSelection')} aria-label={t('knowledgeGraphView.clearSelection')} className={cn('shrink-0 rounded p-1', iconBtn)}><X className="h-3.5 w-3.5" /></button>
       </div>}
     </div>
   );
