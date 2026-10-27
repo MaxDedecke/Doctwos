@@ -31,3 +31,15 @@ backups/
 # AP-9-Lasttest: generierter synthetischer Ersatzkorpus (Skript ist committet,
 # die erzeugten Dateien nicht)
 loadtest/
+
+# Keep representative graph-layout evidence; full browser capture runs stay local.
+docs/evidence/graph-layout-audit-2026-10-27/*.png
+!docs/evidence/graph-layout-audit-2026-10-27/1280x800-3-views.png
+!docs/evidence/graph-layout-audit-2026-10-27/1280x800-4-views.png
+!docs/evidence/graph-layout-audit-2026-10-27/1440x900-4-views-details-legend.png
+!docs/evidence/graph-layout-audit-2026-10-27/1440x900-3-views-neighborhood.png
+docs/evidence/graph-layout-after-2026-10-27/*.png
+!docs/evidence/graph-layout-after-2026-10-27/1280x800-4-views.png
+!docs/evidence/graph-layout-after-2026-10-27/1280x800-4-views-details.png
+!docs/evidence/graph-layout-after-2026-10-27/1440x900-3-views.png
+!docs/evidence/graph-layout-after-2026-10-27/1440x900-3-views-neighborhood.png

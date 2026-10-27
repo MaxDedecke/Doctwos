@@ -1,0 +1,699 @@
+[
+  {
+    "name": "1440x900-1-views",
+    "w": 1440,
+    "h": 900,
+    "n": 1,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 787,
+        "h": 680
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 1139,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 1139,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 1244,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 1277,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 1310,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "Ansicht",
+          "title": "Ansicht",
+          "x": 1343,
+          "y": 151,
+          "w": 78,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Bereich schließen",
+          "x": 1391,
+          "y": 219,
+          "w": 26,
+          "h": 26
+        },
+        {
+          "text": "ContentRepositoryEndpoint",
+          "title": "semantisch",
+          "x": 1092,
+          "y": 346,
+          "w": 320,
+          "h": 25
+        },
+        {
+          "text": "Kundendatenbank",
+          "title": "Codeabhängigkeit",
+          "x": 1092,
+          "y": 374,
+          "w": 320,
+          "h": 25
+        },
+        {
+          "text": "In passender Ansicht öffnen",
+          "title": "",
+          "x": 1092,
+          "y": 417,
+          "w": 325,
+          "h": 18
+        },
+        {
+          "text": "Auf diesen Knoten fokussieren",
+          "title": "",
+          "x": 1092,
+          "y": 444,
+          "w": 325,
+          "h": 18
+        },
+        {
+          "text": "Nur Nachbarschaft laden",
+          "title": "Ersetzt die Übersicht durch die tatsächlichen Verbindungen dieses Knotens aus der Datenbank — anders als \"Auf diesen Knoten fokussieren\" auch dann vollständig, wenn die Übersicht gekappt ist",
+          "x": 1092,
+          "y": 470,
+          "w": 149,
+          "h": 18
+        },
+        {
+          "text": "Verknüpfung erstellen",
+          "title": "",
+          "x": 1092,
+          "y": 497,
+          "w": 325,
+          "h": 18
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "side",
+        "height": 680,
+        "bodyHeight": 635,
+        "bodyScrollHeight": 635
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-2-views",
+    "w": 1440,
+    "h": 900,
+    "n": 2,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 568,
+        "h": 643
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 568,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 568,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 784,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 817,
+          "y": 151,
+          "w": 33,
+          "h": 31
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 300,
+          "y": 859,
+          "w": 522,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 826,
+          "y": 861,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "bottom",
+        "height": 312,
+        "bodyHeight": 266,
+        "bodyScrollHeight": 301
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-3-views",
+    "w": 1440,
+    "h": 900,
+    "n": 3,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 377,
+        "h": 643
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 378,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 378,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 594,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 627,
+          "y": 151,
+          "w": 33,
+          "h": 31
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 300,
+          "y": 859,
+          "w": 332,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 636,
+          "y": 861,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "sheet",
+        "height": 680,
+        "bodyHeight": 633,
+        "bodyScrollHeight": 633
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-4-views",
+    "w": 1440,
+    "h": 900,
+    "n": 4,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 563,
+        "h": 231
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 564,
+        "h": 333
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 564,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 780,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 813,
+          "y": 151,
+          "w": 33,
+          "h": 31
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 300,
+          "y": 447,
+          "w": 518,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 822,
+          "y": 448,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "sheet",
+        "height": 267,
+        "bodyHeight": 220,
+        "bodyScrollHeight": 301
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1280x800-3-views",
+    "w": 1280,
+    "h": 800,
+    "n": 3,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 324,
+        "h": 543
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 324,
+        "h": 646
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 324,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 541,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 574,
+          "y": 151,
+          "w": 33,
+          "h": 31
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 300,
+          "y": 759,
+          "w": 278,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 582,
+          "y": 761,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "sheet",
+        "height": 580,
+        "bodyHeight": 533,
+        "bodyScrollHeight": 533
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1280x800-4-views",
+    "w": 1280,
+    "h": 800,
+    "n": 4,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 483,
+        "h": 181
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 484,
+        "h": 283
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 484,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 700,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 733,
+          "y": 151,
+          "w": 33,
+          "h": 31
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 300,
+          "y": 397,
+          "w": 438,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 742,
+          "y": 398,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "sheet",
+        "height": 217,
+        "bodyHeight": 170,
+        "bodyScrollHeight": 301
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1920x1080-3-views",
+    "w": 1920,
+    "h": 1080,
+    "n": 3,
+    "metrics": {
+      "canvas": {
+        "x": 292,
+        "y": 238,
+        "w": 536,
+        "h": 789
+      },
+      "root": {
+        "x": 292,
+        "y": 164,
+        "w": 537,
+        "h": 905
+      },
+      "toolbar": {
+        "x": 292,
+        "y": 164,
+        "w": 537,
+        "h": 75
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 302,
+          "y": 171,
+          "w": 77,
+          "h": 35
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 744,
+          "y": 172,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 782,
+          "y": 171,
+          "w": 37,
+          "h": 35
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 302,
+          "y": 1034,
+          "w": 484,
+          "h": 30
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 791,
+          "y": 1035,
+          "w": 28,
+          "h": 28
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "bottom",
+        "height": 320,
+        "bodyHeight": 268,
+        "bodyScrollHeight": 342
+      },
+      "neighborhood": {
+        "toolbarHeight": 117.25,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-2-views-split25",
+    "w": 1440,
+    "h": 900,
+    "n": 2,
+    "split": 25,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 210,
+        "w": 282,
+        "h": 643
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 283,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 283,
+        "h": 66
+      },
+      "buttons": [
+        {
+          "text": "Filter",
+          "title": "",
+          "x": 300,
+          "y": 151,
+          "w": 68,
+          "h": 31
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 499,
+          "y": 152,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Ansicht",
+          "x": 532,
+          "y": 151,
+          "w": 33,
+          "h": 31
+        },
+        {
+          "text": "Architektur und IntegrationshandbuchDetails",
+          "title": "Architektur und Integrationshandbuch",
+          "x": 300,
+          "y": 859,
+          "w": 236,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Auswahl aufheben",
+          "x": 540,
+          "y": 861,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "mode": "sheet",
+        "height": 680,
+        "bodyHeight": 633,
+        "bodyScrollHeight": 633
+      },
+      "neighborhood": {
+        "toolbarHeight": 103.265625,
+        "overflowWidth": 0
+      }
+    },
+    "errors": []
+  }
+]

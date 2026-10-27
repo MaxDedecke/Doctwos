@@ -15,7 +15,7 @@ import type { GraphNode, GraphEdge } from './KnowledgeGraphView';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { KnowledgeGraphView, withKeptAnchor } from './KnowledgeGraphView';
@@ -86,11 +86,20 @@ vi.mock('react-force-graph-2d', () => ({ default: ForceGraph2DStub }));
 class ResizeObserverStub {
   private cb: ResizeObserverCallback;
   constructor(cb: ResizeObserverCallback) { this.cb = cb; }
-  observe() {
-    queueMicrotask(() => this.cb([{ contentRect: { width: 800, height: 600 } }] as ResizeObserverEntry[], this as unknown as ResizeObserver));
+  observe(target: Element) {
+    resizeObservers.push({ target, resize: (width, height) => this.cb([{ target, contentRect: { width, height } }] as ResizeObserverEntry[], this as unknown as ResizeObserver) });
+    queueMicrotask(() => this.cb([{ target, contentRect: { width: 1000, height: 700 } }] as ResizeObserverEntry[], this as unknown as ResizeObserver));
   }
   unobserve() {}
   disconnect() {}
+}
+
+const resizeObservers: Array<{ target: Element; resize: (width: number, height: number) => void }> = [];
+function resizeGraphPanel(width: number, height: number) {
+  act(() => {
+    resizeObservers.filter(observer => observer.target.isConnected && observer.target.getAttribute('data-testid') === 'knowledge-graph-view')
+      .forEach(observer => observer.resize(width, height));
+  });
 }
 
 function renderGraph() {
@@ -260,6 +269,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(screen.getByTestId('link-semantic:1')).toBeTruthy());
     expect(screen.getByTestId('link-documented:1')).toBeTruthy();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     fireEvent.click(screen.getAllByText('dokumentiert')[0]);
     await waitFor(() => expect(screen.queryByTestId('link-documented:1')).toBeNull());
 
@@ -282,7 +292,89 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     renderGraph();
 
     await waitFor(() => expect(screen.getByTestId('node-doc:scanned-handbook.pdf')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     expect(screen.getAllByText('Datei').length).toBeGreaterThan(0);
+  });
+
+  it('keeps the selection and graph instance while an open inspector adapts to width and height', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      nodes: [{ id: 'entity:1', type: 'entity', label: 'Selected program', project_id: 1 }, { id: 'doc:1', type: 'document', label: 'Runbook' }],
+      edges: [{ id: 'edge:1', source: 'entity:1', target: 'doc:1', link_type: 'manual' }],
+    }) }));
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-entity:1'));
+    const graphInstance = screen.getByTestId('force-graph-stub');
+    expect(screen.getByTestId('graph-tool-panel').getAttribute('data-mode')).toBe('side');
+
+    resizeGraphPanel(320, 280);
+    expect(screen.getByTestId('graph-tool-panel').getAttribute('data-mode')).toBe('sheet');
+    expect(screen.getByRole('button', { name: 'Verknüpfung erstellen' })).toBeTruthy();
+    expect(screen.getByTestId('force-graph-stub')).toBe(graphInstance);
+
+    resizeGraphPanel(560, 700);
+    expect(screen.getByTestId('graph-tool-panel').getAttribute('data-mode')).toBe('bottom');
+    fireEvent.click(screen.getByRole('button', { name: 'Bereich schließen' }));
+    expect(screen.queryByTestId('graph-tool-panel')).toBeNull();
+    resizeGraphPanel(1100, 700);
+    expect(screen.queryByTestId('graph-tool-panel')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Details anzeigen' }));
+    expect(screen.getByTestId('graph-tool-panel').getAttribute('data-mode')).toBe('side');
+    expect(within(screen.getByTestId('graph-tool-panel')).getAllByText('Selected program').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('force-graph-stub')).toBe(graphInstance);
+    expect(centerAt).not.toHaveBeenCalled();
+  });
+
+  it('keeps hidden filters reversible across closing, searching and resizing', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({
+      nodes: [{ id: 'entity:1', type: 'entity', label: 'Program' }, { id: 'doc:1', type: 'document', label: 'Runbook' }],
+      edges: [{ id: 'edge:1', source: 'entity:1', target: 'doc:1', link_type: 'semantic' }],
+    }) }));
+    renderGraph();
+    await screen.findByTestId('link-edge:1');
+    const trigger = screen.getByRole('button', { name: 'Filter' });
+    trigger.focus();
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole('button', { name: 'semantisch' }));
+    expect(screen.queryByTestId('link-edge:1')).toBeNull();
+    fireEvent.keyDown(screen.getByRole('button', { name: 'Bereich schließen' }), { key: 'Escape' });
+    expect(document.activeElement).toBe(trigger);
+    expect(trigger.getAttribute('aria-label')).toContain('1 Filter ausgeblendet');
+    fireEvent.click(trigger);
+    resizeGraphPanel(280, 283);
+    fireEvent.change(screen.getByRole('textbox', { name: 'Filter suchen' }), { target: { value: 'semantisch' } });
+    expect(screen.getByRole('button', { name: 'semantisch' }).getAttribute('aria-pressed')).toBe('false');
+    fireEvent.click(screen.getByRole('button', { name: 'Alle Typen anzeigen' }));
+    expect(screen.getByTestId('link-edge:1')).toBeTruthy();
+    expect(trigger.getAttribute('aria-label')).toBe('Filter');
+  });
+
+  it('preserves manual-link inputs across resizing and dismisses only the link dialog on Escape', async () => {
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({ ok: true, json: async () => url.includes('/knowledge-links') ? { id: 42 } : {
+      nodes: [{ id: 'entity:1', type: 'entity', label: 'Program', project_id: 1 }, { id: 'doc:1', type: 'document', label: 'Runbook' }],
+      edges: [{ id: 'edge:1', source: 'entity:1', target: 'doc:1', link_type: 'semantic' }],
+    } }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-entity:1'));
+    resizeGraphPanel(320, 283);
+    fireEvent.click(screen.getByRole('button', { name: 'Verknüpfung erstellen' }));
+    const dialog = screen.getByRole('dialog', { name: 'Verknüpfung erstellen' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Runbook' }));
+    fireEvent.change(within(dialog).getByLabelText('Beschreibung (optional)'), { target: { value: 'Program documentation' } });
+    fireEvent.change(within(dialog).getByLabelText('Richtung (Start → Ziel)'), { target: { value: 'directed' } });
+    resizeGraphPanel(1100, 700);
+    expect(screen.getByRole('dialog')).toBe(dialog);
+    expect((within(dialog).getByLabelText('Beschreibung (optional)') as HTMLTextAreaElement).value).toBe('Program documentation');
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Verknüpfen' }));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+    const post = fetchMock.mock.calls.find(([url]) => url.includes('/knowledge-links'));
+    expect(JSON.parse(post![1].body)).toMatchObject({ direction: 'directed', context: 'Program documentation', source_a_entity_id: 1, source_b_title: 'Runbook' });
+    expect(screen.getByTestId('link-kl:42')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verknüpfung erstellen' }));
+    fireEvent.keyDown(within(screen.getByRole('dialog')).getByLabelText('Beschreibung (optional)'), { key: 'Escape' });
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(screen.getByTestId('graph-tool-panel')).toBeTruthy();
   });
 
   it('navigates from a Java entity node while preserving its file, line and source', async () => {
@@ -361,7 +453,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     // uncapped neighborhood, not a possibly-cut overview.
     await waitFor(() => expect(screen.getByTestId('node-doc:Runbook')).toBeTruthy());
     expect(screen.queryByText(/Zu groß für die Übersicht/)).toBeNull();
-    expect(screen.getByText('Zurück zur Übersicht')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Zurück zur Übersicht' })).toBeTruthy();
   });
 
   it('restores the cached overview after a neighborhood focus without re-fetching GET /graph', async () => {
@@ -395,7 +487,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     fireEvent.click(await screen.findByText('Nur Nachbarschaft laden'));
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
 
-    fireEvent.click(await screen.findByText('Zurück zur Übersicht'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Zurück zur Übersicht' }));
 
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(screen.queryByText('Zurück zur Übersicht')).toBeNull());
@@ -433,7 +525,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
     // Wählt man in der Nachbarschaft einen anderen Knoten, gilt beim Zurückgehen trotzdem der Startknoten.
     fireEvent.click(screen.getByTestId('node-doc:Runbook'));
-    fireEvent.click(await screen.findByText('Zurück zur Übersicht'));
+    fireEvent.click(await screen.findByRole('button', { name: 'Zurück zur Übersicht' }));
 
     await waitFor(() => expect(screen.getByTestId('node-doc:init')).toBeTruthy());
     // Der Startknoten ist in der Übersicht weiter ausgewählt: Die Detailkarte bietet wieder "Nur Nachbarschaft laden".
@@ -789,6 +881,8 @@ describe('KnowledgeGraphView direction taxonomy (O-268)', () => {
 
     renderGraph();
 
+    await screen.findByTestId('node-entity:1');
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     const undirectedFilter = await screen.findByRole('button', { name: 'Ungerichtet' });
     fireEvent.click(undirectedFilter);
     expect(screen.queryByTestId('link-kl:202')).toBeNull();
@@ -857,6 +951,7 @@ describe('KnowledgeGraphView isolated node filtering (O-285)', () => {
     await waitFor(() => expect(screen.getByTestId('node-entity:1')).toBeTruthy());
     expect(screen.getByTestId('node-entity:2')).toBeTruthy();
 
+    fireEvent.click(screen.getByRole('button', { name: 'Filter' }));
     // Hide the CALLS link type chip
     const callsChip = screen.getAllByText('Aufruf')[0];
     fireEvent.click(callsChip);

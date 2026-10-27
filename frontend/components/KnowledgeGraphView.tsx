@@ -36,10 +36,13 @@ import {
   linkDistance,
   radialRadius,
 } from '@/lib/graphLayout';
-import { AlertTriangle, BookOpen, Check, ChevronDown, ChevronUp, Crosshair, ExternalLink, Info, LayoutGrid, Link2, Loader2, Maximize2, PanelRightClose, PanelRightOpen, Plus, RefreshCw, Search, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GraphSourceFocus } from './GraphSourceFocus';
+import { GraphFilterPanel } from './GraphFilterPanel';
+import { GraphToolPanel } from './GraphToolPanel';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from './ui/dropdown-menu';
 import { drawKnowledgeNodeIcon, KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
 // ForceGraph2D will be loaded dynamically on mount
@@ -204,9 +207,8 @@ interface Props {
   // usePanelNavigation::handlePanelFileSelect via getSelectionViewType -- this
   // component must not route document nodes on a second, parallel path.
   onFileSelect?: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void> | void;
-  // How many panels are open in the surrounding workspace grid. With 3 or 4 panels
-  // open at once there isn't room for a right-hand sidebar, so the detail panel
-  // moves into a collapsible bottom drawer instead.
+  // Kept for callers restoring existing workspace layouts. The graph itself
+  // adapts to its measured panel size, independently of the workspace grid.
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
   agentGraphFocus?: AgentGraphViewAction['target'] | null;
 }
@@ -232,7 +234,6 @@ export function KnowledgeGraphView({
   projectEntities = EMPTY_PROJECT_ENTITIES,
   onEntitySelect,
   onFileSelect,
-  layoutMode,
   agentGraphFocus
 }: Props) {
   const { t, language } = useLanguage();
@@ -296,6 +297,8 @@ export function KnowledgeGraphView({
   const [linkCreateError, setLinkCreateError] = useState<string | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [panelSize, setPanelSize] = useState({ width: 0, height: 0 });
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const graphRef = useRef<ForceGraphMethods<GraphNode, GraphEdge> | undefined>(undefined);
 
@@ -311,7 +314,18 @@ export function KnowledgeGraphView({
   const [hiddenLinkTypes, setHiddenLinkTypes] = useState<Set<string>>(new Set());
   const [hiddenEdgeDirections, setHiddenEdgeDirections] = useState<Set<GraphEdgeDirection>>(new Set());
   const [linkFilterResetToken, setLinkFilterResetToken] = useState(0);
-  const [isLegendOpen, setIsLegendOpen] = useState(false);
+  const [toolSurface, setToolSurface] = useState<'filters' | 'legend' | null>(null);
+  const [focusDetails, setFocusDetails] = useState(false);
+  const detailsTriggerRef = useRef<HTMLButtonElement>(null);
+  const filterTriggerRef = useRef<HTMLButtonElement>(null);
+  const viewTriggerRef = useRef<HTMLButtonElement>(null);
+  const menuOpensPanelRef = useRef(false);
+  const closeToolSurface = () => {
+    const trigger = toolSurface === 'filters' ? filterTriggerRef.current : viewTriggerRef.current;
+    setToolSurface(null);
+    // Wait until the previous tool and any menu focus scope have unmounted.
+    requestAnimationFrame(() => { if (trigger?.isConnected) trigger.focus(); });
+  };
 
   const handleZoomIn = () => {
     if (!graphRef.current) return;
@@ -334,6 +348,19 @@ export function KnowledgeGraphView({
     });
     ro.observe(containerRef.current);
     return () => ro.disconnect();
+  }, []);
+
+  // Measure the stable outer panel, not the canvas left over after opening UI.
+  // Otherwise switching a drawer/toolbar could change its own breakpoint.
+  useEffect(() => {
+    if (!panelRef.current) return;
+    const observer = new ResizeObserver(entries => {
+      const { width, height } = entries[0].contentRect;
+      setPanelSize(previous => previous.width === Math.floor(width) && previous.height === Math.floor(height)
+        ? previous : { width: Math.floor(width), height: Math.floor(height) });
+    });
+    observer.observe(panelRef.current);
+    return () => observer.disconnect();
   }, []);
 
   const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean, keepAnchor?: { node: GraphNode; edges: GraphEdge[] } | null) => {
@@ -1234,33 +1261,24 @@ export function KnowledgeGraphView({
 
   // Layout
   const panelOpen = !!(selectedNode || selectedEdge);
-  const PANEL_W = 260;
-
-  // With 3 or 4 panels open at once there's no room for a right-hand sidebar, so
-  // the detail panel becomes a collapsible bottom drawer instead. With only 1-2
-  // panels open there's room to spare, so the sidebar itself can be collapsed
-  // on demand via the toolbar toggle.
-  const isCompactLayout = layoutMode === '3-col' || layoutMode === '4-grid';
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isBottomDrawerExpanded, setIsBottomDrawerExpanded] = useState(false);
-
-  // Require an explicit expand on every new selection rather than staying open
-  // from the previous one. During render, same reasoning as the focus/selection
-  // syncs above.
-  const [prevSelectionForDrawer, setPrevSelectionForDrawer] = useState({ selectedNodeId, selectedEdgeId });
-  if (prevSelectionForDrawer.selectedNodeId !== selectedNodeId || prevSelectionForDrawer.selectedEdgeId !== selectedEdgeId) {
-    setPrevSelectionForDrawer({ selectedNodeId, selectedEdgeId });
-    setIsBottomDrawerExpanded(false);
-  }
-
-  const showSidebar = panelOpen && !isCompactLayout && !isSidebarCollapsed;
-  const showBottomDrawer = panelOpen && isCompactLayout;
+  const compactToolbar = panelSize.width < 700;
+  const detailMode = panelSize.width >= 960 ? 'side'
+    : panelSize.width >= 460 && panelSize.height >= 560 ? 'bottom' : 'sheet';
+  const [detailsExpanded, setDetailsExpanded] = useState<boolean | null>(null);
+  // Choose an initial presentation once. Afterwards even an open inspector
+  // survives resizing and switching between a side panel, drawer and sheet.
+  if (detailsExpanded === null && panelSize.width > 0) setDetailsExpanded(panelSize.width >= 960);
+  const showDetails = panelOpen && detailsExpanded && !toolSurface;
+  const hiddenFilterCount = nodeTypes.filter(type => hiddenNodeTypes.has(type)).length
+    + linkTypes.filter(type => hiddenLinkTypes.has(type)).length
+    + edgeDirections.filter(direction => hiddenEdgeDirections.has(direction)).length;
+  const selectionLabel = selectedNode ? getNodeDisplayLabel(selectedNode)
+    : selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '';
 
   /* ── Theme tokens ───────────────────────────────────────────────────────────── */
   const border     = isDark ? 'border-ds-zinc-800'             : 'border-ds-zinc-200';
   const textMain   = isDark ? 'text-ds-zinc-100'               : 'text-ds-zinc-900';
   const textMuted  = isDark ? 'text-ds-zinc-500'               : 'text-ds-zinc-400';
-  const panelBg    = isDark ? 'bg-ds-zinc-900 border-ds-zinc-800' : 'bg-ds-white border-ds-zinc-200';
   const chipBase   = isDark ? 'border-ds-zinc-700 hover:border-ds-zinc-500' : 'border-ds-zinc-300 hover:border-ds-zinc-400';
   const agentDirectionLabel = agentGraphFocus?.direction === 'incoming'
     ? t('knowledgeGraphView.agentDirectionIncoming')
@@ -1296,24 +1314,13 @@ export function KnowledgeGraphView({
       || selectedEdge.document_url_anchor
     : null;
 
-  // Shared between the sidebar overlay (spacious layouts) and the bottom drawer
-  // (compact 3-/4-panel layouts) — only the surrounding container differs.
-  // showNodeName is false in the bottom drawer, whose own collapsible header already
-  // shows selectedNode.label — repeating it here would print the name twice.
-  const renderDetailContent = (showNodeName: boolean) => (
+  // Shared content for every inspector presentation. The panel header already
+  // names the selection; fields and actions stay the same at every size.
+  const renderDetailContent = () => (
     <>
       {/* Node detail */}
       {selectedNode && (
         <div className="min-w-0 px-3 py-3 space-y-4 flex-1">
-          {showNodeName && (
-            <div className="flex items-start gap-2">
-              <KnowledgeNodeIcon node={selectedNode} className="w-3.5 h-3.5 mt-0.5 shrink-0 text-ds-indigo-400" />
-              <p className={cn('text-xs font-semibold leading-snug break-words', textMain)}>
-                {getNodeDisplayLabel(selectedNode)}
-              </p>
-            </div>
-          )}
-
           <div className="space-y-2">
             {selectedNode.entity_type && (
               <div className="flex items-baseline gap-2">
@@ -1729,161 +1736,74 @@ export function KnowledgeGraphView({
 
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div ref={panelRef} data-testid="knowledge-graph-view" className="flex flex-col h-full min-h-0 min-w-0"
+      onKeyDown={event => {
+        if (event.key === 'Escape' && toolSurface && !isLinkPickerOpen && !event.defaultPrevented) {
+          event.preventDefault();
+          closeToolSurface();
+        }
+      }}>
 
-      {/* ── Filter toolbar ── */}
-      <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2 border-b shrink-0', border)}>
-
-        {/* Node type chips */}
-        {nodeTypes.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.nodesLabel')}</span>
-            {nodeTypes.map(type => {
-              const typeInfo = UNIFIED_NODE_TYPES[type];
-              if (!typeInfo) return null;
-              const label = language === 'de' ? typeInfo.labelDe : typeInfo.labelEn;
-              const hidden = hiddenNodeTypes.has(type);
-              return (
-                <button key={type} onClick={() => toggleNodeType(type)}
-                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[0.625rem] transition-all', chipBase,
-                    hidden ? 'opacity-30' : 'opacity-100')}>
-                  <KnowledgeNodeIcon node={{ type, source_type: type }} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
-                  {label}
-                </button>
-              );
-            })}
+      {/* Stable controls; the full taxonomy lives in a bounded tool surface. */}
+      <div className={cn('shrink-0 border-b', border)} data-testid="graph-toolbar">
+        <div className="flex min-w-0 items-center gap-1 px-2 py-1.5">
+          <button ref={filterTriggerRef} aria-expanded={toolSurface === 'filters'} aria-label={hiddenFilterCount ? `${t('knowledgeGraphView.filters')}: ${t('knowledgeGraphView.hiddenFilters', { count: hiddenFilterCount })}` : t('knowledgeGraphView.filters')}
+            onClick={() => setToolSurface(current => current === 'filters' ? null : 'filters')}
+            className={cn('flex h-7 shrink-0 items-center gap-1 rounded-md border px-2 text-xs', chipBase, toolSurface === 'filters' && 'text-ds-indigo-400')}>
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {t('knowledgeGraphView.filters')}
+            {hiddenFilterCount > 0 && <span className="rounded bg-ds-indigo-500/20 px-1 text-ds-indigo-400" title={t('knowledgeGraphView.hiddenFilters', { count: hiddenFilterCount })}>{hiddenFilterCount}</span>}
+          </button>
+          <div className="min-w-0 flex-1">
+            <GraphSourceFocus compact={compactToolbar} isDark={isDark} projectId={selectedProject?.id ?? null} value={focusSourceId} disabled={isLoading} onChange={id => changeFocus(id, loadOverview)} />
           </div>
-        )}
-
-        {nodeTypes.length > 0 && linkTypes.length > 0 && (
-          <div className={cn('h-4 w-px shrink-0', border)} />
-        )}
-
-        {/* Link type chips */}
-        {linkTypes.length > 0 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>{t('knowledgeGraphView.linksLabel')}</span>
-            {linkTypes.map(type => {
-              const color = getGraphEdgeColor(type);
-              const hidden = hiddenLinkTypes.has(type);
-              return (
-                <button key={type} onClick={() => toggleLinkType(type)}
-                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[0.625rem] transition-all', chipBase,
-                    hidden ? 'opacity-30' : 'opacity-100')}>
-                  <span className="w-4 rounded-sm shrink-0" style={{ background: color, height: 2 }} />
-                  {getLinkLabel(t, type) ?? type}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {linkTypes.length > 0 && edgeDirections.length > 1 && (
-          <div className={cn('h-4 w-px shrink-0', border)} />
-        )}
-
-        {/* Direction filter for the currently focused graph data */}
-        {edgeDirections.length > 1 && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className={cn('text-[0.625rem] uppercase tracking-wider font-medium', textMuted)}>
-              {t('knowledgeGraphView.directionFilterLabel')}
-            </span>
-            {edgeDirections.map(direction => {
-              const hidden = hiddenEdgeDirections.has(direction);
-              return (
-                <button key={direction} onClick={() => toggleEdgeDirection(direction)}
-                  aria-pressed={!hidden}
-                  className={cn('flex items-center gap-1.5 px-2 py-0.5 rounded-sm border text-[0.625rem] transition-all', chipBase,
-                    hidden ? 'opacity-30' : 'opacity-100')}>
-                  {t(EDGE_DIRECTION_TAXONOMY[direction].labelKey)}
-                </button>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Right: focus indicator + counts + controls */}
-        <div className="ml-auto flex items-center gap-1.5 shrink-0">
-          {agentGraphFocus && viewMode === 'neighborhood' && neighborhoodFocusNode?.id === agentGraphFocus.focus_id && (
-            <span
-              className={cn('max-w-56 truncate rounded-sm border px-2 py-1 text-[0.625rem]', chipBase, textMuted)}
-              title={t('knowledgeGraphView.agentNeighborhoodScope', {
-                focus: agentGraphFocus.focus_label,
-                direction: agentDirectionLabel,
-                relationships: agentRelationshipLabels ?? '',
-                limit: neighborhoodLimit,
-              })}
-            >
-              {t('knowledgeGraphView.agentNeighborhoodScope', {
-                focus: agentGraphFocus.focus_label,
-                direction: agentDirectionLabel,
-                relationships: agentRelationshipLabels ?? '',
-                limit: neighborhoodLimit,
-              })}
-            </span>
-          )}
-          {viewMode === 'neighborhood' && (
-            <>
-              <button onClick={handleBackToOverview} title={t('knowledgeGraphView.backToOverview')}
-                className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[0.625rem] transition-colors', chipBase, textMuted)}>
-                <LayoutGrid className="w-3 h-3" />
-                {t('knowledgeGraphView.backToOverview')}
+          {!compactToolbar && <>
+            <button onClick={handleZoomIn} title={t('knowledgeGraphView.zoomIn')} aria-label={t('knowledgeGraphView.zoomIn')} className={cn('shrink-0 rounded-md p-1.5', iconBtn)}><ZoomIn className="h-3.5 w-3.5" /></button>
+            <button onClick={handleZoomOut} title={t('knowledgeGraphView.zoomOut')} aria-label={t('knowledgeGraphView.zoomOut')} className={cn('shrink-0 rounded-md p-1.5', iconBtn)}><ZoomOut className="h-3.5 w-3.5" /></button>
+          </>}
+          <button onClick={() => graphRef.current?.zoomToFit(400, 40)} title={t('knowledgeGraphView.fitAllTitle')} aria-label={t('knowledgeGraphView.fitAllTitle')}
+            className={cn('shrink-0 rounded-md p-1.5', iconBtn)}><Maximize2 className="h-3.5 w-3.5" /></button>
+          <DropdownMenu modal={false} onOpenChange={open => { if (open) menuOpensPanelRef.current = false; }}>
+            <DropdownMenuTrigger asChild>
+              <button ref={viewTriggerRef} title={t('knowledgeGraphView.viewOptions')} aria-label={t('knowledgeGraphView.viewOptions')} className={cn('flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 text-xs', chipBase)}>
+                {compactToolbar ? <MoreHorizontal className="h-4 w-4" /> : <><Eye className="h-3.5 w-3.5" />{t('knowledgeGraphView.viewOptions')}</>}
               </button>
-              {neighborhoodHasMore && (
-                <button
-                  onClick={loadMoreConnections}
-                  disabled={isLoadingMore}
-                  title={t('knowledgeGraphView.loadMoreConnectionsTitle')}
-                  className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[0.625rem] transition-colors', chipBase, textMuted,
-                    isLoadingMore && 'opacity-50 cursor-not-allowed')}>
-                  {isLoadingMore ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-                  {t('knowledgeGraphView.loadMoreConnections')}
-                </button>
-              )}
-            </>
-          )}
-          {focusNodeId && (
-            <button onClick={() => setFocusNodeId(null)} title={t('knowledgeGraphView.clearFocusTitle')}
-              className={cn('flex items-center gap-1.5 px-2 py-1 rounded-md border text-[0.625rem] transition-colors', chipBase, textMuted)}>
-              <LayoutGrid className="w-3 h-3" />
-              {t('knowledgeGraphView.clearFocus')}
-            </button>
-          )}
-          {rawNodes.length > 0 && (
-            <span className={cn('text-[0.625rem] tabular-nums', textMuted)}>
-              {filteredData.nodes.length} · {filteredData.links.length}
-            </span>
-          )}
-          <GraphSourceFocus isDark={isDark} projectId={selectedProject?.id ?? null} value={focusSourceId} disabled={isLoading} onChange={id => changeFocus(id, loadOverview)} />
-          <button onClick={handleZoomIn} title={t('knowledgeGraphView.zoomIn')}
-            className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
-            <ZoomIn className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={handleZoomOut} title={t('knowledgeGraphView.zoomOut')}
-            className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
-            <ZoomOut className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => graphRef.current?.zoomToFit(400, 40)} title={t('knowledgeGraphView.fitAllTitle')}
-            className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
-            <Maximize2 className="w-3.5 h-3.5" />
-          </button>
-          <button onClick={() => loadOverview(true)}
-            disabled={isLoading} title={t('knowledgeGraphView.reloadTitle')}
-            className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
-            <RefreshCw className={cn('w-3.5 h-3.5', isLoading && 'animate-spin')} />
-          </button>
-          {!isCompactLayout && (
-            <button onClick={() => setIsSidebarCollapsed(c => !c)}
-              title={t(isSidebarCollapsed ? 'knowledgeGraphView.expandSidebarTitle' : 'knowledgeGraphView.collapseSidebarTitle')}
-              className={cn('p-1.5 rounded-md transition-colors', iconBtn)}>
-              {isSidebarCollapsed ? <PanelRightOpen className="w-3.5 h-3.5" /> : <PanelRightClose className="w-3.5 h-3.5" />}
-            </button>
-          )}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" collisionPadding={8} onCloseAutoFocus={event => { if (menuOpensPanelRef.current) event.preventDefault(); }} className={cn('z-[100] max-h-[var(--radix-dropdown-menu-content-available-height)] max-w-[calc(100vw_-_1rem)] overflow-y-auto text-xs', isDark ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-100' : 'bg-ds-white text-ds-zinc-900')}>
+              <DropdownMenuItem onSelect={handleZoomIn}><ZoomIn className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.zoomIn')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={handleZoomOut}><ZoomOut className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.zoomOut')}</DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => loadOverview(true)} disabled={isLoading}><RefreshCw className={cn('mr-2 h-3.5 w-3.5', isLoading && 'animate-spin')} />{t('knowledgeGraphView.reloadTitle')}</DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={() => { menuOpensPanelRef.current = toolSurface !== 'legend'; setToolSurface(current => current === 'legend' ? null : 'legend'); }}><Workflow className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.legendLabel')}</DropdownMenuItem>
+              <DropdownMenuItem disabled={!panelOpen} onSelect={() => { menuOpensPanelRef.current = !showDetails; setToolSurface(null); setFocusDetails(!showDetails); setDetailsExpanded(!showDetails); }}><Info className="mr-2 h-3.5 w-3.5" />{t(showDetails ? 'knowledgeGraphView.hideDetails' : 'knowledgeGraphView.showDetails')}</DropdownMenuItem>
+              <DropdownMenuItem disabled={!panelOpen} onSelect={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}><X className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.clearSelection')}</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
+        {viewMode === 'neighborhood' && (
+          <div className="flex min-w-0 items-center gap-1 px-2 pb-1.5" data-testid="graph-neighborhood-navigation">
+            <button onClick={handleBackToOverview} title={t('knowledgeGraphView.backToOverview')} aria-label={t('knowledgeGraphView.backToOverview')}
+              className={cn('flex h-7 shrink-0 items-center gap-1 rounded border px-1.5 text-xs', chipBase)}>
+              <ArrowLeft className="h-3.5 w-3.5" />{t('knowledgeGraphView.overviewShort')}
+            </button>
+            <span className={cn('min-w-0 flex-1 truncate text-xs', textMuted)} title={neighborhoodFocusNode?.label}>{neighborhoodFocusNode?.label}</span>
+            {neighborhoodHasMore && <button onClick={loadMoreConnections} disabled={isLoadingMore} title={t('knowledgeGraphView.loadMoreConnectionsTitle')} aria-label={t('knowledgeGraphView.loadMoreConnections')}
+              className={cn('flex h-7 shrink-0 items-center gap-1 rounded border px-1.5 text-xs disabled:opacity-50', chipBase)}>
+              {isLoadingMore ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}{t('knowledgeGraphView.loadMoreShort')}
+            </button>}
+          </div>
+        )}
+        {(rawNodes.length > 0 || focusNodeId) && <div className={cn('flex min-w-0 items-center gap-2 px-2 pb-1 text-[0.625rem]', textMuted)}>
+          <span className="min-w-0 truncate tabular-nums" title={t('knowledgeGraphView.graphCounts', { nodes: filteredData.nodes.length, links: filteredData.links.length })}>{t('knowledgeGraphView.graphCounts', { nodes: filteredData.nodes.length, links: filteredData.links.length })}</span>
+          {agentGraphFocus && viewMode === 'neighborhood' && neighborhoodFocusNode?.id === agentGraphFocus.focus_id && <span className="min-w-0 flex-1 truncate" title={t('knowledgeGraphView.agentNeighborhoodScope', { focus: agentGraphFocus.focus_label, direction: agentDirectionLabel, relationships: agentRelationshipLabels ?? '', limit: neighborhoodLimit })}>
+            {t('knowledgeGraphView.agentNeighborhoodScope', { focus: agentGraphFocus.focus_label, direction: agentDirectionLabel, relationships: agentRelationshipLabels ?? '', limit: neighborhoodLimit })}
+          </span>}
+          {focusNodeId && <button onClick={() => setFocusNodeId(null)} title={t('knowledgeGraphView.clearFocusTitle')} className="ml-auto shrink-0 text-ds-indigo-400 underline underline-offset-2">{t('knowledgeGraphView.clearFocus')}</button>}
+        </div>}
       </div>
 
-      {/* ── Graph canvas + detail panel ── */}
-      <div className="relative flex flex-1 min-w-0 min-h-0">
+      {/* The canvas stays mounted while tools and inspectors change presentation. */}
+      <div className={cn('relative flex flex-1 min-w-0 min-h-0', showDetails && detailMode === 'bottom' && 'flex-col')}>
 
         {/* Canvas */}
         <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative">
@@ -2045,128 +1965,40 @@ export function KnowledgeGraphView({
             />
           )}
 
-          {/* Floating Legend */}
-          {filteredData.nodes.length > 0 && (
-            <div className={cn(
-              "absolute left-4 z-20 rounded-lg border p-3 shadow-lg transition-all backdrop-blur-md max-w-[220px] select-none",
-              // Bei kompaktem Layout (3/4 Panels offen) liegt der Detail-Bottom-Drawer
-              // unten im Canvas, auch expandiert bis zu 60% Höhe — eine bottom-*-Position
-              // der Legende kann ihm dann nie zuverlässig ausweichen. Deshalb bei
-              // isCompactLayout fix oben links statt unten links, unabhängig davon, ob der
-              // Drawer gerade sichtbar/expandiert ist (kein Springen beim Auswählen/Schließen).
-              isCompactLayout ? "top-4" : "bottom-4",
-              isDark ? "bg-ds-zinc-900/85 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white/85 border-ds-zinc-200 text-ds-zinc-800"
-            )}>
-              <div className="flex items-center justify-between gap-4 cursor-pointer" onClick={() => setIsLegendOpen(o => !o)}>
-                <div className="flex items-center gap-1.5">
-                  <Workflow className="w-3.5 h-3.5 text-ds-indigo-500 animate-pulse" />
-                  <span className="text-xs font-bold uppercase tracking-wide">
-                    {t('knowledgeGraphView.legendLabel')}
-                  </span>
-                </div>
-                <span className="text-[0.625rem] text-ds-zinc-550 hover:text-ds-zinc-300">
-                  {isLegendOpen ? '▲' : '▼'}
-                </span>
-              </div>
-
-              {isLegendOpen && (
-                <div className="mt-2.5 space-y-2.5 max-h-[220px] overflow-y-auto pr-1">
-                  {/* List visible node types */}
-                  <div className="space-y-1.5">
-                    <p className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500 font-semibold">
-                      {t('knowledgeGraphView.nodesLabel')}
-                    </p>
-                    {nodeTypes.map(type => {
-                      const typeInfo = UNIFIED_NODE_TYPES[type];
-                      if (!typeInfo) return null;
-                      const label = language === 'de' ? typeInfo.labelDe : typeInfo.labelEn;
-                      return (
-                        <div key={type} className="flex items-center gap-2 text-[0.625rem]">
-                          <KnowledgeNodeIcon node={{ type, source_type: type }} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
-                          <span className="truncate">{label}</span>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* List visible link types */}
-                  {linkTypes.length > 0 && (
-                    <div className={cn("space-y-1.5 pt-2 border-t", isDark ? "border-ds-zinc-800/60" : "border-ds-zinc-200")}>
-                      <p className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500 font-semibold">
-                        {t('knowledgeGraphView.linksLabel')}
-                      </p>
-                      {linkTypes.map(type => {
-                        const color = getGraphEdgeColor(type);
-                        const label = getLinkLabel(t, type) ?? type;
-                        return (
-                          <div key={type} className="flex items-center gap-2 text-[0.625rem]">
-                            <span className="w-4 rounded-sm shrink-0" style={{ background: color, height: 2 }} />
-                            <span className="truncate">{label}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
-        {/* ── Detail sidebar (spacious layouts: 1 or 2 panels open) ── */}
-        {showSidebar && (
-          <div className={cn('absolute right-0 top-0 bottom-0 border-l overflow-y-auto z-30 flex flex-col shadow-2xl backdrop-blur-md', isDark ? 'bg-ds-zinc-900/95 border-ds-zinc-800' : 'bg-ds-white/95 border-ds-zinc-200')}
-            style={{ width: PANEL_W }}>
+        {showDetails && <GraphToolPanel title={selectionLabel} isDark={isDark} mode={detailMode} autoFocus={focusDetails}
+          height={Math.min(320, Math.floor(panelSize.height * 0.42))} returnFocusRef={viewTriggerRef}
+          onClose={() => {
+            setDetailsExpanded(false);
+            setFocusDetails(false);
+            requestAnimationFrame(() => detailsTriggerRef.current?.focus());
+          }}>
+          {renderDetailContent()}
+        </GraphToolPanel>}
 
-            <div className={cn('flex items-center justify-between px-3 py-2 border-b shrink-0', border)}>
-              <span className={cn('text-xs font-semibold', textMain)}>
-                {selectedNode
-                  ? (selectedNode.type === 'code_file' ? t('knowledgeGraphView.fileLabel') : selectedNode.type === 'entity' ? t('knowledgeGraphView.codeEntityLabel') : t('knowledgeGraphView.documentLabel'))
-                  : t('knowledgeGraphView.linkLabel')}
-              </span>
-              <button onClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }}
-                className={cn('p-1 rounded transition-colors', iconBtn)}>
-                <X className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            {renderDetailContent(true)}
-          </div>
-        )}
-
-        {/* ── Detail bottom drawer (compact layouts: 3 or 4 panels open) — collapsed
-            by default on every new selection, must be expanded to see details, so
-            the graph keeps the full pane height in cramped grids. ── */}
-        {showBottomDrawer && (
-          <div className={cn('absolute left-0 right-0 bottom-0 border-t z-30 flex flex-col shadow-2xl backdrop-blur-md', isDark ? 'bg-ds-zinc-900/95 border-ds-zinc-800' : 'bg-ds-white/95 border-ds-zinc-200')}
-            style={{ maxHeight: isBottomDrawerExpanded ? '60%' : undefined }}>
-
-            <div className={cn('flex items-center gap-2 px-3 py-2 shrink-0 cursor-pointer', isBottomDrawerExpanded && 'border-b', border)}
-              onClick={() => setIsBottomDrawerExpanded(o => !o)}>
-              {selectedNode && (
-                <KnowledgeNodeIcon node={selectedNode} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
-              )}
-              {selectedEdge && !selectedNode && (
-                <span className="w-4 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
-              )}
-              <span className={cn('text-xs font-semibold truncate flex-1', textMain)}>
-                {selectedNode ? getNodeDisplayLabel(selectedNode) : (selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '')}
-              </span>
-              <button onClick={(e) => { e.stopPropagation(); setSelectedNodeId(null); setSelectedEdgeId(null); }}
-                className={cn('p-1 rounded transition-colors shrink-0', iconBtn)}>
-                <X className="w-3.5 h-3.5" />
-              </button>
-              {isBottomDrawerExpanded ? <ChevronDown className="w-3.5 h-3.5 shrink-0" /> : <ChevronUp className="w-3.5 h-3.5 shrink-0" />}
-            </div>
-
-            {isBottomDrawerExpanded && (
-              <div className="overflow-y-auto">
-                {renderDetailContent(false)}
-              </div>
-            )}
-          </div>
-        )}
+        {toolSurface && <GraphToolPanel key={toolSurface} title={t(toolSurface === 'filters' ? 'knowledgeGraphView.filters' : 'knowledgeGraphView.legendLabel')}
+          isDark={isDark} mode="tools" autoFocus returnFocusRef={toolSurface === 'filters' ? filterTriggerRef : viewTriggerRef} onClose={closeToolSurface}>
+          <GraphFilterPanel isDark={isDark} legend={toolSurface === 'legend'}
+            nodes={nodeTypes.flatMap(type => {
+              const info = UNIFIED_NODE_TYPES[type];
+              return info ? [{ id: type, label: language === 'de' ? info.labelDe : info.labelEn, hidden: hiddenNodeTypes.has(type) }] : [];
+            })}
+            links={linkTypes.map(type => ({ id: type, label: getLinkLabel(t, type) ?? type, hidden: hiddenLinkTypes.has(type), color: getGraphEdgeColor(type) }))}
+            directions={edgeDirections.map(direction => ({ id: direction, label: t(EDGE_DIRECTION_TAXONOMY[direction].labelKey), hidden: hiddenEdgeDirections.has(direction) }))}
+            onToggleNode={toggleNodeType} onToggleLink={toggleLinkType} onToggleDirection={id => toggleEdgeDirection(id as GraphEdgeDirection)}
+            onReset={() => { setHiddenNodeTypes(new Set()); setHiddenLinkTypes(new Set()); setHiddenEdgeDirections(new Set()); }} />
+        </GraphToolPanel>}
       </div>
+
+      {panelOpen && !showDetails && <div className={cn('flex min-w-0 shrink-0 items-center gap-1 border-t px-2 py-1', border)}>
+        <button ref={detailsTriggerRef} onClick={() => { setToolSurface(null); setFocusDetails(true); setDetailsExpanded(true); }} title={selectionLabel}
+          aria-label={t('knowledgeGraphView.showDetails')} className="flex min-w-0 flex-1 items-center gap-2 rounded px-1 py-1 text-xs hover:bg-ds-zinc-500/10">
+          <Info className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400" /><span className="min-w-0 flex-1 truncate text-left">{selectionLabel}</span>
+          <span className="shrink-0 text-ds-indigo-400">{t('knowledgeGraphView.details')}</span>
+        </button>
+        <button onClick={() => { setSelectedNodeId(null); setSelectedEdgeId(null); }} title={t('knowledgeGraphView.clearSelection')} aria-label={t('knowledgeGraphView.clearSelection')} className={cn('shrink-0 rounded p-1', iconBtn)}><X className="h-3.5 w-3.5" /></button>
+      </div>}
     </div>
   );
 }

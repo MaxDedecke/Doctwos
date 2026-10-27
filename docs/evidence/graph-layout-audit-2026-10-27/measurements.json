@@ -1,0 +1,2033 @@
+[
+  {
+    "name": "1440x900-1-views",
+    "w": 1440,
+    "h": 900,
+    "n": 1,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 257,
+        "w": 1139,
+        "h": 633
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 1139,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 1139,
+        "h": 113
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 465,
+          "y": 153,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 607,
+          "y": 153,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 678,
+          "y": 153,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 185,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 455,
+          "y": 185,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 572,
+          "y": 185,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 685,
+          "y": 185,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 789,
+          "y": 185,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 882,
+          "y": 185,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 970,
+          "y": 185,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 378,
+          "y": 220,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 448,
+          "y": 220,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 529,
+          "y": 220,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 1243,
+          "y": 218,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 1279,
+          "y": 218,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 1314,
+          "y": 218,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 1349,
+          "y": 218,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Seitenleiste einklappen",
+          "x": 1384,
+          "y": 218,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 1393,
+          "y": 266,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "text": "ContentRepositoryEndpoint",
+          "title": "semantisch",
+          "x": 1184,
+          "y": 445,
+          "w": 228,
+          "h": 25
+        },
+        {
+          "text": "Kundendatenbank",
+          "title": "Codeabhängigkeit",
+          "x": 1184,
+          "y": 472,
+          "w": 228,
+          "h": 25
+        },
+        {
+          "text": "In passender Ansicht öffnen",
+          "title": "",
+          "x": 1184,
+          "y": 515,
+          "w": 233,
+          "h": 18
+        },
+        {
+          "text": "Auf diesen Knoten fokussieren",
+          "title": "",
+          "x": 1184,
+          "y": 542,
+          "w": 233,
+          "h": 18
+        },
+        {
+          "text": "Nur Nachbarschaft laden",
+          "title": "Ersetzt die Übersicht durch die tatsächlichen Verbindungen dieses Knotens aus der Datenbank — anders als \"Auf diesen Knoten fokussieren\" auch dann vollständig, wenn die Übersicht gekappt ist",
+          "x": 1184,
+          "y": 569,
+          "w": 149,
+          "h": 18
+        },
+        {
+          "text": "Verknüpfung erstellen",
+          "title": "",
+          "x": 1184,
+          "y": 596,
+          "w": 233,
+          "h": 18
+        }
+      ],
+      "overflow": []
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-2-views",
+    "w": 1440,
+    "h": 900,
+    "n": 2,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 318,
+        "w": 568,
+        "h": 572
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 568,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 568,
+        "h": 174
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 465,
+          "y": 153,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 607,
+          "y": 153,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 678,
+          "y": 153,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 185,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 455,
+          "y": 185,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 572,
+          "y": 185,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 685,
+          "y": 185,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 308,
+          "y": 214,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 402,
+          "y": 214,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 490,
+          "y": 214,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 392,
+          "y": 246,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 462,
+          "y": 246,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 543,
+          "y": 246,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 672,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 707,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 742,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 778,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Seitenleiste einklappen",
+          "x": 813,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 822,
+          "y": 327,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "text": "ContentRepositoryEndpoint",
+          "title": "semantisch",
+          "x": 613,
+          "y": 506,
+          "w": 228,
+          "h": 25
+        },
+        {
+          "text": "Kundendatenbank",
+          "title": "Codeabhängigkeit",
+          "x": 613,
+          "y": 533,
+          "w": 228,
+          "h": 25
+        },
+        {
+          "text": "In passender Ansicht öffnen",
+          "title": "",
+          "x": 613,
+          "y": 576,
+          "w": 233,
+          "h": 18
+        },
+        {
+          "text": "Auf diesen Knoten fokussieren",
+          "title": "",
+          "x": 613,
+          "y": 603,
+          "w": 233,
+          "h": 18
+        },
+        {
+          "text": "Nur Nachbarschaft laden",
+          "title": "Ersetzt die Übersicht durch die tatsächlichen Verbindungen dieses Knotens aus der Datenbank — anders als \"Auf diesen Knoten fokussieren\" auch dann vollständig, wenn die Übersicht gekappt ist",
+          "x": 613,
+          "y": 630,
+          "w": 149,
+          "h": 18
+        },
+        {
+          "text": "Verknüpfung erstellen",
+          "title": "",
+          "x": 613,
+          "y": 657,
+          "w": 233,
+          "h": 18
+        }
+      ],
+      "overflow": []
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-3-views",
+    "w": 1440,
+    "h": 900,
+    "n": 3,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 430,
+        "w": 377,
+        "h": 460
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 378,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 378,
+        "h": 286
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 465,
+          "y": 153,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 308,
+          "y": 183,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 379,
+          "y": 183,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 241,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 455,
+          "y": 241,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 308,
+          "y": 270,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 421,
+          "y": 270,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 525,
+          "y": 270,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 308,
+          "y": 300,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 396,
+          "y": 300,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 378,
+          "y": 358,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 448,
+          "y": 358,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 529,
+          "y": 358,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 649,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 684,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 719,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 754,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 607,
+          "y": 857,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [
+        {
+          "tag": "DIV",
+          "text": "7 · 7Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode u",
+          "x": 308,
+          "y": 389,
+          "w": 474,
+          "h": 31
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 649,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 655,
+          "y": 397,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 684,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 691,
+          "y": 397,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "circle",
+          "text": "",
+          "x": 692,
+          "y": 399,
+          "w": 10,
+          "h": 10
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 701,
+          "y": 408,
+          "w": 3,
+          "h": 3
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 696,
+          "y": 404,
+          "w": 4,
+          "h": 0
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 719,
+          "y": 390,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 726,
+          "y": 397,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "polyline",
+          "text": "",
+          "x": 735,
+          "y": 399,
+          "w": 4,
+          "h": 4
+        },
+        {
+          "tag": "polyline",
+          "text": "",
+          "x": 728,
+          "y": 407,
+          "w": 4,
+          "h": 4
+        }
+      ],
+      "expandedDrawer": {
+        "height": 276,
+        "bodyHeight": 232,
+        "bodyScrollHeight": 301
+      },
+      "neighborhood": {
+        "canvasHeight": 460,
+        "toolbarHeight": 285.59375,
+        "overflowWidth": 436
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-4-views",
+    "w": 1440,
+    "h": 900,
+    "n": 4,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 318,
+        "w": 563,
+        "h": 159
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 564,
+        "h": 333
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 564,
+        "h": 174
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 465,
+          "y": 153,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 607,
+          "y": 153,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 678,
+          "y": 153,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 185,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 455,
+          "y": 185,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 572,
+          "y": 185,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 685,
+          "y": 185,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 308,
+          "y": 214,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 402,
+          "y": 214,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 490,
+          "y": 214,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 392,
+          "y": 246,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 462,
+          "y": 246,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 543,
+          "y": 246,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 703,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 738,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 773,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 808,
+          "y": 279,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 793,
+          "y": 445,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [],
+      "expandedDrawer": {
+        "height": 96,
+        "bodyHeight": 52,
+        "bodyScrollHeight": 301
+      },
+      "neighborhood": {
+        "canvasHeight": 159,
+        "toolbarHeight": 173.875,
+        "overflowWidth": 250
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1280x800-3-views",
+    "w": 1280,
+    "h": 800,
+    "n": 3,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 518,
+        "w": 324,
+        "h": 271
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 324,
+        "h": 646
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 324,
+        "h": 374
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 308,
+          "y": 183,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 450,
+          "y": 183,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 308,
+          "y": 212,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 270,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 455,
+          "y": 270,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 308,
+          "y": 300,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 421,
+          "y": 300,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 308,
+          "y": 329,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 402,
+          "y": 329,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 308,
+          "y": 358,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 378,
+          "y": 417,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 448,
+          "y": 417,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 308,
+          "y": 446,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 649,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 684,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 719,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 754,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 554,
+          "y": 757,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [
+        {
+          "tag": "DIV",
+          "text": "7 · 7Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode u",
+          "x": 308,
+          "y": 478,
+          "w": 474,
+          "h": 31
+        },
+        {
+          "tag": "LABEL",
+          "text": "Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode und Be",
+          "x": 335,
+          "y": 478,
+          "w": 307,
+          "h": 31
+        },
+        {
+          "tag": "SELECT",
+          "text": "Alle Quellen (ausgewogen)Spring Web Services – Quellcode und Beispielanwendungen",
+          "x": 449,
+          "y": 478,
+          "w": 194,
+          "h": 31
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 649,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 655,
+          "y": 485,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "circle",
+          "text": "",
+          "x": 657,
+          "y": 487,
+          "w": 10,
+          "h": 10
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 666,
+          "y": 496,
+          "w": 3,
+          "h": 3
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 662,
+          "y": 491,
+          "w": 0,
+          "h": 4
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 660,
+          "y": 492,
+          "w": 4,
+          "h": 0
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 684,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 691,
+          "y": 485,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "circle",
+          "text": "",
+          "x": 692,
+          "y": 487,
+          "w": 10,
+          "h": 10
+        }
+      ],
+      "expandedDrawer": {
+        "height": 163,
+        "bodyHeight": 119,
+        "bodyScrollHeight": 301
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1280x800-4-views",
+    "w": 1280,
+    "h": 800,
+    "n": 4,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 374,
+        "w": 483,
+        "h": 53
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 484,
+        "h": 283
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 484,
+        "h": 230
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 465,
+          "y": 153,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 607,
+          "y": 153,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 308,
+          "y": 183,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 241,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 455,
+          "y": 241,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 572,
+          "y": 241,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 308,
+          "y": 270,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 412,
+          "y": 270,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 506,
+          "y": 270,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 594,
+          "y": 270,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 392,
+          "y": 302,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 462,
+          "y": 302,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 543,
+          "y": 302,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 649,
+          "y": 335,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 684,
+          "y": 335,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 719,
+          "y": 335,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 754,
+          "y": 335,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 713,
+          "y": 395,
+          "w": 24,
+          "h": 24
+        }
+      ],
+      "overflow": [
+        {
+          "tag": "DIV",
+          "text": "7 · 7Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode u",
+          "x": 308,
+          "y": 333,
+          "w": 474,
+          "h": 31
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 754,
+          "y": 335,
+          "w": 29,
+          "h": 29
+        }
+      ],
+      "legendBlockedByDetails": true,
+      "expandedDrawer": {
+        "height": 32,
+        "bodyHeight": 0,
+        "bodyScrollHeight": 301
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1920x1080-3-views",
+    "w": 1920,
+    "h": 1080,
+    "n": 3,
+    "metrics": {
+      "canvas": {
+        "x": 292,
+        "y": 423,
+        "w": 536,
+        "h": 645
+      },
+      "root": {
+        "x": 292,
+        "y": 164,
+        "w": 537,
+        "h": 905
+      },
+      "toolbar": {
+        "x": 292,
+        "y": 164,
+        "w": 537,
+        "h": 260
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 376,
+          "y": 174,
+          "w": 106,
+          "h": 26
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 489,
+          "y": 174,
+          "w": 154,
+          "h": 26
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 651,
+          "y": 174,
+          "w": 73,
+          "h": 26
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 312,
+          "y": 207,
+          "w": 151,
+          "h": 26
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 359,
+          "y": 273,
+          "w": 112,
+          "h": 26
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 478,
+          "y": 273,
+          "w": 125,
+          "h": 26
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 611,
+          "y": 273,
+          "w": 121,
+          "h": 26
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 312,
+          "y": 306,
+          "w": 110,
+          "h": 26
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 430,
+          "y": 306,
+          "w": 98,
+          "h": 26
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 536,
+          "y": 306,
+          "w": 92,
+          "h": 26
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 635,
+          "y": 306,
+          "w": 147,
+          "h": 26
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 407,
+          "y": 342,
+          "w": 72,
+          "h": 26
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 486,
+          "y": 342,
+          "w": 85,
+          "h": 26
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 578,
+          "y": 342,
+          "w": 124,
+          "h": 26
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 699,
+          "y": 379,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 739,
+          "y": 379,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 779,
+          "y": 379,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 819,
+          "y": 379,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 759,
+          "y": 1032,
+          "w": 28,
+          "h": 28
+        }
+      ],
+      "overflow": [
+        {
+          "tag": "DIV",
+          "text": "7 · 7Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode u",
+          "x": 312,
+          "y": 377,
+          "w": 539,
+          "h": 35
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 819,
+          "y": 379,
+          "w": 33,
+          "h": 33
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 826,
+          "y": 386,
+          "w": 18,
+          "h": 18
+        },
+        {
+          "tag": "path",
+          "text": "",
+          "x": 829,
+          "y": 388,
+          "w": 13,
+          "h": 7
+        },
+        {
+          "tag": "path",
+          "text": "",
+          "x": 838,
+          "y": 388,
+          "w": 4,
+          "h": 4
+        },
+        {
+          "tag": "path",
+          "text": "",
+          "x": 829,
+          "y": 395,
+          "w": 13,
+          "h": 7
+        },
+        {
+          "tag": "path",
+          "text": "",
+          "x": 829,
+          "y": 398,
+          "w": 4,
+          "h": 4
+        }
+      ],
+      "expandedDrawer": {
+        "height": 387,
+        "bodyHeight": 338,
+        "bodyScrollHeight": 342
+      },
+      "neighborhood": {
+        "canvasHeight": 645,
+        "toolbarHeight": 259.75,
+        "overflowWidth": 387
+      }
+    },
+    "errors": []
+  },
+  {
+    "name": "1440x900-2-views-split25",
+    "w": 1440,
+    "h": 900,
+    "n": 2,
+    "split": 25,
+    "metrics": {
+      "canvas": {
+        "x": 291,
+        "y": 518,
+        "w": 282,
+        "h": 371
+      },
+      "root": {
+        "x": 291,
+        "y": 144,
+        "w": 283,
+        "h": 746
+      },
+      "toolbar": {
+        "x": 291,
+        "y": 144,
+        "w": 283,
+        "h": 374
+      },
+      "buttons": [
+        {
+          "text": "Confluence",
+          "title": "",
+          "x": 364,
+          "y": 153,
+          "w": 94,
+          "h": 23
+        },
+        {
+          "text": "Git / Code-Elemente",
+          "title": "",
+          "x": 308,
+          "y": 183,
+          "w": 136,
+          "h": 23
+        },
+        {
+          "text": "Datei",
+          "title": "",
+          "x": 450,
+          "y": 183,
+          "w": 64,
+          "h": 23
+        },
+        {
+          "text": "Externe Referenzen",
+          "title": "",
+          "x": 308,
+          "y": 212,
+          "w": 133,
+          "h": 23
+        },
+        {
+          "text": "semantisch",
+          "title": "",
+          "x": 350,
+          "y": 270,
+          "w": 99,
+          "h": 23
+        },
+        {
+          "text": "Schlüsselwort",
+          "title": "",
+          "x": 308,
+          "y": 300,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "dokumentiert",
+          "title": "",
+          "x": 425,
+          "y": 300,
+          "w": 106,
+          "h": 23
+        },
+        {
+          "text": "syntaktisch",
+          "title": "",
+          "x": 308,
+          "y": 329,
+          "w": 97,
+          "h": 23
+        },
+        {
+          "text": "Referenz",
+          "title": "",
+          "x": 412,
+          "y": 329,
+          "w": 87,
+          "h": 23
+        },
+        {
+          "text": "manuell",
+          "title": "",
+          "x": 308,
+          "y": 358,
+          "w": 81,
+          "h": 23
+        },
+        {
+          "text": "Codeabhängigkeit",
+          "title": "",
+          "x": 396,
+          "y": 358,
+          "w": 130,
+          "h": 23
+        },
+        {
+          "text": "Gerichtet",
+          "title": "",
+          "x": 378,
+          "y": 417,
+          "w": 63,
+          "h": 23
+        },
+        {
+          "text": "Ungerichtet",
+          "title": "",
+          "x": 448,
+          "y": 417,
+          "w": 75,
+          "h": 23
+        },
+        {
+          "text": "Beidseitig gerichtet",
+          "title": "",
+          "x": 308,
+          "y": 446,
+          "w": 110,
+          "h": 23
+        },
+        {
+          "text": "",
+          "title": "Vergrößern",
+          "x": 649,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Verkleinern",
+          "x": 684,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Alles einpassen",
+          "x": 719,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Neu laden",
+          "x": 754,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "Seitenleiste einklappen",
+          "x": 789,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "text": "",
+          "title": "",
+          "x": 536,
+          "y": 527,
+          "w": 24,
+          "h": 24
+        },
+        {
+          "text": "ContentRepositoryEndpoint",
+          "title": "semantisch",
+          "x": 328,
+          "y": 706,
+          "w": 228,
+          "h": 25
+        },
+        {
+          "text": "Kundendatenbank",
+          "title": "Codeabhängigkeit",
+          "x": 328,
+          "y": 734,
+          "w": 228,
+          "h": 25
+        },
+        {
+          "text": "In passender Ansicht öffnen",
+          "title": "",
+          "x": 328,
+          "y": 776,
+          "w": 233,
+          "h": 18
+        },
+        {
+          "text": "Auf diesen Knoten fokussieren",
+          "title": "",
+          "x": 328,
+          "y": 803,
+          "w": 233,
+          "h": 18
+        },
+        {
+          "text": "Nur Nachbarschaft laden",
+          "title": "Ersetzt die Übersicht durch die tatsächlichen Verbindungen dieses Knotens aus der Datenbank — anders als \"Auf diesen Knoten fokussieren\" auch dann vollständig, wenn die Übersicht gekappt ist",
+          "x": 328,
+          "y": 830,
+          "w": 149,
+          "h": 18
+        },
+        {
+          "text": "Verknüpfung erstellen",
+          "title": "",
+          "x": 328,
+          "y": 857,
+          "w": 233,
+          "h": 18
+        }
+      ],
+      "overflow": [
+        {
+          "tag": "DIV",
+          "text": "7 · 7Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode u",
+          "x": 308,
+          "y": 478,
+          "w": 510,
+          "h": 31
+        },
+        {
+          "tag": "LABEL",
+          "text": "Quelle bevorzugenAlle Quellen (ausgewogen)Spring Web Services – Quellcode und Be",
+          "x": 335,
+          "y": 478,
+          "w": 307,
+          "h": 31
+        },
+        {
+          "tag": "SELECT",
+          "text": "Alle Quellen (ausgewogen)Spring Web Services – Quellcode und Beispielanwendungen",
+          "x": 449,
+          "y": 478,
+          "w": 194,
+          "h": 31
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 649,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 655,
+          "y": 485,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "circle",
+          "text": "",
+          "x": 657,
+          "y": 487,
+          "w": 10,
+          "h": 10
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 666,
+          "y": 496,
+          "w": 3,
+          "h": 3
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 662,
+          "y": 491,
+          "w": 0,
+          "h": 4
+        },
+        {
+          "tag": "line",
+          "text": "",
+          "x": 660,
+          "y": 492,
+          "w": 4,
+          "h": 0
+        },
+        {
+          "tag": "BUTTON",
+          "text": "",
+          "x": 684,
+          "y": 479,
+          "w": 29,
+          "h": 29
+        },
+        {
+          "tag": "svg",
+          "text": "",
+          "x": 691,
+          "y": 485,
+          "w": 15,
+          "h": 15
+        },
+        {
+          "tag": "circle",
+          "text": "",
+          "x": 692,
+          "y": 487,
+          "w": 10,
+          "h": 10
+        }
+      ]
+    },
+    "errors": []
+  }
+]
