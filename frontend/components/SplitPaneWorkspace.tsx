@@ -15,6 +15,7 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
+  Code,
   ExternalLink,
   Globe,
   Layers,
@@ -1238,14 +1239,13 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   title={t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' })}
                   aria-label={t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' })}
                   className={cn(
-                    "ml-1 flex items-center gap-1 h-6 px-1.5 rounded-md border text-[0.625rem] font-semibold shrink-0 transition-colors",
+                    "ml-1 inline-flex items-center justify-center h-6 w-6 rounded-md border shrink-0 transition-colors",
                     theme === 'dark'
                       ? "border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
                       : "border-ds-zinc-300 text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
                   )}
                 >
-                  <Layers className="w-3 h-3" />
-                  <span>{fileLevelEntity.type}</span>
+                  <Code className="w-3.5 h-3.5" />
                 </button>
               )}
             </div>
