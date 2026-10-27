@@ -218,6 +218,35 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [cursorColumn, setCursorColumn] = useState<number>(1);
   const [editorContentLeft, setEditorContentLeft] = useState<number>(53);
   const [isReferencesModalMode, setIsReferencesModalMode] = useState<boolean>(false);
+  const referencesButtonRef = useRef<HTMLButtonElement | null>(null);
+  const referencesPanelRef = useRef<HTMLDivElement | null>(null);
+  const [referencesMenuPosition, setReferencesMenuPosition] = useState<React.CSSProperties>({});
+  const updateReferencesMenuPosition = React.useCallback((modal = false) => {
+    if (typeof window === 'undefined') return;
+    const viewportWidth = window.innerWidth;
+    const viewportHeight = window.innerHeight;
+    const button = referencesButtonRef.current?.getBoundingClientRect();
+    const panel = referencesPanelRef.current?.getBoundingClientRect();
+    if (!button || !panel) return;
+    if (!window.matchMedia('(min-width: 640px)').matches) {
+      setReferencesMenuPosition({ position: 'fixed', zIndex: 1000, left: '5vw', top: '10vh', width: '90vw', height: '80vh' });
+      return;
+    }
+    if (modal) {
+      const width = Math.min(viewportWidth - 32, viewportWidth * 0.7);
+      const height = Math.min(viewportHeight - 32, viewportHeight * 0.85);
+      setReferencesMenuPosition({ position: 'fixed', zIndex: 1000, left: (viewportWidth - width) / 2, top: (viewportHeight - height) / 2, width, height });
+      return;
+    }
+    const width = Math.max(180, Math.min(384, panel.width - 16, viewportWidth - 32));
+    const left = Math.max(16, Math.min(button.right - width, viewportWidth - width - 16));
+    const below = viewportHeight - button.bottom - 16;
+    const above = button.top - 16;
+    const openAbove = below < 260 && above > below;
+    const height = Math.max(120, Math.min(450, (openAbove ? above : below) - 8));
+    const top = openAbove ? Math.max(8, button.top - height - 8) : button.bottom + 8;
+    setReferencesMenuPosition({ position: 'fixed', zIndex: 1000, left, top, width, height });
+  }, []);
   const [focusedRefNode, setFocusedRefNode] = useState<FileReference | null>(null);
   // Referenzen des angeklickten Eintrags (Dialog) und der Datei (Dokument-Tab): seitenweise, nie automatisch nachgeladen.
   const focusRefs = usePagedReferenceList();
@@ -246,6 +275,17 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const formatToUse = fileContentFormat !== undefined ? fileContentFormat : localFileContentFormat;
   const isLoadingToUse = isLoadingFile !== undefined ? isLoadingFile : localIsLoadingFile;
   const documentContentRef = useDocumentLocator(activeRightTab, selectedDoc, contentToUse, formatToUse, isLoadingToUse);
+  useEffect(() => {
+    if (!isReferencesDropdownOpen) return;
+    const reposition = () => updateReferencesMenuPosition(isReferencesModalMode);
+    window.addEventListener('resize', reposition);
+    window.addEventListener('scroll', reposition, true);
+    return () => {
+      window.removeEventListener('resize', reposition);
+      window.removeEventListener('scroll', reposition, true);
+    };
+  }, [isReferencesDropdownOpen, isReferencesModalMode, updateReferencesMenuPosition]);
+
   const webOriginContent = useMemo(
     () => addWebAnchorScroll(addWebOriginTheme(sanitizeHtml(contentToUse), theme, selectedDoc?.type), selectedDoc?.urlAnchor),
     [contentToUse, selectedDoc?.urlAnchor, selectedDoc?.type, theme],
@@ -1109,7 +1149,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           "h-full border-l flex flex-col transition-all duration-300 ease-in-out bg-ds-zinc-950",
           splitClasses.editor,
           theme === 'dark' ? "border-ds-zinc-800/80 bg-ds-zinc-950" : "border-ds-zinc-200 bg-ds-white"
-        )}>
+        )} ref={referencesPanelRef}>
           {/* Graph View — full pane when activeRightTab === 'graph' */}
           {activeRightTab === 'graph' && (
             <div className="flex-1 min-w-0 min-h-0">
@@ -1270,8 +1310,15 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               <div className="relative shrink-0">
                 {(activeRightTab === 'code' || activeRightTab === 'doc') && (
                   <button
+                    ref={referencesButtonRef}
                     type="button"
-                    onClick={() => setIsReferencesDropdownOpen(!isReferencesDropdownOpen)}
+                    onClick={() => {
+                      if (!isReferencesDropdownOpen) {
+                        setIsReferencesModalMode(false);
+                        updateReferencesMenuPosition(false);
+                      }
+                      setIsReferencesDropdownOpen(!isReferencesDropdownOpen);
+                    }}
                     className={cn(
                       "inline-flex h-7 min-w-7 items-center justify-center gap-1 rounded-md border px-1.5 transition-colors duration-150 cursor-pointer",
                       isReferencesDropdownOpen
@@ -1302,28 +1349,25 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 {isReferencesDropdownOpen && (
                   <>
                     {/* Mobile Backdrop/Overlay & Desktop Modal Backdrop */}
-                    <div
-                      className={cn(
-                        "fixed inset-0 bg-ds-black/60 backdrop-blur-sm z-[999]",
-                        !isReferencesModalMode && "sm:hidden"
-                      )}
-                      onClick={() => {
-                        setIsReferencesDropdownOpen(false);
-                        setIsReferencesModalMode(false);
-                      }}
-                    />
+                    {typeof document !== 'undefined' && createPortal(
+                      <div
+                        className={cn("fixed inset-0 bg-ds-black/60 backdrop-blur-sm z-[999]", !isReferencesModalMode && "sm:hidden")}
+                        onClick={() => {
+                          setIsReferencesDropdownOpen(false);
+                          setIsReferencesModalMode(false);
+                        }}
+                      />,
+                      document.body,
+                    )}
 
-                    <div className={cn(
-                      // Mobile: Centered Modal
-                      "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[90vw] max-h-[80vh] z-[1000] sm:z-[1000]",
-                      // Desktop: Dropdown or Modal
-                      isReferencesModalMode
-                        ? "sm:w-[70vw] sm:max-h-[85vh] sm:fixed sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2"
-                        : "sm:absolute sm:top-auto sm:left-auto sm:right-0 sm:translate-x-0 sm:translate-y-0 sm:mt-2 sm:w-96 sm:max-h-[450px]",
-                      "overflow-y-auto rounded-lg border shadow-2xl flex flex-col transition-all duration-300",
-                      theme === 'dark'
-                        ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-300 shadow-ds-black/80"
-                        : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 shadow-ds-zinc-200"
+                    {typeof document !== 'undefined' && createPortal(
+                    <div
+                      style={referencesMenuPosition}
+                      className={cn(
+                        "min-h-0 max-w-[calc(100vw-2rem)] overflow-hidden rounded-lg border shadow-2xl flex flex-col",
+                        theme === 'dark'
+                          ? "bg-ds-zinc-950 border-ds-zinc-800 text-ds-zinc-300 shadow-ds-black/80"
+                          : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800 shadow-ds-zinc-200"
                     )}>
                     {/* Header */}
                     <div className={cn(
@@ -1340,6 +1384,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                             onClick={(e) => {
                               e.stopPropagation();
                               setIsReferencesModalMode(true);
+                              updateReferencesMenuPosition(true);
                             }}
                             className="hover:text-ds-indigo-400 transition-colors hidden sm:block"
                             title={t('splitPane.openAsDialogTitle')}
@@ -1361,8 +1406,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
                     {/* Unified References List */}
                     <div className={cn(
-                      "flex-1 overflow-y-auto",
-                      isReferencesModalMode ? "sm:max-h-[70vh]" : "max-h-[350px]"
+                      "min-h-0 flex-1 overflow-y-auto"
                     )}>
                       {activeRightTab === 'code' && !selectedEntity ? (
                         <div className="p-8 text-center text-xs text-ds-zinc-500 italic flex flex-col items-center gap-2">
@@ -1745,7 +1789,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                         </div>
                       </div>
                     )}
-                  </div>
+                  </div>,
+                    document.body,
+                    )}
                 </>
                 )}
               </div>
