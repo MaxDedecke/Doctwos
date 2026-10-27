@@ -204,38 +204,6 @@ export function ChatView({
     }
   };
 
-  const [detectedLph, setDetectedLph] = React.useState<number | null>(null);
-  const [recommendedChecklists, setRecommendedChecklists] = React.useState<string[]>([]);
-  const [isDetectingLph, setIsDetectingLph] = React.useState(false);
-
-  React.useEffect(() => {
-    const API_URL = (typeof window !== "undefined" && window.__DOCTUS_API_URL__) || "http://localhost:8000";
-    (async () => {
-      if (!selectedFile) {
-        setDetectedLph(null);
-        setRecommendedChecklists([]);
-        return;
-      }
-      setIsDetectingLph(true);
-      try {
-        const res = await api.fetch(`${API_URL}/aec/hoai/detect-lph`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ file_path: selectedFile, project_id: selectedProject?.id ?? null })
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setDetectedLph(data.lph);
-          setRecommendedChecklists(data.recommended_checklists || []);
-        }
-      } catch (err) {
-        console.error("LPH detection failed:", err);
-      } finally {
-        setIsDetectingLph(false);
-      }
-    })();
-  }, [selectedFile, selectedProject?.id]);
-
   const filteredSources = React.useMemo(() => {
     if (!connectedSources) return [];
     if (!selectedProject) {
@@ -281,36 +249,7 @@ export function ChatView({
           ))}
         </div>
         ) : <div aria-hidden="true" />}
-        <div className="flex min-w-0 flex-col items-end gap-1.5 overflow-hidden py-2">
-            {isDetectingLph ? (
-              <div className="flex items-center gap-1.5 text-[0.625rem] text-ds-zinc-500">
-                <Loader2 className="w-3 h-3 animate-spin" /> HOAI Copilot analysiert...
-              </div>
-            ) : detectedLph ? (
-              <div className="flex items-center gap-2 mt-1">
-                <span className="text-[0.625rem] font-bold uppercase tracking-wider bg-ds-emerald-100 text-ds-emerald-700 px-2 py-0.5 rounded-md dark:bg-ds-emerald-900/50 dark:text-ds-emerald-400">
-                  LPH {detectedLph} erkannt
-                </span>
-                {recommendedChecklists.map((chk, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => {
-                      setCurrentMessage(`Ich benötige die Checkliste: ${chk}`);
-                      const textarea = document.getElementById("chat-textarea") as HTMLTextAreaElement;
-                      if (textarea) textarea.focus();
-                    }}
-                    className={cn(
-                      "text-[0.5625rem] font-mono border rounded px-1.5 py-0.5 hover:bg-ds-zinc-200 transition-colors shadow-sm",
-                      theme === 'dark' ? "border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800" : "border-ds-zinc-300 text-ds-zinc-600"
-                    )}
-                  >
-                    <BookOpen className="w-2.5 h-2.5 inline mr-1" />
-                    {chk}
-                  </button>
-                ))}
-              </div>
-            ) : null}
-        </div>
+        <div aria-hidden="true" />
       </div>
 
       {/* Chat message stream container */}
