@@ -50,7 +50,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       db:
-        image: ankane/pgvector:latest
+        image: pgvector/pgvector:0.8.6-pg16-trixie@sha256:c8483555ce48101872f888c1df8a895ff689d6c7c7a5f7ac266475f9dfe89e0b
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
@@ -58,7 +58,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin"
+          --health-cmd "pg_isready -U admin -d doctus"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -101,7 +101,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       db:
-        image: ankane/pgvector:latest
+        image: pgvector/pgvector:0.8.6-pg16-trixie@sha256:c8483555ce48101872f888c1df8a895ff689d6c7c7a5f7ac266475f9dfe89e0b
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
@@ -109,7 +109,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin"
+          --health-cmd "pg_isready -U admin -d doctus"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -137,8 +137,9 @@ jobs:
         run: python -m pytest tests/ -v
 
   # F-033: Regression im COBOL-Parser ist blockierend. Läuft ohne DB/Redis -
-  # `parse.parse_program()` ist bewusst komplett in-memory (E-6), die
-  # Golden-File-Tests unter tests/test_cobol_*.py brauchen keinen Service.
+  # `parse.parse_program()` ist bewusst komplett in-memory (E-6).
+  # Explizite Dateiauswahl: -k cobol erfasst auch Java-DB-Tests mit "not_cobol"
+  # im Namen. Golden-File-Tests unter tests/test_cobol_*.py brauchen keinen Service.
   parser-golden:
     runs-on: ubuntu-latest
     steps:
@@ -153,7 +154,7 @@ jobs:
           pip install -r requirements-dev.txt
       - name: Run COBOL parser tests (golden files + unit tests)
         working-directory: parser
-        run: python -m pytest tests/ -k cobol -v
+        run: python -m pytest tests/test_cobol_*.py -v
 
   frontend:
     runs-on: ubuntu-latest
@@ -235,7 +236,7 @@ jobs:
     runs-on: ubuntu-latest
     services:
       db:
-        image: ankane/pgvector:latest
+        image: pgvector/pgvector:0.8.6-pg16-trixie@sha256:c8483555ce48101872f888c1df8a895ff689d6c7c7a5f7ac266475f9dfe89e0b
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
@@ -243,7 +244,7 @@ jobs:
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin"
+          --health-cmd "pg_isready -U admin -d doctus"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
