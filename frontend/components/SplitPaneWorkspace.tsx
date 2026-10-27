@@ -15,7 +15,6 @@ import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
-  Code,
   ExternalLink,
   Globe,
   Layers,
@@ -716,11 +715,21 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   }, [selectedProject?.id, selectedFile]);
 
   // Dateiobjekt der geöffneten Datei (Compilation-Unit, Copybook, JCL-Datei, Properties …).
-  const fileLevelEntity = useMemo(
-    () => (selectedFile && projectEntities
-      ? pickFileLevelEntity(projectEntities.filter((ent: CodeEntity) => ent.file_path === selectedFile))
-      : null),
-    [selectedFile, projectEntities]
+  const fileLevelEntity = useMemo(() => {
+    if (!selectedFile || !projectEntities) return null;
+    const fileEntities = projectEntities.filter((ent: CodeEntity) => ent.file_path === selectedFile);
+    return pickFileLevelEntity(fileEntities)
+      ?? fileEntities.find((ent: CodeEntity) => ent.type && FILE_LEVEL_TYPES.has(ent.type))
+      ?? fileEntities.find((ent: CodeEntity) => ent.start_line === 1)
+      ?? fileEntities[0]
+      ?? null;
+  }, [selectedFile, projectEntities]);
+
+  const isFileFocused = Boolean(
+    activeRightTab === 'code' &&
+    selectedEntity &&
+    ((fileLevelEntity && selectedEntity.id === fileLevelEntity.id) ||
+      (selectedEntity.file_path === selectedFile && selectedEntity.type && FILE_LEVEL_TYPES.has(selectedEntity.type)))
   );
   const entityDecorationsRef = useRef<string[]>([]);
   const entityAnchorsRef = useRef<Array<{ ent: CodeEntity; anchor: EntityAnchor }>>([]);
@@ -1221,32 +1230,44 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               ) : (
                 <BookOpen className="w-4 h-4 text-ds-orange-500 shrink-0" />
               )}
-              <span
-                className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
-                title={activeRightTab === 'code' ? selectedFile || '' : (selectedDoc?.name || '')}
-              >
-                {activeRightTab === 'code'
-                  ? (fileNavStack.length > 0 ? selectedFile?.split('/').pop() : selectedFile)
-                  : (selectedDoc?.name?.split('/').pop() || selectedDoc?.name || t('splitPane.documentFallback'))}
-              </span>
-              {activeRightTab === 'code' && fileLevelEntity && (
+              {activeRightTab === 'code' ? (
                 <button
                   type="button"
-                  onClick={(event) => {
-                    const rect = event.currentTarget.getBoundingClientRect();
-                    setEntityMenu({ x: rect.left, y: rect.bottom + 8, entity: fileLevelEntity });
+                  onClick={() => {
+                    const targetEntity = fileLevelEntity || projectEntities?.find((ent: CodeEntity) => ent.file_path === selectedFile);
+                    if (targetEntity) {
+                      handleEntitySelectRef.current?.(targetEntity);
+                    }
                   }}
-                  title={t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' })}
-                  aria-label={t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' })}
+                  onContextMenu={(event) => {
+                    if (fileLevelEntity) {
+                      event.preventDefault();
+                      const rect = event.currentTarget.getBoundingClientRect();
+                      setEntityMenu({ x: rect.left, y: rect.bottom + 8, entity: fileLevelEntity });
+                    }
+                  }}
+                  title={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : (selectedFile || '')}
+                  aria-label={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : (selectedFile || '')}
                   className={cn(
-                    "ml-1 inline-flex items-center justify-center h-6 w-6 rounded-md border shrink-0 transition-colors",
-                    theme === 'dark'
-                      ? "border-ds-zinc-700 text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800"
-                      : "border-ds-zinc-300 text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100"
+                    "truncate font-semibold text-left transition-colors cursor-pointer rounded px-1.5 py-0.5 -mx-1.5",
+                    isFileFocused
+                      ? (theme === 'dark'
+                          ? "text-ds-indigo-400 bg-ds-indigo-500/15"
+                          : "text-ds-indigo-600 bg-ds-indigo-50")
+                      : (theme === 'dark'
+                          ? "text-ds-zinc-300 hover:text-ds-zinc-100 hover:bg-ds-zinc-800/60"
+                          : "text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100")
                   )}
                 >
-                  <Code className="w-3.5 h-3.5" />
+                  {fileNavStack.length > 0 ? selectedFile?.split('/').pop() : selectedFile}
                 </button>
+              ) : (
+                <span
+                  className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
+                  title={selectedDoc?.name || ''}
+                >
+                  {selectedDoc?.name?.split('/').pop() || selectedDoc?.name || t('splitPane.documentFallback')}
+                </span>
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
