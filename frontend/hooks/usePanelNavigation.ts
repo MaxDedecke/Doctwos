@@ -141,8 +141,9 @@ export function usePanelNavigation({
     focusedEntityOverride: CodeEntity | null = null,
   ) => {
     const { isDoc, isWebOrigin, resolvedSourceId } = resolveReferenceTarget(path, sourceId, connectedSources);
+    const targetSource = connectedSources.find(source => String(source.id) === String(resolvedSourceId));
     const targetDoc = resolvedSourceId && (isDoc || isWebOrigin)
-      ? { id: resolvedSourceId, name: path || '', ...(isWebOrigin ? { isWebOrigin: true, url: path || undefined } : {}) }
+      ? { id: resolvedSourceId, name: path || '', ...(isWebOrigin ? { isWebOrigin: true, url: path || undefined, type: targetSource?.type } : {}) }
       : null;
     const targetType = getSelectionViewType(path, targetDoc);
     let focusedEntity = focusedEntityOverride || (path && !targetDoc

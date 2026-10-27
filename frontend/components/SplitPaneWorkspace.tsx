@@ -43,6 +43,16 @@ import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatem
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
 
+function addWebOriginTheme(html: string, theme: string, sourceType: string | null | undefined) {
+  if (sourceType?.toLowerCase() !== 'jira') return html;
+  const dark = theme === 'dark';
+  const foreground = dark ? '#d4d4d8' : '#27272a';
+  const background = dark ? '#09090b' : '#ffffff';
+  const link = dark ? '#a5b4fc' : '#4f46e5';
+  const style = `<style>html,body{color:${foreground}!important;background:${background}!important}body{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;margin:0;padding:24px}p,li,blockquote,td,th{color:${foreground}!important}a{color:${link}!important}pre,code{color:${foreground}!important;background:${dark ? '#18181b' : '#f4f4f5'}!important}img{max-width:100%;height:auto}table{border-collapse:collapse;max-width:100%}</style>`;
+  return `${style}${html}`;
+}
+
 function addWebAnchorScroll(html: string, anchor: string | null | undefined) {
   if (!anchor) return html;
   const safeAnchor = JSON.stringify(anchor.replace(/^#/, '')).replace(/</g, '\\u003c');
@@ -237,8 +247,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const isLoadingToUse = isLoadingFile !== undefined ? isLoadingFile : localIsLoadingFile;
   const documentContentRef = useDocumentLocator(activeRightTab, selectedDoc, contentToUse, formatToUse, isLoadingToUse);
   const webOriginContent = useMemo(
-    () => addWebAnchorScroll(sanitizeHtml(contentToUse), selectedDoc?.urlAnchor),
-    [contentToUse, selectedDoc?.urlAnchor],
+    () => addWebAnchorScroll(addWebOriginTheme(sanitizeHtml(contentToUse), theme, selectedDoc?.type), selectedDoc?.urlAnchor),
+    [contentToUse, selectedDoc?.urlAnchor, selectedDoc?.type, theme],
   );
   const referencesToUse = fileReferences !== undefined ? fileReferences : docRefs.items;
   const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : docRefs.isLoading;

@@ -647,7 +647,8 @@ function AppContent() {
     let hasPanelForSelection = true;
     if (resolvedSourceId && (isWebOrigin || isDoc)) {
       if (isWebOrigin) {
-        setSelectedDoc({ id: resolvedSourceId, name: cleanPath, isWebOrigin: true, url: cleanPath });
+        const webSourceType = connectedSources.find(source => String(source.id) === String(resolvedSourceId))?.type;
+        setSelectedDoc({ id: resolvedSourceId, name: cleanPath, isWebOrigin: true, url: cleanPath, type: webSourceType });
         setSelectedFile(null);
         setSelectedLine(null);
         setActiveRightTab('weborigin');
