@@ -25,9 +25,10 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, or_
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from core import config as cfg
+from services.graph_overview_links import append_overview_knowledge_links
 from services.graph_overview_sampling import compute_degree, select_overview_nodes
 from core.db_setup import get_db
 from core.analysis_status import load_analysis_status
@@ -675,7 +676,23 @@ def get_graph(
         }
         chunk_ids = {lnk.chunk_id for lnk in entity_links if lnk.chunk_id is not None}
         chunks = (
-            {c.id: c for c in db.query(DocumentChunk).filter(DocumentChunk.id.in_(chunk_ids)).all()}
+            {
+                c.id: c
+                for c in db.query(DocumentChunk)
+                .options(
+                    load_only(
+                        DocumentChunk.id,
+                        DocumentChunk.project_id,
+                        DocumentChunk.source_id,
+                        DocumentChunk.file_path,
+                        DocumentChunk.metadata_json,
+                        DocumentChunk.start_line,
+                        DocumentChunk.end_line,
+                    )
+                )
+                .filter(DocumentChunk.id.in_(chunk_ids))
+                .all()
+            }
             if chunk_ids
             else {}
         )
@@ -715,63 +732,18 @@ def get_graph(
             )
 
     # ── Cross-object knowledge links ─────────────────────────────────────────
-    for klink in db.query(KnowledgeLink).filter(KnowledgeLink.status == status).all():
-        if not (
-            _is_side_visible(
-                klink.source_a_type,
-                klink.source_a_entity_id,
-                klink.source_a_chunk_id,
-                team_ids,
-                visible_project_ids,
-                db,
-                project_id,
-            )
-            and _is_side_visible(
-                klink.source_b_type,
-                klink.source_b_entity_id,
-                klink.source_b_chunk_id,
-                team_ids,
-                visible_project_ids,
-                db,
-                project_id,
-            )
-        ):
-            continue
-        src_id = _side_node_id(
-            nodes,
-            db,
-            klink.source_a_type,
-            klink.source_a_entity_id,
-            klink.source_a_chunk_id,
-            klink.source_a_title,
-            klink.source_a_source_type,
-            klink.source_a_url,
-        )
-        tgt_id = _side_node_id(
-            nodes,
-            db,
-            klink.source_b_type,
-            klink.source_b_entity_id,
-            klink.source_b_chunk_id,
-            klink.source_b_title,
-            klink.source_b_source_type,
-            klink.source_b_url,
-        )
-        if not src_id or not tgt_id:
-            continue
-        preserved_node_ids.add(src_id)
-        preserved_node_ids.add(tgt_id)
-        edges.append(
-            {
-                "id": f"kl:{klink.id}",
-                "source": src_id,
-                "target": tgt_id,
-                "link_type": klink.link_type,
-                "direction": getattr(klink, "direction", None) or "undirected",
-                "score": klink.score,
-                "context": klink.context,
-            }
-        )
+    append_overview_knowledge_links(
+        nodes,
+        edges,
+        preserved_node_ids,
+        db,
+        status,
+        project_id,
+        team_ids,
+        visible_project_ids,
+        _ensure_entity_file_node,
+        _doc_node,
+    )
 
     # ── Code dependencies (representative sampling across files & components) ─
     code_edge_limit = _code_edge_budget(limit)

@@ -57,6 +57,18 @@ Knoten. Die Messung isoliert Darstellung und Interaktion; sie belegt weder
 Layoutqualität noch Datenbankleistung oder Leistung auf Unternehmensclients.
 Der Standarddeckel von 2.000 Knoten bleibt bis zur gesonderten Abnahme erhalten.
 
+## Datenbank
+
+- Die Übersicht lädt manuelle/Wissens-Verknüpfungen mit SQL-Projektvorauswahl
+  und gebündelten Endpunkt-, Quellen- und Projektabfragen. Die Sichtbarkeit wird
+  weiterhin pro Anfrage anhand von Team, Projekt und globaler Codefreigabe geprüft.
+- Dokumenttext und Embedding-Vektoren werden für diese Darstellung nicht geladen;
+  dasselbe gilt für die Dokument-Endpunkte von Entity-Dokument-Verbindungen.
+- Die Regression misst bei 10 und bei 100 Verknüpfungen jeweils fünf SELECTs.
+  Die Zahl der Abfragen wächst damit nicht pro Kante. Die Menge der geladenen
+  Verknüpfungen und Metadaten wächst weiterhin mit dem ausgewählten Bestand;
+  die abschließende Knotenauswahl ersetzt keine vollständige SQL-Aggregation.
+
 ## Prüfung
 
 Die erste Stufe besteht TypeScript, Lint der geänderten Dateien und alle 935
@@ -71,3 +83,15 @@ vorpositionierten Knoten bestätigt eine abgeschlossene Worker-Berechnung.
 Regressionen decken Abbruch, verspätete Antworten, Dragging und den anfänglichen
 Filterreset ab. Eine zyklische Nachbarschaft mit 20.000 Knoten prüft, dass jede
 Kante nur einmal für den Traversierungsindex gelesen wird.
+
+Die Backend-Stufe besteht 729 Tests (2 übersprungen), einschließlich Scope- und
+Query-Budget-Regressionen. Eine vorhandene Testbereinigung wurde unabhängig von
+zufälligem ORM-Nachladen gemacht: Der Link wird vor dem kaskadierenden Löschen
+seiner Chunks explizit geflusht.
+
+Bei der Kontrolle der GitHub-CI wurden zwei Fehler des Ausgangsstands behoben:
+Alle drei CI-Datenbanken verwenden nun dasselbe gepinnte pgvector-Image wie der
+Standard-Stack (`halfvec` wird benötigt). Der datenbankfreie Golden-Job wählt
+explizit `test_cobol_*.py`, statt über `-k cobol` versehentlich einen Java-DB-Test
+mit `not_cobol` im Namen auszuwählen. 250 Golden-/COBOL-Tests bestehen ohne Netz
+oder Datenbank.

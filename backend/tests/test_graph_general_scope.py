@@ -294,6 +294,9 @@ def test_general_graph_hides_project_documents_through_knowledge_links(
         assert "private.pdf" not in docs
     finally:
         db_session.delete(link)
+        # Flush before the chunk bulk-delete cascades to the same link. The
+        # overview may correctly exclude it without refreshing its expired ORM state.
+        db_session.flush()
         db_session.query(DocumentChunk).filter(
             DocumentChunk.id.in_([project_chunk.id, global_chunk.id])
         ).delete(synchronize_session=False)
