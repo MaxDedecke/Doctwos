@@ -1,0 +1,42 @@
+{
+  "revision": "ef8c398eb3c7201138572bcae8306209bfb4f18c",
+  "date": "2026-10-27T18:22:01.855Z",
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-14650HX",
+    "cpus": 8,
+    "browser": "headless Chromium",
+    "viewport": "1440x900",
+    "fixture": "worker layout, two directed edges per node; excludes database"
+  },
+  "results": [
+    {
+      "nodes": 200,
+      "edges": 400,
+      "firstCanvasMs": 258,
+      "selectedVerified": true,
+      "worker": {
+        "count": 1,
+        "done": true
+      },
+      "idle": {
+        "canvasArcCalls": 0,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.799999999999272,
+        "observedFps": 60.001121516289984
+      },
+      "selected": {
+        "canvasArcCalls": 0,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.799999999999272,
+        "observedFps": 60.00112151629005
+      },
+      "interaction": {
+        "canvasArcCalls": 2850,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.799999999999272,
+        "observedFps": 60.00220191566668
+      },
+      "errors": []
+    }
+  ]
+}

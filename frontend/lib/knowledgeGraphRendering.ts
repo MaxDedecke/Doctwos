@@ -27,6 +27,7 @@ type RenderOptions = {
   nodes: GraphNode[]; links: GraphEdge[]; degrees: Map<string, number>; ghostIds: Set<string>;
   selectedNodeId: string | null; selectedEdgeId: string | null; focusNodeId: string | null;
   focusNeighborIds: Set<string> | null; isDark: boolean;
+  styleRevision?: string;
   viewport: () => GraphViewport | null; zoom: () => number;
 };
 

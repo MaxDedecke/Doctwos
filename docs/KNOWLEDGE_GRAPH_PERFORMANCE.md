@@ -8,6 +8,10 @@ committen und pushen. Die bestehende Canvas-Darstellung wird beibehalten.
 
 - `knowledgeGraphRendering.ts` bereitet Farben, Radien, Bezeichnungen und
   Parallelkanten vor. Während des Zeichnens gibt es keine DOM-Farbabfragen.
+- Änderungen der Root-Klasse oder ihrer Style-Tokens invalidieren den Farbcache
+  über eine Subscription. Dadurch werden auch nachgelagert angewandte Theme-CSS-
+  Änderungen übernommen, ohne pro Frame Styles abzufragen. Die abschließende
+  Frontend-Suite besteht mit dieser Regression 945 Tests.
 - Eine Auswahl besitzt einen statischen Ring. Der Graph kann auch mit Auswahl
   automatisch pausieren; Partikel und pulsierende Auswahlringe entfallen.
 - Symbole erscheinen ab neun Pixeln Knotenradius; Beschriftungen abhängig vom
@@ -107,3 +111,28 @@ Der Opazitätstest liest die tatsächliche Knotenfüllung, statt von der
 zoomabhängigen Sichtbarkeit einer Beschriftung abzuhängen. Der CI-E2E-Job
 enthält diese Graph-Fälle und einen zusätzlichen funktionalen Worker-Smoke
 mit 200 nicht vorpositionierten Knoten. Bildraten sind keine CI-Grenzwerte.
+
+## Messergebnis vom 27.10.2026
+
+Versionierte Ergebnisse: [vorher](evidence/knowledge-graph-performance-2026-10-27/before.json),
+[nachher](evidence/knowledge-graph-performance-2026-10-27/after.json) und
+[Produktions-Worker](evidence/knowledge-graph-performance-2026-10-27/production-worker.json).
+Vergleich: `a49c9e3` gegen die Optimierung aus `ef8c398`, gleiche Browserprobe
+nacheinander auf demselben Rechner (i7-14650HX, 8 für den Container sichtbare
+CPUs, Headless Chromium, 1440 × 900, getrennte Next-Dev-Server). Einzelmessungen,
+keine statistische Kapazitätsfreigabe; beide Auswahlproben wurden bestätigt.
+
+| Knoten / Kanten | Auswahl vorher / nachher | Zoom vorher / nachher |
+|---|---|---|
+| 2.000 / 4.000 | 32,5 / 60,0 FPS | 36,3 / 59,5 FPS |
+| 20.000 / 40.000 | 4,6 / 60,0 FPS | 4,4 / 58,9 FPS |
+
+Nach der Optimierung fallen bei ruhender Auswahl keine Zeichenaufrufe mehr
+an. Während der Zoomprobe gibt es keine `getComputedStyle`-Aufrufe. Der
+Produktionslauf bestätigt den Abschluss einer echten Worker-Berechnung;
+er verwendet einen gesonderten, nicht vorpositionierten 200-Knoten-Korpus.
+
+Die Zahlen begründen vorerst keinen Wechsel zu WebGL. Canvas bleibt erhalten.
+Sehr dichte Graphen, Layoutqualität bei 20.000 frei angeordneten Knoten und
+abweichende Clienthardware brauchen weitere Messungen. Der Knotendeckel wird
+durch diese synthetische Darstellungsprobe nicht automatisch erhöht.

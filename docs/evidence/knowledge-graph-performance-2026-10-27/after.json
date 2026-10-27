@@ -1,0 +1,71 @@
+{
+  "revision": "ef8c398eb3c7201138572bcae8306209bfb4f18c",
+  "date": "2026-10-27T18:29:21.756Z",
+  "environment": {
+    "cpu": "Intel(R) Core(TM) i7-14650HX",
+    "cpus": 8,
+    "browser": "headless Chromium",
+    "viewport": "1440x900",
+    "fixture": "fixed grid, two directed edges per node; excludes database"
+  },
+  "results": [
+    {
+      "nodes": 2000,
+      "edges": 4000,
+      "firstCanvasMs": 287,
+      "selectedVerified": true,
+      "worker": {
+        "count": 0,
+        "done": false
+      },
+      "idle": {
+        "canvasArcCalls": 0,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.700000000000728,
+        "observedFps": 59.99999999999999
+      },
+      "selected": {
+        "canvasArcCalls": 0,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.700000000000728,
+        "observedFps": 60.00112151629005
+      },
+      "interaction": {
+        "canvasArcCalls": 27128,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.700000000000728,
+        "observedFps": 59.45945945945947
+      },
+      "errors": []
+    },
+    {
+      "nodes": 20000,
+      "edges": 40000,
+      "firstCanvasMs": 1852,
+      "selectedVerified": true,
+      "worker": {
+        "count": 0,
+        "done": false
+      },
+      "idle": {
+        "canvasArcCalls": 0,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.799999999999272,
+        "observedFps": 60.00448631673394
+      },
+      "selected": {
+        "canvasArcCalls": 0,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.799999999999272,
+        "observedFps": 60.00112151629005
+      },
+      "interaction": {
+        "canvasArcCalls": 21706,
+        "computedStyleCalls": 0,
+        "frameIntervalP95Ms": 16.700000000000728,
+        "observedFps": 58.9133755182196
+      },
+      "errors": []
+    }
+  ]
+}

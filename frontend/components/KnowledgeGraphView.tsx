@@ -23,6 +23,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { edgeLineWidth } from '@/lib/graphLayout';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
+import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
 import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { createPortal } from 'react-dom';
@@ -789,13 +790,16 @@ export function KnowledgeGraphView({
 
   const zoomRef = useRef(1);
   const viewportRef = useRef<GraphViewport | null>(null);
+  const styleRevision = useGraphStyleRevision();
   // The factory captures getters; only Canvas/event callbacks invoke them.
   // eslint-disable-next-line react-hooks/refs
   const renderer = useMemo(() => createKnowledgeGraphRenderer({
     nodes: filteredData.nodes, links: filteredData.links, degrees: nodeDegrees, ghostIds,
     selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark,
     viewport: () => viewportRef.current, zoom: () => zoomRef.current,
-  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark]);
+    // The subscription invalidates colors after parent effects apply theme CSS.
+    styleRevision,
+  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, styleRevision]);
   const updateViewport = useCallback(() => {
     const graph = graphRef.current;
     if (!graph?.screen2GraphCoords) return;
