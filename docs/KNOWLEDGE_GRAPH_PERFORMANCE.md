@@ -155,3 +155,24 @@ Die Backend-Suite besteht mit zwei neuen Grenz-/Trunkierungsfällen 731 Tests
 zusätzlich einen lokalen `/graph`-Snapshot verwenden; dieser wird nicht ins
 Repository übernommen. Nicht vorpositionierte Graphen warten auf einen
 bestätigten Worker-Abschluss, statt eine feste Wartezeit als Abschluss zu werten.
+
+### Lokale Bestandsprüfung
+
+[`syncope-validation.json`](evidence/knowledge-graph-performance-2026-10-27/syncope-validation.json)
+enthält die Prüfung am derzeit lokal indexierten Apache-Syncope-Bestand.
+Die alte 2.000-/40.000-Auswahl lieferte 1.155 Knoten und 3.759 Dateikanten;
+mit 10.000 Knoten und maximal 100.000 Roh-Codebeziehungen werden 2.493 Knoten
+und 10.165 Kanten geliefert. Das Rohbeziehungsbudget bleibt ausgeschöpft und
+`edges_sampled=true`; auch diese größere Ansicht ist keine Vollständigkeitszusage.
+
+Die echte Browserprobe bestätigt Worker-Abschluss und Auswahl. Im dichteren,
+frei angeordneten Bestand erreicht sie etwa 26 FPS beim Zoom und 60 FPS bei
+ruhender Auswahl. Die 59 FPS des synthetischen Gitters sind daher keine
+allgemeine Garantie. Der größere Backend-Aufbau benötigt mehr Zeit und Speicher;
+die Messdatei dokumentiert Dauer, unkomprimierte Antwortgröße (rund 20 MB) und
+Spitzen-RSS des separaten Probeprozesses. Daten wurden nur gelesen. Der
+Quellgraph selbst wurde ausschließlich temporär lokal gespeichert.
+
+Die erhöhte Grenze ist lokal im laufenden Backend aktiv; Backend und Frontend
+sind gesund. CI für `a60e5dd` ist mit allen elf Jobs grün, einschließlich der
+aufgenommenen Graph-Browserfälle und des Produktions-Worker-Smokes.
