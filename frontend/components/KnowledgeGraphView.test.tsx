@@ -177,7 +177,7 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     else fireEvent.click(screen.getByRole('button', { name: 'Fokus aufheben' }));
 
     expect(nodeAlpha()).toBe(1);
-    expect(latestGraphProps.linkColor!(edges[1])).not.toBe('rgba(161,161,170,0.06)');
+    expect(latestGraphProps.linkColor!(edges[1])).not.toContain('0.06');
     expect(screen.queryByRole('button', { name: 'Fokus aufheben' })).toBeNull();
     expect(screen.queryByTestId('graph-tool-panel')).toBeNull();
     expect(screen.getByTestId('force-graph-stub')).toBe(graphInstance);

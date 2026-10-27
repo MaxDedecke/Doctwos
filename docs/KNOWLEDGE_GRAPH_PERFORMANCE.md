@@ -17,6 +17,22 @@ committen und pushen. Die bestehende Canvas-Darstellung wird beibehalten.
   bleiben auch bei zwei außerhalb liegenden Endpunkten sichtbar.
 - Filter, Richtungspfeile, Hervorhebung und Quellen-Navigation bleiben erhalten.
 
+## Layout
+
+- Die Übersicht berechnet ihre Kräfte in einem Web Worker. Die Canvas-Bibliothek
+  führt keine eigenen Physikschritte mehr im Hauptthread aus.
+- Ohne Worker-Unterstützung oder bei einem Worker-Fehler übernimmt dieselbe
+  Berechnung in asynchronen Zeitabschnitten. Ein einzelner Physikschritt kann in
+  diesem Ersatzpfad weiterhin den Hauptthread beanspruchen.
+- Datasetwechsel und Unmount beenden alte Berechnungen. Verspätete Antworten
+  werden ignoriert; manuell verschobene Knoten behalten ihre Position.
+- Nur abgeschlossene Layouts werden als fertige Positionen wiederverwendet.
+  Ein anfänglicher Filterreset darf Startpositionen nicht als fertiges Layout
+  behandeln. Die Positionsdaten sind von Reacts API-Daten getrennt.
+- Nachbarschaften verwenden einen einmal aufgebauten Kantenindex und eine
+  iterative Breitensuche. Der Traversierungsanteil ist O(V + E); für die stabile
+  Zeilenreihenfolge kommt die Sortierung der Knoten hinzu.
+
 ## Reproduzierbare Messung
 
 `frontend/scripts/benchmark-knowledge-graph.cjs` verwendet Playwright und einen
@@ -33,7 +49,8 @@ Optional: `GRAPH_BENCH_CHROMIUM` für einen vorhandenen Browser,
 `GRAPH_BENCH_NODES=2000,20000` für den Umfang. Das Ergebnis enthält Umgebung,
 Version, Knotenzahl und Kantenzahl sowie Zeichenaufrufe, CSS-Abfragen und
 Frame-Abstände bei Ruhe, Auswahl und Zoom. `selectedVerified` kennzeichnet,
-ob der Auswahlversuch tatsächlich den Inspektor geöffnet hat.
+ob der Auswahlversuch tatsächlich eine Auswahl ausgelöst hat. Fehlgeschlagene
+Auswahlproben und nicht abgeschlossene angeforderte Worker-Läufe brechen ab.
 
 Der Korpus verwendet feste Gitterpositionen und zwei gerichtete Kanten pro
 Knoten. Die Messung isoliert Darstellung und Interaktion; sie belegt weder
@@ -47,3 +64,10 @@ Frontend-Tests. Backend (728 bestanden, 2 übersprungen) und Parser (733 bestand
 5 übersprungen) wurden auf getrennten Testdatenbanken geprüft. Neue Regressionen
 prüfen insbesondere DOM-freies Zeichnen, Themewechsel, Detailgrad und Kanten,
 die den sichtbaren Ausschnitt kreuzen.
+
+Nach der Layout-Stufe bestehen alle 944 Frontend-Tests sowie TypeScript und
+ESLint (bestehende Warnungen bleiben). Der reale Chromium-Lauf mit 200 nicht
+vorpositionierten Knoten bestätigt eine abgeschlossene Worker-Berechnung.
+Regressionen decken Abbruch, verspätete Antworten, Dragging und den anfänglichen
+Filterreset ab. Eine zyklische Nachbarschaft mit 20.000 Knoten prüft, dass jede
+Kante nur einmal für den Traversierungsindex gelesen wird.

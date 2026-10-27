@@ -3,7 +3,7 @@ import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/type
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import type { GraphNode, GraphEdge } from '@/lib/knowledgeGraphTypes';
-import { createKnowledgeGraphRenderer, nodeRadius, getNodeDisplayLabel, isEdgeDirected, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
+import { createKnowledgeGraphRenderer, nodeRadius, getNodeDisplayLabel, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
 import { api, API_URL } from '@/app/services/api';
 import {
   EDGE_TYPE_COLORS,
@@ -21,20 +21,9 @@ import { useGraphSourceFocus } from '@/hooks/useGraphSourceFocus';
 import { filterVisibleGraph } from '@/lib/graphVisibility';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { forceCollide, forceManyBody, forceRadial } from 'd3-force-3d';
-import {
-  CHARGE_DISTANCE_MAX,
-  GRAPH_ALPHA_DECAY,
-  GRAPH_COOLDOWN_MS,
-  NODE_RADIUS_SCALE,
-  NEIGHBORHOOD_LAYER_GAP,
-  NEIGHBORHOOD_ROW_GAP,
-  chargeStrength,
-  collisionRadius,
-  edgeLineWidth,
-  linkDistance,
-  radialRadius,
-} from '@/lib/graphLayout';
+import { edgeLineWidth } from '@/lib/graphLayout';
+import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
+import { createGraphScene } from '@/lib/knowledgeGraphLayout';
 import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -700,11 +689,11 @@ export function KnowledgeGraphView({
   }
 
   // Filtered data for the graph
-  const filteredData = useMemo(() => filterVisibleGraph(rawNodes, rawEdges, {
+  const filteredData = useMemo(() => createGraphScene(filterVisibleGraph(rawNodes, rawEdges, {
     isNodeHidden: n => hiddenNodeTypes.has(nodeTypeKey(n)),
     isEdgeHidden: e => hiddenLinkTypes.has(graphEdgeType(e)) || hiddenEdgeDirections.has(graphEdgeDirection(e)),
     onlyLinked,
-  }), [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
+  })), [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
   const { ghostIds } = filteredData;
 
   const nodeDegrees = useMemo(() => {
@@ -765,99 +754,9 @@ export function KnowledgeGraphView({
     setHiddenEdgeDirections(new Set());
   }, [linkFilterResetToken, linkTypes, selectedProject?.id]);
 
-  // Tune the force simulation whenever the visible node/link set changes. The
-  // library's defaults (charge -30, no collision force) are tuned for small
-  // demo graphs — on a real project graph they let nodes sit on top of each
-  // other and let edges cut straight through unrelated nodes. This does three
-  // things instead:
-  //  1. A collision force keeps node circles (+ a margin for their label) from
-  //     ever overlapping, however dense the graph gets.
-  //  2. Charge (repulsion) scales up with node count, so large graphs actually
-  //     spread out instead of collapsing into a dense, unreadable clump.
-  //  3. A longer link (rest) distance gives edges more room to route around
-  //     third-party nodes rather than passing straight through them.
-  // None of this is a hard geometric guarantee against an edge ever crossing a
-  // node — it's a physics simulation, not a constraint solver — but it makes
-  // both failure modes rare even on graphs with hundreds of nodes.
-  useEffect(() => {
-    if (!graphRef.current) return;
-    const nodeCount = filteredData.nodes.length;
-    if (nodeCount === 0) return;
-
-    graphRef.current.d3Force('collide', forceCollide((n: GraphNode) => {
-      const degree = nodeDegrees.get(n.id) ?? 0;
-      return collisionRadius(nodeRadius(n, degree), degree);
-    }).iterations(4));
-
-    graphRef.current.d3Force('charge', forceManyBody()
-      .strength((n: unknown) => chargeStrength(nodeCount, nodeDegrees.get((n as GraphNode).id) ?? 0))
-      .distanceMax(CHARGE_DISTANCE_MAX));
-
-    const radialForce = forceRadial((n: GraphNode) => radialRadius(nodeDegrees.get(n.id) ?? 0))
-      .strength(viewMode === 'overview' ? 0.12 : 0);
-    graphRef.current.d3Force('radial', radialForce);
-
-    const linkForce = graphRef.current.d3Force('link');
-    if (linkForce) {
-      linkForce.distance((edge: GraphEdge) => {
-        const sourceId = typeof edge.source === 'object' ? edge.source.id : edge.source;
-        const targetId = typeof edge.target === 'object' ? edge.target.id : edge.target;
-        return linkDistance(nodeDegrees.get(sourceId) ?? 0, nodeDegrees.get(targetId) ?? 0);
-      }).strength(0.12);
-    }
-
-    // O-270: a bounded directional neighborhood is easier to read as layers
-    // than as a force-directed cloud.  Cycles are harmless here: BFS assigns
-    // the first observed layer and never revisits a node.
-    if (viewMode === 'neighborhood' && neighborhoodFocusNode) {
-      const rootId = neighborhoodFocusNode.id;
-      const layers = new Map<string, number>([[rootId, 0]]);
-      const pending = [rootId];
-      while (pending.length) {
-        const current = pending.shift()!;
-        const layer = layers.get(current)!;
-        for (const edge of filteredData.links) {
-          const source = typeof edge.source === 'object' ? edge.source.id : edge.source;
-          const target = typeof edge.target === 'object' ? edge.target.id : edge.target;
-          const directed = isEdgeDirected(edge);
-          const next: string[] = [];
-          if (!directed || traversalDirection === 'both') {
-            if (source === current) next.push(target);
-            if (target === current) next.push(source);
-          } else if (traversalDirection === 'outgoing' && source === current) {
-            next.push(target);
-          } else if (traversalDirection === 'incoming' && target === current) {
-            next.push(source);
-          }
-          for (const nodeId of next) {
-            if (!layers.has(nodeId)) {
-              layers.set(nodeId, layer + 1);
-              pending.push(nodeId);
-            }
-          }
-        }
-      }
-      const perLayer = new Map<number, number>();
-      const positions = new Map<string, { x: number; y: number }>();
-      for (const node of [...filteredData.nodes].sort((a, b) => a.id.localeCompare(b.id))) {
-        const layer = layers.get(node.id) ?? 0;
-        const index = perLayer.get(layer) ?? 0;
-        perLayer.set(layer, index + 1);
-        const x = traversalDirection === 'incoming' ? -layer * NEIGHBORHOOD_LAYER_GAP : layer * NEIGHBORHOOD_LAYER_GAP;
-        positions.set(node.id, { x, y: index * NEIGHBORHOOD_ROW_GAP });
-      }
-      for (const node of filteredData.nodes) {
-        const position = positions.get(node.id);
-        if (!position) continue;
-        // react-force-graph forwards these D3 coordinates to the simulation.
-        // Pinning only the bounded traversal keeps its layers stable while the
-        // overview remains freely explorable.
-        Object.assign(node, { fx: position.x, fy: position.y });
-      }
-    }
-
-    graphRef.current.d3ReheatSimulation();
-  }, [ForceGraphComponent, filteredData, nodeDegrees, viewMode, neighborhoodFocusNode, traversalDirection]);
+  useKnowledgeGraphLayout({ graphRef, ready: !!ForceGraphComponent && !isLoading && dimensions.width > 0,
+    nodes: filteredData.nodes, links: filteredData.links, degrees: nodeDegrees,
+    mode: viewMode, focusId: neighborhoodFocusNode?.id, direction: traversalDirection });
 
   // Selecting a node highlights its direct one-hop neighborhood. The current
   // graph selection takes priority over a stale/external focus; when no node is
@@ -885,7 +784,7 @@ export function KnowledgeGraphView({
     return null;
   }, [activeFocusNodeId, selectedEdgeId, filteredData]);
 
-  const selectedNode = useMemo(() => rawNodes.find(n => n.id === selectedNodeId) ?? null, [rawNodes, selectedNodeId]);
+  const selectedNode = useMemo(() => filteredData.nodes.find(n => n.id === selectedNodeId) ?? rawNodes.find(n => n.id === selectedNodeId) ?? null, [filteredData.nodes, rawNodes, selectedNodeId]);
   const selectedEdge = useMemo(() => rawEdges.find(e => e.id === selectedEdgeId) ?? null, [rawEdges, selectedEdgeId]);
 
   const zoomRef = useRef(1);
@@ -997,7 +896,7 @@ export function KnowledgeGraphView({
   function resolveNode(ref: string | GraphNode | null | undefined): GraphNode | undefined {
     if (!ref) return undefined;
     if (typeof ref === 'object') return ref as GraphNode;
-    return rawNodes.find(n => n.id === ref);
+    return filteredData.nodes.find(n => n.id === ref);
   }
 
   const edgeSrc = selectedEdge ? resolveNode(selectedEdge.source) : undefined;
@@ -1627,9 +1526,7 @@ export function KnowledgeGraphView({
                 setSelectedNodeId(null);
               }}
               onBackgroundClick={clearGraphHighlight}
-              d3AlphaDecay={GRAPH_ALPHA_DECAY}
-              d3VelocityDecay={0.3}
-              cooldownTime={GRAPH_COOLDOWN_MS}
+              cooldownTicks={0}
               enableNodeDrag
               enablePanInteraction
               enableZoomInteraction

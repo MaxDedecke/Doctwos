@@ -8,14 +8,15 @@ const { execFileSync } = require('node:child_process');
 const baseURL = process.env.GRAPH_BENCH_URL || 'http://localhost:3100';
 const counts = (process.env.GRAPH_BENCH_NODES || '2000,20000').split(',').map(Number);
 const output = process.argv[2];
+const fixed = process.env.GRAPH_BENCH_FIXED !== 'false';
 if (!output) throw new Error('Provide an output JSON path.');
 
 function corpus(count) {
   const nodes = Array.from({ length: count }, (_, i) => ({
     id: `file:${i}`, type: 'code_file', label: `Service${i}.java`, file_path: `src/Service${i}.java`,
     project_id: 1, source_id: 1, source_type: 'Git',
-    fx: (i % Math.ceil(Math.sqrt(count))) * 180,
-    fy: Math.floor(i / Math.ceil(Math.sqrt(count))) * 180,
+    ...(fixed ? { fx: (i % Math.ceil(Math.sqrt(count))) * 180,
+      fy: Math.floor(i / Math.ceil(Math.sqrt(count))) * 180 } : {}),
   }));
   const edges = nodes.flatMap((node, i) => [1, 17].map(offset => ({
     id: `edge:${i}:${offset}`, source: node.id, target: nodes[(i + offset) % count].id,
@@ -57,7 +58,17 @@ async function measure(page, action) {
       const errors = [];
       page.on('pageerror', error => errors.push(error.message));
       await page.addInitScript(() => {
-        window.graphBench = { draws: 0, styles: 0, frames: [], sample: false, point: null };
+        window.graphBench = { draws: 0, styles: 0, frames: [], sample: false, point: null, workers: 0, workerDone: false };
+        const NativeWorker = window.Worker;
+        window.Worker = class extends NativeWorker {
+          constructor(...args) {
+            super(...args);
+            window.graphBench.workers++;
+            this.addEventListener('message', event => {
+              if (event.data?.done && Array.isArray(event.data.positions)) window.graphBench.workerDone = true;
+            });
+          }
+        };
         const style = window.getComputedStyle;
         window.getComputedStyle = function (...args) {
           if (window.graphBench.sample) window.graphBench.styles++;
@@ -125,11 +136,21 @@ async function measure(page, action) {
       await view.getByRole('button', { name: 'Alles einpassen' }).click();
       await page.waitForTimeout(1000);
       const idle = await measure(page, () => page.waitForTimeout(1800));
+      // Give subpixel nodes a reliably clickable area for the selection probe.
+      if (count >= 20000) {
+        for (let i = 0; i < 6; i++) {
+          await view.getByRole('button', { name: 'Vergrößern', exact: true }).click();
+          await page.waitForTimeout(350);
+        }
+        await page.waitForTimeout(1000);
+      }
       const point = await page.evaluate(() => window.graphBench.point);
       if (!point) throw new Error(`No drawable node found for ${count} nodes`);
+      await page.mouse.move(point.x, point.y);
+      await page.waitForTimeout(300);
       await page.mouse.click(point.x, point.y);
       await page.waitForTimeout(1000);
-      const selectedVerified = await view.getByTestId('graph-tool-panel').count() > 0;
+      const selectedVerified = await view.getByRole('button', { name: 'Fokus aufheben', exact: true }).count() > 0;
       const selected = await measure(page, () => page.waitForTimeout(1800));
       const interaction = await measure(page, async () => {
         for (let i = 0; i < 12; i++) {
@@ -138,7 +159,10 @@ async function measure(page, action) {
         }
         await page.waitForTimeout(600);
       });
-      const result = { nodes: count, edges: graph.edges.length, firstCanvasMs, selectedVerified, idle, selected, interaction, errors };
+      const worker = await page.evaluate(() => ({ count: window.graphBench.workers, done: window.graphBench.workerDone }));
+      if (!selectedVerified) throw new Error(`Selection probe failed for ${count} nodes`);
+      if (!fixed && (!worker.count || !worker.done)) throw new Error('Worker layout did not finish');
+      const result = { nodes: count, edges: graph.edges.length, firstCanvasMs, selectedVerified, worker, idle, selected, interaction, errors };
       results.push(result);
       console.log(JSON.stringify(result));
       await context.close();
@@ -146,9 +170,9 @@ async function measure(page, action) {
   } finally {
     await browser.close();
     let revision;
-    try { revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); } catch { revision = process.env.GRAPH_BENCH_REVISION; }
+    try { revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { revision = process.env.GRAPH_BENCH_REVISION; }
     fs.writeFileSync(output, JSON.stringify({ revision, date: new Date().toISOString(),
       environment: { cpu: os.cpus()[0]?.model, cpus: os.cpus().length, browser: 'headless Chromium',
-        viewport: '1440x900', fixture: 'fixed grid, two directed edges per node; rendering benchmark, excludes layout quality and database' }, results }, null, 2));
+        viewport: '1440x900', fixture: `${fixed ? 'fixed grid' : 'worker layout'}, two directed edges per node; excludes database` }, results }, null, 2));
   }
 })();

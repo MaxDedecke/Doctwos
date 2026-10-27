@@ -26,4 +26,19 @@ declare module 'd3-force-3d' {
   export function forceCollide<Node = unknown>(radius?: number | ((node: Node, index: number, nodes: Node[]) => number)): CollisionForce<Node>;
   export function forceManyBody<Node = unknown>(): ManyBodyForce<Node>;
   export function forceRadial<Node = unknown>(radius: number | ((node: Node, index: number, nodes: Node[]) => number), x?: number, y?: number, z?: number): RadialForce<Node>;
+
+  interface Simulation<Node> {
+    stop(): this;
+    tick(iterations?: number): this;
+    alphaDecay(value: number): this;
+    velocityDecay(value: number): this;
+    force(name: string, force: unknown): this;
+  }
+  interface LinkForce {
+    id<Node>(accessor: (node: Node) => string): this;
+    distance<Edge>(accessor: (edge: Edge) => number): this;
+    strength(value: number): this;
+  }
+  export function forceSimulation<Node>(nodes: Node[], dimensions?: number): Simulation<Node>;
+  export function forceLink(links: { source: string; target: string }[]): LinkForce;
 }
