@@ -1524,7 +1524,10 @@
     "kindFilter": {
       "all": "All",
       "entity": "Code ↔ Doc",
-      "knowledge": "Doc ↔ Doc"
+      "knowledge": "Doc ↔ Doc",
+      "codeCode": "Code ↔ Code",
+      "codeDoc": "Code ↔ Doc",
+      "docDoc": "Doc ↔ Doc"
     },
     "computingLabel": "Linking…",
     "autoLinkLabel": "Auto-link",
@@ -1635,8 +1638,22 @@
       "updateFailed": "Couldn't update the link.",
       "llmReviewDone": "LLM review complete — new probability: {{pct}}%.",
       "llmReviewFailed": "LLM review failed."
-    }
+    },
+    "analysis": {
+      "open": "Start analysis",
+      "title": "Configure analysis",
+      "description": "Options for the next run. Review and confirm the estimated workload before starting.",
+      "cancel": "Cancel",
+      "close": "Close dialog"
+    },
+    "refreshLabel": "Refresh",
+    "segmentsLabel": "Section",
+    "filtersLabel": "Filter links",
+    "statusLabel": "Status",
+    "relationshipLabel": "Relationship type",
+    "scoreLabel": "Minimum score"
   },
+
   "topicsPanel": {
     "nodeTypes": {
       "project": "Project",

@@ -343,7 +343,7 @@ jobs:
 
       - name: Run e2e smoke test
         working-directory: frontend
-        run: npx playwright test e2e/login.spec.ts e2e/accessibility.spec.ts e2e/graph-layout.spec.ts
+        run: npx playwright test e2e/login.spec.ts e2e/accessibility.spec.ts e2e/graph-layout.spec.ts e2e/link-manager-layout.spec.ts
 
       - name: Verify production graph worker and selection
         working-directory: frontend

@@ -2,13 +2,6 @@
 import { DEFAULT_EMBEDDING_MODEL, type LlmProfile } from '@/hooks/useAiSettings';
 
 import { api, API_URL } from '@/app/services/api';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { formatDocLocation, type DocLocation } from '@/lib/docLocation';
 import { DOCUMENTATION_ENTITY_TYPES } from '@/lib/graphTaxonomy';
@@ -22,28 +15,24 @@ import {
   BookOpen,
   Check,
   CheckCircle2,
-  Cpu,
   ExternalLink,
   FileCode,
-  FolderKanban,
   Info,
   Link2,
   Loader2,
-  Network,
-  Percent,
-  Plus, RefreshCw,
-  Search,
   Sparkles,
-  Tag,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { TopicsPanel } from './TopicsPanel';
+import { LinkManagerToolbar, LinkManagerFilters } from './LinkManagerControls';
+import { LinkAnalysisDialog } from './LinkAnalysisDialog';
+import { isCodeLinkSide, knowledgeRelationshipKind, type LinkKindFilter, type LinkRelationshipKind } from '@/lib/linkRelationshipKind';
 import type { KnowledgeSource } from '@/types/domain';
 import type { CodeRef, LinkCounts } from '@/lib/linkManagerTypes';
 import { useProjectLinks } from '@/hooks/useProjectLinks';
-import { LINK_RUN_OPTION_FIELDS, clampRunOption, linkRunOptionsQuery, type LinkRunOptions } from '@/lib/linkRunOptions';
+import { linkRunOptionsQuery, type LinkRunOptions } from '@/lib/linkRunOptions';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -67,7 +56,7 @@ interface LinkManagerViewProps {
 
 type Segment = 'links' | 'topics';
 type TabStatus = 'pending' | 'approved' | 'rejected';
-type KindFilter = 'all' | 'entity' | 'knowledge';
+type KindFilter = LinkKindFilter;
 
 interface UnifiedSide {
   label: string;
@@ -83,6 +72,7 @@ interface UnifiedSide {
 interface UnifiedLink {
   id: string;
   kind: 'entity' | 'knowledge';
+  relationshipKind: LinkRelationshipKind;
   rawId: number;
   left: UnifiedSide;
   right: UnifiedSide;
@@ -158,6 +148,8 @@ function ProjectLinkManagerView({
   const [minScore, setMinScore] = useState(0);
   const [minConfidence, setMinConfidence] = useState<number>(readStoredMinConfidence);
   const [maxItems, setMaxItems] = useState(200);
+  const [analysisOpen, setAnalysisOpen] = useState(false);
+  const analysisTriggerRef = useRef<HTMLButtonElement>(null);
   const [runOptions, setRunOptions] = useState<LinkRunOptions>({});
   const [search, setSearch] = useState('');
   const [isComputing, setIsComputing] = useState(false);
@@ -202,17 +194,12 @@ function ProjectLinkManagerView({
   const divider      = isDark ? 'border-ds-zinc-800'            : 'border-ds-zinc-200';
   const titleText    = isDark ? 'text-ds-zinc-100'              : 'text-ds-zinc-900';
   const subText      = isDark ? 'text-ds-zinc-500'              : 'text-ds-zinc-500';
-  const iconColor    = isDark ? 'text-ds-indigo-400'            : 'text-ds-indigo-600';
   const ghostBtn     = isDark
     ? 'text-ds-zinc-400 hover:text-ds-zinc-100 hover:bg-ds-zinc-800 rounded-md transition-colors'
     : 'text-ds-zinc-500 hover:text-ds-zinc-900 hover:bg-ds-zinc-100 rounded-md transition-colors';
   const accentBtn    = isDark
     ? 'text-ds-indigo-400 hover:text-ds-indigo-300 hover:bg-ds-indigo-900/30 border border-ds-indigo-700/50 rounded-md transition-colors'
     : 'text-ds-indigo-600 hover:text-ds-indigo-700 hover:bg-ds-indigo-50 border border-ds-indigo-300 rounded-md transition-colors';
-  const tabActive    = isDark ? 'bg-ds-zinc-700 text-ds-zinc-100'  : 'bg-ds-zinc-200 text-ds-zinc-900';
-  const tabInact     = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800' : 'text-ds-zinc-500 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
-  const tabBadgeA    = isDark ? 'bg-ds-zinc-600 text-ds-zinc-200'  : 'bg-ds-zinc-300 text-ds-zinc-700';
-  const tabBadgeI    = isDark ? 'bg-ds-zinc-800 text-ds-zinc-500'  : 'bg-ds-zinc-100 text-ds-zinc-500';
   const inputCls     = isDark
     ? 'bg-ds-zinc-800 border-ds-zinc-700 text-ds-zinc-200 placeholder:text-ds-zinc-600 focus:border-ds-zinc-500'
     : 'bg-ds-zinc-100 border-ds-zinc-300 text-ds-zinc-900 placeholder:text-ds-zinc-400 focus:border-ds-zinc-400';
@@ -241,15 +228,11 @@ function ProjectLinkManagerView({
   const actionDel    = isDark
     ? 'text-ds-zinc-600 hover:text-ds-red-400 hover:bg-ds-red-900/30'
     : 'text-ds-zinc-400 hover:text-ds-red-500 hover:bg-ds-red-50';
-  const kindChipActive = isDark ? 'bg-ds-indigo-900/50 text-ds-indigo-300 border-ds-indigo-700' : 'bg-ds-indigo-100 text-ds-indigo-700 border-ds-indigo-300';
-  const kindChipInact  = isDark ? 'text-ds-zinc-500 border-ds-zinc-700 hover:text-ds-zinc-300' : 'text-ds-zinc-500 border-ds-zinc-300 hover:text-ds-zinc-700';
 
   const sourceColors: Record<string, string> = isDark
     ? { Confluence: 'bg-ds-blue-900/50 text-ds-blue-300 border-ds-blue-700', Jira: 'bg-ds-sky-900/50 text-ds-sky-300 border-ds-sky-700', Local: 'bg-ds-zinc-800 text-ds-zinc-300 border-ds-zinc-600', Git: 'bg-ds-emerald-900/50 text-ds-emerald-300 border-ds-emerald-700' }
     : { Confluence: 'bg-ds-blue-100 text-ds-blue-700 border-ds-blue-300', Jira: 'bg-ds-sky-100 text-ds-sky-700 border-ds-sky-300', Local: 'bg-ds-zinc-100 text-ds-zinc-600 border-ds-zinc-300', Git: 'bg-ds-emerald-100 text-ds-emerald-700 border-ds-emerald-300' };
 
-  const segmentActive = isDark ? 'bg-ds-zinc-700 text-ds-zinc-100' : 'bg-ds-zinc-200 text-ds-zinc-900';
-  const segmentInact  = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800' : 'text-ds-zinc-500 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
 
   const computeBanner = (msg: { type: string; text: string } | null, isDark: boolean) => {
     if (!msg) return '';
@@ -446,6 +429,7 @@ function ProjectLinkManagerView({
       timerRef.current = setTimeout(poll, 3000);
     };
     timerRef.current = setTimeout(poll, 1000);
+    return true;
   };
 
   const updateLinkStatus = async (link: UnifiedLink, status: 'approved' | 'rejected') => {
@@ -665,6 +649,7 @@ function ProjectLinkManagerView({
     const fromEntity: UnifiedLink[] = entityLinks.map(l => ({
       id: `e-${l.id}`,
       kind: 'entity',
+      relationshipKind: 'codeDoc',
       rawId: l.id,
       left: {
         label: l.entity?.name ?? t('linkManagerView.entityFallbackName', { id: l.entity_id }),
@@ -685,13 +670,14 @@ function ProjectLinkManagerView({
     const fromKnowledge: UnifiedLink[] = knowledgeLinks.map(l => ({
       id: `k-${l.id}`,
       kind: 'knowledge',
+      relationshipKind: knowledgeRelationshipKind(l.source_a, l.source_b),
       rawId: l.id,
       left: {
-        label: l.source_a.title, caption: l.source_a.type, sourceType: l.source_a.source_type, url: l.source_a.url,
+        label: l.source_a.title, caption: l.source_a.type, icon: isCodeLinkSide(l.source_a) ? 'code' : undefined, sourceType: l.source_a.source_type, url: l.source_a.url,
         codeRef: l.source_a.code_ref ?? null, docSourceId: l.source_a.doc_source_id ?? null, location: l.source_a.doc_location ?? null,
       },
       right: {
-        label: l.source_b.title, caption: l.source_b.type, sourceType: l.source_b.source_type, url: l.source_b.url,
+        label: l.source_b.title, caption: l.source_b.type, icon: isCodeLinkSide(l.source_b) ? 'code' : undefined, sourceType: l.source_b.source_type, url: l.source_b.url,
         codeRef: l.source_b.code_ref ?? null, docSourceId: l.source_b.doc_source_id ?? null, location: l.source_b.doc_location ?? null,
       },
       score: l.score,
@@ -705,7 +691,7 @@ function ProjectLinkManagerView({
   }, [entityLinks, knowledgeLinks, t]);
 
   const filteredLinks = useMemo(() => unifiedLinks.filter(l => {
-    if (kindFilter !== 'all' && l.kind !== kindFilter) return false;
+    if (kindFilter !== 'all' && l.relationshipKind !== kindFilter) return false;
     if (!search) return true;
     const q = search.toLowerCase();
     return l.left.label?.toLowerCase().includes(q) || l.right.label?.toLowerCase().includes(q) || (l.left.caption ?? '').toLowerCase().includes(q);
@@ -844,183 +830,24 @@ function ProjectLinkManagerView({
   return (
     // Keep layout decisions scoped to the panel. This prevents a narrow grid
     // cell from inheriting desktop-sized rows from the browser viewport.
-    <div className="@container/linkmgr h-full w-full min-w-0 flex flex-col min-h-0">
-        {/* ── Header ── */}
-        <div className={cn('flex flex-col @xl/linkmgr:flex-row items-start @xl/linkmgr:items-center justify-between px-4 @sm/linkmgr:px-6 py-4 border-b shrink-0 gap-3', divider)}>
-          <div className="flex items-center gap-2 min-w-0 flex-wrap @sm/linkmgr:flex-nowrap">
-            <Network className={cn('w-5 h-5 shrink-0', iconColor)} />
-            <h2 className={cn('text-sm font-semibold shrink-0', titleText)}>{t('linkManagerView.title')}</h2>
-
-            {/* Project context — read-only display, not a separate selector. The
-                Link Manager always follows the app-wide selected project (like
-                every other panel); switching it here would silently diverge
-                from what chat/graph/code panels show. Change it via the
-                project switcher in the sidebar instead. */}
-            <span
-              className={cn(
-                'flex items-center gap-1.5 h-7 min-w-0 max-w-full @sm/linkmgr:max-w-[180px] text-[0.6875rem] @sm/linkmgr:text-xs border rounded-md font-medium px-2',
-                isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700'
-              )}
-              title={t('linkManagerView.projectContextTooltip')}
-            >
-              <FolderKanban className="w-3.5 h-3.5 shrink-0 opacity-70" />
-              <span className="truncate">{selectedProject ? selectedProject.name : t('linkManagerView.generalContextOption')}</span>
-            </span>
-          </div>
-          <div className="flex items-center justify-start @xl/linkmgr:justify-end flex-wrap gap-2 w-full min-w-0 @xl/linkmgr:w-auto">
-
-            {/* Model selector */}
-            {setActiveProfileId && llmProfiles.length > 0 && (
-              <Select
-                value={activeProfileId}
-                onValueChange={(val) => {
-                  setActiveProfileId(val);
-                  const selectedProf = llmProfiles.find((p) => p.id === val);
-                  if (selectedProf && showToast) {
-                    showToast(t('chatView.modelSwitchedToast', { name: selectedProf.name }), 'success');
-                  }
-                }}
-              >
-                <SelectTrigger className={cn(
-                  'h-7 w-full @sm/linkmgr:w-auto min-w-0 max-w-[150px] text-[0.6875rem] @sm/linkmgr:text-xs border focus:ring-0 rounded-md font-medium px-2 gap-1',
-                  isDark ? 'bg-ds-zinc-800/80 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800' : 'bg-ds-zinc-100 border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-200/60'
-                )}>
-                  <Cpu className="w-3.5 h-3.5 shrink-0 text-ds-indigo-500" />
-                  <SelectValue placeholder={t('chatView.selectModel')} />
-                </SelectTrigger>
-                <SelectContent className={isDark ? 'bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200' : 'bg-ds-white border-ds-zinc-200 text-ds-zinc-800'}>
-                  {llmProfiles.map((prof) => (
-                    <SelectItem key={prof.id} value={prof.id} className="text-xs">{prof.name} ({prof.model})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-
-            {/* Segment switcher */}
-            <div className={cn('flex rounded-md border p-0.5 gap-0.5', isDark ? 'border-ds-zinc-700 bg-ds-zinc-800/50' : 'border-ds-zinc-200 bg-ds-zinc-100')}>
-              <button
-                onClick={() => setSegment('links')}
-                className={cn('flex items-center gap-1.5 text-[0.6875rem] px-2.5 py-1 rounded transition-colors', segment === 'links' ? segmentActive : segmentInact)}
-              >
-                <Link2 className="w-3 h-3" />
-                {t('linkManagerView.segments.links')}
-              </button>
-              {isAdmin && (
-                <button
-                  onClick={() => setSegment('topics')}
-                  className={cn('flex items-center gap-1.5 text-[0.6875rem] px-2.5 py-1 rounded transition-colors', segment === 'topics' ? segmentActive : segmentInact)}
-                >
-                  <Tag className="w-3 h-3" />
-                  {t('linkManagerView.segments.topics')}
-                </button>
-              )}
-            </div>
-
-            {/* Segment-specific actions */}
-            {segment === 'links' && (
-              <>
-                <div
-                  className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[0.625rem] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')}
-                  title={t('linkManagerView.minConfidenceTooltip')}
-                >
-                  <Percent className="w-3 h-3 shrink-0 opacity-70" />
-                  <input
-                    type="number" min={0} max={100} step={5}
-                    value={minConfidence}
-                    onChange={e => handleMinConfidenceChange(Number(e.target.value))}
-                    disabled={isComputing}
-                    aria-label={t('linkManagerView.minConfidenceLabel')}
-                    className={cn('w-8 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')}
-                  />
-                  <span className="hidden @md/linkmgr:inline">%</span>
-                </div>
-                <label className={cn('flex items-center gap-1 px-1.5 py-1 rounded-md border text-[0.625rem] @sm/linkmgr:text-xs', isDark ? 'border-ds-zinc-700 text-ds-zinc-400' : 'border-ds-zinc-300 text-ds-zinc-500')} title={t('linkManagerView.budget.hint')}>
-                  <span>{t('linkManagerView.budget.label')}</span>
-                  <input type="number" min={1} max={5000} step={1} value={maxItems} disabled={isComputing}
-                    onChange={event => setMaxItems(Math.max(1, Math.min(5000, Number(event.target.value) || 1)))}
-                    aria-label={t('linkManagerView.budget.label')}
-                    className={cn('w-12 bg-transparent text-right focus:outline-none disabled:opacity-50', isDark ? 'text-ds-zinc-200' : 'text-ds-zinc-800')} />
-                </label>
-                <button onClick={triggerAutoLink} disabled={isComputing}
-                  className={cn('text-[0.625rem] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
-                  <RefreshCw className={cn('w-3.5 h-3.5', isComputing && 'animate-spin')} />
-                  <span className="hidden @md/linkmgr:inline">{isComputing ? t('linkManagerView.computingLabel') : t('linkManagerView.autoLinkLabel')}</span>
-                </button>
-                <details className="relative" data-testid="link-run-options">
-                  <summary className={cn('cursor-pointer list-none text-[0.625rem] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)} title={t('linkManagerView.runOptions.hint')}>
-                    {t('linkManagerView.runOptions.label')}
-                  </summary>
-                  <div className={cn('absolute right-0 top-full z-30 mt-1 w-72 rounded-md border p-3 shadow-lg', dropdownBg)}>
-                    <p className={cn('mb-2 text-[0.625rem] leading-relaxed', subText)}>{t('linkManagerView.runOptions.hint')}</p>
-                    <div className="space-y-1.5">
-                      {LINK_RUN_OPTION_FIELDS.map(field => (
-                        <label key={field.key} className={cn('flex items-center justify-between gap-2 text-[0.625rem]', subText)}>
-                          <span>{t(`linkManagerView.runOptions.${field.key}`)}</span>
-                          <input
-                            type="number" min={field.min} max={field.max} step={field.step}
-                            value={runOptions[field.key] ?? ''} placeholder={field.placeholder} disabled={isComputing}
-                            aria-label={t(`linkManagerView.runOptions.${field.key}`)}
-                            onChange={event => {
-                              const raw = event.target.value;
-                              setRunOptions(previous => {
-                                const next = { ...previous };
-                                if (raw === '' || Number.isNaN(Number(raw))) delete next[field.key];
-                                else next[field.key] = clampRunOption(field, Number(raw));
-                                return next;
-                              });
-                            }}
-                            className={cn('w-16 rounded border bg-transparent px-1 text-right focus:outline-none disabled:opacity-50', isDark ? 'border-ds-zinc-700 text-ds-zinc-200' : 'border-ds-zinc-300 text-ds-zinc-800')}
-                          />
-                        </label>
-                      ))}
-                      <label className={cn('flex items-center gap-2 text-[0.625rem]', subText)}>
-                        <input
-                          type="checkbox" checked={Boolean(runOptions.dedupeByChunk)} disabled={isComputing}
-                          onChange={event => setRunOptions(previous => ({ ...previous, dedupeByChunk: event.target.checked }))}
-                        />
-                        <span>{t('linkManagerView.runOptions.dedupeByChunk')}</span>
-                      </label>
-                    </div>
-                    <button type="button" onClick={() => setRunOptions({})} disabled={isComputing}
-                      className={cn('mt-2 text-[0.625rem] underline disabled:opacity-40', cardMuted)}>
-                      {t('linkManagerView.runOptions.reset')}
-                    </button>
-                  </div>
-                </details>
-                {isAdmin && <details className="relative">
-                  <summary className={cn('cursor-pointer list-none text-[0.625rem] @sm/linkmgr:text-xs px-2 py-1.5 rounded-md', ghostBtn)}>
-                    {t('linkManagerView.scopeLabel', { count: selectedScopeSourceIds.length })}
-                  </summary>
-                  <div className={cn('absolute right-0 top-full z-30 mt-1 w-64 rounded-md border p-3 shadow-lg', dropdownBg)}>
-                    <p className={cn('mb-2 text-[0.625rem] leading-relaxed', subText)}>{t('linkManagerView.scopeHint')}</p>
-                    {projectSources.length === 0 ? (
-                      <p className={cn('text-xs', cardMuted)}>{t('linkManagerView.scopeNoSources')}</p>
-                    ) : projectSources.map(source => {
-                      const sourceId = Number(source.id);
-                      return (
-                        <label key={sourceId} className={cn('flex items-center gap-2 py-1 text-xs', cardLabel)}>
-                          <input
-                            type="checkbox"
-                            checked={selectedScopeSourceIds.includes(sourceId)}
-                            onChange={event => setSelectedScopeSourceIds(current => event.target.checked
-                              ? [...current, sourceId]
-                              : current.filter(id => id !== sourceId))}
-                          />
-                          <span className="truncate">{source.name}</span>
-                        </label>
-                      );
-                    })}
-                  </div>
-                </details>}
-                <button onClick={() => setShowManualForm(v => !v)} disabled={!projectId} title={!projectId ? t('linkManagerView.noProjectSelected') : undefined}
-                  className={cn('text-[0.625rem] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 disabled:opacity-40', ghostBtn)}>
-                  <Plus className="w-3.5 h-3.5" />
-                  <span className="hidden @md/linkmgr:inline">{t('linkManagerView.manualLabel')}</span>
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+    <div data-testid="link-manager-view" className="@container/linkmgr h-full w-full min-w-0 flex flex-col min-h-0">
+        <LinkManagerToolbar projectName={selectedProject?.name ?? t('linkManagerView.generalContextOption')}
+          hasProject={!!projectId} isDark={isDark} isAdmin={isAdmin} segment={segment} onSegment={setSegment}
+          analysisTriggerRef={analysisTriggerRef} isComputing={isComputing} manualOpen={showManualForm}
+          onAnalysis={() => { setMessage(null); setAnalysisOpen(true); }}
+          onManual={() => setShowManualForm(value => !value)}
+          onRefresh={() => { fetchEntityLinks(); fetchKnowledgeLinks(); }} />
+        <LinkAnalysisDialog open={analysisOpen} onClose={() => setAnalysisOpen(false)} isDark={isDark}
+          projectName={selectedProject?.name ?? ''} isAdmin={isAdmin} returnFocusRef={analysisTriggerRef}
+          minConfidence={minConfidence} onMinConfidence={handleMinConfidenceChange} maxItems={maxItems} onMaxItems={setMaxItems}
+          runOptions={runOptions} setRunOptions={setRunOptions} sources={projectSources}
+          scopeIds={selectedScopeSourceIds} setScopeIds={setSelectedScopeSourceIds}
+          profiles={llmProfiles} activeProfileId={activeProfileId} onProfile={setActiveProfileId ? value => {
+            setActiveProfileId(value);
+            const profile = llmProfiles.find(item => item.id === value);
+            if (profile) showToast?.(t('chatView.modelSwitchedToast', { name: profile.name }), 'success');
+          } : undefined}
+          onStart={triggerAutoLink} error={message?.type === 'empty' ? message.text : undefined} />
 
         {/* ── Topics segment (admin-only, mirrors backend require_admin on /topics) ── */}
         {segment === 'topics' && isAdmin && projectId && <TopicsPanel theme={theme} projectId={projectId} />}
@@ -1041,60 +868,10 @@ function ProjectLinkManagerView({
                 )}
               </AnimatePresence>
 
-              {/* Tabs + kind filter + search row */}
-              <div className={cn('flex flex-col gap-3 px-4 @sm/linkmgr:px-6 py-3 border-b shrink-0', divider)}>
-                <div className="flex flex-col @xl/linkmgr:flex-row items-start @xl/linkmgr:items-center justify-between gap-3">
-                  <div className="flex gap-1 overflow-x-auto w-full @xl/linkmgr:w-auto no-scrollbar pb-1 @xl/linkmgr:pb-0">
-                    {(['pending', 'approved', 'rejected'] as const).map(tabOption => (
-                      <button key={tabOption} onClick={() => setTab(tabOption)}
-                        className={cn('px-3 py-1.5 rounded-md text-[0.6875rem] @sm/linkmgr:text-xs font-medium transition-colors shrink-0', tab === tabOption ? tabActive : tabInact)}>
-                        {t(`linkManagerView.tabLabels.${tabOption}`)}
-                        <span className={cn('ml-1.5 px-1.5 py-0.5 rounded text-[0.5625rem] @sm/linkmgr:text-[0.625rem]', tab === tabOption ? tabBadgeA : tabBadgeI)}>
-                          {counts[tabOption]}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
-                  {/* flex-wrap: at @xl/linkmgr the tabs row switches to flex-row alongside this
-                      group, but search input + score-select + accept-all-button don't shrink
-                      below their content width (flex items default to min-width:auto) — without
-                      wrap they silently overflowed/got clipped for container widths roughly
-                      576-720px (e.g. exactly the 3-col panel width once the sidebar is
-                      collapsed), same fix pattern as the header's button group above. */}
-                  <div className="flex items-center flex-wrap gap-2 w-full @xl/linkmgr:w-auto">
-                    <div className="relative flex-1 @xl/linkmgr:flex-initial">
-                      <Search className={cn('absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3', subText)} />
-                      <input type="text" placeholder={t('linkManagerView.searchPlaceholder')} value={search} onChange={e => setSearch(e.target.value)}
-                        className={cn('text-[0.6875rem] @sm/linkmgr:text-xs rounded-md pl-7 pr-3 py-1.5 w-full @sm/linkmgr:w-32 @md/linkmgr:w-40 border focus:outline-none', inputCls)} />
-                    </div>
-                    {tab === 'pending' && (
-                      <select value={minScore} onChange={e => setMinScore(Number(e.target.value))}
-                        className={cn('text-[0.6875rem] @sm/linkmgr:text-xs rounded-md px-1.5 py-1.5 border focus:outline-none', selectCls)}>
-                        <option value={0}>{t('linkManagerView.scoreFilter.all')}</option>
-                        <option value={60}>{t('linkManagerView.scoreFilter.min60')}</option>
-                        <option value={80}>{t('linkManagerView.scoreFilter.min80')}</option>
-                      </select>
-                    )}
-                    {tab === 'pending' && perfectPendingLinks.length > 0 && (
-                      <button onClick={acceptAllPerfectMatches} disabled={isAcceptingAll}
-                        title={t('linkManagerView.acceptAllTooltip')}
-                        className={cn('text-[0.625rem] @sm/linkmgr:text-xs flex items-center gap-1.5 px-2 py-1.5 shrink-0 disabled:opacity-40', accentBtn)}>
-                        {isAcceptingAll ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CheckCircle2 className="w-3.5 h-3.5" />}
-                        <span className="hidden @sm/linkmgr:inline">{t('linkManagerView.acceptAllLabel')}</span>
-                        <span className={cn('px-1 rounded text-[0.5625rem] @sm/linkmgr:text-[0.625rem]', tabBadgeA)}>{perfectPendingLinks.length}</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <div className="flex gap-1.5">
-                  {(['all', 'entity', 'knowledge'] as const).map(kind => (
-                    <button key={kind} onClick={() => setKindFilter(kind)}
-                      className={cn('px-2.5 py-1 rounded-sm text-[0.625rem] @sm/linkmgr:text-[0.6875rem] font-medium border transition-colors', kindFilter === kind ? kindChipActive : kindChipInact)}>
-                      {t(`linkManagerView.kindFilter.${kind}`)}
-                    </button>
-                  ))}
-                </div>
-              </div>
+              <LinkManagerFilters isDark={isDark} status={tab} onStatus={setTab} counts={counts}
+                search={search} onSearch={setSearch} minScore={minScore} onMinScore={setMinScore}
+                kind={kindFilter} onKind={setKindFilter} perfectCount={perfectPendingLinks.length}
+                isAccepting={isAcceptingAll} onAcceptPerfect={acceptAllPerfectMatches} />
 
               {/* Manual link form */}
               <AnimatePresence>

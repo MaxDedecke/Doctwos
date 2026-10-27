@@ -1524,7 +1524,10 @@
     "kindFilter": {
       "all": "Alle",
       "entity": "Code ↔ Doc",
-      "knowledge": "Doc ↔ Doc"
+      "knowledge": "Doc ↔ Doc",
+      "codeCode": "Code ↔ Code",
+      "codeDoc": "Code ↔ Doc",
+      "docDoc": "Doc ↔ Doc"
     },
     "computingLabel": "Verknüpfe…",
     "autoLinkLabel": "Automatisch verknüpfen",
@@ -1635,8 +1638,22 @@
       "updateFailed": "Verknüpfung konnte nicht aktualisiert werden.",
       "llmReviewDone": "LLM-Prüfung abgeschlossen — neue Wahrscheinlichkeit: {{pct}} %.",
       "llmReviewFailed": "LLM-Prüfung fehlgeschlagen."
-    }
+    },
+    "analysis": {
+      "open": "Analyse starten",
+      "title": "Analyse konfigurieren",
+      "description": "Optionen für den nächsten Lauf. Die Aufwandsschätzung wird vor dem Start zur Bestätigung angezeigt.",
+      "cancel": "Abbrechen",
+      "close": "Dialog schließen"
+    },
+    "refreshLabel": "Aktualisieren",
+    "segmentsLabel": "Bereich",
+    "filtersLabel": "Verknüpfungen filtern",
+    "statusLabel": "Status",
+    "relationshipLabel": "Beziehungsart",
+    "scoreLabel": "Mindest-Score"
   },
+
   "topicsPanel": {
     "nodeTypes": {
       "project": "Projekt",

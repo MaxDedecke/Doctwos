@@ -302,6 +302,7 @@ describe('LinkManagerView', () => {
       stubFetch();
 
       const { unmount } = renderView();
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
       const input = await screen.findByLabelText('Mindest-Wahrscheinlichkeit');
       expect((input as HTMLInputElement).value).toBe('35');
 
@@ -313,16 +314,16 @@ describe('LinkManagerView', () => {
       unmount();
 
       renderView();
-      expect(((await screen.findByLabelText('Mindest-Wahrscheinlichkeit')) as HTMLInputElement).value).toBe('60');
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));      expect(((await screen.findByLabelText('Mindest-Wahrscheinlichkeit')) as HTMLInputElement).value).toBe('60');
     });
 
     it('startet die automatische Suche mit der eingestellten Mindest-Wahrscheinlichkeit', async () => {
       const fetchMock = stubFetch();
 
       renderView({ currentUser: { is_admin: true } });
-      fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));      fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
 
-      fireEvent.click(screen.getByRole('button', { name: /Automatisch verknüpfen/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
 
       await waitFor(() => expect(calls(fetchMock, '/compute', 'POST').some(u => u.includes('min_confidence=70'))).toBe(true));
       expect(calls(fetchMock, '/knowledge-links/compute', 'POST').some(u =>
@@ -335,11 +336,11 @@ describe('LinkManagerView', () => {
       const fetchMock = stubFetch();
 
       renderView({ currentUser: { is_admin: true } });
-      fireEvent.change(await screen.findByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));      fireEvent.change(await screen.findByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
       fireEvent.change(screen.getByLabelText('Mindest-Score vor der Bewertung'), { target: { value: '0.8' } });
       fireEvent.click(screen.getByLabelText('Jeden Abschnitt einzeln bewerten (statt einer Seite)'));
 
-      fireEvent.click(screen.getByRole('button', { name: /Automatisch verknüpfen/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
 
       await waitFor(() => expect(calls(fetchMock, '/compute', 'POST').length).toBeGreaterThan(0));
       const entityRun = calls(fetchMock, '/compute', 'POST').find(u => u.includes('/link-recommendations/compute'))!;
@@ -486,7 +487,7 @@ describe('LinkManagerView', () => {
 
       renderView({ selectedProject: null });
 
-      const button = (await screen.findByText('Manuell')).closest('button') as HTMLButtonElement;
+      const button = (await screen.findByRole('button', { name: 'Manuell' })).closest('button') as HTMLButtonElement;
       expect(button.disabled).toBe(true);
       expect(button.title).toBe('Kein Projekt ausgewählt');
     });
@@ -495,7 +496,7 @@ describe('LinkManagerView', () => {
       stubFetch();
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
 
       expect(screen.getByText('Was möchtest du verknüpfen?')).toBeTruthy();
       expect(screen.getByRole('button', { name: /Code-Element ↔ Dokument/ })).toBeTruthy();
@@ -506,7 +507,7 @@ describe('LinkManagerView', () => {
       stubFetch({ entities });
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
       fireEvent.click(screen.getByRole('button', { name: /Code-Element ↔ Dokument/ }));
 
       const entityBox = await screen.findByPlaceholderText('Entity suchen…');
@@ -523,7 +524,7 @@ describe('LinkManagerView', () => {
       const fetchMock = stubFetch({ entities, docSearch: docs });
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
       fireEvent.click(screen.getByRole('button', { name: /Code-Element ↔ Dokument/ }));
 
       fireEvent.change(await screen.findByPlaceholderText('Entity suchen…'), { target: { value: 'ZAHLUNG' } });
@@ -556,7 +557,7 @@ describe('LinkManagerView', () => {
       });
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
       fireEvent.click(screen.getByRole('button', { name: /Dokument ↔ Dokument/ }));
 
       // Beide Picker sehen identisch aus (gleicher Platzhalter, gleicher Treffer),
@@ -585,7 +586,7 @@ describe('LinkManagerView', () => {
       stubFetch({ entities, docSearch: docs, postOk: false, postError: 'Verknüpfung existiert bereits' });
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
       fireEvent.click(screen.getByRole('button', { name: /Code-Element ↔ Dokument/ }));
       fireEvent.change(await screen.findByPlaceholderText('Entity suchen…'), { target: { value: 'ZAHLUNG' } });
       fireEvent.click(await screen.findByText('ZAHLUNG'));
@@ -602,7 +603,7 @@ describe('LinkManagerView', () => {
       stubFetch({ entities });
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
       fireEvent.click(screen.getByRole('button', { name: /Code-Element ↔ Dokument/ }));
       fireEvent.change(await screen.findByPlaceholderText('Entity suchen…'), { target: { value: 'ZAHLUNG' } });
       fireEvent.click(await screen.findByText('ZAHLUNG'));
@@ -618,22 +619,73 @@ describe('LinkManagerView', () => {
       stubFetch({ entities });
 
       renderView();
-      fireEvent.click(await screen.findByText('Manuell'));
+      fireEvent.click(await screen.findByRole('button', { name: 'Manuell' }));
       fireEvent.click(screen.getByRole('button', { name: /Code-Element ↔ Dokument/ }));
       fireEvent.change(await screen.findByPlaceholderText('Entity suchen…'), { target: { value: 'ZAHLUNG' } });
       fireEvent.click(await screen.findByText('ZAHLUNG'));
 
       // Der "Manuell"-Knopf klappt nur auf und zu -- die Auswahl überlebt das.
-      fireEvent.click(screen.getByText('Manuell'));
-      fireEvent.click(screen.getByText('Manuell'));
+      fireEvent.click(screen.getByRole('button', { name: 'Manuell' }));
+      fireEvent.click(screen.getByRole('button', { name: 'Manuell' }));
       expect(screen.getByText('src/ZAHLUNG.cbl')).toBeTruthy();
 
       // Das Kreuz dagegen setzt alles zurück, inklusive der Artauswahl.
       const header = screen.getByText('Manuelle Verknüpfung').closest('div')!;
       fireEvent.click(header.querySelector(':scope > button')!);
-      fireEvent.click(screen.getByText('Manuell'));
+      fireEvent.click(screen.getByRole('button', { name: 'Manuell' }));
       expect(screen.getByText('Was möchtest du verknüpfen?')).toBeTruthy();
       expect(screen.queryByText('src/ZAHLUNG.cbl')).toBeNull();
+    });
+  });
+
+  describe('Analyse-Dialog und Beziehungsarten', () => {
+    it('öffnet die Konfiguration ohne Lauf und gibt den Fokus beim Abbrechen zurück', async () => {
+      const fetchMock = stubFetch();
+      renderView();
+      expect(screen.queryByLabelText('Mindest-Wahrscheinlichkeit')).toBeNull();
+      const trigger = screen.getByRole('button', { name: 'Analyse starten' });
+      fireEvent.click(trigger);
+      expect(await screen.findByRole('dialog', { name: 'Analyse konfigurieren' })).toBeTruthy();
+      fireEvent.change(screen.getByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '65' } });
+      expect(calls(fetchMock, '/compute', 'POST')).toHaveLength(0);
+      fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
+      await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+      expect(document.activeElement).toBe(trigger);
+      fireEvent.click(trigger);
+      expect((screen.getByLabelText('Mindest-Wahrscheinlichkeit') as HTMLInputElement).value).toBe('65');
+    });
+
+    it('startet bei abgelehnter Aufwandsschätzung keinen Lauf', async () => {
+      const fetchMock = stubFetch();
+      vi.mocked(window.confirm).mockReturnValue(false);
+      renderView();
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Analyse starten' }));
+      await waitFor(() => expect(window.confirm).toHaveBeenCalled());
+      expect(calls(fetchMock, '/compute', 'POST')).toHaveLength(0);
+      expect(screen.getByRole('dialog')).toBeTruthy();
+    });
+
+    it('filtert Code-Code, gemischte Links in beiden Richtungen und reine Dokumente unabhängig vom API-Ursprung', async () => {
+      stubFetch({ entityLinks: [entityLink()], knowledgeLinks: [
+        knowledgeLink({ id: 51, source_a: { type: 'entity', title: 'ServiceA' }, source_b: { type: 'entity', title: 'ServiceB' } }),
+        knowledgeLink({ id: 52, source_a: { type: 'document', title: 'REST guide' }, source_b: { type: 'entity', title: 'Endpoint' } }),
+        knowledgeLink(),
+      ] });
+      renderView();
+      await screen.findByText('ServiceA');
+      fireEvent.change(screen.getByRole('combobox', { name: 'Beziehungsart' }), { target: { value: 'codeCode' } });
+      expect(screen.getByText('ServiceA')).toBeTruthy();
+      expect(screen.queryByText('REST guide')).toBeNull();
+      expect(screen.queryByText('ZAHLUNG')).toBeNull();
+      fireEvent.change(screen.getByRole('combobox', { name: 'Beziehungsart' }), { target: { value: 'codeDoc' } });
+      expect(screen.getByText('REST guide')).toBeTruthy();
+      expect(screen.getByText('ZAHLUNG')).toBeTruthy();
+      expect(screen.queryByText('ServiceA')).toBeNull();
+      fireEvent.change(screen.getByRole('combobox', { name: 'Beziehungsart' }), { target: { value: 'docDoc' } });
+      expect(screen.getByText('Fachkonzept')).toBeTruthy();
+      expect(screen.queryByText('REST guide')).toBeNull();
+      expect(screen.queryByText('ZAHLUNG')).toBeNull();
     });
   });
 
