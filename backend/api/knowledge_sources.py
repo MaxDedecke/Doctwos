@@ -1193,6 +1193,7 @@ def _resolve_jira(
 
     jira_style = f"""<style>
 body {{ font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: {body_color}; background-color: {body_bg}; margin: 0; padding: 24px; }}
+p, li, blockquote, td, th {{ color: {body_color} !important; }}
 .badge {{ background-color: {badge_bg}; color: {badge_color}; padding: 2px 8px; border-radius: 4px; font-weight: 600; }}
 .badge-status {{ background-color: {badge_status_bg}; color: {badge_status_color}; }}
 .section-title {{ font-size: 14px; font-weight: 700; text-transform: uppercase; color: {section_title_color}; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid {section_title_border}; padding-bottom: 4px; }}

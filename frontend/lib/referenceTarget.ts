@@ -35,7 +35,7 @@ export function resolveReferenceTarget(
   }
 
   const matchedSource = resolvedSourceId && connectedSources
-    ? connectedSources.find((source) => source.id === resolvedSourceId)
+    ? connectedSources.find((source) => String(source.id) === String(resolvedSourceId))
     : null;
   const isWebOrigin = !!(matchedSource && (
     matchedSource.type?.toLowerCase() === 'confluence' ||
