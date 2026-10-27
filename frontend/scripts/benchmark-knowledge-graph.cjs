@@ -6,12 +6,16 @@ const os = require('node:os');
 const { execFileSync } = require('node:child_process');
 
 const baseURL = process.env.GRAPH_BENCH_URL || 'http://localhost:3100';
-const counts = (process.env.GRAPH_BENCH_NODES || '2000,20000').split(',').map(Number);
+const snapshotGraph = process.env.GRAPH_BENCH_GRAPH
+  ? JSON.parse(fs.readFileSync(process.env.GRAPH_BENCH_GRAPH, 'utf8')) : null;
+const counts = snapshotGraph ? [snapshotGraph.nodes.length]
+  : (process.env.GRAPH_BENCH_NODES || '2000,20000').split(',').map(Number);
 const output = process.argv[2];
-const fixed = process.env.GRAPH_BENCH_FIXED !== 'false';
+const fixed = !snapshotGraph && process.env.GRAPH_BENCH_FIXED !== 'false';
 if (!output) throw new Error('Provide an output JSON path.');
 
 function corpus(count) {
+  if (snapshotGraph) return structuredClone(snapshotGraph);
   const nodes = Array.from({ length: count }, (_, i) => ({
     id: `file:${i}`, type: 'code_file', label: `Service${i}.java`, file_path: `src/Service${i}.java`,
     project_id: 1, source_id: 1, source_type: 'Git',
@@ -132,7 +136,12 @@ async function measure(page, action) {
       const view = page.getByTestId('knowledge-graph-view');
       await view.locator('canvas').first().waitFor({ timeout: 60000 });
       const firstCanvasMs = Date.now() - start;
-      await page.waitForTimeout(10500);
+      let workerReadyMs = null;
+      if (!fixed) {
+        await page.waitForFunction(() => window.graphBench.workerDone, null, { timeout: 60000 });
+        workerReadyMs = Date.now() - start;
+        await page.waitForTimeout(500);
+      } else await page.waitForTimeout(10500);
       await view.getByRole('button', { name: 'Alles einpassen' }).click();
       await page.waitForTimeout(1000);
       const idle = await measure(page, () => page.waitForTimeout(1800));
@@ -163,7 +172,7 @@ async function measure(page, action) {
       if (!selectedVerified) throw new Error(`Selection probe failed for ${count} nodes`);
       if (!fixed && (!worker.count || !worker.done)) throw new Error('Worker layout did not finish');
       if (errors.length) throw new Error(`Browser errors: ${errors.join('; ')}`);
-      const result = { nodes: count, edges: graph.edges.length, firstCanvasMs, selectedVerified, worker, idle, selected, interaction, errors };
+      const result = { nodes: count, edges: graph.edges.length, firstCanvasMs, workerReadyMs, selectedVerified, worker, idle, selected, interaction, errors };
       results.push(result);
       console.log(JSON.stringify(result));
       await context.close();
@@ -174,6 +183,7 @@ async function measure(page, action) {
     try { revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim(); } catch { revision = process.env.GRAPH_BENCH_REVISION; }
     fs.writeFileSync(output, JSON.stringify({ revision, date: new Date().toISOString(),
       environment: { cpu: os.cpus()[0]?.model, cpus: os.cpus().length, browser: 'headless Chromium',
-        viewport: '1440x900', fixture: `${fixed ? 'fixed grid' : 'worker layout'}, two directed edges per node; excludes database` }, results }, null, 2));
+        viewport: '1440x900', fixture: snapshotGraph ? 'local graph snapshot; worker layout; excludes database'
+          : `${fixed ? 'fixed grid' : 'worker layout'}, two directed edges per node; excludes database` }, results }, null, 2));
   }
 })();

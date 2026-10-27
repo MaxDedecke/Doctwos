@@ -59,7 +59,8 @@ Auswahlproben und nicht abgeschlossene angeforderte Worker-Läufe brechen ab.
 Der Korpus verwendet feste Gitterpositionen und zwei gerichtete Kanten pro
 Knoten. Die Messung isoliert Darstellung und Interaktion; sie belegt weder
 Layoutqualität noch Datenbankleistung oder Leistung auf Unternehmensclients.
-Der Standarddeckel von 2.000 Knoten bleibt bis zur gesonderten Abnahme erhalten.
+Auf ausdrücklichen Folgeauftrag wurde die Standardgrenze auf 10.000 Knoten
+erhöht. Das unabhängige Roh-Codebeziehungsbudget beträgt höchstens 100.000.
 
 ## Datenbank
 
@@ -134,5 +135,23 @@ er verwendet einen gesonderten, nicht vorpositionierten 200-Knoten-Korpus.
 
 Die Zahlen begründen vorerst keinen Wechsel zu WebGL. Canvas bleibt erhalten.
 Sehr dichte Graphen, Layoutqualität bei 20.000 frei angeordneten Knoten und
-abweichende Clienthardware brauchen weitere Messungen. Der Knotendeckel wird
-durch diese synthetische Darstellungsprobe nicht automatisch erhöht.
+abweichende Clienthardware brauchen weitere Messungen. Die Erhöhung auf 10.000 Knoten ist ein ausdrücklicher Folgeauftrag;
+eine Freigabe beliebiger 20.000-Knoten-Bestände folgt daraus nicht.
+
+
+## Höhere Standardgrenze
+
+`KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES=10000` und
+`KNOWLEDGE_GRAPH_OVERVIEW_MAX_CODE_EDGES=100000` werden im Standard-Compose
+explizit ans Backend übergeben und sind in `.env.example` dokumentiert.
+Request-Parameter dürfen die konfigurierte Knotengrenze nur verkleinern.
+Eine höhere Knotengrenze vervielfacht die Roh-Codebeziehungen nicht unbegrenzt:
+Es gilt das kleinere Budget aus 20 Beziehungen je Knoten und dem separaten
+Roh-Codebeziehungsmaximum. Dokumentations-/manuelle Kanten haben weiterhin
+keinen separaten harten Kantendeckel.
+
+Die Backend-Suite besteht mit zwei neuen Grenz-/Trunkierungsfällen 731 Tests
+(2 übersprungen). Der Browsermesslauf kann über `GRAPH_BENCH_GRAPH=<json>`
+zusätzlich einen lokalen `/graph`-Snapshot verwenden; dieser wird nicht ins
+Repository übernommen. Nicht vorpositionierte Graphen warten auf einen
+bestätigten Worker-Abschluss, statt eine feste Wartezeit als Abschluss zu werten.

@@ -27,8 +27,12 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, load_only
 
-from core import config as cfg
 from services.graph_overview_links import append_overview_knowledge_links
+from services.graph_overview_limits import (
+    CODE_EDGES_PER_NODE_BUDGET as CODE_EDGES_PER_NODE_BUDGET,
+    code_edge_budget as _code_edge_budget,
+    overview_node_limit,
+)
 from services.graph_overview_sampling import compute_degree, select_overview_nodes
 from core.db_setup import get_db
 from core.analysis_status import load_analysis_status
@@ -580,18 +584,6 @@ def _sample_representative_code_edges(
     return selected_edges, has_more
 
 
-# Die Übersicht projiziert Beziehungen zwischen Code-Elementen auf Dateien: Viele Beziehungen
-# (z. B. jede Feldverwendung in COBOL) fallen auf wenige Dateikanten zusammen. Das Budget an
-# Beziehungen je zugelassenem Knoten muss deshalb weit über 2 liegen, sonst deckt es nur die ersten
-# Dateien eines Projekts ab (CardDemo: 4000 Beziehungen erreichten 103 von 329 Dateien).
-CODE_EDGES_PER_NODE_BUDGET = 20
-
-
-def _code_edge_budget(limit: Optional[int]) -> int:
-    """Wie viele Code-Beziehungen die Übersicht höchstens einliest (ein Vielfaches des Knotendeckels)."""
-    return (limit or cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES) * CODE_EDGES_PER_NODE_BUDGET
-
-
 @router.get("")
 def get_graph(
     project_id: Optional[int] = None,
@@ -599,7 +591,9 @@ def get_graph(
     include_isolated: bool = Query(
         False, description="Whether to include degree-0 isolated nodes in the graph overview"
     ),
-    limit: Optional[int] = Query(None, description="Optional custom node cap for the overview"),
+    limit: Optional[int] = Query(
+        None, ge=1, description="Node cap, bounded by the configured overview maximum"
+    ),
     cursor: Optional[str] = Query(None, description="Optional cursor for overview pagination"),
     focus_source_id: Optional[int] = None,
     min_per_kind: int = Query(3, ge=0, le=20),
@@ -799,7 +793,7 @@ def get_graph_overview(
     project_id: Optional[int] = None,
     status: str = "approved",
     group_by: Optional[str] = Query(None),
-    limit: Optional[int] = Query(None),
+    limit: Optional[int] = Query(None, ge=1),
     cursor: Optional[str] = Query(None),
     include_isolated: bool = Query(False),
     focus_source_id: Optional[int] = None,
@@ -844,7 +838,7 @@ def _capped_overview(
 
     total_nodes = len(nodes)
     total_edges = len(edges)
-    max_nodes = limit or cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES
+    max_nodes = overview_node_limit(limit)
     if total_nodes <= max_nodes:
         return {
             "nodes": list(nodes.values()),

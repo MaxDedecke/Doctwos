@@ -167,7 +167,7 @@ def test_graph_overview_truncates_and_reports_the_true_totals_when_over_the_cap(
         # Cap so low that only the linked entity (degree 1) and its doc node
         # (degree 1) fit -- with include_isolated=True, the unlinked entity (degree 0)
         # must be the one cut.
-        with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
+        with patch("core.config.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
             response = client.get(f"/graph?project_id={test_project}&include_isolated=true")
         assert response.status_code == 200
         body = response.json()
@@ -225,7 +225,7 @@ def test_graph_overview_truncation_drops_edges_whose_far_end_did_not_survive(
         # 3 candidate nodes (entity, Dokument 3a, Dokument 3b), cap = 2.
         # "doc:<source>:Runbook3a.md" sortiert vor "…3b", also gewinnt es bei gleichem Grad (1) den Tie-Break deterministisch.
         # both have the same degree (1), it wins the tie-break deterministically.
-        with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
+        with patch("core.config.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
             response = client.get(f"/graph?project_id={test_project}")
         assert response.status_code == 200
         body = response.json()
@@ -262,7 +262,7 @@ def test_graph_overview_keeps_one_file_node_per_source_when_capped():
             "source_id": 2,
         },
     }
-    with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
+    with patch("core.config.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2):
         body = _capped_overview(nodes, [], include_isolated=True)
     node_ids = {node["id"] for node in body["nodes"]}
     assert "doc:scanned-handbook.pdf" in node_ids
@@ -280,7 +280,7 @@ def test_code_edge_budget_is_a_generous_multiple_of_the_node_cap():
 
     assert CODE_EDGES_PER_NODE_BUDGET >= 10
     assert _code_edge_budget(100) == 100 * CODE_EDGES_PER_NODE_BUDGET
-    with patch("api.graph.cfg.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2000):
+    with patch("core.config.KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 2000):
         assert _code_edge_budget(None) == 2000 * CODE_EDGES_PER_NODE_BUDGET
 
 
