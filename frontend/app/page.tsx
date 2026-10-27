@@ -184,6 +184,7 @@ function AppContent() {
     setSessions: chatState.setSessions,
     linkManagerEnabled,
   });
+  const [panelReferenceUi, setPanelReferenceUi] = useState<Record<string, { open: boolean; tab: 'code' | 'docs' }>>({});
 
   const {
     projects, setProjects, selectedProject, setSelectedProject, files, setFiles,
@@ -1018,7 +1019,10 @@ function AppContent() {
     return added;
   }, [addPanel, panelConfigs, panelFrozen, setActiveMobileTab, setPanelSelections, showToast, t]);
 
-  const renderPanelContent = (index: number, contentType: string, selection: PanelSelection) => (
+  const renderPanelContent = (index: number, contentType: string, selection: PanelSelection) => {
+    const panelId = panelIds[index] ?? `panel-${index}`;
+    const referenceUi = panelReferenceUi[panelId] ?? { open: false, tab: 'code' as const };
+    return (
     <PanelContentRenderer
       index={index}
       contentType={contentType}
@@ -1052,10 +1056,16 @@ function AppContent() {
       editorFontSize={editorFontSize}
       editorFontFamily={editorFontFamily}
       editorMinimap={editorMinimap}
-      isReferencesDropdownOpen={isReferencesDropdownOpen}
-      setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
-      referencesTab={referencesTab}
-      setReferencesTab={setReferencesTab}
+      isReferencesDropdownOpen={referenceUi.open}
+      setIsReferencesDropdownOpen={(open) => setPanelReferenceUi(previous => ({
+        ...previous,
+        [panelId]: { ...(previous[panelId] ?? { open: false, tab: 'code' }), open },
+      }))}
+      referencesTab={referenceUi.tab}
+      setReferencesTab={(tab) => setPanelReferenceUi(previous => ({
+        ...previous,
+        [panelId]: { ...(previous[panelId] ?? { open: false, tab: 'code' }), tab },
+      }))}
       handlePanelEntitySelect={handlePanelEntitySelect}
       handlePanelEntitySelectAndOpen={handlePanelEntitySelectAndOpen}
       handleGutterClick={handleGutterClick}
@@ -1071,7 +1081,8 @@ function AppContent() {
       onApplyAgentViewAction={handleOpenAgentViewAction}
       onAgentViewActionOutcome={recordAgentViewActionOutcome}
     />
-  );
+    );
+  };
 
   const handlePanelContentTypeChange = (index: number, newType: string) => {
     if (newType === 'linkmanager' && !linkManagerEnabled) return;

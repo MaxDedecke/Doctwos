@@ -132,12 +132,6 @@ export function PanelContentRenderer({
   onApplyAgentViewAction,
   onAgentViewActionOutcome,
 }: PanelContentRendererProps) {
-  const [panelReferencesOpen, setPanelReferencesOpen] = React.useState(false);
-  const [panelReferencesTab, setPanelReferencesTab] = React.useState<'code' | 'docs'>('code');
-  React.useEffect(() => {
-    setPanelReferencesOpen(false);
-  }, [index, selection.selectedFile, selection.selectedDoc]);
-
   if (contentType === 'chat') {
     return (
       <ChatView
@@ -254,10 +248,10 @@ export function PanelContentRenderer({
       handleFileSelect={(path, line, sourceId, openIfMissing) =>
         handlePanelFileSelect(index, path, line, sourceId, openIfMissing)
       }
-      isReferencesDropdownOpen={panelReferencesOpen}
-      setIsReferencesDropdownOpen={setPanelReferencesOpen}
-      referencesTab={panelReferencesTab}
-      setReferencesTab={setPanelReferencesTab}
+      isReferencesDropdownOpen={isReferencesDropdownOpen}
+      setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}
+      referencesTab={referencesTab}
+      setReferencesTab={setReferencesTab}
       selectedEntity={selection.selectedEntity}
       splitClasses={{ chat: 'w-full', editor: 'w-full' }}
       activeLlmModel={activeLlmModel}
