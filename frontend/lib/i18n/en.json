@@ -1254,6 +1254,8 @@
     "openInBrowser": "Open in browser",
     "knowledgeSourceLabel": "Knowledge source",
     "documentViewerLabel": "Document viewer",
+    "showDocumentLineNumbers": "Show line numbers",
+    "hideDocumentLineNumbers": "Hide line numbers",
     "editorLoading": "Loading code viewer...",
     "referencesPanelTitle": "References & linked documents",
     "loadMore": "Load more …",

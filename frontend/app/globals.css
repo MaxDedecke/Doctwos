@@ -342,3 +342,11 @@ html {
   animation: ds-shimmer-sweep 14s ease-in-out infinite;
   animation-delay: var(--ds-shimmer-delay, 0ms);
 }
+
+
+.document-reference-highlight {
+  background: color-mix(in srgb, #6366f1 18%, transparent);
+  outline: 1px solid color-mix(in srgb, #818cf8 55%, transparent);
+  border-radius: 0.25rem;
+  transition: background-color 180ms ease, outline-color 180ms ease;
+}

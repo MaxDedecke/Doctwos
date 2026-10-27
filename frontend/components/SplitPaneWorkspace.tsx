@@ -18,6 +18,7 @@ import {
   ExternalLink,
   Globe,
   Layers,
+  ListOrdered,
   Link2,
   Loader2,
   Sparkles,
@@ -32,6 +33,7 @@ import { InsightDraftAction } from './InsightDraftAction';
 import { api, API_URL } from '@/app/services/api';
 import { REFERENCE_PAGE_SIZE, usePagedReferenceList } from '@/hooks/usePagedReferenceList';
 import { MarkdownContent } from "@/components/MarkdownContent";
+import { useDocumentLocator } from '@/hooks/useDocumentLocator';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
@@ -40,57 +42,6 @@ import { computeUsageAnchor, type UsageReference } from '@/lib/usageAnchors';
 import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatement } from '@/lib/cobolStatements';
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
-
-const normalizeLocatorText = (value: string) =>
-  value.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim();
-
-function findDocumentLocatorTarget(container: HTMLElement, selectedDoc: WorkspaceDocument) {
-  if (selectedDoc.urlAnchor) {
-    let anchor = selectedDoc.urlAnchor.replace(/^#/, '');
-    try {
-      anchor = decodeURIComponent(anchor);
-    } catch {
-      // Keep the source-provided anchor when it is not valid percent encoding.
-    }
-    const anchorTarget = Array.from(container.querySelectorAll<HTMLElement>('[id], [name]'))
-      .find(element => element.id === anchor || element.getAttribute('name') === anchor);
-    if (anchorTarget) return anchorTarget;
-  }
-
-  if (selectedDoc.section) {
-    const section = normalizeLocatorText(selectedDoc.section);
-    const headings = Array.from(container.querySelectorAll<HTMLElement>('h1, h2, h3, h4, h5, h6'));
-    const exactHeading = headings.find(element => normalizeLocatorText(element.innerText || element.textContent || '') === section);
-    const partialHeading = exactHeading || headings.find(element =>
-      normalizeLocatorText(element.innerText || element.textContent || '').includes(section)
-    );
-    if (partialHeading) return partialHeading;
-  }
-
-  if (selectedDoc.startLine != null) {
-    const lineTargets = Array.from(container.querySelectorAll<HTMLElement>('[data-document-line-start]'));
-    const exactLine = lineTargets.find(element => {
-      const start = Number(element.dataset.documentLineStart);
-      const end = Number(element.dataset.documentLineEnd ?? start);
-      return start <= selectedDoc.startLine! && end >= selectedDoc.startLine!;
-    });
-    if (exactLine) return exactLine;
-    const nearestLine = lineTargets
-      .map(element => ({ element, distance: Math.abs(Number(element.dataset.documentLineStart) - selectedDoc.startLine!) }))
-      .sort((a, b) => a.distance - b.distance)[0];
-    if (nearestLine) return nearestLine.element;
-  }
-
-  if (selectedDoc.excerpt) {
-    const excerpt = normalizeLocatorText(selectedDoc.excerpt).slice(0, 120);
-    if (excerpt) {
-      const blocks = Array.from(container.querySelectorAll<HTMLElement>('p, blockquote, pre'));
-      const excerptBlock = blocks.find(element => normalizeLocatorText(element.innerText || element.textContent || '').includes(excerpt));
-      if (excerptBlock) return excerptBlock;
-    }
-  }
-  return null;
-}
 
 function addWebAnchorScroll(html: string, anchor: string | null | undefined) {
   if (!anchor) return html;
@@ -279,11 +230,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const [localFileContent, setLocalFileContent] = useState<string>("");
   const [localFileContentFormat, setLocalFileContentFormat] = useState<string>("text");
   const [localIsLoadingFile, setLocalIsLoadingFile] = useState<boolean>(false);
-  const documentContentRef = useRef<HTMLDivElement | null>(null);
+  const [showDocumentLineNumbers, setShowDocumentLineNumbers] = useState(false);
 
   const contentToUse = fileContent !== undefined ? fileContent : localFileContent;
   const formatToUse = fileContentFormat !== undefined ? fileContentFormat : localFileContentFormat;
   const isLoadingToUse = isLoadingFile !== undefined ? isLoadingFile : localIsLoadingFile;
+  const documentContentRef = useDocumentLocator(activeRightTab, selectedDoc, contentToUse, formatToUse, isLoadingToUse);
   const webOriginContent = useMemo(
     () => addWebAnchorScroll(sanitizeHtml(contentToUse), selectedDoc?.urlAnchor),
     [contentToUse, selectedDoc?.urlAnchor],
@@ -488,15 +440,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     // object reference, same source_id) re-fetched the file from scratch.
   }, [selectedFile, selectedDoc, selectedEntity?.source_id, selectedProject, activeRightTab, theme]);
 
-  useEffect(() => {
-    if (activeRightTab !== 'doc' || !selectedDoc || isLoadingToUse) return;
-    const frame = requestAnimationFrame(() => {
-      const container = documentContentRef.current;
-      if (!container) return;
-      findDocumentLocatorTarget(container, selectedDoc)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [activeRightTab, contentToUse, formatToUse, isLoadingToUse, selectedDoc]);
+
 
   // Local references loading effect — the "Referenzen" dropdown that consumes this
   // only exists on code/doc panels, so don't fetch it for graph/webview panels.
@@ -1256,6 +1200,25 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">
+              {activeRightTab === 'doc' && selectedDoc && !selectedDoc.name.split('#')[0].toLowerCase().endsWith('.pdf') && formatToUse !== 'image' && (
+                <button
+                  type="button"
+                  onClick={() => setShowDocumentLineNumbers(value => !value)}
+                  className={cn(
+                    'inline-flex h-7 w-7 items-center justify-center rounded-md border transition-colors',
+                    showDocumentLineNumbers
+                      ? 'border-ds-indigo-500/40 bg-ds-indigo-500/10 text-ds-indigo-400'
+                      : theme === 'dark'
+                        ? 'border-ds-zinc-800 text-ds-zinc-500 hover:border-ds-zinc-700 hover:text-ds-zinc-300'
+                        : 'border-ds-zinc-200 text-ds-zinc-500 hover:border-ds-zinc-300 hover:text-ds-zinc-700',
+                  )}
+                  title={t(showDocumentLineNumbers ? 'splitPane.hideDocumentLineNumbers' : 'splitPane.showDocumentLineNumbers')}
+                  aria-label={t(showDocumentLineNumbers ? 'splitPane.hideDocumentLineNumbers' : 'splitPane.showDocumentLineNumbers')}
+                  aria-pressed={showDocumentLineNumbers}
+                >
+                  <ListOrdered className="h-3.5 w-3.5" />
+                </button>
+              )}
               {activeRightTab === 'code' && selectedFile && selectedProject && (
                 <InsightDraftAction
                   projectId={selectedProject.id}
@@ -1895,7 +1858,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     </div>
                     <div className="max-w-3xl mx-auto" ref={documentContentRef}>
                       {formatToUse === 'markdown' ? (
-                        <MarkdownContent content={contentToUse} onFileClick={handleFileSelect} theme={theme} />
+                        <MarkdownContent content={contentToUse} onFileClick={handleFileSelect} theme={theme} showLineNumbers={showDocumentLineNumbers} />
                       ) : formatToUse === 'html' ? (
                         <div
                           className="font-sans text-sm leading-relaxed"
@@ -1908,8 +1871,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                               key={index}
                               data-document-line-start={index + 1}
                               data-document-line-end={index + 1}
+                              className={showDocumentLineNumbers ? 'grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3' : undefined}
                             >
-                              {line || '\u00a0'}
+                              {showDocumentLineNumbers && <span aria-hidden="true" className="select-none text-right text-ds-zinc-500/70">{index + 1}</span>}
+                              <span>{line || '\u00a0'}</span>
                             </div>
                           ))}
                         </div>

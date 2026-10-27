@@ -1254,6 +1254,8 @@
     "openInBrowser": "Im Browser öffnen",
     "knowledgeSourceLabel": "Wissensquelle",
     "documentViewerLabel": "Dokumenten-Viewer",
+    "showDocumentLineNumbers": "Zeilennummern anzeigen",
+    "hideDocumentLineNumbers": "Zeilennummern ausblenden",
     "editorLoading": "Code-Viewer wird geladen...",
     "referencesPanelTitle": "Referenzen & Verknüpfte Dokumente",
     "loadMore": "Weitere laden …",

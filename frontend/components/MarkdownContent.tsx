@@ -9,13 +9,15 @@ interface CodeBlockProps {
   language: string;
   code: string;
   theme: string;
+  showLineNumbers?: boolean;
+  startLine?: number;
 }
 
 /**
  * Reusable CodeBlock component that renders a stylized code window
  * with language badge and copy-to-clipboard functionality.
  */
-export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) => {
+export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, showLineNumbers = false, startLine = 1 }) => {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
 
@@ -71,7 +73,12 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme }) =
         "p-4 overflow-x-auto max-w-full text-sm font-mono leading-relaxed no-scrollbar",
         theme === 'dark' ? "text-ds-zinc-300 bg-ds-black/20" : "text-ds-zinc-800 bg-ds-black/5"
       )}>
-        <code>{code}</code>
+        <code>{showLineNumbers ? code.split('\n').map((line, index) => (
+          <span key={index} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3">
+            <span aria-hidden="true" className="select-none text-right text-ds-zinc-500/70">{startLine + index}</span>
+            <span>{line || ' '}</span>
+          </span>
+        )) : code}</code>
       </pre>
     </div>
   );
@@ -305,6 +312,7 @@ interface MarkdownContentProps {
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void;
   theme: string;
   knownSources?: KnownSource[];
+  showLineNumbers?: boolean;
 }
 
 const HEADING_SIZE_CLASSES: Record<number, string> = {
@@ -443,6 +451,7 @@ const renderTextBlock = (
   t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources: KnownSource[] | undefined,
   baseLine: number,
+  showLineNumbers: boolean,
 ) => {
   const lines = block.split('\n');
   const elements: React.ReactNode[] = [];
@@ -460,7 +469,12 @@ const renderTextBlock = (
         data-document-line-end={paragraphEndLine}
         className="leading-relaxed whitespace-pre-wrap text-[0.9375rem] scroll-mt-4"
       >
-        {parseText(text, onFileClick, theme, t, knownSources)}
+        {showLineNumbers ? lines.slice(paragraphStartLine - baseLine, paragraphEndLine - baseLine + 1).map((lineText, lineIndex) => (
+          <span key={lineIndex} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3">
+            <span aria-hidden="true" className="select-none text-right text-ds-zinc-500/70">{paragraphStartLine + lineIndex}</span>
+            <span>{parseText(lineText || ' ', onFileClick, theme, t, knownSources)}</span>
+          </span>
+        )) : parseText(text, onFileClick, theme, t, knownSources)}
       </p>
     );
     paragraphBuffer = [];
@@ -482,6 +496,7 @@ const renderTextBlock = (
           data-document-line-end={baseLine + i}
           className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950", "scroll-mt-4")}
         >
+          {showLineNumbers && <span aria-hidden="true" className="mr-3 inline-block w-7 select-none text-right text-xs font-normal text-ds-zinc-500/70">{baseLine + i}</span>}
           {parseText(headingMatch[2], onFileClick, theme, t, knownSources)}
         </HeadingTag>
       );
@@ -585,7 +600,7 @@ function slugifyDocumentHeading(heading: string) {
  * Main MarkdownContent component that parses blocks of code and normal paragraphs,
  * transforming them into HTML elements with syntax highlights and link badges.
  */
-export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources }) => {
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources, showLineNumbers = false }) => {
   const { t } = useLanguage();
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
@@ -609,11 +624,11 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
               data-document-line-start={startLine}
               data-document-line-end={endLine}
             >
-              <CodeBlock language={lang} code={code} theme={theme} />
+              <CodeBlock language={lang} code={code} theme={theme} showLineNumbers={showLineNumbers} startLine={startLine + (match ? 1 : 0)} />
             </div>
           );
         } else {
-          return renderTextBlock(part, index, onFileClick, theme, t, knownSources, startLine);
+          return renderTextBlock(part, index, onFileClick, theme, t, knownSources, startLine, showLineNumbers);
         }
       })}
     </div>
