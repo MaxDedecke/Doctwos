@@ -279,7 +279,7 @@ function StepPill({ row, isDark, selected, onToggle, onSelect, onOpen, loading, 
               ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400'
               : external
                 ? (isDark ? 'border-ds-amber-500/60 text-ds-amber-400 hover:bg-ds-amber-500/10' : 'border-ds-amber-500/70 text-ds-amber-700 hover:bg-ds-amber-500/10')
-                : (isDark ? 'border-ds-zinc-700 text-ds-zinc-100 hover:border-ds-indigo-500' : 'border-ds-zinc-300 text-ds-zinc-900 hover:border-ds-indigo-500'),
+                : (isDark ? 'border-ds-blue-400/50 bg-ds-blue-400/20 text-ds-zinc-50 hover:border-ds-indigo-500' : 'border-ds-blue-500/40 bg-ds-blue-500/10 text-ds-zinc-900 hover:border-ds-indigo-500'),
           )}
         >
           {row.label}
@@ -319,7 +319,7 @@ function DataCard({ row, isDark, isOpen, onToggle, onOpen, t }: {
   const targets = row.targets ?? [];
   const shown = targets.slice(0, 3);
   return (
-    <div className={cn('rounded-md border px-2 py-1 text-[0.625rem]', isDark ? 'border-ds-cyan-500/30 bg-ds-cyan-500/5' : 'border-ds-cyan-500/40 bg-ds-cyan-500/5')}>
+    <div className={cn('rounded-md border px-2 py-1 text-[0.625rem]', isDark ? 'border-ds-blue-400/40 bg-ds-blue-400/15' : 'border-ds-blue-500/40 bg-ds-blue-500/10')}>
       <button type="button" onClick={onToggle} aria-expanded={isOpen} className="flex w-full items-center gap-1 text-left">
         <ChevronRight className={cn('h-3 w-3 shrink-0 text-ds-zinc-500 transition-transform duration-150', isOpen && 'rotate-90')} />
         <span className="font-semibold">
