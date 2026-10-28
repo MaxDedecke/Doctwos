@@ -778,6 +778,28 @@ def test_llm_review_rejects_disabled_cloud_provider(
         db_session.commit()
 
 
+def _disabled_local_profile(db_session) -> AIProfile:
+    """Wie das Bootstrap-Profil bei LLM_MODEL=disabled; unabhängig vom aktiven Profil der DB."""
+    profile = AIProfile(
+        name="Disabled local LLM test",
+        kind="local",
+        provider="ollama",
+        protocol="ollama",
+        llm_model="disabled",
+        llm_base_url="http://ollama:11434",
+        embedding_provider="ollama",
+        embedding_model="bge-m3",
+        embedding_base_url="http://ollama:11434",
+        embedding_path="/api/embed",
+        embedding_dimension=1024,
+        embedding_context_length=8192,
+        llm_context_length=8192,
+    )
+    db_session.add(profile)
+    db_session.commit()
+    return profile
+
+
 def test_llm_review_returns_defined_error_when_local_llm_disabled(
     client, db_session, test_project, source_entity_chunk, monkeypatch
 ):
@@ -786,12 +808,16 @@ def test_llm_review_returns_defined_error_when_local_llm_disabled(
     monkeypatch.setattr("core.config.OLLAMA_LLM_MODEL", "disabled")
     source, entity, chunk = source_entity_chunk
     link = _make_link(db_session, test_project, entity, chunk, status="pending")
+    profile = _disabled_local_profile(db_session)
     try:
-        res = client.post(f"/entity-doc-links/{link.id}/llm-review")
+        res = client.post(
+            f"/entity-doc-links/{link.id}/llm-review", json={"llm_profile_id": profile.id}
+        )
         assert res.status_code == 502
         assert "LLM-Prüfung fehlgeschlagen" in res.json()["detail"]
     finally:
         db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
+        db_session.delete(profile)
         db_session.commit()
 
 

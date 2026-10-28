@@ -1,4 +1,5 @@
 import os
+import uuid
 
 # Die Tests setzen das bisherige Bootstrap-Profil (lokales Ollama) voraus; der Standard-Stack legt es
 # nicht mehr an. Das Verhalten ohne Bootstrap prüft tests/test_llm_deployments.py gezielt.
@@ -18,6 +19,18 @@ TEST_MEMBER_USERNAME = "test-fixture-member"
 TEST_MEMBER_EMAIL = "fixture-member@example.com"
 # Kein echtes Passwort nötig: die Fixture setzt die Session-Cookie direkt.
 TEST_USER_PASSWORD_HASH = "$argon2id$v=19$m=65536,t=3,p=4$unused-fixture-hash"
+
+
+@pytest.hookimpl(hookwrapper=True)
+def pytest_runtest_teardown(item):
+    """Bricht ein Test mit einem fehlgeschlagenen Commit ab, steht die Session in
+    einer abgebrochenen Transaktion, und jedes Aufräumen der Fixtures scheitert.
+    Die Testreste (z. B. „Test Team") blockieren dann über Unique-Indizes alle
+    späteren Läufe. Deshalb vor allen Fixture-Teardowns zurückrollen."""
+    session = item.funcargs.get("db_session") if hasattr(item, "funcargs") else None
+    if session is not None:
+        session.rollback()
+    yield
 
 
 @pytest.fixture
@@ -164,7 +177,9 @@ def test_team(client, db_session):
     on Repository/KnowledgeSource, so any test creating one — directly via the ORM or
     through the API — needs a real team to point at.
     """
-    team = Team(name="Test Team")
+    # Eindeutiger Name: ein abgebrochener Lauf hinterlässt sonst ein „Test Team",
+    # an dessen Unique-Index jeder spätere Lauf scheitert.
+    team = Team(name=f"Test Team {uuid.uuid4().hex[:8]}")
     db_session.add(team)
     db_session.commit()
     db_session.refresh(team)
