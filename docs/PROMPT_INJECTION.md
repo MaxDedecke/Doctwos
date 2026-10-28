@@ -55,8 +55,8 @@ unintended, two existing, code-enforced layers limit what it can reach:
   MCP-Initialisierung auf den zugänglichen Arbeitskontext. Die Credentials
   einer fremden Quelle gelangen dadurch nicht in den Prozess.
 - **Turn cap:** the agent loop stops after a fixed number of rounds
-  (`max_turns=8` in `backend/agent.py`, `5` in the legacy
-  `execute_chat_with_mcp` path in `backend/mcp_client.py`) — bounds how far
+  (`MAX_AGENT_TURNS = 8` in `backend/agent.py`, shared by every model
+  provider; the last round offers no tools at all) — bounds how far
   a single injected instruction can chain tool calls within one request,
   even with no anomaly detection.
 
