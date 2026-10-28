@@ -770,3 +770,11 @@ und Design-Token-Prüfung bestehen. Der bestehende Referenzen-Menü-Test erhält
 `matchMedia`-Mock. Die Jira-Originalansicht übernimmt aufgelöste Design-Tokens in ihr
 isoliertes Dokument und aktualisiert sie nach einem Theme-Wechsel; ihre HTML-Helfer
 liegen in `frontend/lib/webDocumentHtml.ts`.
+
+Projekt-Admins und globale Admins dürfen Erkenntnisse in jedem Prüfstatus endgültig
+löschen, auch freigegebene oder veraltete Aussagen. Die Erkenntnisansicht verlangt
+vorher eine Bestätigung. `DELETE /projects/{project_id}/insights/{insight_id}` prüft
+Projektsichtbarkeit und Admin-Rolle und bindet die Erkenntnis an das angegebene
+Projekt. Originalquellen bleiben erhalten; folgende Graph- und Retrieval-Abfragen
+enthalten die gelöschte Erkenntnis nicht mehr. Die automatische Markierung als
+veraltet bei Quellenänderungen bleibt bestehen.

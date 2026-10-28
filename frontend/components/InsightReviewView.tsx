@@ -4,7 +4,7 @@ import type { Project, ProjectMember, User } from '@/types/domain';
 import { api } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { Check, FileText, Link2, Loader2, RefreshCw } from 'lucide-react';
+import { Check, FileText, Link2, Loader2, RefreshCw, Trash2 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
 import { InsightEvidence } from './InsightEvidence';
@@ -19,6 +19,7 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
   const [filter, setFilter] = useState<'all' | 'outdated' | 'draft' | 'verified'>('all');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState<number | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const isDark = theme === 'dark';
 
@@ -69,6 +70,20 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
     }
   };
 
+  const remove = async (insight: Insight) => {
+    if (!window.confirm(t('insightReview.deleteConfirm', { title: insight.title }))) return;
+    setDeleting(insight.id);
+    setError(null);
+    try {
+      await api.deleteInsight(selectedProject.id, insight.id);
+      setInsights(current => current.filter(item => item.id !== insight.id));
+    } catch {
+      setError(t('insightReview.deleteFailed'));
+    } finally {
+      setDeleting(null);
+    }
+  };
+
   return <div className={cn('h-full overflow-y-auto p-4', isDark ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
     <div className="mb-4 flex items-center justify-between gap-3">
       <div><h2 className="text-sm font-bold">{t('insightReview.title')}</h2><p className="text-xs text-ds-zinc-500">{t('insightReview.description')}</p></div>
@@ -91,7 +106,8 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
         <p className="mt-2 text-[0.625rem] text-ds-zinc-500">{t(insight.status === 'verified' ? 'insightReview.retrievalEnabled' : 'insightReview.retrievalExcluded')}</p>
         {insight.status === 'outdated' && <p className="mt-1 text-[0.625rem] text-ds-amber-500">{t('insightReview.sourceChanged', { count: insight.outdated_source_ids.length })}</p>}
         {insight.evidence.some(item => typeof item.source_last_synced_at === 'string') && <p className="mt-1 text-[0.625rem] text-ds-zinc-500">{t('insightReview.provenanceSnapshot')}</p>}
-        {canApproveThis && <button type="button" disabled={verifying === insight.id} onClick={() => void verify(insight)} className="mt-3 inline-flex items-center gap-1.5 rounded bg-ds-emerald-600 px-2 py-1 text-[0.625rem] font-semibold text-ds-white disabled:opacity-50"><>{verifying === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}</>{t('insightReview.verify')}</button>}
+        {canApproveThis && <button type="button" disabled={verifying === insight.id || deleting === insight.id} onClick={() => void verify(insight)} className="mt-3 inline-flex items-center gap-1.5 rounded bg-ds-emerald-600 px-2 py-1 text-[0.625rem] font-semibold text-ds-white disabled:opacity-50"><>{verifying === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}</>{t('insightReview.verify')}</button>}
+        {canVerify && <button type="button" disabled={deleting !== null || verifying === insight.id} onClick={() => void remove(insight)} className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded border border-ds-red-500/40 px-2 py-1 text-[0.625rem] font-semibold text-ds-red-500 disabled:opacity-50">{deleting === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}{t('insightReview.delete')}</button>}
       </article>;
     })}</div>
   </div>;

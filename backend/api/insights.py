@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
 from api.schemas import InsightCreate, InsightVerification
@@ -34,13 +34,15 @@ def _serialize(insight: Insight) -> dict:
     }
 
 
-def _require_project_admin(project_id: int, user: User, db: Session) -> None:
+def _require_project_admin(
+    project_id: int, user: User, db: Session, action: str = "freigeben"
+) -> None:
     # Verification changes a shared, user-facing fact. Restrict this first
     # vertical slice to project admins; this is both auditable and maps to the
     # existing permission model without inventing another global role.
     if get_project_role(project_id, user, db) != "admin":
         raise HTTPException(
-            status_code=403, detail="Nur Projekt-Admins dürfen Erkenntnisse freigeben"
+            status_code=403, detail=f"Nur Projekt-Admins dürfen Erkenntnisse {action}"
         )
 
 
@@ -91,6 +93,25 @@ def create_insight(
     db.commit()
     db.refresh(insight)
     return _serialize(insight)
+
+
+@router.delete("/{project_id}/insights/{insight_id}", status_code=204)
+def delete_insight(
+    project_id: int,
+    insight_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    assert_project_visible(project_id, user, db)
+    _require_project_admin(project_id, user, db, "löschen")
+    insight = (
+        db.query(Insight).filter(Insight.id == insight_id, Insight.project_id == project_id).first()
+    )
+    if not insight:
+        raise HTTPException(status_code=404, detail="Erkenntnis nicht gefunden")
+    db.delete(insight)
+    db.commit()
+    return Response(status_code=204)
 
 
 @router.get("/{project_id}/insights")

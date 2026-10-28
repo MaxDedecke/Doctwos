@@ -6,6 +6,104 @@ from models.database import Insight, Project, ProjectMembership, TeamMembership,
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 
 
+@pytest.mark.parametrize("status", ["draft", "verified", "outdated"])
+@pytest.mark.parametrize("global_admin", [False, True])
+def test_admin_can_delete_insight_from_review_graph_and_retrieval(
+    client, db_session, test_project, insight_admin_factory, status, global_admin
+):
+    from datetime import datetime, timezone
+    from services.insight_context import retrieve_insight_context
+
+    actor = (
+        db_session.query(User).filter(User.username == "test-fixture-user").one()
+        if global_admin
+        else insight_admin_factory("deleting-admin")
+    )
+    _as_user(client, actor)
+    insight = Insight(
+        project_id=test_project,
+        title="Zahlungsregel",
+        content="Zahlung wird geprüft.",
+        origin_kind="code",
+        evidence_json=[{"file": "PAYMENT.cbl"}],
+        status=status,
+        created_by_id=actor.id,
+        verified_by_id=actor.id if status != "draft" else None,
+        verified_at=datetime.now(timezone.utc) if status != "draft" else None,
+        outdated_at=datetime.now(timezone.utc) if status == "outdated" else None,
+    )
+    db_session.add(insight)
+    db_session.commit()
+    insight_id = insight.id
+    if status == "verified":
+        assert "Zahlungsregel" in retrieve_insight_context(
+            db_session, actor, test_project, "Zahlungsregel"
+        )
+    response = client.delete(f"/projects/{test_project}/insights/{insight_id}")
+    assert response.status_code == 204
+    assert response.content == b""
+    assert db_session.query(Insight).filter(Insight.id == insight_id).first() is None
+    assert client.get(f"/projects/{test_project}/insights").json() == []
+    graph = client.get("/graph", params={"project_id": test_project}).json()
+    assert f"insight:{insight_id}" not in {node["id"] for node in graph["nodes"]}
+    assert retrieve_insight_context(db_session, actor, test_project, "Zahlungsregel") == ""
+    assert client.delete(f"/projects/{test_project}/insights/{insight_id}").status_code == 404
+
+
+def test_member_cannot_delete_even_their_own_verified_insight(
+    client, db_session, test_project, insight_admin_factory
+):
+    from datetime import datetime, timezone
+
+    member = insight_admin_factory("deleting-member")
+    db_session.query(ProjectMembership).filter_by(
+        project_id=test_project, user_id=member.id
+    ).update({"role": "member"})
+    insight = Insight(
+        project_id=test_project,
+        title="Regel",
+        content="Aussage",
+        origin_kind="code",
+        evidence_json=[{"file": "A.cbl"}],
+        status="verified",
+        created_by_id=member.id,
+        verified_by_id=member.id,
+        verified_at=datetime.now(timezone.utc),
+    )
+    db_session.add(insight)
+    db_session.commit()
+    _as_user(client, member)
+    response = client.delete(f"/projects/{test_project}/insights/{insight.id}")
+    assert response.status_code == 403
+    assert db_session.query(Insight).filter_by(id=insight.id).one().status == "verified"
+
+
+def test_delete_scopes_insight_to_route_project(client, db_session, test_project, test_team):
+    other = Project(name="Other insight project", team_id=test_team)
+    db_session.add(other)
+    db_session.commit()
+    author = db_session.query(User).filter_by(username="test-fixture-user").one()
+    insight = Insight(
+        project_id=other.id,
+        title="Other rule",
+        content="Aussage",
+        origin_kind="code",
+        evidence_json=[{"file": "A.cbl"}],
+        status="draft",
+        created_by_id=author.id,
+    )
+    db_session.add(insight)
+    db_session.commit()
+    try:
+        response = client.delete(f"/projects/{test_project}/insights/{insight.id}")
+        assert response.status_code == 404
+        assert db_session.query(Insight).filter_by(id=insight.id).count() == 1
+    finally:
+        db_session.delete(insight)
+        db_session.delete(other)
+        db_session.commit()
+
+
 def _add_project_admin(db_session, project_id: int, username: str) -> User:
     project = db_session.query(Project).filter(Project.id == project_id).one()
     user = User(
