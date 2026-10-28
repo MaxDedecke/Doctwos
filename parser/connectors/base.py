@@ -33,6 +33,7 @@ import json
 import logging
 import uuid
 from abc import ABC, abstractmethod
+from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import NotRequired, TypedDict
 
@@ -144,6 +145,28 @@ class BaseConnector(ABC):
         # Plain-Werte der Quelle für die parallele Verarbeitung (siehe _process_document).
         self._source_id = source_id
         self._project_id: int | None = None
+        # Solange eine Datei geschrieben wird, gehört jeder Commit der gemeinsamen
+        # Session zu genau dieser Datei (siehe _file_write).
+        self._file_write_open = False
+
+    @contextmanager
+    def _file_write(self):
+        """Klammert die Schreibvorgänge einer Datei bis zu ihrem eigenen Commit.
+
+        Parallele Tasks loggen über dieselbe Session. Ein Commit aus ``_log`` oder
+        ``_update_progress`` mitten im Schreiben würde Entities ohne Chunks und
+        Journal festschreiben; ein Absturz danach hinterließe die Datei auf zwei
+        Revisionen. In dieser Klammer committen beide deshalb nicht selbst.
+        """
+        self._file_write_open = True
+        try:
+            yield
+        finally:
+            self._file_write_open = False
+
+    def _commit_unless_file_write(self) -> None:
+        if not self._file_write_open:
+            self.db.commit()
 
     # ── Logging ──────────────────────────────────────────────────────────────
 
@@ -154,7 +177,7 @@ class BaseConnector(ABC):
         logger.info(message)
         if self.source:
             self.source.sync_log = (self.source.sync_log or "") + line
-            self.db.commit()
+            self._commit_unless_file_write()
 
     def _update_progress(
         self, current: int, total: int | None = None, message: str | None = None
@@ -165,7 +188,7 @@ class BaseConnector(ABC):
                 self.source.progress = min(100, int((current / total) * 100))
             if message:
                 self.source.progress_message = message
-            self.db.commit()
+            self._commit_unless_file_write()
 
     # ── Hilfs-Methoden ────────────────────────────────────────────────────────
 

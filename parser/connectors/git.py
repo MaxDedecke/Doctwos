@@ -964,115 +964,118 @@ class GitConnector(BaseConnector):
                         chunk["embedding"] = embedding
                     except Exception as exc:
                         on_embed_error(chunk, exc)
-            count = await reindex_chunks_preserving_links(
-                self.db,
-                source_id=self.source.id,
-                file_path=path,
-                chunks=chunks,
-                build_chunk=build_chunk,
-                embed_content=embed_content,
-                on_embed_error=on_embed_error,
-            )
-
-            # NF-004: SourceScanFile wird im selben Commit wie die Chunks
-            # aktualisiert — bricht der Sync danach ab, überspringt der Resume-Check
-            # in fetch_documents() diese Datei beim nächsten Anlauf.
-            if doc["extra_meta"].get("deleted"):
-                self.db.query(SourceScanFile).filter(
-                    SourceScanFile.source_id == self.source_id,
-                    SourceScanFile.file_path == path,
-                ).delete()
-                # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
-                # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
-                # korrekt, anders als beim Reparse-Fall in structure_persist.py.
-                # Java-Package-/Module-Entities sind allerdings dateiübergreifend
-                # geteilt und werden deshalb vor dem Löschen umgehängt.
-                _delete_file_entities(self.db, source_id=self.source_id, file_path=path)
-            else:
-                content_hash = doc["extra_meta"]["content_hash"]
-                fingerprint = doc["extra_meta"].get("analysis_fingerprint")
-
-                language = doc["extra_meta"].get("language", "text")
-                encoding = doc["extra_meta"].get("encoding")
-                parse_status = doc["extra_meta"].get("parse_status", "text_fallback")
-                parse_error = doc["extra_meta"].get(
-                    "parse_error",
-                    f"Sprache '{language}' hat keinen Strukturparser; als Text indexiert.",
+            # Ab hier bis zum Commit schreibt nur diese Datei: kein Zwischen-Commit
+            # durch parallele Log-Zeilen (siehe BaseConnector._file_write).
+            with self._file_write():
+                count = await reindex_chunks_preserving_links(
+                    self.db,
+                    source_id=self.source.id,
+                    file_path=path,
+                    chunks=chunks,
+                    build_chunk=build_chunk,
+                    embed_content=embed_content,
+                    on_embed_error=on_embed_error,
                 )
-                if parse_result is not None:
-                    # O-120: `errors == []` allein hieß bisher "ok" -- das
-                    # übersah die O-119-Diagnosen (z.B. ein ANTLR-Syntaxfehler,
-                    # der `errors` nie erreicht) und behandelte den F-029-
-                    # Textfallback (keine PROCEDURE DIVISION) wie einen
-                    # gewöhnlichen Fehlerfall statt wie eine eigene, dritte
-                    # Kategorie. `classify_completeness()` bewertet stattdessen
-                    # errors + diagnostics + den Fallback-Chunk-Marker
-                    # gemeinsam (siehe core/model.py für die vier Werte).
-                    parse_status, reasons = classify_completeness(parse_result)
-                    parse_error = "; ".join(reasons) or None
-                    persist_parse_result(
-                        self.db,
-                        project_id=self.source.project_id,
-                        source_id=self.source_id,
-                        file_path=path,
-                        content_hash=content_hash,
-                        result=parse_result,
-                    )
-                    # O-137: die gerade entdeckte (transitive) Copybook-
-                    # Abhängigkeit dieser Datei für den NÄCHSTEN Sync
-                    # merken, damit dessen Fingerprint-Vergleich präzise
-                    # statt konservativ eingrenzen kann (siehe
-                    # _fingerprint_libraries()). None (nicht eindeutig
-                    # auflösbar) bleibt bewusst None statt {} - das ist der
-                    # Unterschied zwischen "keine Abhängigkeiten" und
-                    # "unbekannt, konservativ bleiben".
-                    save_profile = self._profiles_by_path.get(path)
-                    dependency_paths = _discover_copybook_dependencies(
-                        parse_result,
-                        self._prepared_by_lang.get("cobol"),
-                        save_profile.copy_search_order if save_profile is not None else (),
-                    )
-                    copybook_dependencies = (
-                        {p: self._copybook_hashes.get(p, "") for p in dependency_paths}
-                        if dependency_paths is not None
-                        else None
-                    )
 
-                existing = (
-                    self.db.query(SourceScanFile)
-                    .filter(
+                # NF-004: SourceScanFile wird im selben Commit wie die Chunks
+                # aktualisiert — bricht der Sync danach ab, überspringt der Resume-Check
+                # in fetch_documents() diese Datei beim nächsten Anlauf.
+                if doc["extra_meta"].get("deleted"):
+                    self.db.query(SourceScanFile).filter(
                         SourceScanFile.source_id == self.source_id,
                         SourceScanFile.file_path == path,
-                    )
-                    .first()
-                )
-                if existing:
-                    existing.content_hash = content_hash
-                    existing.analysis_fingerprint = fingerprint
-                    existing.language = language
-                    existing.encoding = encoding
-                    if parse_result is not None:
-                        existing.parse_status = parse_status
-                        existing.parse_error = parse_error
-                        existing.copybook_dependencies = copybook_dependencies
+                    ).delete()
+                    # Entities dieser Datei sind wirklich weg (nicht nur reparst) -
+                    # CASCADE auf eingehende Kanten aus anderen Dateien ist hier
+                    # korrekt, anders als beim Reparse-Fall in structure_persist.py.
+                    # Java-Package-/Module-Entities sind allerdings dateiübergreifend
+                    # geteilt und werden deshalb vor dem Löschen umgehängt.
+                    _delete_file_entities(self.db, source_id=self.source_id, file_path=path)
                 else:
-                    self.db.add(
-                        SourceScanFile(
+                    content_hash = doc["extra_meta"]["content_hash"]
+                    fingerprint = doc["extra_meta"].get("analysis_fingerprint")
+
+                    language = doc["extra_meta"].get("language", "text")
+                    encoding = doc["extra_meta"].get("encoding")
+                    parse_status = doc["extra_meta"].get("parse_status", "text_fallback")
+                    parse_error = doc["extra_meta"].get(
+                        "parse_error",
+                        f"Sprache '{language}' hat keinen Strukturparser; als Text indexiert.",
+                    )
+                    if parse_result is not None:
+                        # O-120: `errors == []` allein hieß bisher "ok" -- das
+                        # übersah die O-119-Diagnosen (z.B. ein ANTLR-Syntaxfehler,
+                        # der `errors` nie erreicht) und behandelte den F-029-
+                        # Textfallback (keine PROCEDURE DIVISION) wie einen
+                        # gewöhnlichen Fehlerfall statt wie eine eigene, dritte
+                        # Kategorie. `classify_completeness()` bewertet stattdessen
+                        # errors + diagnostics + den Fallback-Chunk-Marker
+                        # gemeinsam (siehe core/model.py für die vier Werte).
+                        parse_status, reasons = classify_completeness(parse_result)
+                        parse_error = "; ".join(reasons) or None
+                        persist_parse_result(
+                            self.db,
+                            project_id=self.source.project_id,
                             source_id=self.source_id,
                             file_path=path,
                             content_hash=content_hash,
-                            analysis_fingerprint=fingerprint,
-                            parse_status=parse_status,
-                            parse_error=parse_error,
-                            language=language,
-                            encoding=encoding,
-                            copybook_dependencies=(
-                                copybook_dependencies if parse_result is not None else None
-                            ),
+                            result=parse_result,
                         )
-                    )
+                        # O-137: die gerade entdeckte (transitive) Copybook-
+                        # Abhängigkeit dieser Datei für den NÄCHSTEN Sync
+                        # merken, damit dessen Fingerprint-Vergleich präzise
+                        # statt konservativ eingrenzen kann (siehe
+                        # _fingerprint_libraries()). None (nicht eindeutig
+                        # auflösbar) bleibt bewusst None statt {} - das ist der
+                        # Unterschied zwischen "keine Abhängigkeiten" und
+                        # "unbekannt, konservativ bleiben".
+                        save_profile = self._profiles_by_path.get(path)
+                        dependency_paths = _discover_copybook_dependencies(
+                            parse_result,
+                            self._prepared_by_lang.get("cobol"),
+                            save_profile.copy_search_order if save_profile is not None else (),
+                        )
+                        copybook_dependencies = (
+                            {p: self._copybook_hashes.get(p, "") for p in dependency_paths}
+                            if dependency_paths is not None
+                            else None
+                        )
 
-            self.db.commit()
+                    existing = (
+                        self.db.query(SourceScanFile)
+                        .filter(
+                            SourceScanFile.source_id == self.source_id,
+                            SourceScanFile.file_path == path,
+                        )
+                        .first()
+                    )
+                    if existing:
+                        existing.content_hash = content_hash
+                        existing.analysis_fingerprint = fingerprint
+                        existing.language = language
+                        existing.encoding = encoding
+                        if parse_result is not None:
+                            existing.parse_status = parse_status
+                            existing.parse_error = parse_error
+                            existing.copybook_dependencies = copybook_dependencies
+                    else:
+                        self.db.add(
+                            SourceScanFile(
+                                source_id=self.source_id,
+                                file_path=path,
+                                content_hash=content_hash,
+                                analysis_fingerprint=fingerprint,
+                                parse_status=parse_status,
+                                parse_error=parse_error,
+                                language=language,
+                                encoding=encoding,
+                                copybook_dependencies=(
+                                    copybook_dependencies if parse_result is not None else None
+                                ),
+                            )
+                        )
+
+                self.db.commit()
             return count
 
         except Exception as e:
