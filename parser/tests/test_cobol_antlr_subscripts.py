@@ -82,3 +82,35 @@ def test_subscripted_program_parses_in_sll_without_a_ll_fallback(monkeypatch):
     assert modes == [PredictionMode.SLL]
     assert not [d for d in result.diagnostics if d.code == "COBOL85_PARSER_ERROR"]
     assert any(edge.type == "CALL" and edge.dst_name == "NEXTPGM" for edge in result.edges)
+
+
+def test_ibm_json_and_xml_statements_do_not_derail_the_grammar():
+    source = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. IBMSTMT.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-A PIC X(20).\n"
+        "       01 WS-J.\n"
+        "          05 WS-J1 PIC X(5).\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           CALL 'BEFORE'.\n"
+        "           JSON GENERATE WS-A FROM WS-J\n"
+        "               ON EXCEPTION DISPLAY 'ERR'\n"
+        "           END-JSON.\n"
+        "           XML PARSE WS-A PROCESSING PROCEDURE PARSE-H\n"
+        "               ON EXCEPTION DISPLAY 'X'\n"
+        "           END-XML.\n"
+        "           CALL 'AFTER'.\n"
+        "       SECOND-PARA.\n"
+        "           GOBACK.\n"
+    )
+
+    result = parse_program(source, "ibmstmt.cbl")
+
+    assert not [d for d in result.diagnostics if d.code == "COBOL85_PARSER_ERROR"]
+    paragraphs = {entity.name: entity for entity in result.entities if entity.type == "paragraph"}
+    assert set(paragraphs) == {"MAIN-PARA", "SECOND-PARA"}
+    assert paragraphs["SECOND-PARA"].start_line == 18
+    assert {e.dst_name for e in result.edges if e.type == "CALL"} == {"BEFORE", "AFTER"}

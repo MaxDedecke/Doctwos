@@ -274,6 +274,20 @@ def mask_for_grammar(
             i += 1
             continue
 
+        if current_division == "PROCEDURE" and _IBM_DATA_STATEMENT_RE.match(stripped):
+            # JSON/XML GENERATE|PARSE gibt es erst ab COBOL 2002 bzw. IBM Enterprise COBOL 6;
+            # die COBOL85-Grammatik scheitert daran und verliert den Rest des Absatzes.
+            # Kanten im Anweisungsrumpf liest der Token-Scanner auf dem Originaltext.
+            j = i
+            limit = min(n, i + _IBM_STATEMENT_MAX_LINES)
+            while j + 1 < limit and not _ends_ibm_data_statement(lines[j]):
+                j += 1
+            result.append(_placeholder(line, line, "CONTINUE", dot=_ends_with_period(lines[j])))
+            for k in range(i + 1, j + 1):
+                result.append(_blank(lines[k], lines[k]))
+            i = j + 1
+            continue
+
         if current_division == "IDENTIFICATION" and _IDENT_TEXT_PARAGRAPH_RE.match(stripped):
             ident_match = _IDENT_TEXT_PARAGRAPH_RE.match(stripped)
             keyword = ident_match.group(1).upper()
@@ -327,6 +341,15 @@ def mask_for_grammar(
         i += 1
 
     return result
+
+
+_IBM_DATA_STATEMENT_RE = re.compile(r"(?i)(?:JSON|XML)\s+(?:GENERATE|PARSE)\b")
+_IBM_STATEMENT_END_RE = re.compile(r"(?i)\bEND-(?:JSON|XML)\b")
+_IBM_STATEMENT_MAX_LINES = 200
+
+
+def _ends_ibm_data_statement(line: LogicalLine) -> bool:
+    return bool(_IBM_STATEMENT_END_RE.search(line.text)) or _ends_with_period(line)
 
 
 def _ends_with_period(line: LogicalLine) -> bool:
