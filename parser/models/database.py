@@ -21,7 +21,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-from models.crypto_types import EncryptedString
+from models.crypto_types import EncryptedCredential, EncryptedString
 
 Base = declarative_base()
 
@@ -212,7 +212,7 @@ class KnowledgeSource(Base):
     type = Column(String)  # Git, Confluence, Jira, FolderWatch, WebDAV, Local
     url = Column(String, nullable=True)
     username = Column(String, nullable=True)
-    token = Column(EncryptedString, nullable=True)
+    token = Column(EncryptedCredential, nullable=True)
     project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
     spaces = Column(JSON, nullable=True)
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
@@ -419,11 +419,11 @@ class AISettings(Base):
     llm_provider = Column(String(32), nullable=False, server_default="ollama")
     llm_model = Column(String, nullable=False, server_default="disabled")
     llm_base_url = Column(String, nullable=True)
-    llm_api_key = Column(EncryptedString, nullable=True)
+    llm_api_key = Column(EncryptedCredential, nullable=True)
     embedding_provider = Column(String(32), nullable=False, server_default="ollama")
     embedding_model = Column(String, nullable=False, server_default="bge-m3")
     embedding_base_url = Column(String, nullable=True)
-    embedding_api_key = Column(EncryptedString, nullable=True)
+    embedding_api_key = Column(EncryptedCredential, nullable=True)
     embedding_dimension = Column(Integer, nullable=False, server_default="1024")
     embedding_context_length = Column(Integer, nullable=False, server_default="8192")
     llm_context_length = Column(Integer, nullable=False, server_default="8192")
@@ -455,12 +455,12 @@ class AIProfile(Base):
     llm_model = Column(String, nullable=False)
     llm_base_url = Column(String, nullable=True)
     llm_path = Column(String, nullable=True)
-    llm_api_key = Column(EncryptedString, nullable=True)
+    llm_api_key = Column(EncryptedCredential, nullable=True)
     embedding_provider = Column(String(32), nullable=False, server_default="ollama")
     embedding_model = Column(String, nullable=False, server_default="bge-m3")
     embedding_base_url = Column(String, nullable=True)
     embedding_path = Column(String, nullable=True)
-    embedding_api_key = Column(EncryptedString, nullable=True)
+    embedding_api_key = Column(EncryptedCredential, nullable=True)
     embedding_dimension = Column(Integer, nullable=False, server_default="1024")
     embedding_context_length = Column(Integer, nullable=False, server_default="8192")
     llm_context_length = Column(Integer, nullable=False, server_default="8192")
@@ -486,7 +486,7 @@ class EmbeddingProfile(Base):
     model = Column(String, nullable=False)
     base_url = Column(String, nullable=False)
     path = Column(String, nullable=False, server_default="/api/embed")
-    api_key = Column(EncryptedString, nullable=True)
+    api_key = Column(EncryptedCredential, nullable=True)
     dimension = Column(Integer, nullable=False, server_default="1024")
     context_length = Column(Integer, nullable=False, server_default="8192")
     deployment_name = Column(String(64), nullable=True)

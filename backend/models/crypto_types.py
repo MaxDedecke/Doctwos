@@ -29,11 +29,15 @@ Version per Alembic-Migration nachträglich verschlüsselt (siehe
 alembic/versions/d4e5f6a7b8c9_encrypt_content_at_rest.py).
 """
 
+import logging
 import os
 
-from cryptography.fernet import Fernet
+from cryptography.fernet import Fernet, InvalidToken
 from sqlalchemy import String
 from sqlalchemy.types import TypeDecorator
+
+
+logger = logging.getLogger(__name__)
 
 
 def _get_fernet() -> Fernet:
@@ -59,3 +63,21 @@ class EncryptedString(TypeDecorator):
         if value is None:
             return value
         return _get_fernet().decrypt(value.encode()).decode()
+
+
+class EncryptedCredential(EncryptedString):
+    """Zugangsdaten (Token, API-Keys): ein mit anderem Schlüssel verschlüsselter Altwert
+    wird als „nicht gesetzt“ gelesen, statt jede Abfrage der Zeile mit InvalidToken zu
+    kippen. Für Inhaltsspalten gilt das bewusst nicht — dort wäre ein stilles None Datenverlust."""
+
+    cache_ok = True
+
+    def process_result_value(self, value, dialect):
+        try:
+            return super().process_result_value(value, dialect)
+        except InvalidToken:
+            logger.error(
+                "Zugangsdaten nicht entschlüsselbar (MASTER_ENCRYPTION_KEY passt nicht); "
+                "Wert wird als nicht gesetzt behandelt."
+            )
+            return None

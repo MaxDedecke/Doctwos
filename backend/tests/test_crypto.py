@@ -100,3 +100,16 @@ def test_chat_message_content_round_trips_and_is_not_plaintext_at_rest(db_sessio
     db_session.query(ChatMessage).filter(ChatMessage.id == msg.id).delete()
     db_session.query(ChatSession).filter(ChatSession.id == session.id).delete()
     db_session.commit()
+
+
+def test_token_encrypted_with_foreign_key_reads_as_unset_but_content_stays_strict():
+    import pytest
+    from cryptography.fernet import Fernet, InvalidToken
+
+    from models.crypto_types import EncryptedCredential, EncryptedString
+
+    foreign = Fernet(Fernet.generate_key()).encrypt(b"alt").decode()
+
+    assert EncryptedCredential().process_result_value(foreign, None) is None
+    with pytest.raises(InvalidToken):
+        EncryptedString().process_result_value(foreign, None)
