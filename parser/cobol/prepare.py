@@ -18,6 +18,7 @@ def prepare_copybook_index(
     wt: str,
     extensions: dict[str, set[str]],
     profiles_by_path: dict[str, BuildProfile | None] | None = None,
+    language_by_path: dict[str, str] | None = None,
 ) -> CopybookIndex:
     """Build the source-wide Copybook index, including inherited fields.
 
@@ -26,12 +27,15 @@ def prepare_copybook_index(
     resolve unchanged Copybooks during an incremental sync.
     """
     copybook_exts = extensions.get("copybook", set())
-    if not copybook_exts:
+    if not copybook_exts and not language_by_path:
         return CopybookIndex()
     tracked = git_utils.list_tracked_files(wt)
     index = CopybookIndex()
     for path in tracked:
-        if os.path.splitext(path)[1].lower() not in copybook_exts:
+        if language_by_path is not None:
+            if language_by_path.get(path) != "copybook":
+                continue
+        elif os.path.splitext(path)[1].lower() not in copybook_exts:
             continue
         name = canonical_identifier(os.path.splitext(os.path.basename(path))[0])
         index.setdefault(name, []).append(path)

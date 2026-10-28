@@ -87,6 +87,46 @@ def _looks_like_shell_shebang(content: str | bytes | None) -> bool:
     return interpreter in _SHELL_INTERPRETERS
 
 
+_COBOL_SNIFF_MAX_BYTES = 8192
+_COBOL_PROGRAM_MARKER = re.compile(
+    r"(?im)^(?:[^\n]{6}|\s*)\s*(?:IDENTIFICATION|ID)\s+DIVISION\s*\.|"
+    r"^(?:[^\n]{6}|\s*)\s*PROGRAM-ID\s*\."
+)
+_COBOL_DATA_LINE = re.compile(
+    r"(?im)^(?:[^\n]{6}|\s*)\s*(?:0?[1-9]|[1-4][0-9]|66|77|88)\s+[A-Z0-9][A-Z0-9-]*"
+    r"(?:\s+(?:PIC|PICTURE|USAGE|COMP[-A-Z0-9]*|OCCURS|REDEFINES|VALUE|BINARY)\b|\s*\.)"
+)
+_COBOL_PROCEDURE_MARKER = re.compile(r"(?im)\bPROCEDURE\s+DIVISION\b")
+
+
+def sniff_cobol_family(content: str | bytes | None) -> str | None:
+    """Erkennt endungslose COBOL-Programme und Copybooks am Inhalt.
+
+    Bewusst konservativ: ein Programm braucht einen ``IDENTIFICATION DIVISION``-
+    oder ``PROGRAM-ID``-Kopf; ein Copybook mindestens drei Datenbeschreibungszeilen,
+    die den überwiegenden Teil der nicht leeren, nicht kommentierten Zeilen
+    ausmachen, und keinen Programmkopf. Alles andere bleibt ``None``.
+    """
+    if content is None:
+        return None
+    if isinstance(content, bytes):
+        content = content[:_COBOL_SNIFF_MAX_BYTES].decode("latin-1")
+    head = content[:_COBOL_SNIFF_MAX_BYTES]
+    if _COBOL_PROGRAM_MARKER.search(head):
+        return "cobol"
+    if _COBOL_PROCEDURE_MARKER.search(head):
+        return None
+    lines = [
+        line
+        for line in head.splitlines()
+        if line.strip() and not (len(line) > 6 and line[6] in "*/") and not line.lstrip()[:1] == "*"
+    ]
+    data_lines = sum(1 for line in lines if _COBOL_DATA_LINE.match(line))
+    if data_lines >= 3 and data_lines / max(len(lines), 1) >= 0.6:
+        return "copybook"
+    return None
+
+
 def detect_language(
     path: str,
     extensions: dict[str, set[str]] | None = None,
@@ -99,7 +139,7 @@ def detect_language(
     per-source overrides, so legacy custom extensions continue to work.
     Unknown extensions intentionally return ``text``. If a file has no
     extension, a bounded shebang check can identify shell scripts without
-    executing them.
+    executing them and a bounded content check recognizes COBOL members.
     """
 
     configured = extensions or DEFAULT_LANGUAGE_EXTENSIONS
@@ -114,4 +154,6 @@ def detect_language(
             return language
     if not suffix and _looks_like_shell_shebang(content):
         return "shell"
+    if not suffix:
+        return sniff_cobol_family(content) or "text"
     return "text"

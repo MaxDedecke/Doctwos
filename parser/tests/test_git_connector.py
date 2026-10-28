@@ -1234,6 +1234,43 @@ async def test_git_connector_reads_windows_ansi_cobol_with_visible_fallback(
 
 
 @pytest.mark.anyio
+async def test_git_connector_classifies_extensionless_members_and_path_rules(
+    db_session, test_source, git_remote
+):
+    """Mainframe-Exporte tragen oft nur den Membernamen: Inhalt und Pfadregel entscheiden."""
+    program = (
+        "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. MEMBER1.\n"
+        "       PROCEDURE DIVISION.\n           CALL 'MEMBER2'.\n           GOBACK.\n"
+    )
+    copybook = (
+        "       01  KUNDE-REC.\n           05  KUNDE-NR   PIC 9(8).\n"
+        "           05  KUNDE-NAME PIC X(30).\n           05  KUNDE-ORT  PIC X(20).\n"
+    )
+    _commit_file(git_remote, "export/MEMBER1", program, "program without extension")
+    _commit_file(git_remote, "export/KUNDEREC", copybook, "copybook without extension")
+    _commit_file(git_remote, "legacy/OLDPGM.src", program.replace("MEMBER1", "OLDPGM"), "src")
+    _commit_file(git_remote, "docs/Makefile", "all:\n\tgcc main.c\n", "plain build file")
+    test_source.spaces = {"language_paths": {"legacy": "cobol"}}
+    db_session.commit()
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    languages = {
+        row.file_path: row.language
+        for row in db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id)
+        .all()
+    }
+    assert languages["export/MEMBER1"] == "cobol"
+    assert languages["export/KUNDEREC"] == "copybook"
+    assert languages["legacy/OLDPGM.src"] == "cobol"
+    assert languages["docs/Makefile"] == "text"
+
+
+@pytest.mark.anyio
 async def test_git_connector_skips_empty_files_instead_of_indexing_zero_chunks(
     db_session, test_source, git_remote
 ):

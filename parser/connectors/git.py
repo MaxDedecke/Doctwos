@@ -22,6 +22,8 @@ Ablauf:
 """
 
 import asyncio
+import functools
+import inspect
 import json
 import logging
 import os
@@ -31,7 +33,7 @@ from collections import defaultdict
 from concurrent.futures.process import BrokenProcessPool
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from typing import Any, AsyncIterator, Iterable
 
 import redis
 from sqlalchemy import and_, func
@@ -244,6 +246,7 @@ async def _run_prepare_hooks(
     wt: str,
     extensions: dict[str, set[str]],
     profiles_by_path: dict[str, BuildProfile | None] | None = None,
+    language_by_path: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """O-079: ruft für jede Sprache mit Registry-Eintrag deren optionalen
     `prepare_source()`-Hook einmal auf, bevor die erste Datei dieser Sprache
@@ -264,8 +267,11 @@ async def _run_prepare_hooks(
             continue
         key = id(hook)
         if key not in results_by_hook:
+            hook_kwargs = {}
+            if "language_by_path" in inspect.signature(hook).parameters:
+                hook_kwargs["language_by_path"] = language_by_path
             results_by_hook[key] = await asyncio.to_thread(
-                hook, wt, extensions, profiles_by_path or {}
+                functools.partial(hook, wt, extensions, profiles_by_path or {}, **hook_kwargs)
             )
         prepared[lang] = results_by_hook[key]
     return prepared
@@ -295,6 +301,59 @@ def _encoding_fallback_diagnostic(doc: dict) -> ParseDiagnostic:
         line=0,
         column=0,
     )
+
+
+_CLASSIFY_HEAD_BYTES = 8192
+
+
+def _resolve_language_paths(spaces: dict, extensions: dict[str, set[str]]) -> list[tuple[str, str]]:
+    """``spaces.language_paths``: Verzeichnispräfix -> Sprachlabel für Dateien, deren
+    Endung nichts aussagt (Mainframe-Exporte nennen Members oft nur beim Namen).
+    Längster Präfix zuerst; unbekannte Labels werden ignoriert."""
+    raw = spaces.get("language_paths") if isinstance(spaces, dict) else None
+    if not isinstance(raw, dict):
+        return []
+    known = set(extensions) | set(STRUCTURE_PARSERS)
+    rules = [
+        (prefix.strip("/"), label)
+        for prefix, label in raw.items()
+        if isinstance(prefix, str)
+        and isinstance(label, str)
+        and label in known
+        and prefix.strip("/")
+    ]
+    return sorted(rules, key=lambda rule: len(rule[0]), reverse=True)
+
+
+def _classify_paths(
+    wt: str,
+    paths: Iterable[str],
+    extensions: dict[str, set[str]],
+    language_paths: list[tuple[str, str]],
+) -> dict[str, str]:
+    """Sprache jeder Datei, einmal je Sync und vor dem Fingerprint.
+
+    Reihenfolge: Endung, dann Pfadregel, dann (nur bei endungslosen Dateien) ein
+    begrenzter Inhaltsblick. Dieselbe Antwort gilt für Profil, Copybook-Index,
+    Fingerprint und Parser, damit sie nicht auseinanderlaufen."""
+    result: dict[str, str] = {}
+    for path in paths:
+        language = classify_extension(path, extensions)
+        if language == "text":
+            for prefix, label in language_paths:
+                if path.startswith(prefix + "/"):
+                    language = label
+                    break
+            else:
+                if not os.path.splitext(path)[1]:
+                    try:
+                        with open(os.path.join(wt, path), "rb") as handle:
+                            head = handle.read(_CLASSIFY_HEAD_BYTES)
+                    except OSError:
+                        head = None
+                    language = classify_extension(path, extensions, content=head)
+        result[path] = language
+    return result
 
 
 def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
@@ -635,6 +694,7 @@ class GitConnector(BaseConnector):
         # wird genau dieses Objekt verwendet, statt die Konfiguration erneut
         # (und potenziell anders) zu lesen.
         self._profiles_by_path: dict[str, BuildProfile | None] = {}
+        self._language_by_path: dict[str, str] = {}
         # O-137: aktueller Copybook-Pfad -> Git-Blob-SHA, gefüllt in
         # fetch_documents() - _save_document_chunks() braucht das, um die
         # dort neu entdeckte Abhängigkeitsmenge in Blob-SHAs statt nur
@@ -1134,10 +1194,18 @@ class GitConnector(BaseConnector):
             self._log(
                 f"{len(excluded_java_paths)} Java-Datei(en) aus Build-/IDE-Verzeichnissen werden ignoriert."
             )
+        language_by_path = await asyncio.to_thread(
+            _classify_paths,
+            wt,
+            current_hashes,
+            extensions,
+            _resolve_language_paths(spaces, extensions),
+        )
+        self._language_by_path = language_by_path
         profiles_by_path = {
             path: _resolve_document_profile(spaces, path)
             for path in current_hashes
-            if classify_extension(path, extensions) in {"cobol", "copybook"}
+            if language_by_path[path] in {"cobol", "copybook"}
         }
 
         # O-079: registry-deklarierte Vorlauf-Hooks statt eines fest
@@ -1145,7 +1213,9 @@ class GitConnector(BaseConnector):
         # baut das (wie zuvor) bei jedem Sync über den vollen Baum den
         # Copybook-Index (Pass 0, Plan §6.4/E-2), siehe
         # cobol/prepare.py::prepare_copybook_index.
-        self._prepared_by_lang = await _run_prepare_hooks(wt, extensions, profiles_by_path)
+        self._prepared_by_lang = await _run_prepare_hooks(
+            wt, extensions, profiles_by_path, language_by_path
+        )
 
         new_commit = await asyncio.to_thread(git_utils.current_commit, wt)
         self._new_commit = new_commit
@@ -1180,7 +1250,7 @@ class GitConnector(BaseConnector):
         copybook_hashes = {
             path: blob_sha
             for path, blob_sha in current_hashes.items()
-            if os.path.splitext(path)[1].lower() in extensions.get("copybook", set())
+            if language_by_path[path] == "copybook"
         }
         self._copybook_hashes = copybook_hashes
         analysis_dependencies = _analysis_dependency_paths(self.db, self.source_id)
@@ -1213,7 +1283,7 @@ class GitConnector(BaseConnector):
             path for path in current_hashes if path.endswith("/module-info.java")
         )
         for path, blob_sha in sorted(current_hashes.items()):
-            language = classify_extension(path, extensions)
+            language = language_by_path[path]
             profile = profiles_by_path.get(path)
             parser_entry = STRUCTURE_PARSERS.get(language)
             dependencies = {
@@ -1251,7 +1321,7 @@ class GitConnector(BaseConnector):
 
         for path, blob_sha in sorted(current_hashes.items()):
             content_hash = git_utils.blob_content_hash(blob_sha)
-            language = classify_extension(path, extensions)
+            language = language_by_path[path]
             fingerprint = self._dependency_fingerprints.for_path(path)
             if path in excluded_java_paths:
                 excluded_fingerprints[path] = (content_hash, fingerprint, language)
@@ -1352,7 +1422,9 @@ class GitConnector(BaseConnector):
                 continue
             # The bounded content signal completes extension-based detection
             # for extensionless shell scripts without executing them.
-            language = classify_extension(path, extensions, content=content)
+            language = self._language_by_path.get(path) or classify_extension(
+                path, extensions, content=content
+            )
             if not looks_like_text(content, _MAX_CONTROL_CHAR_RATIO):
                 reason = (
                     f"kein sinnvoller {codec}-Text (zu viele Steuerzeichen), wird nicht embedded."
