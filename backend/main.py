@@ -65,6 +65,7 @@ from api import (
     auth,
     chat,
     knowledge_sources,
+    source_profile,
     connectors,
     entity_links,
     system,
@@ -134,6 +135,7 @@ app.include_router(auth.router)
 app.include_router(projects.router, dependencies=_authenticated)
 app.include_router(chat.router, dependencies=_authenticated)
 app.include_router(knowledge_sources.router, dependencies=_authenticated)
+app.include_router(source_profile.router, dependencies=_authenticated)
 app.include_router(connectors.router, dependencies=_authenticated)
 app.include_router(entity_links.router, dependencies=_authenticated)
 app.include_router(knowledge_links.router, dependencies=_authenticated)
