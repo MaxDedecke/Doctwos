@@ -79,13 +79,23 @@ def prepare_copybook_index(
         if path in ancestry:
             return result
         for edge in index.copy_edges_by_path.get(path, []):
-            target = copybook.resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
+            order = (profiles_by_path or {}).get(path)
+            target = copybook.resolve_path(
+                edge.dst_name,
+                (edge.meta or {}).get("library"),
+                index,
+                order.copy_search_order if order is not None else (),
+            )
             if target is None or target in ancestry:
                 continue
             target_index = CopybookIndex(
                 index, fields_by_path={target: fields_for(target, ancestry | {path})}
             )
-            result.extend(copybook.inherited_fields([edge], target_index))
+            result.extend(
+                copybook.inherited_fields(
+                    [edge], target_index, order.copy_search_order if order is not None else ()
+                )
+            )
         expanded[path] = result
         return result
 

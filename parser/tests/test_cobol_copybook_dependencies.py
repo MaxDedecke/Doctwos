@@ -5,7 +5,7 @@ test_ap4_persistence.py) - `SourceScanFile` ist ein plain SQLAlchemy-Objekt
 und braucht für reine Attributzugriffe keine Session.
 """
 
-from cobol.copybook import CopybookIndex, transitive_dependencies
+from cobol.copybook import CopybookIndex, dependency_state, resolve_path
 from cobol.model import ParsedEdge, ParseResult
 from connectors.git import _discover_copybook_dependencies, _fingerprint_libraries
 from models.database import SourceScanFile
@@ -27,10 +27,10 @@ def _copy_edge(
     )
 
 
-# --- cobol/copybook.py::transitive_dependencies() ---------------------------
+# --- cobol/copybook.py::dependency_state() ----------------------------------
 
 
-def test_transitive_dependencies_follows_the_whole_copy_chain():
+def test_dependency_state_follows_the_whole_copy_chain():
     index = CopybookIndex(
         {"A": ["copy/A.CPY"], "B": ["copy/B.CPY"], "C": ["copy/C.CPY"]},
         copy_edges_by_path={
@@ -38,12 +38,12 @@ def test_transitive_dependencies_follows_the_whole_copy_chain():
             "copy/B.CPY": [_copy_edge("C")],
         },
     )
-    visited, ambiguous = transitive_dependencies(["copy/A.CPY"], index)
+    visited, names = dependency_state(["copy/A.CPY"], index)
     assert visited == {"copy/A.CPY", "copy/B.CPY", "copy/C.CPY"}
-    assert ambiguous is False
+    assert names == set()
 
 
-def test_transitive_dependencies_never_loops_on_a_cycle():
+def test_dependency_state_never_loops_on_a_cycle():
     index = CopybookIndex(
         {"A": ["copy/A.CPY"], "B": ["copy/B.CPY"]},
         copy_edges_by_path={
@@ -51,19 +51,41 @@ def test_transitive_dependencies_never_loops_on_a_cycle():
             "copy/B.CPY": [_copy_edge("A")],
         },
     )
-    visited, ambiguous = transitive_dependencies(["copy/A.CPY"], index)
+    visited, names = dependency_state(["copy/A.CPY"], index)
     assert visited == {"copy/A.CPY", "copy/B.CPY"}
-    assert ambiguous is False
+    assert names == set()
 
 
-def test_transitive_dependencies_flags_an_unresolvable_link_in_the_chain():
+def test_dependency_state_keeps_all_candidates_and_the_name_of_an_ambiguous_link():
     index = CopybookIndex(
         {"A": ["copy/A.CPY"], "AMBIG": ["copy/X1.CPY", "copy/X2.CPY"]},
         copy_edges_by_path={"copy/A.CPY": [_copy_edge("AMBIG")]},
     )
-    visited, ambiguous = transitive_dependencies(["copy/A.CPY"], index)
-    assert ambiguous is True
-    assert "copy/X1.CPY" not in visited and "copy/X2.CPY" not in visited
+    visited, names = dependency_state(["copy/A.CPY"], index)
+    assert {"copy/X1.CPY", "copy/X2.CPY"} <= visited
+    assert names == {"AMBIG"}
+
+
+def test_dependency_state_marks_a_missing_system_member_by_name_only():
+    index = CopybookIndex(
+        {"A": ["copy/A.CPY"]}, copy_edges_by_path={"copy/A.CPY": [_copy_edge("DFHAID")]}
+    )
+    visited, names = dependency_state(["copy/A.CPY"], index)
+    assert visited == {"copy/A.CPY"}
+    assert names == {"DFHAID"}
+
+
+def test_search_order_resolves_the_first_directory_with_exactly_one_hit():
+    index = CopybookIndex({"KUNDE": ["lib/common/KUNDE.cpy", "lib/prod/KUNDE.cpy"]})
+    assert resolve_path("KUNDE", None, index) is None
+    assert resolve_path("KUNDE", None, index, ("lib/prod", "lib/common")) == "lib/prod/KUNDE.cpy"
+    assert resolve_path("KUNDE", None, index, ("LIB/COMMON/",)) == "lib/common/KUNDE.cpy"
+    assert resolve_path("KUNDE", None, index, ("elsewhere",)) is None
+
+
+def test_search_order_does_not_guess_inside_a_directory_with_several_hits():
+    index = CopybookIndex({"KUNDE": ["lib/prod/a/KUNDE.cpy", "lib/prod/b/KUNDE.cpy"]})
+    assert resolve_path("KUNDE", None, index, ("lib/prod",)) is None
 
 
 # --- connectors/git.py::_discover_copybook_dependencies() -------------------
@@ -84,14 +106,14 @@ def test_discover_dependencies_resolves_direct_and_transitive_copies():
     assert deps == {"copy/B.CPY", "copy/C.CPY"}
 
 
-def test_discover_dependencies_returns_none_when_a_copy_is_unresolved():
+def test_discover_dependencies_tracks_a_missing_copybook_by_name_instead_of_giving_up():
     result = ParseResult(
         program_name="X",
         path="x.cbl",
         source_format="fixed",
-        edges=[_copy_edge("MISSING", resolution="unresolved")],
+        edges=[_copy_edge("DFHAID", resolution="unresolved")],
     )
-    assert _discover_copybook_dependencies(result, CopybookIndex()) is None
+    assert _discover_copybook_dependencies(result, CopybookIndex()) == {"?DFHAID"}
 
 
 def test_discover_dependencies_returns_empty_set_without_any_copy():
@@ -143,11 +165,37 @@ def test_fingerprint_libraries_is_precise_for_a_copybook_via_the_pass0_index():
     assert libs == {"copy/A.CPY": "sha-a", "copy/B.CPY": "sha-b"}
 
 
-def test_fingerprint_libraries_stays_conservative_for_an_ambiguous_copybook_chain():
+def test_fingerprint_libraries_for_an_ambiguous_chain_is_bounded_to_its_candidates():
     index = CopybookIndex(
         {"AMBIG": ["copy/X1.CPY", "copy/X2.CPY"]},
         copy_edges_by_path={"copy/A.CPY": [_copy_edge("AMBIG")]},
     )
-    copybook_hashes = {"copy/A.CPY": "sha-a"}
+    copybook_hashes = {"copy/A.CPY": "sha-a", "copy/X1.CPY": "sha-1", "copy/X2.CPY": "sha-2"}
     libs = _fingerprint_libraries("copy/A.CPY", "copybook", None, copybook_hashes, index)
-    assert libs == copybook_hashes
+    assert set(libs) == {"copy/A.CPY", "copy/X1.CPY", "copy/X2.CPY", "?AMBIG"}
+
+
+def test_missing_name_marker_changes_the_fingerprint_once_a_copybook_with_that_name_appears():
+    existing = SourceScanFile(copybook_dependencies={"?DFHAID": ""})
+    before = _fingerprint_libraries("x.cbl", "cobol", existing, {}, CopybookIndex())
+    after = _fingerprint_libraries(
+        "x.cbl",
+        "cobol",
+        existing,
+        {"copy/DFHAID.cpy": "sha-new"},
+        CopybookIndex({"DFHAID": ["copy/DFHAID.cpy"]}),
+    )
+    assert before == {"?DFHAID": ""}
+    assert after != before
+
+
+def test_unrelated_copybook_change_leaves_a_program_with_a_missing_system_member_unchanged():
+    existing = SourceScanFile(copybook_dependencies={"copy/A.CPY": "x", "?DFHAID": ""})
+    index = CopybookIndex({"A": ["copy/A.CPY"], "OTHER": ["copy/OTHER.CPY"]})
+    first = _fingerprint_libraries(
+        "x.cbl", "cobol", existing, {"copy/A.CPY": "a", "copy/OTHER.CPY": "1"}, index
+    )
+    second = _fingerprint_libraries(
+        "x.cbl", "cobol", existing, {"copy/A.CPY": "a", "copy/OTHER.CPY": "2"}, index
+    )
+    assert first == second

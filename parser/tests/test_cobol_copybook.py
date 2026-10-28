@@ -150,3 +150,34 @@ def test_replacing_applies_to_all_occurrences():
         copybook.apply_replacing("CUSTOMER-CUSTOMER-ID", [{"from": "CUSTOMER", "to": "ACCOUNT"}])
         == "ACCOUNT-ACCOUNT-ID"
     )
+
+
+def test_profile_copy_search_order_resolves_same_named_copybooks_and_records_the_target():
+    from cobol.copybook import CopybookIndex
+    from cobol.parse import parse_program
+    from cobol.profile import BuildProfile
+
+    source = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. ORDERED.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       COPY KUNDE.\n"
+        "       PROCEDURE DIVISION.\n"
+        "           GOBACK.\n"
+    )
+    index = CopybookIndex({"KUNDE": ["lib/common/KUNDE.cpy", "lib/prod/KUNDE.cpy"]})
+
+    without_order = parse_program(source, "p.cbl", copybook_index=index)
+    with_order = parse_program(
+        source,
+        "p.cbl",
+        copybook_index=index,
+        profile=BuildProfile(copy_search_order=("lib/prod", "lib/common")),
+    )
+
+    copy_before = next(edge for edge in without_order.edges if edge.type == "COPY")
+    copy_after = next(edge for edge in with_order.edges if edge.type == "COPY")
+    assert copy_before.resolution == "unresolved"
+    assert copy_after.resolution == "resolved"
+    assert copy_after.meta["target_path"] == "lib/prod/KUNDE.cpy"

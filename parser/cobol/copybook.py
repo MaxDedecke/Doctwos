@@ -81,6 +81,7 @@ def scan(
     tokens: list[Token],
     index: CopybookIndex | None = None,
     own_range: tuple[int, int] | None = None,
+    search_order: tuple[str, ...] = (),
 ) -> tuple[list[ParsedEdge], list[str]]:
     errors: list[str] = []
     edges: list[ParsedEdge] = []
@@ -141,13 +142,18 @@ def scan(
                 meta["library"] = library
             if replacing:
                 meta["replacing"] = replacing
+            target = resolve_path(name, library, index, search_order)
+            if target is not None and len(candidate_paths(name, index)) > 1:
+                # Bei mehreren gleichnamigen Copybooks reicht der Name nicht, um das
+                # Ziel in der Datenbank wiederzufinden (tasks/edge_resolver.py).
+                meta["target_path"] = target
 
             edges.append(
                 ParsedEdge(
                     type="COPY",
                     src_name=_src_name(program, tok.phys_line),
                     dst_name=name,
-                    resolution=_resolve(name, library, index),
+                    resolution="resolved" if target is not None else "unresolved",
                     src_start_line=tok.phys_line,
                     src_end_line=end_line,
                     scope=None,
@@ -178,13 +184,30 @@ def strip_copybook_extension(name: str) -> str:
     return stem if ext.lower() in _COPYBOOK_EXTENSIONS else name
 
 
-def _resolve(name: str, library: str | None, index: CopybookIndex) -> str:
-    return "resolved" if resolve_path(name, library, index) is not None else "unresolved"
+def candidate_paths(name: str, index: CopybookIndex) -> list[str]:
+    return index.get(canonical_identifier(strip_copybook_extension(name)), [])
 
 
-def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | None:
-    """Liefert nur bei eindeutiger COPY-Auflösung den konkreten Pfad."""
-    paths = index.get(canonical_identifier(strip_copybook_extension(name)), [])
+def _is_under(path: str, directory: str) -> bool:
+    prefix = directory.strip("/").lower()
+    lowered = path.lower()
+    return lowered == prefix or lowered.startswith(prefix + "/")
+
+
+def resolve_path(
+    name: str,
+    library: str | None,
+    index: CopybookIndex,
+    search_order: tuple[str, ...] = (),
+) -> str | None:
+    """Liefert nur bei eindeutiger COPY-Auflösung den konkreten Pfad.
+
+    Mehrere gleichnamige Copybooks entscheidet zuerst die Bibliothek aus ``OF``/``IN``,
+    danach die Reihenfolge ``search_order`` des Buildprofils (Verzeichnisse, wie bei
+    SYSLIB-Verkettung): das erste Verzeichnis mit einem Treffer gewinnt. Enthält es
+    selbst mehrere Treffer, bleibt die Auflösung offen, statt zu raten.
+    """
+    paths = candidate_paths(name, index)
     if not paths:
         return None
     if len(paths) == 1:
@@ -198,26 +221,33 @@ def resolve_path(name: str, library: str | None, index: CopybookIndex) -> str | 
         ]
         if len(matches) == 1:
             return matches[0]
+    for directory in search_order:
+        hits = [p for p in paths if _is_under(p, directory)]
+        if len(hits) == 1:
+            return hits[0]
+        if hits:
+            return None
     return None
 
 
-def transitive_dependencies(start_paths: list[str], index: CopybookIndex) -> tuple[set[str], bool]:
-    """O-137: alle über verschachtelte COPY-Vorkommen (transitiv) ab
-    `start_paths` erreichten Copybook-Pfade, mit Zyklenschutz (`visited`
-    verhindert eine Endlosschleife bei A COPY B COPY A). connectors/git.py
-    nutzt das Ergebnis, um den Analyse-Fingerprint einer Datei präzise auf
-    die tatsächlich verwendeten statt den gesamten Copybook-Bestand
-    einzugrenzen (Abnahme: "kein kompletter Bestands-Neuimport bei jeder
-    Änderung").
+def dependency_state(
+    start_paths: list[str],
+    index: CopybookIndex,
+    search_order: tuple[str, ...] = (),
+) -> tuple[set[str], set[str]]:
+    """O-137: alle über verschachtelte COPY-Vorkommen (transitiv) ab `start_paths`
+    erreichten Copybook-Pfade, mit Zyklenschutz, plus die Namen, deren Auflösung
+    vom Bestand abhängt.
 
-    Der zweite Rückgabewert ist True, sobald irgendein COPY-Vorkommen in der
-    Kette nicht eindeutig auflösbar war (unbekannt oder mehrdeutig, siehe
-    `resolve_path()`) - der Aufrufer MUSS dann konservativ bleiben (ganzen
-    Bestand einbeziehen), weil sich sonst eine unaufgelöste Abhängigkeit
-    unbemerkt ändern könnte (E-2 "kein Raten", hier auf die Invalidierung
-    selbst angewandt statt nur auf die gespeicherte Kante)."""
+    connectors/git.py nimmt beides in den Analyse-Fingerprint auf: die Pfade, damit
+    eine Änderung am Copybook die Datei neu analysiert, die Namen, damit auch das
+    spätere Auftauchen (oder eine weitere Variante) eines bisher fehlenden oder
+    mehrdeutigen Copybooks sie neu analysiert. Ein nicht auflösbarer Name macht den
+    Fingerprint damit nicht mehr bestandsweit (z. B. Systemmember wie DFHAID, die gar
+    nicht im Repository liegen). Bei mehrdeutigen Namen zählen alle Kandidaten als
+    Abhängigkeit, weil die Reihenfolge sonst unbemerkt umschlagen könnte."""
     visited: set[str] = set()
-    ambiguous = False
+    names: set[str] = set()
     queue = list(dict.fromkeys(start_paths))
     while queue:
         path = queue.pop()
@@ -225,16 +255,33 @@ def transitive_dependencies(start_paths: list[str], index: CopybookIndex) -> tup
             continue
         visited.add(path)
         for edge in index.copy_edges_by_path.get(path, []):
-            target = resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
-            if target is None:
-                ambiguous = True
-                continue
-            if target not in visited:
-                queue.append(target)
-    return visited, ambiguous
+            followed, name = dependencies_of(edge, index, search_order)
+            queue.extend(p for p in followed if p not in visited)
+            if name is not None:
+                names.add(name)
+    return visited, names
 
 
-def inherited_fields(copy_edges: list[ParsedEdge], index: CopybookIndex | None) -> list[dict]:
+def dependencies_of(
+    edge: ParsedEdge, index: CopybookIndex, search_order: tuple[str, ...] = ()
+) -> tuple[list[str], str | None]:
+    """Pfade, von denen eine COPY-Kante abhängt, und der Name, wenn dessen Auflösung vom
+    Bestand abhängt (kein oder mehrere gleichnamige Copybooks)."""
+    candidates = candidate_paths(edge.dst_name, index)
+    name = canonical_identifier(strip_copybook_extension(edge.dst_name))
+    if not candidates:
+        return [], name
+    target = resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index, search_order)
+    if len(candidates) == 1:
+        return [candidates[0]], None
+    return (list(candidates) if target is None else [target, *candidates]), name
+
+
+def inherited_fields(
+    copy_edges: list[ParsedEdge],
+    index: CopybookIndex | None,
+    search_order: tuple[str, ...] = (),
+) -> list[dict]:
     """Projiziert Felder eindeutig aufgeloester COPY-Anweisungen in den
     aktuellen Namensraum.
 
@@ -248,7 +295,7 @@ def inherited_fields(copy_edges: list[ParsedEdge], index: CopybookIndex | None) 
 
     inherited: list[dict] = []
     for edge in copy_edges:
-        path = resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index)
+        path = resolve_path(edge.dst_name, (edge.meta or {}).get("library"), index, search_order)
         if path is None:
             continue
         replacing = (edge.meta or {}).get("replacing", [])

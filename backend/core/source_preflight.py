@@ -149,7 +149,9 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
             extensionless_text += 1
         if status == "skipped":
             size_skipped += 1 if "überschreitet" in (error or "") else 0
-            non_utf8_skipped += 1 if "kein UTF-8" in (error or "") else 0
+            # Nur Quelltext-Sprachen: EBCDIC-Datendateien (.PS u. ä.) sind kein Befund.
+            if language in STRUCTURED_LANGUAGES and "kein UTF-8" in (error or ""):
+                non_utf8_skipped += 1
 
     profile = spaces.get("build_profile")
     gaps = parser_gaps(structured_rows)

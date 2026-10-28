@@ -396,69 +396,90 @@ def classify_extension(
     return detect_language(path, extensions, content=content)
 
 
+_NAME_MARKER = "?"
+
+
+def _name_state(name: str, copybook_index: CopybookIndex | None, copybook_hashes: dict) -> str:
+    """Stand eines Copybook-Namens: leer, solange kein gleichnamiges Copybook existiert,
+    sonst Pfade samt Hash aller Kandidaten. Ändert sich das, ändert sich die Auflösung."""
+    candidates = (copybook_index or {}).get(name, [])
+    return ",".join(sorted(f"{path}:{copybook_hashes.get(path, '')}" for path in candidates))
+
+
 def _fingerprint_libraries(
     path: str,
     language: str,
     existing: SourceScanFile | None,
     copybook_hashes: dict[str, str],
     copybook_index: CopybookIndex | None,
+    search_order: tuple[str, ...] = (),
 ) -> dict[str, str] | None:
-    """O-137: präzise statt konservative Bibliotheks-Menge für den Analyse-
-    Fingerprint, wo sicher möglich - sonst wie vor O-137 der GESAMTE
-    Copybook-Bestand (kann nie eine betroffene Änderung übersehen).
+    """O-137: präzise statt konservative Bibliotheks-Menge für den Analyse-Fingerprint.
 
-    - Copybook-Dateien: die AST-Kette aus dem Pass-0-Index
-      (`copybook.transitive_dependencies()`) ist bei jedem Sync ohnehin
-      schon vollständig aufgebaut - kein Zusatzaufwand, kein "Henne-Ei"-
-      Problem wie bei Programmen (siehe unten).
-    - Programme: deren eigene COPY-Ziele sind an dieser Stelle unbekannt,
-      ohne die Datei selbst schon strukturell zu parsen - genau das soll
-      der Fingerprint-Vergleich ja gerade vermeiden. Es wird deshalb die
-      beim LETZTEN erfolgreichen Parse entdeckte Menge verwendet
-      (`SourceScanFile.copybook_dependencies`, siehe _save_document_chunks());
-      ohne einen solchen Eintrag (neue Datei, oder eine, deren COPY-Kette
-      zuletzt nicht eindeutig auflösbar war) bleibt es konservativ.
+    Eine Datei hängt von den Copybooks ab, die sie (transitiv) einbindet, und von den
+    Namen, deren Auflösung vom Bestand abhängt (``?NAME``: fehlt oder mehrdeutig).
+    Ein nicht auflösbarer Name wie ein Systemmember (DFHAID, SQLCA) macht den
+    Fingerprint deshalb nicht mehr bestandsweit; er ändert sich nur, wenn ein
+    gleichnamiges Copybook auftaucht.
+
+    - Copybook-Dateien: die Kette aus dem Pass-0-Index (``dependency_state()``).
+    - Programme: deren COPY-Ziele sind ohne Parse unbekannt, es gilt die beim LETZTEN
+      Parse entdeckte Menge (``SourceScanFile.copybook_dependencies``). Ohne sie
+      (neue Datei) bleibt es konservativ: der gesamte Copybook-Bestand.
     """
     if language not in {"cobol", "copybook"}:
         return None
 
     if language == "copybook" and copybook_index is not None:
-        visited, ambiguous = copybook_mod.transitive_dependencies([path], copybook_index)
-        if not ambiguous:
-            return {p: copybook_hashes[p] for p in visited if p in copybook_hashes}
+        visited, names = copybook_mod.dependency_state([path], copybook_index, search_order)
+        precise = {p: copybook_hashes[p] for p in visited if p in copybook_hashes}
+        precise.update(
+            {
+                f"{_NAME_MARKER}{name}": _name_state(name, copybook_index, copybook_hashes)
+                for name in names
+            }
+        )
+        return precise
 
     if language == "cobol" and existing is not None and existing.copybook_dependencies is not None:
         # Ein seither gelöschtes Copybook fehlt in copybook_hashes - der
         # damit andere Fingerprint-Wert (statt KeyError) löst korrekt einen
         # Reparse aus, der die veraltete Abhängigkeit dann bereinigt.
-        return {p: copybook_hashes.get(p, "") for p in existing.copybook_dependencies}
+        return {
+            dependency: (
+                _name_state(dependency[len(_NAME_MARKER) :], copybook_index, copybook_hashes)
+                if dependency.startswith(_NAME_MARKER)
+                else copybook_hashes.get(dependency, "")
+            )
+            for dependency in existing.copybook_dependencies
+        }
 
     return copybook_hashes
 
 
 def _discover_copybook_dependencies(
-    result: ParseResult, copybook_index: CopybookIndex | None
+    result: ParseResult,
+    copybook_index: CopybookIndex | None,
+    search_order: tuple[str, ...] = (),
 ) -> set[str] | None:
-    """O-137: die (transitiv) tatsächlich verwendete Copybook-Pfadmenge
-    dieser gerade fertig geparsten Datei, oder None, wenn irgendein COPY-
-    Vorkommen (direkt oder in der Kette) nicht eindeutig auflösbar war -
-    dann bleibt die künftige Fingerprint-Eingrenzung für diese Datei
-    konservativ (siehe _fingerprint_libraries()), statt eine unaufgelöste
-    Abhängigkeit stillschweigend zu übersehen (E-2 "kein Raten")."""
+    """O-137: die (transitiv) tatsächlich verwendete Abhängigkeitsmenge dieser gerade
+    geparsten Datei: Copybook-Pfade plus ``?NAME`` für Namen, deren Auflösung vom
+    Bestand abhängt. ``None`` nur ohne Copybook-Index."""
     if copybook_index is None:
         return None
-    copy_edges = [e for e in result.edges if e.type == "COPY"]
-    if any(e.resolution != "resolved" for e in copy_edges):
-        return None
-    direct_paths = [
-        copybook_mod.resolve_path(e.dst_name, (e.meta or {}).get("library"), copybook_index)
-        for e in copy_edges
-    ]
-    direct_paths = [p for p in direct_paths if p is not None]
-    if not direct_paths:
-        return set()
-    visited, ambiguous = copybook_mod.transitive_dependencies(direct_paths, copybook_index)
-    return None if ambiguous else visited
+    direct_paths: list[str] = []
+    names: set[str] = set()
+    for edge in result.edges:
+        if edge.type != "COPY":
+            continue
+        followed, name = copybook_mod.dependencies_of(edge, copybook_index, search_order)
+        direct_paths.extend(followed)
+        if name is not None:
+            names.add(name)
+    visited, nested_names = copybook_mod.dependency_state(
+        direct_paths, copybook_index, search_order
+    )
+    return visited | {f"{_NAME_MARKER}{name}" for name in names | nested_names}
 
 
 def _analysis_dependency_paths(db, source_id: int) -> dict[str, set[str]]:
@@ -1005,8 +1026,11 @@ class GitConnector(BaseConnector):
                     # auflösbar) bleibt bewusst None statt {} - das ist der
                     # Unterschied zwischen "keine Abhängigkeiten" und
                     # "unbekannt, konservativ bleiben".
+                    save_profile = self._profiles_by_path.get(path)
                     dependency_paths = _discover_copybook_dependencies(
-                        parse_result, self._prepared_by_lang.get("cobol")
+                        parse_result,
+                        self._prepared_by_lang.get("cobol"),
+                        save_profile.copy_search_order if save_profile is not None else (),
                     )
                     copybook_dependencies = (
                         {p: self._copybook_hashes.get(p, "") for p in dependency_paths}
@@ -1304,7 +1328,12 @@ class GitConnector(BaseConnector):
                     else "not-applicable"
                 ),
                 "libraries": _fingerprint_libraries(
-                    path, language, existing_records.get(path), copybook_hashes, copybook_index
+                    path,
+                    language,
+                    existing_records.get(path),
+                    copybook_hashes,
+                    copybook_index,
+                    profile.copy_search_order if profile is not None else (),
                 ),
                 "dependencies": dependencies,
                 "embedding_model": self.embedding_model,

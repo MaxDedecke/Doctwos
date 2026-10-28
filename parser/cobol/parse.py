@@ -174,7 +174,13 @@ def parse_program(
         proc_edges, proc_errors = procedure_mod.scan(program, tokens, masked_lines)
         errors.extend(proc_errors)
 
-        copy_edges, copy_errors = copybook_mod.scan(program, tokens, copybook_index, own_range)
+        copy_edges, copy_errors = copybook_mod.scan(
+            program,
+            tokens,
+            copybook_index,
+            own_range,
+            search_order=profile.copy_search_order if profile is not None else (),
+        )
         errors.extend(copy_errors)
 
         sql_blocks, sql_edges, sql_errors = sql_mod.scan(program, embedded_blocks, items, own_range)
@@ -203,7 +209,11 @@ def parse_program(
             if data_division is not None
             and data_division.start_line <= edge.src_start_line <= data_end_line
         ]
-        inherited_fields = copybook_mod.inherited_fields(data_copy_edges, copybook_index)
+        inherited_fields = copybook_mod.inherited_fields(
+            data_copy_edges,
+            copybook_index,
+            profile.copy_search_order if profile is not None else (),
+        )
         xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
         errors.extend(xref_errors)
 
@@ -1026,7 +1036,12 @@ def parse_copybook(
         errors.extend(exec_errors)
         xref_edges, xref_errors = xref_mod.scan(synthetic, tokens, items=[])
         errors.extend(xref_errors)
-        copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
+        copy_edges, copy_errors = copybook_mod.scan(
+            synthetic,
+            tokens,
+            copybook_index,
+            search_order=profile.copy_search_order if profile is not None else (),
+        )
         errors.extend(copy_errors)
 
         all_edges = [*copy_edges, *proc_edges, *sql_edges, *exec_edges, *xref_edges]
@@ -1110,7 +1125,12 @@ def parse_copybook(
             synthetic, masked_lines
         )
         errors.extend(dd_errors)
-        copy_edges, copy_errors = copybook_mod.scan(synthetic, tokens, copybook_index)
+        copy_edges, copy_errors = copybook_mod.scan(
+            synthetic,
+            tokens,
+            copybook_index,
+            search_order=profile.copy_search_order if profile is not None else (),
+        )
         errors.extend(copy_errors)
         sql_blocks, sql_edges, sql_errors = sql_mod.scan(synthetic, embedded_blocks, items=items)
         errors.extend(sql_errors)

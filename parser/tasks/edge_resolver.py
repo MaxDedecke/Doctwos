@@ -117,6 +117,9 @@ def _resolve_cobol_edges(db: Session, source_id: int) -> int:
         matches = by_variant_type_and_name.get(
             (edge.variant_key, target_type, dst_name.upper()), []
         )
+        target_path = (edge.meta_json or {}).get("target_path") if edge.type == "COPY" else None
+        if len(matches) > 1 and target_path:
+            matches = [row for row in matches if row.file_path == target_path]
         if len(matches) == 1:
             edge.dst_entity_id = matches[0].id
             edge.resolution = "resolved"
