@@ -29,6 +29,7 @@ import { KnowledgeGraphView } from './KnowledgeGraphView';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { ChangePackageAction } from './ChangePackageAction';
 import { InsightDraftAction } from './InsightDraftAction';
+import { EntityAnalysisDetails } from './EntityAnalysisDetails';
 
 import { api, API_URL } from '@/app/services/api';
 import { REFERENCE_PAGE_SIZE, usePagedReferenceList } from '@/hooks/usePagedReferenceList';
@@ -1809,6 +1810,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           </div>}
 
           {/* Editor wrapper — only when NOT in graph mode */}
+          {activeRightTab === 'code' && <EntityAnalysisDetails key={`${selectedProject?.id}:${selectedFile}`} entity={selectedEntity} fileEntity={fileLevelEntity} entities={projectEntities} filePath={selectedFile} projectId={selectedProject?.id} theme={theme} onOpenFile={(path, line, sourceId) => { void handleFileSelect(path, line, sourceId, true); }} />}
           {activeRightTab !== 'graph' && <div className="flex-1 overflow-hidden relative flex flex-col">
             {isLoadingToUse ? (
               <div className={cn(

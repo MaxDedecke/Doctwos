@@ -1,14 +1,25 @@
 """Dispatch from an unchanged local lambda initializer to its source body."""
 
 from core.model import ParsedEdge
+from collections import Counter, defaultdict
 
 
 def derive_lambda_dispatch(results):
     entities = [entity for result in results for entity in result.entities]
     methods = {entity.qualified_name: entity for entity in entities if entity.type == "method"}
     interfaces = {entity.qualified_name for entity in entities if entity.type == "interface"}
+    abstract_by_owner = defaultdict(list)
+    for method in methods.values():
+        if not set(method.meta.get("modifiers", [])) & {"static", "default", "private"}:
+            abstract_by_owner[method.parent_qualified_name].append(method)
+    inherited = {
+        edge.src_name for result in results for edge in result.edges if edge.type == "EXTENDS"
+    }
     for result in results:
         local = {entity.qualified_name: entity for entity in result.entities}
+        parameter_counts = Counter(
+            entity.parent_qualified_name for entity in result.entities if entity.type == "parameter"
+        )
         existing = {
             (edge.src_name, edge.dst_name, edge.src_start_line, edge.meta.get("src_start_column"))
             for edge in result.edges
@@ -41,28 +52,12 @@ def derive_lambda_dispatch(results):
             method = methods.get(call.meta.get("target_qualified_name"))
             if method is None or method.parent_qualified_name not in interfaces:
                 continue
-            abstract = [
-                entity
-                for entity in methods.values()
-                if entity.parent_qualified_name == method.parent_qualified_name
-                and not set(entity.meta.get("modifiers", [])) & {"static", "default", "private"}
-            ]
             # Inherited SAM contracts need their own complete interface resolution.
-            inherits = any(
-                edge.type == "EXTENDS" and edge.src_name == method.parent_qualified_name
-                for item in results
-                for edge in item.edges
-            )
-            parameters = [
-                entity
-                for entity in result.entities
-                if entity.type == "parameter"
-                and entity.parent_qualified_name == target.qualified_name
-            ]
             if (
-                inherits
-                or len(abstract) != 1
-                or len(parameters) != len(method.meta.get("parameter_types", []))
+                method.parent_qualified_name in inherited
+                or len(abstract_by_owner[method.parent_qualified_name]) != 1
+                or parameter_counts[target.qualified_name]
+                != len(method.meta.get("parameter_types", []))
             ):
                 continue
             key = (

@@ -178,3 +178,24 @@ Das Datenflusslimit bleibt bei 80 Anweisungen. Überschreitungen tragen jetzt
 MCP-Methodenmetadaten und Herkunftsbeweise geben die Einschränkung weiter, auch
 wenn die gesuchte Zuweisung hinter dem Limit liegt. Abnahme: Java-Lambda-Tests,
 `test_lambda_dispatch_persistence.py` und `backend/tests/test_data_flow_limit.py`.
+
+Die bestehende Codeansicht bietet einen aufklappbaren Bereich „Objektdetails“ mit
+Objektwahl innerhalb der Datei. Erst beim Öffnen werden die Metadaten des Objekts
+und der Dateiwurzel mit dem aktuellen Projektkontext geladen. Verspätete Antworten
+eines vorherigen Fokus werden verworfen. Rückgabetypen/-ausdrücke, Annotationen,
+deklarierte Ausnahmen, Exception-Bereiche und Zuweisungsherkunft sind an ihren
+Originalzeilen navigierbar. Die Ansicht zeigt die Datenflusskürzung ausdrücklich.
+
+Die Dateiwurzel ergänzt aktive Maven-Profile, Compile-/Laufzeitsichtbarkeit und
+konkrete Auflösungshindernisse. Endpunkte zeigen HTTP-/SOAP- und Parameterdetails;
+Beans zeigen Namen, bereitgestellte Typen, Profile und ihren statisch ermittelten
+Aktivierungszustand. Unbekannte Aktivierung wird nicht als aktiv dargestellt.
+Belegte `INJECTS`-/`DISPATCHES_TO`-/`EXPOSES`-Verbindungen öffnen die Zielquelle;
+weitere Seiten bleiben über das vorhandene Referenzen-Menü erreichbar.
+Abnahme: `frontend/components/EntityAnalysisDetails.test.tsx`.
+
+Gesamtprüfung dieses Stands: 751 Parser-, 749 Backend- und 966 Frontend-Tests
+bestanden (5 Parser- und 2 Backend-Tests umgebungsbedingt übersprungen), außerdem
+TypeScript, Lint/Format, Modellabgleich und Design-Token-Prüfung. Neue Struktur-
+und Ableitungsdaten werden über den regulären Quellen-Sync im Worker erneuert;
+die angehobene Java-Parserversion invalidiert dabei die bisherigen Analyse-Fingerprints.

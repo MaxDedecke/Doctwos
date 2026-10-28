@@ -2060,5 +2060,26 @@
     "chat_message_id": "Chat message",
     "process_root": "Process",
     "source_last_synced_at": "Source snapshot"
+  },
+  "entityAnalysis": {
+    "title": "Object details", "object": "Object", "loading": "Loading object details …",
+    "loadFailed": "Some object details could not be loaded.", "openSource": "Open source location",
+    "return_type": "Return type", "parameter_types": "Parameter types", "type_parameters": "Type parameters",
+    "field_type": "Field type", "variable_type": "Variable type", "parameter_type": "Parameter type", "component_type": "Component type",
+    "throws_types": "Declared exceptions", "visibility": "Visibility", "modifiers": "Modifiers",
+    "annotations": "Annotations / qualifiers", "returns": "Return expressions", "exceptions": "Exceptions and cleanup",
+    "synthetic": "Implicit method ({{origin}}), derived from its source declaration.",
+    "flowLimited": "Incomplete data flow: {{count}} additional statements were omitted due to the analysis limit.",
+    "dataFlow": "Data origins and assignments", "line": "Line", "operation": "Operation", "target": "Target", "origin": "Origin", "statement": "Statement",
+    "operations": { "init": "Initialization", "assign": "Assignment", "compound_assign": "Compound assignment", "increment": "Increment / decrement", "return": "Return" },
+    "maven": "Maven analysis context", "module": "Module", "source_set": "Source set",
+    "maven_active_profiles": "Active Maven profiles", "maven_visibility": "Visible compile modules", "maven_runtime_visibility": "Visible runtime modules", "mavenIssues": "Maven resolution limitations",
+    "endpoint": "Endpoint", "protocol": "Protocol", "framework": "Framework", "http_method": "HTTP method", "path": "Path", "path_expression": "Dynamic path expression",
+    "namespace": "Namespace", "service_name": "Service", "port_type": "Port type", "consumes": "Accepted formats", "produces": "Response formats",
+    "bean": "Bean and activation", "activationUnknown": "Activation cannot be determined statically", "active": "Active in the configured profile", "inactive": "Inactive in the configured profile", "primary": "Primary bean",
+    "names": "Bean names", "provided_type": "Provided type", "profiles": "Spring profiles", "scopes": "Scopes", "bindings": "Source-backed relationships",
+    "bindingsLimited": "Additional relationships are available in the references menu.",
+    "relations": { "INJECTS": "Injects", "DISPATCHES_TO": "Calls selected target", "EXPOSES": "Exposes" },
+    "relationsIncoming": { "INJECTS": "Used by", "DISPATCHES_TO": "Called by", "EXPOSES": "Exposed by" }
   }
 }

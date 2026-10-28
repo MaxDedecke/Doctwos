@@ -2060,5 +2060,26 @@
     "chat_message_id": "Chat-Nachricht",
     "process_root": "Prozess",
     "source_last_synced_at": "Quellenstand"
+  },
+  "entityAnalysis": {
+    "title": "Objektdetails", "object": "Objekt", "loading": "Objektdetails werden geladen …",
+    "loadFailed": "Ein Teil der Objektdetails konnte nicht geladen werden.", "openSource": "Originalstelle öffnen",
+    "return_type": "Rückgabetyp", "parameter_types": "Parametertypen", "type_parameters": "Typparameter",
+    "field_type": "Feldtyp", "variable_type": "Variablentyp", "parameter_type": "Parametertyp", "component_type": "Komponententyp",
+    "throws_types": "Deklarierte Ausnahmen", "visibility": "Sichtbarkeit", "modifiers": "Modifikatoren",
+    "annotations": "Annotationen / Qualifier", "returns": "Rückgabeausdrücke", "exceptions": "Ausnahmen und Aufräumen",
+    "synthetic": "Implizite Methode ({{origin}}), aus ihrer Quelldeklaration abgeleitet.",
+    "flowLimited": "Datenfluss unvollständig: {{count}} weitere Anweisungen wurden wegen des Analyse-Limits nicht erfasst.",
+    "dataFlow": "Datenherkunft und Zuweisungen", "line": "Zeile", "operation": "Operation", "target": "Ziel", "origin": "Herkunft", "statement": "Anweisung",
+    "operations": { "init": "Initialisierung", "assign": "Zuweisung", "compound_assign": "Verknüpfte Zuweisung", "increment": "Erhöhen / Verringern", "return": "Rückgabe" },
+    "maven": "Maven-Analysekontext", "module": "Modul", "source_set": "Quellbereich",
+    "maven_active_profiles": "Aktive Maven-Profile", "maven_visibility": "Sichtbare Compile-Module", "maven_runtime_visibility": "Sichtbare Laufzeit-Module", "mavenIssues": "Grenzen der Maven-Auflösung",
+    "endpoint": "Schnittstelle", "protocol": "Protokoll", "framework": "Framework", "http_method": "HTTP-Methode", "path": "Pfad", "path_expression": "Dynamischer Pfadausdruck",
+    "namespace": "Namespace", "service_name": "Service", "port_type": "Port-Typ", "consumes": "Akzeptierte Formate", "produces": "Antwortformate",
+    "bean": "Bean und Aktivierung", "activationUnknown": "Aktivierung nicht statisch bestimmbar", "active": "Im konfigurierten Profil aktiv", "inactive": "Im konfigurierten Profil inaktiv", "primary": "Bevorzugte Bean",
+    "names": "Bean-Namen", "provided_type": "Bereitgestellter Typ", "profiles": "Spring-Profile", "scopes": "Gültigkeitsbereiche", "bindings": "Belegte Verbindungen",
+    "bindingsLimited": "Weitere Verbindungen stehen im Referenzen-Menü zur Verfügung.",
+    "relations": { "INJECTS": "Injiziert", "DISPATCHES_TO": "Ruft ausgewähltes Ziel auf", "EXPOSES": "Stellt bereit" },
+    "relationsIncoming": { "INJECTS": "Wird verwendet von", "DISPATCHES_TO": "Wird aufgerufen von", "EXPOSES": "Wird bereitgestellt von" }
   }
 }
