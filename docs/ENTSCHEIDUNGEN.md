@@ -17,7 +17,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-9 | AP-9-Abschluss ohne Kundenzugang | drei Punkte aus dem AP-9-Scope genommen, an Auftraggeber übergeben (siehe unten) | entschieden |
 | E-10 | Confluence/Jira-MCP-Anbindung: Cloud-vs-Server/DC-Erkennung | eigene Domain-Suffix-Heuristik statt Import aus `mcp_atlassian.utils` | umgesetzt (08.08.2026) |
 | E-11 | Bilderschließung nach O-074 | späterer lokaler Vision-Import; Open-Source-kompatible Lizenz und On-Premise-Betrieb sind Pflicht, Apache-2.0-Mistral-Modelle (z. B. Pixtral) sind Kandidaten | entschieden (06.09.2026), Umsetzung ausstehend |
-| E-16 | Lokale LLM-Deployments (Ollama, vLLM, llama.cpp) statt fest verdrahtetem Ollama-Container | Standard-Stack ohne LLM-Container; ein eigener Deployer-Dienst startet Engines auf Anforderung des Admins | umgesetzt (06.10.2026), Offline-Bundle offen |
+| E-16 | Lokale LLM-Deployments (Ollama, vLLM, llama.cpp) statt fest verdrahtetem Ollama-Container | Standard-Stack ohne LLM-Container; ein eigener Deployer-Dienst startet Engines auf Anforderung des Admins | umgesetzt (06.10.2026), Offline-Bundle offen; Deployer seit 28.10.2026 nur per Compose-Profil `deployer` |
 
 ---
 
@@ -788,6 +788,14 @@ Erkenntnisse gelten dabei als fachlich freigegebene Aussagen, nicht als zusätzl
 geprüfter Codebeweis. Bestehende Antworten erhalten keine nachträglich geratenen
 Erkenntnisreferenzen. Entwürfe, veraltete und gelöschte Erkenntnisse bleiben für
 neue Retrieval-Abfragen ausgeschlossen.
+
+**Nachtrag 28.10.2026 — Deployer nur zuschaltbar.** Der Deployer startet nicht mehr mit dem
+Standard-Stack, sondern nur mit dem Compose-Profil `deployer` (`COMPOSE_PROFILES=deployer`). Grund:
+Zugriff auf `docker.sock` ist Root auf dem Host, und der Token im Backend begrenzt nur, wer den
+Deployer aufruft, nicht was ein kompromittiertes Backend oder ein kompromittierter Deployer damit
+tun kann. Ohne Profil läuft die Anwendung unverändert; nur lokale Deployments aus Einstellungen > KI
+fehlen, und der Dialog meldet „Lokale Deployments sind nicht aktiviert“. Ein Socket-Proxy, der nur
+die festen Engine-Images zulässt, folgt nach OSS-Prüfung.
 
 ## E-19 — Transaktionsgrenzen des Imports und sichtbarer Indexstand statt atomarer Umschaltung
 

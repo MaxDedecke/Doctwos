@@ -27,7 +27,17 @@ echo "Building images..."
 docker compose build backend-api
 docker compose build parser-worker
 docker compose build frontend
-docker compose build deployer
+# The deployer (local LLM containers from Settings > AI) mounts the Docker socket, i.e. it has
+# root on this host. It only starts when switched on via COMPOSE_PROFILES=deployer in .env.
+compose_profiles=$(grep -E "^COMPOSE_PROFILES=" "$repo_root/.env" | cut -d= -f2-)
+compose_profiles=${COMPOSE_PROFILES:-$compose_profiles}
+case ",$compose_profiles," in
+    *,deployer,*) deployer_enabled=1 ;;
+    *) deployer_enabled=0 ;;
+esac
+if [ "$deployer_enabled" = 1 ]; then
+    docker compose build deployer
+fi
 
 echo "Starting services (Alembic migrations run automatically on backend startup)..."
 startup_since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
@@ -48,8 +58,12 @@ if docker ps --format '{{.Names}}' | grep -qx doctus-ollama; then
     fi
     echo "Pulling Ollama embedding model (bge-m3)..."
     docker exec doctus-ollama ollama pull bge-m3
-else
+elif [ "$deployer_enabled" = 1 ]; then
     echo "No LLM container in the default stack — create a local deployment under Settings > AI."
+else
+    echo "No LLM container in the default stack. Either add a remote or cloud profile under Settings > AI,"
+    echo "or enable local deployments with COMPOSE_PROFILES=deployer in .env and run 'docker compose up -d'"
+    echo "(the deployer gets root on this host via the Docker socket; see docs/DEPLOYMENT.md)."
 fi
 
 check_env_ready "$repo_root"

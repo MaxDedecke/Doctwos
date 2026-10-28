@@ -61,10 +61,28 @@ source dialog). The setting `FOLDER_MAX_FILE_MB` (default 200) limits files inde
 
 ### Local LLM deployments (Ollama, vLLM, llama.cpp)
 
-The default stack contains **no LLM container**. After the first sign-in, an administrator creates one in
-**Settings > AI**: *Add profile > Local deployment* (LLM) and the same for the embedding profile. Doctus then asks
-the `deployer` service to start an Ollama, vLLM or llama.cpp container on this host, creates the matching profile
-and activates it when it is the first one. Models are downloaded on first start into the shared volume
+The default stack contains **no LLM container and no deployer**. Doctus runs without both: models are then
+reached through *Remote on-premise* or cloud profiles, or through the legacy `local-ollama` profile below.
+
+To let administrators start local model containers from the UI, switch the deployer on explicitly:
+
+```bash
+# .env
+COMPOSE_PROFILES=deployer
+docker compose up -d
+```
+
+> **Security:** the deployer mounts `/var/run/docker.sock`. Access to the Docker socket is root on the host: whoever
+> controls the deployer — or the backend, which holds `DEPLOYER_TOKEN` — can start a privileged container that mounts
+> the host file system. The token limits *who* may call the deployer, not what a compromised caller can do. Enable the
+> profile only on hosts where that is acceptable (typically a dedicated Doctus host), and switch it off again when no
+> local deployments are needed (`COMPOSE_PROFILES=` and `docker compose stop deployer && docker compose rm -f deployer`).
+> A socket proxy that only permits the deployer's fixed engine images is planned after OSS review.
+
+With the profile active, an administrator creates a model in **Settings > AI**: *Add profile > Local deployment*
+(LLM) and the same for the embedding profile. Doctus then asks the `deployer` service to start an Ollama, vLLM or
+llama.cpp container on this host, creates the matching profile and activates it when it is the first one. Without
+the profile, the dialog states that local deployments are not enabled. Models are downloaded on first start into the shared volume
 `doctus_llm_models` (vLLM and llama.cpp from Hugging Face; set `HF_TOKEN` in `.env` for gated models).
 The profile row shows the container status (starting, downloading, ready, stopped) and offers start/stop and the
 container log. Deleting the profile removes the container.
@@ -77,8 +95,8 @@ container log. Deleting the profile removes the container.
   customer with `OLLAMA_IMAGE`, `VLLM_IMAGE`, `LLAMACPP_IMAGE`, `LLAMACPP_CUDA_IMAGE` (tag or digest).
 - Remote servers (another machine running Ollama, vLLM or llama.cpp) are added as *Remote on-premise* profiles; see
   `docs/REMOTE_INFERENCE.md`.
-- The deployer mounts the Docker socket, which is root-equivalent on the host. It has no published port and only
-  accepts the token; see E-16 in `docs/ENTSCHEIDUNGEN.md`.
+- The deployer has no published port and only accepts the token; see the security note above and E-16 in
+  `docs/ENTSCHEIDUNGEN.md`.
 - Existing installations keep working: their stored "Lokales Ollama" profile still points at `http://ollama:11434`. To
   keep the old fixed container, set `LEGACY_OLLAMA_SERVICE=true` and start it with
   `docker compose --profile local-ollama up -d`. The air-gapped bundle still ships that legacy Ollama; bundling the

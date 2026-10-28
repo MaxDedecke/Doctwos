@@ -227,5 +227,16 @@ def test_missing_token_means_local_deployments_are_unavailable(client, monkeypat
     assert response.status_code == 503 and "DEPLOYER_TOKEN" in response.json()["detail"]
 
 
+def test_a_deployer_outside_the_compose_profile_is_reported_as_not_enabled(client, monkeypatch):
+    """Ohne COMPOSE_PROFILES=deployer gibt es den Dienst nicht; das ist kein Verbindungsfehler."""
+    monkeypatch.setattr(cfg, "DEPLOYER_TOKEN", "token")
+    # Nicht auflösbarer Name wie im Compose-Netz ohne den Dienst.
+    monkeypatch.setattr(cfg, "DEPLOYER_URL", "http://deployer.invalid:9000")
+    response = client.get("/llm-deployments")
+    assert response.status_code == 503
+    detail = response.json()["detail"]
+    assert "nicht aktiviert" in detail and "COMPOSE_PROFILES=deployer" in detail
+
+
 def test_unknown_control_action_is_rejected(client):
     assert client.post("/llm-deployments/x/destroy").status_code == 404

@@ -97,7 +97,10 @@ services:
   # Startet und verwaltet lokale LLM-Container (Ollama, vLLM, llama.cpp) auf Anforderung des Backends.
   # Einziger Dienst mit Docker-Socket; das Backend hat keinen Docker-Zugriff. Kein veröffentlichter Port:
   # erreichbar nur im Compose-Netzwerk und nur mit DEPLOYER_TOKEN (siehe docs/ENTSCHEIDUNGEN.md E-16).
+  # Nur zuschaltbar (COMPOSE_PROFILES=deployer): Zugriff auf docker.sock ist Root auf dem Host. Die
+  # Anwendung läuft ohne ihn; dann fehlen nur lokale Deployments aus Einstellungen > KI.
   deployer:
+    profiles: ["deployer"]
     build: ./deployer
     image: doctus-deployer:${DOCTUS_VERSION:-latest}
     container_name: doctus-deployer

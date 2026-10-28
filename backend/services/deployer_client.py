@@ -14,6 +14,14 @@ import httpx
 import core.config as cfg
 
 
+NOT_ENABLED = (
+    "Lokale Deployments sind nicht aktiviert: Der Dienst „deployer“ läuft nicht. Er ist nur "
+    "zuschaltbar (COMPOSE_PROFILES=deployer in der .env), weil er über den Docker-Socket "
+    "Root-Rechte auf dem Host hat; siehe docs/DEPLOYMENT.md. Remote- und Cloud-Profile "
+    "funktionieren ohne ihn."
+)
+
+
 class DeployerError(Exception):
     def __init__(self, message: str, status_code: int = 502):
         super().__init__(message)
@@ -33,6 +41,9 @@ def _request(method: str, path: str, *, timeout: float = 30.0, **kwargs: Any) ->
             headers={"Authorization": f"Bearer {cfg.DEPLOYER_TOKEN}"},
             **kwargs,
         )
+    except httpx.ConnectError as exc:
+        # Ohne Compose-Profil gibt es den Dienst nicht; der Name löst nicht auf.
+        raise DeployerError(NOT_ENABLED, 503) from exc
     except httpx.HTTPError as exc:
         raise DeployerError(f"Deployer nicht erreichbar: {exc}", 503) from exc
     if response.status_code >= 400:

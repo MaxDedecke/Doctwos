@@ -23,7 +23,8 @@ offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
    im für AP-9 vorgesehenen Lizenz-/Provenienzartefakt nachgetragen werden
    (Release-Voraussetzung).
 3. **Keine zusätzlichen Datenbank-/Such-Services.** Neben Backend, Frontend, Parser-Worker/Beat, DB, Redis und Ollama gibt es
-   `link-worker` (Verknüpfungen) und `deployer` (optional, Compose-Profil, siehe Arbeitsleitlinie Tag 2). Kein Neo4j, kein ElasticSearch, keine
+   `link-worker` (Verknüpfungen) und `deployer` (nur mit Compose-Profil `deployer`: hat über docker.sock
+   Root auf dem Host; die Anwendung muss ohne ihn laufen). Kein Neo4j, kein ElasticSearch, keine
    ANTLR-/tree-sitter-Runtime. Jede Komponente kostet OSS-Clearing,
    Offline-Bundle-Aufwand und Betriebsrisiko. **Ausnahme (E-11):** eine
    aktiv genutzte Sprachparser-Grammatik-Runtime (`antlr4-python3-runtime`,
