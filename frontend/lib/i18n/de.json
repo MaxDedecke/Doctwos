@@ -1906,6 +1906,8 @@
     "rejectedLinks": "{{count}} abgelehnte Links",
     "filter": { "all": "Alle", "outdated": "Erneut prüfen", "draft": "Entwürfe", "verified": "Freigegeben" },
     "status": { "draft": "Entwurf", "verified": "Freigegeben", "outdated": "Erneut prüfen" },
+    "retrievalEnabled": "Für passende Fragen im Projekt als freigegebener LLM-Kontext verfügbar.",
+    "retrievalExcluded": "Nicht im LLM-Retrieval: nur freigegebene, aktuelle Erkenntnisse werden verwendet.",
     "origin": { "chat": "Chat", "code": "Code", "process": "Prozess" }
   },
   "provenance": {
@@ -2042,5 +2044,16 @@
     "noFocus": "Wähle einen Startpunkt (Programm, Klasse, Methode oder Feld), um seine Ebenen zu sehen.",
     "end": "Darunter folgt nichts mehr.",
     "empty": "Für diese Auswahl gibt es keine belegten Verbindungen."
+  },
+  "insightEvidence": {
+    "openSource": "Quelle öffnen",
+    "file": "Datei",
+    "source_id": "Quelle",
+    "entity_id": "Code-Element",
+    "start_line": "Startzeile",
+    "lines": "Zeilen",
+    "chat_message_id": "Chat-Nachricht",
+    "process_root": "Prozess",
+    "source_last_synced_at": "Quellenstand"
   }
 }

@@ -13,7 +13,7 @@ const endId = (end: EndRef) => (typeof end === 'object' ? end.id : end);
  *
  * "Nur verknüpfte" entfernt Knoten ohne jede Verbindung; ausgeblendete Nachbarn zählen dabei mit.
  */
-export function filterVisibleGraph<N extends { id: string }, E extends { source: EndRef; target: EndRef }>(
+export function filterVisibleGraph<N extends { id: string; type?: string }, E extends { source: EndRef; target: EndRef }>(
   nodes: N[],
   edges: E[],
   options: { isNodeHidden: (node: N) => boolean; isEdgeHidden: (edge: E) => boolean; onlyLinked: boolean },
@@ -40,5 +40,5 @@ export function filterVisibleGraph<N extends { id: string }, E extends { source:
     connected.add(endId(edge.source));
     connected.add(endId(edge.target));
   }
-  return { nodes: candidates.filter(node => connected.has(node.id)), links, ghostIds };
+  return { nodes: candidates.filter(node => (connected.has(node.id) || (node.type === 'insight' && solidIds.has(node.id)))), links, ghostIds };
 }

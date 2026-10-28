@@ -69,6 +69,14 @@ def select_overview_nodes(
         order.append(nid)
         return True
 
+    # Reserve a representative of every available node kind before edge coverage
+    # or a busy focus source can consume the budget. The hard cap still applies.
+    by_node_kind: dict[tuple, list[str]] = defaultdict(list)
+    for nid in ranked_ids:
+        by_node_kind[node_kind(nodes[nid])].append(nid)
+    for ids in sorted(by_node_kind.values(), key=lambda ids: (len(ids), ids[0])):
+        take(ids[0])
+
     if min_per_kind > 0:
         coverage_limit = max(1, int(max_nodes * COVERAGE_MAX_SHARE))
         by_edge_kind: dict[tuple, list[dict]] = defaultdict(list)
@@ -93,9 +101,6 @@ def select_overview_nodes(
                 take(tgt, coverage_limit)
                 present += 1
 
-        by_node_kind: dict[tuple, list[str]] = defaultdict(list)
-        for nid in ranked_ids:
-            by_node_kind[node_kind(nodes[nid])].append(nid)
         for ids in by_node_kind.values():
             already = sum(1 for nid in ids if nid in chosen)
             for nid in ids:

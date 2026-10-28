@@ -34,33 +34,16 @@ import { api, API_URL } from '@/app/services/api';
 import { REFERENCE_PAGE_SIZE, usePagedReferenceList } from '@/hooks/usePagedReferenceList';
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { useDocumentLocator } from '@/hooks/useDocumentLocator';
+import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
+import { addWebAnchorScroll, addWebOriginTheme } from '@/lib/webDocumentHtml';
 import { computeEntityAnchor, FILE_LEVEL_TYPES, pickFileLevelEntity, type EntityAnchor } from '@/lib/entityAnchors';
 import { computeUsageAnchor, type UsageReference } from '@/lib/usageAnchors';
 import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatement } from '@/lib/cobolStatements';
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
-
-function addWebOriginTheme(html: string, theme: string, sourceType: string | null | undefined) {
-  if (sourceType?.toLowerCase() !== 'jira') return html;
-  const dark = theme === 'dark';
-  const foreground = dark ? '#d4d4d8' : '#27272a';
-  const background = dark ? '#09090b' : '#ffffff';
-  const link = dark ? '#a5b4fc' : '#4f46e5';
-  const style = `<style>html,body{color:${foreground}!important;background:${background}!important}body{font-family:ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;line-height:1.6;margin:0;padding:24px}p,li,blockquote,td,th{color:${foreground}!important}a{color:${link}!important}pre,code{color:${foreground}!important;background:${dark ? '#18181b' : '#f4f4f5'}!important}img{max-width:100%;height:auto}table{border-collapse:collapse;max-width:100%}</style>`;
-  return `${style}${html}`;
-}
-
-function addWebAnchorScroll(html: string, anchor: string | null | undefined) {
-  if (!anchor) return html;
-  const safeAnchor = JSON.stringify(anchor.replace(/^#/, '')).replace(/</g, '\\u003c');
-  const script = `<script>(()=>{const id=${safeAnchor};let decoded=id;try{decoded=decodeURIComponent(id)}catch{};const jump=()=>{const target=document.getElementById(decoded)||document.getElementsByName(decoded)[0];if(target)target.scrollIntoView({block:'start'})};requestAnimationFrame(jump);window.addEventListener('load',jump,{once:true})})();</script>`;
-  return /<\/body\s*>/i.test(html)
-    ? html.replace(/<\/body\s*>/i, `${script}</body>`)
-    : `${html}${script}`;
-}
 
 // Help detect file extensions in Monaco editor
 /** Map the ingestion language families to Monaco ids.  This is deliberately
@@ -286,9 +269,14 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     };
   }, [isReferencesDropdownOpen, isReferencesModalMode, updateReferencesMenuPosition]);
 
+  const styleRevision = useGraphStyleRevision();
   const webOriginContent = useMemo(
-    () => addWebAnchorScroll(addWebOriginTheme(sanitizeHtml(contentToUse), theme, selectedDoc?.type), selectedDoc?.urlAnchor),
-    [contentToUse, selectedDoc?.urlAnchor, selectedDoc?.type, theme],
+    () => {
+      // Resolve iframe colors again after the parent applies the theme CSS.
+      void styleRevision;
+      return addWebAnchorScroll(addWebOriginTheme(sanitizeHtml(contentToUse), theme, selectedDoc?.type), selectedDoc?.urlAnchor);
+    },
+    [contentToUse, selectedDoc?.urlAnchor, selectedDoc?.type, theme, styleRevision],
   );
   const referencesToUse = fileReferences !== undefined ? fileReferences : docRefs.items;
   const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : docRefs.isLoading;

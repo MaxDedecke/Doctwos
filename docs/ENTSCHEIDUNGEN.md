@@ -739,3 +739,34 @@ sind standardmäßig nicht per Digest festgeschrieben (`VLLM_IMAGE`, `LLAMACPP_I
 **Fundstellen.** `deployer/`, `backend/api/system.py` (`/llm-deployments`),
 `backend/services/deployer_client.py`, `backend/services/ai_settings.py`,
 `frontend/components/settings/tabs/AiSettingsTab.tsx`, `LocalDeploymentForm.tsx`.
+
+## Erkenntnisse in Retrieval und Wissensgraph (28.10.2026)
+
+Beleg-Snapshots sind in der Erkenntnisansicht und an Erkenntnisknoten aufklappbar.
+Die Graphübersicht nimmt bis zu 1.000 Erkenntnisse pro Abfrage auf, zeigt alle Prüfstatus
+und verbindet auflösbare Code-/Dateibelege
+mit ihren Ressourcen im selben Projekt. Nicht auflösbare Belege bleiben im Snapshot sichtbar.
+Erkenntnisse ohne auflösbare Verbindung bleiben auch ohne den Filter für isolierte Knoten sichtbar.
+
+Das Chat-Retrieval ergänzt für das ausdrücklich gewählte und berechtigte Projekt
+maximal fünf freigegebene, nicht als veraltet markierte Erkenntnisse mit Belegen.
+Die Auswahl erfolgt per Texttreffer auf Fragebegriffe (maximal zwölf Begriffe),
+mit einem Budget von 8.000 Zeichen; es gibt dafür keinen zusätzlichen Vektorindex.
+Entwürfe und veraltete Erkenntnisse werden ausgeschlossen. Der Kontext kennzeichnet
+Erkenntnisse als geprüfte Aussagen mit Provenienz, nicht als unabhängigen Codebeweis.
+Ohne gewähltes Projekt erfolgt keine Erkenntnisbeimischung. MCP-Werkzeuge verwenden
+weiter ihre bisherigen Beweispakete.
+
+Die Übersicht reserviert vor Kantenabdeckung und Fokusauswahl mindestens einen
+Vertreter jeder vorhandenen Knotenart, soweit das harte Knotenlimit das zulässt.
+Erkenntnisse bleiben auch im Frontend ohne auflösbare Kante sichtbar; der
+Erkenntnisfilter kann sie weiterhin ausdrücklich ausblenden.
+
+Validierung am 28.10.2026: 737 Backend-, 733 Parser- und 955 Frontend-Tests bestanden
+(jeweils getrennte Testumgebung; 2 Backend- und 5 Parser-Tests übersprungen).
+Die laufende Graph-API liefert die vorhandene freigegebene Erkenntnis mit Belegkanten
+zur Java-Datei und zum Jira-Ticket. TypeScript, Python-Lint/-Format, Modellabgleich
+und Design-Token-Prüfung bestehen. Der bestehende Referenzen-Menü-Test erhält einen
+`matchMedia`-Mock. Die Jira-Originalansicht übernimmt aufgelöste Design-Tokens in ihr
+isoliertes Dokument und aktualisiert sie nach einem Theme-Wechsel; ihre HTML-Helfer
+liegen in `frontend/lib/webDocumentHtml.ts`.

@@ -1,7 +1,10 @@
 export interface GraphNode {
   id: string;
-  type: 'entity' | 'code_file' | 'document' | 'copybook' | 'external';
+  type: 'insight' | 'entity' | 'code_file' | 'document' | 'copybook' | 'external';
   label: string;
+  content?: string;
+  status?: string;
+  evidence?: Array<Record<string, unknown>>;
   entity_type?: string;
   language?: string;
   analysis_status?: 'partial' | 'text_fallback' | 'skipped' | 'error';

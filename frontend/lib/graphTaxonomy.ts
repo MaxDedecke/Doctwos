@@ -70,6 +70,7 @@ export interface GraphNodeTypeDefinition {
 }
 
 export const NODE_TYPE_TAXONOMY: Record<string, GraphNodeTypeDefinition> = {
+  insight: { labelDe: 'Erkenntnisse', labelEn: 'Insights', color: 'rgb(var(--ds-warning-base))', icon: 'document' },
   cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: 'rgb(var(--ds-info-base))', icon: 'code' },
   pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: 'rgb(var(--ds-danger-base))', icon: 'document' },
   jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))', icon: 'code' },
@@ -263,6 +264,7 @@ export function getGraphNodeCategory(node: GraphTaxonomyNode | null | undefined)
   if (!node) return 'document';
   const nodeType = textValue(node.type || node.node_type || node.kind);
   const entityType = textValue(node.entity_type || node.entityType);
+  if (nodeType === 'insight') return 'insight';
   if (nodeType === 'code_file') {
     const path = String(node.file_path || node.label || '').toLowerCase();
     if (/\.(cbl|cob|cobol)$/.test(path)) return 'cobol';

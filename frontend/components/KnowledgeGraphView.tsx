@@ -1,4 +1,6 @@
 "use client";
+
+import { InsightGraphDetails } from './InsightGraphDetails';
 import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/types/domain';
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
@@ -933,6 +935,7 @@ export function KnowledgeGraphView({
                 </span>
               </div>
             )}
+            <InsightGraphDetails node={selectedNode} />
             {selectedNode.language && (
               <div className="flex items-baseline gap-2">
                 <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.languageLabel')}</span>

@@ -7,9 +7,11 @@ import { cn } from '@/lib/utils';
 import { Check, FileText, Link2, Loader2, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 
+import { InsightEvidence } from './InsightEvidence';
+
 type Insight = Awaited<ReturnType<typeof api.getInsights>>['data'][number];
 
-export function InsightReviewView({ selectedProject, currentUser, theme }: { selectedProject: Project | null; currentUser: User | null; theme: string }) {
+export function InsightReviewView({ selectedProject, currentUser, theme, onOpenFile }: { selectedProject: Project | null; currentUser: User | null; theme: string; onOpenFile?: (path: string, line: number | null, sourceId: number | null) => void }) {
   const { t } = useLanguage();
   const [insights, setInsights] = useState<Insight[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
@@ -85,6 +87,8 @@ export function InsightReviewView({ selectedProject, currentUser, theme }: { sel
       return <article key={insight.id} className={cn('rounded-lg border p-3', isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/60' : 'border-ds-zinc-200 bg-ds-zinc-50')}>
         <div className="flex items-start justify-between gap-2"><div><h3 className="text-sm font-semibold">{insight.title}</h3><p className="mt-1 whitespace-pre-wrap text-xs">{insight.content}</p></div><span className={cn('rounded px-1.5 py-0.5 text-[0.625rem] font-bold', insight.status === 'verified' ? 'bg-ds-emerald-500/15 text-ds-emerald-500' : 'bg-ds-amber-500/15 text-ds-amber-500')}>{t(`insightReview.status.${insight.status}`)}</span></div>
         <div className="mt-2 flex items-center gap-1 text-[0.625rem] text-ds-zinc-500"><FileText className="h-3 w-3" />{t('insightReview.evidenceCount', { count: insight.evidence.length })} · {t(`insightReview.origin.${insight.origin_kind}`)}</div>
+        <InsightEvidence evidence={insight.evidence} onOpenFile={onOpenFile} />
+        <p className="mt-2 text-[0.625rem] text-ds-zinc-500">{t(insight.status === 'verified' ? 'insightReview.retrievalEnabled' : 'insightReview.retrievalExcluded')}</p>
         {insight.status === 'outdated' && <p className="mt-1 text-[0.625rem] text-ds-amber-500">{t('insightReview.sourceChanged', { count: insight.outdated_source_ids.length })}</p>}
         {insight.evidence.some(item => typeof item.source_last_synced_at === 'string') && <p className="mt-1 text-[0.625rem] text-ds-zinc-500">{t('insightReview.provenanceSnapshot')}</p>}
         {canApproveThis && <button type="button" disabled={verifying === insight.id} onClick={() => void verify(insight)} className="mt-3 inline-flex items-center gap-1.5 rounded bg-ds-emerald-600 px-2 py-1 text-[0.625rem] font-semibold text-ds-white disabled:opacity-50"><>{verifying === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}</>{t('insightReview.verify')}</button>}

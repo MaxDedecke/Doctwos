@@ -222,7 +222,7 @@ export function PanelContentRenderer({
   }
 
   if (contentType === 'insights') {
-    return <InsightReviewView selectedProject={selectedProject} currentUser={currentUser} theme={theme} />;
+    return <InsightReviewView selectedProject={selectedProject} currentUser={currentUser} theme={theme} onOpenFile={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)} />;
   }
 
   const activeRightTab = contentType === 'doc'

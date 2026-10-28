@@ -23,6 +23,7 @@ describe('graph taxonomy', () => {
   });
 
   it('classifies Java entities and source-backed documents through the shared policy', () => {
+    expect(getGraphNodeCategory({ type: 'insight' })).toBe('insight');
     expect(getGraphNodeCategory({ type: 'entity', entity_type: 'class' })).toBe('git');
     expect(getGraphNodeCategory({ type: 'entity', entity_type: 'copybook' })).toBe('copybook');
     expect(getGraphNodeCategory({ type: 'document', source_type: 'Git', file_path: 'A.java' })).toBe('git');

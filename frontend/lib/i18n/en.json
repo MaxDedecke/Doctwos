@@ -1906,6 +1906,8 @@
     "rejectedLinks": "{{count}} rejected links",
     "filter": { "all": "All", "outdated": "Review again", "draft": "Drafts", "verified": "Approved" },
     "status": { "draft": "Draft", "verified": "Approved", "outdated": "Review again" },
+    "retrievalEnabled": "Available as approved LLM context for matching questions in this project.",
+    "retrievalExcluded": "Excluded from LLM retrieval: only approved, current insights are used.",
     "origin": { "chat": "Chat", "code": "Code", "process": "Process" }
   },
   "provenance": {
@@ -2042,5 +2044,16 @@
     "noFocus": "Pick a start point (program, class, method or field) to see its layers.",
     "end": "Nothing follows below.",
     "empty": "No evidenced connections for this selection."
+  },
+  "insightEvidence": {
+    "openSource": "Open source",
+    "file": "File",
+    "source_id": "Source",
+    "entity_id": "Code-Element",
+    "start_line": "Start line",
+    "lines": "Lines",
+    "chat_message_id": "Chat message",
+    "process_root": "Process",
+    "source_last_synced_at": "Source snapshot"
   }
 }

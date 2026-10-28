@@ -764,6 +764,17 @@ def get_graph(
     )
     _append_code_dependencies(nodes, edges, sampled_code_edges, code_entities)
 
+    from services.insight_graph import append_insight_graph
+
+    append_insight_graph(
+        db,
+        [project_id] if project_id else exposed_project_ids,
+        nodes,
+        edges,
+        _ensure_entity_file_node,
+        _doc_node,
+    )
+    preserved_node_ids.update(nid for nid in nodes if nid.startswith("insight:"))
     result = _capped_overview(
         nodes,
         edges,
@@ -834,7 +845,11 @@ def _capped_overview(
     degree = compute_degree(nodes, edges)
 
     if not include_isolated:
-        nodes = {nid: node for nid, node in nodes.items() if degree[nid] > 0}
+        nodes = {
+            nid: node
+            for nid, node in nodes.items()
+            if degree[nid] > 0 or node.get("type") == "insight"
+        }
 
     total_nodes = len(nodes)
     total_edges = len(edges)

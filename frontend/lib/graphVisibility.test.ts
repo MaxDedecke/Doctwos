@@ -14,6 +14,12 @@ const edges = [
 const base = { isNodeHidden: (n: { type: string }) => n.type === 'code_file', isEdgeHidden: () => false };
 
 describe('filterVisibleGraph', () => {
+  it('keeps an insight without resolvable edges unless its type is hidden', () => {
+    const insights = [{ id: 'insight:1', type: 'insight' }];
+    expect(filterVisibleGraph(insights, [], { isNodeHidden: () => false, isEdgeHidden: () => false, onlyLinked: true }).nodes).toEqual(insights);
+    expect(filterVisibleGraph(insights, [], { isNodeHidden: () => true, isEdgeHidden: () => false, onlyLinked: true }).nodes).toEqual([]);
+  });
+
   it('zeigt ausgeblendete Nachbarn sichtbarer Knoten als Platzhalter mit ihrer Kante', () => {
     const result = filterVisibleGraph(nodes, edges, { ...base, onlyLinked: true });
     expect(result.nodes.map(n => n.id)).toEqual(['file:1', 'doc:jira']);

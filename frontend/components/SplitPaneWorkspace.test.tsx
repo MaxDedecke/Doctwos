@@ -166,6 +166,7 @@ describe('SplitPaneWorkspace', () => {
     editorStub.revealLineInCenter.mockClear();
     editorStub.setPosition.mockClear();
     vi.clearAllMocks();
+    vi.unstubAllGlobals();
   });
 
   describe('Referenzen-Button', () => {
@@ -200,6 +201,7 @@ describe('SplitPaneWorkspace', () => {
     });
 
     it('öffnet und schließt das Referenzen-Menü per Klick und meldet den Zustand über aria-expanded', () => {
+      vi.stubGlobal('matchMedia', vi.fn(() => ({ matches: true })));
       const setIsReferencesDropdownOpen = vi.fn();
       renderWorkspace({
         activeRightTab: 'doc',

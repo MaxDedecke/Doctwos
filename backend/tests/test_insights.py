@@ -159,3 +159,41 @@ def test_global_admin_can_verify_own_insight(client, db_session, test_project):
     assert verified.json()["verified_by_id"] == admin.id
     assert verified.json()["verified_at"] is not None
 
+
+def test_only_current_verified_insights_enter_project_context(db_session, test_project, client):
+    from services.insight_context import retrieve_insight_context
+    from datetime import datetime, timezone
+
+    test_user = db_session.query(User).filter(User.username == "test-fixture-user").one()
+    rows = [
+        Insight(
+            project_id=test_project,
+            title="Zahlungsregel",
+            content=f"Zahlung {status}",
+            origin_kind="code",
+            evidence_json=[{"file": "PAYMENT.cbl", "start_line": 15}],
+            status=status,
+            created_by_id=test_user.id,
+        )
+        for status in ("draft", "verified", "outdated")
+    ]
+    for row in rows:
+        if row.status != "draft":
+            row.verified_by_id = test_user.id
+            row.verified_at = datetime.now(timezone.utc)
+    db_session.add_all(rows)
+    db_session.commit()
+    try:
+        context = retrieve_insight_context(db_session, test_user, test_project, "Zahlungsregel")
+        assert "Zahlung verified" in context
+        assert "Zahlung draft" not in context
+        assert "Zahlung outdated" not in context
+        assert "PAYMENT.cbl" in context
+        assert retrieve_insight_context(db_session, test_user, None, "Zahlungsregel") == ""
+        assert (
+            retrieve_insight_context(db_session, test_user, test_project, "UnbekanntesThema") == ""
+        )
+    finally:
+        for row in rows:
+            db_session.delete(row)
+        db_session.commit()

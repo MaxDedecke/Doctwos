@@ -786,6 +786,9 @@ async def retrieve_chat_context(
     )
     if code_focus_metadata:
         pinned_context = code_focus_metadata + pinned_context
+    from services.insight_context import retrieve_insight_context
+
+    context += retrieve_insight_context(db, user, project_id, message)
     prompt = build_chat_prompt(
         context=context,
         pinned_context=pinned_context,

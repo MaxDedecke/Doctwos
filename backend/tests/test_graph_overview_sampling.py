@@ -91,3 +91,13 @@ def test_focus_source_without_matches_behaves_like_the_default():
     focused = _capped_overview(nodes, edges, limit=12, min_per_kind=1, focus_source_id=404)
 
     assert {n["id"] for n in default["nodes"]} == {n["id"] for n in focused["nodes"]}
+
+
+def test_rare_insight_is_reserved_before_edge_coverage_exhausts_budget():
+    nodes, edges = _busy_code_graph()
+    _add_rare_kinds(nodes, edges)
+    nodes["insight:1"] = {"id": "insight:1", "type": "insight"}
+    result = _capped_overview(nodes, edges, limit=8, min_per_kind=3)
+    assert {n["type"] for n in result["nodes"]} == {"code_file", "document", "insight"}
+    assert "insight:1" in {n["id"] for n in result["nodes"]}
+    assert len(result["nodes"]) <= 8
