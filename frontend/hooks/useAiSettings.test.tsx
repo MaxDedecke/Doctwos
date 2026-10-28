@@ -74,6 +74,22 @@ describe('useAiSettings', () => {
     expect(mockedApi.getModels).toHaveBeenCalledTimes(1);
   });
 
+  it('leaves the temperature to the server when the profile does not set one', async () => {
+    localStorage.setItem('doctus-llm-profiles', JSON.stringify([
+      { id: 'tuned', name: 'Tuned', provider: 'ollama', model: 'one', temperature: 0.9 },
+      { id: 'plain', name: 'Plain', provider: 'ollama', model: 'two' },
+    ]));
+    localStorage.setItem('doctus-active-profile-id', 'tuned');
+    mockedApi.getAiProfiles.mockRejectedValue(new Error('offline') as never);
+
+    const { result } = renderHook(() => useAiSettings({ isLoggedIn: false, t: translate }));
+    await waitFor(() => expect(result.current.temperature).toBe(0.9));
+
+    // Kein Übertrag des vorigen Werts: sonst gilt nie die Profil- oder Server-Vorgabe.
+    act(() => result.current.setActiveProfileId('plain'));
+    expect(result.current.temperature).toBeUndefined();
+  });
+
   it('shows no profile when the server has none (stack without an LLM container) and drops browser defaults', async () => {
     localStorage.setItem('doctus-active-profile-id', 'ollama-default');
     mockedApi.getEmbeddingProfiles.mockResolvedValue({ data: { active_embedding_profile_id: null, profiles: [] } } as never);

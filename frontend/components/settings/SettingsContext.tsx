@@ -28,8 +28,8 @@ export interface SettingsContextValue {
   activeEmbeddingModel: string;
   setActiveEmbeddingModel: (model: string) => void;
   availableModels: string[];
-  temperature: number;
-  setTemperature: (temp: number) => void;
+  temperature: number | undefined;
+  setTemperature: (temp: number | undefined) => void;
   systemPrompt: string;
   setSystemPrompt: (prompt: string) => void;
   llmProfiles: LlmProfile[];

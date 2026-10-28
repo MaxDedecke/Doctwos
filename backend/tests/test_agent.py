@@ -18,7 +18,6 @@ from agent import (
     list_repo_files,
     run_agent_loop,
 )
-from services.agent_providers import DEFAULT_AGENT_TEMPERATURE
 
 
 def test_cap_tool_result_leaves_short_text_untouched():
@@ -896,7 +895,7 @@ async def test_required_research_retries_once_and_then_accepts_the_answer(monkey
     ]
 
     assert [p.get("tool_choice") for p in payloads] == ["required", "required", None]
-    assert all(p["temperature"] == DEFAULT_AGENT_TEMPERATURE for p in payloads)
+    assert all(p["temperature"] == cfg.DEFAULT_CHAT_TEMPERATURE for p in payloads)
     # Die verworfene Vermutung erreicht weder den Stream noch den Verlauf des Modells.
     assert not any("Ungeprüfte" in json.dumps(e, ensure_ascii=False) for e in events)
     assert not any(

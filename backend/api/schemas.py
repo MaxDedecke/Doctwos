@@ -79,7 +79,7 @@ class ChatRequest(BaseModel):
     pinned_source_id: Optional[int] = None
     # Stable language-neutral CodeEntity focus; legacy clients may omit it.
     pinned_entity_id: Optional[int] = None
-    # None: the active profile's default (or 0.7) applies.
+    # None: the profile's llm_temperature, else core.config.DEFAULT_CHAT_TEMPERATURE.
     temperature: Optional[float] = None
     system_prompt: Optional[str] = None
     llm_provider: Optional[str] = "ollama"

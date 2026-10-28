@@ -162,7 +162,8 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
   const [activeLlmModel, setActiveLlmModel] = useState(DEFAULT_LLM_MODEL);
   const [activeEmbeddingModel, setActiveEmbeddingModel] = useState(DEFAULT_EMBEDDING_MODEL);
   const [availableModels, setAvailableModels] = useState<string[]>([]);
-  const [temperature, setTemperature] = useState(0.7);
+  // Ohne Wert entscheidet der Server (AIProfile.llm_temperature, sonst sein Standard).
+  const [temperature, setTemperature] = useState<number | undefined>(undefined);
   const [systemPrompt, setSystemPrompt] = useState(DEFAULT_SYSTEM_PROMPT);
   const [llmProfiles, setLlmProfiles] = useState<LlmProfile[]>([]);
   const [activeProfileId, setActiveProfileIdState] = useState('ollama-default');
@@ -188,7 +189,7 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     localStorage.setItem('doctus-active-profile-id', initialId);
 
     const activeProfile = profiles.find(profile => profile.id === initialId);
-    if (activeProfile?.temperature !== undefined) setTemperature(activeProfile.temperature);
+    setTemperature(activeProfile?.temperature);
     if (activeProfile?.systemPrompt !== undefined) setSystemPrompt(activeProfile.systemPrompt);
   // Profile names are translated once during the initial browser restore. A
   // language switch must not recreate or overwrite the user's profiles.
@@ -254,7 +255,7 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     localStorage.setItem('doctus-active-profile-id', id);
 
     const profile = llmProfiles.find(candidate => candidate.id === id);
-    if (profile?.temperature !== undefined) setTemperature(profile.temperature);
+    setTemperature(profile?.temperature);
     if (profile?.systemPrompt !== undefined) setSystemPrompt(profile.systemPrompt);
   }, [llmProfiles]);
 

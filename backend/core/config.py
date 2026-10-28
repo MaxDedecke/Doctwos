@@ -81,6 +81,12 @@ OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
 ACTIVE_LLM_PROTOCOL: str = "ollama"
 ACTIVE_LLM_PATH: str = "/api/chat"
 ACTIVE_LLM_TEMPERATURE: float | None = None
+# Chat-Antworten (Agent und Standard-RAG), wenn weder Anfrage noch Profil eine
+# Temperatur setzen. Niedrig für reproduzierbare Recherche und belegte Antworten,
+# nicht 0: nahezu deterministisches Sampling führt bei manchen Modellen zu
+# Wiederholungsschleifen. Modelle mit Herstellervorgabe (Qwen3: 0.6) bekommen
+# ihren Wert über AIProfile.llm_temperature.
+DEFAULT_CHAT_TEMPERATURE: float = 0.2
 ACTIVE_LLM_MAX_CONCURRENCY: int | None = None
 OLLAMA_EMBED_MODEL: str = os.getenv("OLLAMA_EMBED_MODEL", "bge-m3")
 # Embeddings may be served separately from chat by a managed Ollama/OpenAI API.

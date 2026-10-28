@@ -849,7 +849,9 @@ async def stream_standard_rag_events(
                 payload = {
                     "model": model_to_use,
                     "messages": [{"role": "system", "content": system_prompt}],
-                    "temperature": temperature if temperature is not None else 0.7,
+                    "temperature": temperature
+                    if temperature is not None
+                    else cfg.DEFAULT_CHAT_TEMPERATURE,
                     "stream": True,
                     # O-168: explizites Kontextfenster statt Ollamas kleinem,
                     # stillschweigend kürzendem Default.
@@ -868,7 +870,9 @@ async def stream_standard_rag_events(
                     "stream": True,
                 }
                 if cfg.openai_model_supports_custom_temperature(model_to_use):
-                    payload["temperature"] = temperature if temperature is not None else 0.7
+                    payload["temperature"] = (
+                        temperature if temperature is not None else cfg.DEFAULT_CHAT_TEMPERATURE
+                    )
 
             payload["messages"].extend(
                 {"role": message.role, "content": message.content} for message in history
@@ -951,7 +955,9 @@ async def stream_standard_rag_events(
             payload = {
                 "contents": contents,
                 "generationConfig": {
-                    "temperature": temperature if temperature is not None else 0.7
+                    "temperature": temperature
+                    if temperature is not None
+                    else cfg.DEFAULT_CHAT_TEMPERATURE
                 },
             }
             if system_prompt:
@@ -981,7 +987,9 @@ async def stream_standard_rag_events(
                 "model": model_name,
                 "max_tokens": 4096,
                 "messages": messages,
-                "temperature": temperature if temperature is not None else 0.7,
+                "temperature": temperature
+                if temperature is not None
+                else cfg.DEFAULT_CHAT_TEMPERATURE,
             }
             if system_prompt:
                 payload["system"] = system_prompt

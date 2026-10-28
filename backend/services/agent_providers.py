@@ -24,8 +24,6 @@ from core.inference_admission import admitted_post, admitted_stream
 from core.inference_errors import raise_for_inference_status
 from core.llm_providers import is_self_hosted_openai
 
-# Gilt nur, wenn weder Anfrage noch Profil eine Temperatur setzen.
-DEFAULT_AGENT_TEMPERATURE = 0.7
 # Diese Schemata nutzen optionale Felder, die der strikte Modus der OpenAI-APIs ablehnt.
 _NON_STRICT_TOOLS = frozenset({"inspect_change_impact", "inspect_change_package"})
 
@@ -77,7 +75,7 @@ class ProviderAdapter:
         self.model_name = model_name
         self.system_prompt = system_prompt
         self.tools = tools
-        self.temperature = temperature if temperature is not None else DEFAULT_AGENT_TEMPERATURE
+        self.temperature = temperature if temperature is not None else cfg.DEFAULT_CHAT_TEMPERATURE
         self.history = history
         self.prompt = prompt
 

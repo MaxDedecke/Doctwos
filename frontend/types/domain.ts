@@ -298,7 +298,7 @@ export interface ChatRequest {
   pinned_source_id: number | string | null;
   pinned_entity_id: number | null;
   branch: string;
-  temperature: number;
+  temperature?: number;
   system_prompt: string;
   llm_provider: string;
   llm_model?: string;

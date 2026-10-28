@@ -94,6 +94,12 @@ nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 n
 3. **Temperatur für Recherche senken.** Die vier Rückfallwerte `0.7` in `backend/agent.py` durch eine einzige
    Konstante ersetzen (Standard 0.1), die nur greift, wenn weder Anfrage noch Profil (`llm_temperature`) einen
    Wert setzen. Das ist zugleich der erste Schritt zur Vereinheitlichung der Agentenschleife.
+   **Umgesetzt 28.10.2026 mit Abweichung:** eine Konstante `core/config.py::DEFAULT_CHAT_TEMPERATURE = 0.2`
+   für Agent und Standard-RAG statt 0.1. Begründung: Qwen3 rät von nahezu deterministischem Sampling ab
+   (Wiederholungsschleifen, schlechtere Antworten) und empfiehlt im Denkmodus 0.6; das Profil
+   „Lokal Qwen3 8B“ trägt deshalb `llm_temperature = 0.6`. Zuvor galt der Profilwert nie, weil das Frontend
+   immer `0.7` mitschickte; es sendet jetzt nur noch eine im Browserprofil gesetzte Temperatur.
+   Offen: Hold-out-Vergleich `qwen3:8b` bei 0.2 und 0.6 (je 3 Läufe: nutzbare und leere Antworten, Streuung).
 
 **Fertig, wenn:** `~/doctus-holdout/v1/` mit 40 Fragen und notiertem Hash existiert; ein Probelauf mit
 `qwen3:8b` über 5 Fragen beide Bewertungen erzeugt; nur noch eine Temperaturkonstante in `agent.py` steht.

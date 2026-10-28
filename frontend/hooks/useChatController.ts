@@ -42,7 +42,7 @@ interface ChatControllerOptions {
   setSelectedSource: Dispatch<SetStateAction<KnowledgeSource | null>>;
   pinnedCode: ChatPinnedFocus | null;
   branch: string;
-  temperature: number;
+  temperature?: number;
   systemPrompt: string;
   chatMode?: 'normal' | 'evidence';
   activeProfileId: string;
