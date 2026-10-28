@@ -988,6 +988,8 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             return
         statements = self.flows.setdefault(holder.qualified_name, [])
         if len(statements) >= _FLOW_STATEMENTS:
+            holder.meta["data_flow_truncated"] = True
+            holder.meta["data_flow_omitted"] = holder.meta.get("data_flow_omitted", 0) + 1
             return
         line, end_line, text = self._flow_statement(context)
         statements.append(

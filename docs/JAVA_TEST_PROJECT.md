@@ -165,3 +165,16 @@ aus vollständig indizierten Arrays erhalten ihren Elementtyp. Direkte generisch
 Receiver wie `Box<Service>` spezialisieren den Rückgabetyp `T` von `get()`; generische
 Methodenparameter werden nicht mit Klassenparametern verwechselt. Nicht belegbare
 Dimensionen und Wildcards bleiben offen. Abnahme: `test_java_receiver_types.py`.
+
+Strukturversion 15 verbindet Aufrufe eindeutig initialisierter lokaler Lambdas über
+`DISPATCHES_TO` mit ihrem Körper; die ursprüngliche Interface-Aufrufkante bleibt
+erhalten. Wiederzuweisungen, unvollständige Datenflusstabellen und unvollständig
+aufgelöste geerbte SAM-Verträge erzeugen keine behauptete Bindung. Die Ableitung
+wird beim globalen Auflösen neu berechnet, sodass Wiederholung und Reparse keine
+doppelten oder veralteten Verbindungen hinterlassen.
+
+Das Datenflusslimit bleibt bei 80 Anweisungen. Überschreitungen tragen jetzt
+`data_flow_truncated`, `data_flow_omitted` und eine explizite Warnungsdiagnose.
+MCP-Methodenmetadaten und Herkunftsbeweise geben die Einschränkung weiter, auch
+wenn die gesuchte Zuweisung hinter dem Limit liegt. Abnahme: Java-Lambda-Tests,
+`test_lambda_dispatch_persistence.py` und `backend/tests/test_data_flow_limit.py`.

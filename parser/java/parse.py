@@ -81,6 +81,12 @@ def parse_java_file(
             )
         )
 
+    from .flow_limits import flow_limit_diagnostic
+
+    flow_warning = flow_limit_diagnostic(visitor.entities)
+    if flow_warning is not None and len(diagnostics) < max_diagnostics:
+        diagnostics.append(flow_warning)
+
     result = ParseResult(
         program_name=Path(path).stem or root_name,
         path=path,
@@ -98,4 +104,7 @@ def parse_java_file(
     add_bean_metadata(result)
     add_endpoints(result)
     add_jaxb_edges(result)
+    from .lambda_dispatch import derive_lambda_dispatch
+
+    result.edges.extend(edge for _, edge in derive_lambda_dispatch([result]))
     return result

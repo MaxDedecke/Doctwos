@@ -423,6 +423,22 @@ def _origin_table_statements(
     for holder in holders.values():
         if not source_visible(db, user, holder.source_id):
             continue
+        if (holder.meta_json or {}).get("data_flow_truncated"):
+            out.append(
+                (
+                    {
+                        "field": current.name,
+                        "file": holder.file_path,
+                        "line": holder.start_line,
+                        "cite": f"{holder.file_path}:{holder.start_line}",
+                        "truncated": True,
+                        "operation": "analysis_limit",
+                        "reason": "data_flow_statement_limit",
+                        "omitted_statements": holder.meta_json.get("data_flow_omitted", 0),
+                    },
+                    [],
+                )
+            )
         for row in (holder.meta_json or {}).get("data_flow") or []:
             target = row.get("target") or {}
             if target.get("qualified_name") == current.qualified_name:

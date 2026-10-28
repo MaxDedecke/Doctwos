@@ -464,6 +464,8 @@ def _entity_analysis(entity: CodeEntity) -> dict:
         "return_expressions",
         "throws_types",
         "exception_flow",
+        "data_flow_truncated",
+        "data_flow_omitted",
         "annotations",
         "annotation_details",
         "modifiers",

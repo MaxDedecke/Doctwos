@@ -3,6 +3,7 @@
 from collections import defaultdict
 
 from java.injection import derive_injection_edges
+from java.lambda_dispatch import derive_lambda_dispatch
 from java.modules import module_from_path
 from core.model import Entity, ParseResult
 from models.database import CodeEntity, CodeEdge
@@ -16,10 +17,15 @@ def resolve_framework_edges(db, source_id):
     edges = db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all()
     resolve_configuration_edges(entities, edges)
     for edge in edges:
-        if (edge.meta_json or {}).get("derivation") == "framework":
+        if (edge.meta_json or {}).get("derivation") in {"framework", "lambda_binding"}:
             db.delete(edge)
     groups = defaultdict(list)
-    for result, _, _ in _java_parse_results(entities, edges):
+    original_edges = [
+        edge
+        for edge in edges
+        if (edge.meta_json or {}).get("derivation") not in {"framework", "lambda_binding"}
+    ]
+    for result, _, _ in _java_parse_results(entities, original_edges):
         groups[result.variant_key].append(result)
     by_identity = {(e.variant_key, e.file_path, e.qualified_name): e for e in entities}
     resolved = 0
@@ -42,7 +48,10 @@ def resolve_framework_edges(db, source_id):
                 xml_beans.append(
                     (ParseResult(row.name, row.file_path, "free", variant_key=variant), bean)
                 )
-        for result, edge in derive_injection_edges(results, xml_beans):
+        derived = list(derive_injection_edges(results, xml_beans)) + list(
+            derive_lambda_dispatch(results)
+        )
+        for result, edge in derived:
             source = by_identity.get((variant, result.path, edge.src_name))
             target = by_identity.get(
                 (variant, edge.meta.get("target_file_path"), edge.meta.get("target_qualified_name"))

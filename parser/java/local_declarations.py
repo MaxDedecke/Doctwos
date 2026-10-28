@@ -41,6 +41,23 @@ def add_local_declarations(visitor, context):
             for item in context.variableDeclarators().variableDeclarator()
         ]
     for identifier, declarator in declarations:
+        initial_value = declarator.variableInitializer() if declarator is not None else None
+        expression = (
+            initial_value.expression()
+            if initial_value is not None
+            else context.expression()
+            if context.VAR() is not None
+            else None
+        )
+        getter = getattr(expression, "lambdaExpression", None)
+        binding = getter() if getter is not None else None
+        binding_meta = (
+            {
+                "lambda_initializer": f"{visitor.parent.qualified_name}@lambda:{binding.start.line}:{binding.start.column}"
+            }
+            if binding is not None
+            else {}
+        )
         start_line, end_line = visitor._span(declarator or context)
         name = identifier.getText()
         visitor.entities.append(
@@ -60,6 +77,7 @@ def add_local_declarations(visitor, context):
                         "declaration_column": identifier.stop.column + len(identifier.stop.text),
                         **({"inferred_type": inferred_type} if inferred_type else {}),
                         **initializer_meta,
+                        **binding_meta,
                     }
                 ),
             )
