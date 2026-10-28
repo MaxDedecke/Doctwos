@@ -140,3 +140,12 @@ python -m pytest tests/ -q
 Die Abnahme misst Parser- und Retrieval-Verhalten. Fachliche Antwortqualität
 und kundenspezifische Framework-/Generatorvarianten müssen am echten Zielprojekt
 mit eigenen erwarteten Ergebnissen gemessen werden.
+
+## Ergänzungen aus der Lückenprüfung vom 28.10.2026
+
+Java-Strukturversion 12 erhält die Verzweigungspfade moderner `switch`-Ausdrücke
+und `switch`-Anweisungen mit Pfeilzweigen, ternärer Ausdrücke sowie der bedingten
+Auswertung von `&&` und `||`. Selektoren und Bedingungen selbst werden nicht dem
+ausgewählten Ergebniszweig zugerechnet. Verschachtelte Pfade behalten Originalzeilen
+und das bestehende, sprachneutrale `control_path`-Format der Prozessansicht.
+Abnahme: `parser/tests/test_java_control_paths.py` und vorhandene Java-Golden-Tests.
