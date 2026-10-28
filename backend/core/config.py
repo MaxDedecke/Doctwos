@@ -124,9 +124,10 @@ def openai_model_supports_custom_temperature(model: str) -> bool:
 
 # Das aktive LLM-Modell — kann per /model-info POST zur Laufzeit geändert werden.
 # Bis zur ersten Auslieferung ist das lokale LLM bewusst deaktiviert: der
-# CPU-only-Pilot lädt nur bge-m3. Ein Liefer-/GPU-Host setzt OLLAMA_LLM_MODEL
+# CPU-only-Pilot lädt nur bge-m3. Ein Liefer-/GPU-Host setzt LLM_MODEL
 # explizit auf den validierten Modell-Tag (siehe .env.example/DEPLOYMENT.md).
-OLLAMA_LLM_MODEL: str = os.getenv("OLLAMA_LLM_MODEL", "disabled")
+# Gelesen wird wie im Parser LLM_MODEL; OLLAMA_LLM_MODEL bleibt als älterer Name gültig.
+OLLAMA_LLM_MODEL: str = os.getenv("LLM_MODEL") or os.getenv("OLLAMA_LLM_MODEL") or "disabled"
 
 
 def resolve_ollama_model(requested: str | None = None) -> str:

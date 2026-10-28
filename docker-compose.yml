@@ -187,7 +187,7 @@ services:
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       FEATURES_CONFIG_PATH: ${FEATURES_CONFIG_PATH:-/config/features.json}
-      OLLAMA_LLM_MODEL: ${LLM_MODEL:-disabled}
+      LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
       ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
       # SSO (E-12) — leer lässt Doctus beim reinen Passwort-Login, siehe
