@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from models.database import CodeEntity, CodeEdge
+from doctus_models.database import CodeEntity, CodeEdge
 
 
 def include_context(db, entity_ids, edges):

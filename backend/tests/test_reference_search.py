@@ -7,7 +7,7 @@ SQL ILIKE conditions did.
 """
 
 from api.projects import _refs_for_document, _refs_for_file
-from models.database import DocumentChunk
+from doctus_models.database import DocumentChunk
 
 
 def test_refs_for_document_matches_decrypted_content(db_session, test_project):

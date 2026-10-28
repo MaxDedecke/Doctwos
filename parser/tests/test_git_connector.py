@@ -13,7 +13,13 @@ from core.analysis_fingerprint import analysis_fingerprint
 from core import config
 from core.registry import ParserEntry, STRUCTURE_PARSERS
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
+from doctus_models.database import (
+    CodeEdge,
+    CodeEntity,
+    KnowledgeSource,
+    SourceScanFile,
+    DocumentChunk,
+)
 from connectors.git import (
     GitConnector,
     _looks_like_text,

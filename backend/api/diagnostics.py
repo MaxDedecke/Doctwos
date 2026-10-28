@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from core.tracing import get_trace_id
 from core.db_setup import get_db
 from core.auth_dependency import get_current_user
-from models.database import DiagnosticsRun, User
+from doctus_models.database import DiagnosticsRun, User
 from services.job_control import send_tracked_task
 
 logger = logging.getLogger(__name__)

@@ -43,7 +43,7 @@ from connectors.tls import resolve_verify
 from code_parser import CodeParser
 from core import config
 from db import SessionLocal, REDIS_URL
-from models.database import DocumentChunk, KnowledgeSource
+from doctus_models.database import DocumentChunk, KnowledgeSource
 from insight_review import mark_source_insights_outdated
 from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY
 from ollama_client import (

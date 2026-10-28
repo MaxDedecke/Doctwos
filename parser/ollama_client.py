@@ -8,7 +8,7 @@ from typing import Dict, Optional
 
 from db import SessionLocal
 from core.inference_admission import admitted_post
-from models.database import AIProfile, AISettings, EmbeddingProfile
+from doctus_models.database import AIProfile, AISettings, EmbeddingProfile
 
 logger = logging.getLogger(__name__)
 

@@ -17,7 +17,7 @@ import logging
 
 from connectors.registry import get_connector
 from db import SessionLocal
-from models.database import KnowledgeSource
+from doctus_models.database import KnowledgeSource
 
 logger = logging.getLogger(__name__)
 

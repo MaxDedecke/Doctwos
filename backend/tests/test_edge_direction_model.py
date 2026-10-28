@@ -9,7 +9,7 @@ Validates:
 
 from sqlalchemy.orm import Session
 
-from models.database import (
+from doctus_models.database import (
     EDGE_DIRECTION_BIDIRECTIONAL,
     EDGE_DIRECTION_DIRECTED,
     EDGE_DIRECTION_UNDIRECTED,

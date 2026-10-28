@@ -31,7 +31,7 @@ class DependencyFingerprints:
         return self.cache[path]
 
     def persist_discovered(self, db, source_id, dependency_reader):
-        from models.database import SourceScanFile
+        from doctus_models.database import SourceScanFile
 
         settled = DependencyFingerprints(self.inputs, self.hashes, dependency_reader(db, source_id))
         # Evaluate in the same deterministic order as the next scan, including

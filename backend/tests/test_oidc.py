@@ -20,7 +20,7 @@ from joserfc.jwk import RSAKey
 
 import core.oidc as oidc
 from core.users import get_by_oidc_subject
-from models.database import Team, TeamMembership, User
+from doctus_models.database import Team, TeamMembership, User
 
 ISSUER = "https://idp.example.com"
 CLIENT_ID = "doctus-client"

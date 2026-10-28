@@ -3,7 +3,7 @@ Batch-Lookup, den Chat-Zitate, Callgraph und der Wissensquellen-Dateibaum
 gleichermaßen benutzen, um SourceScanFile.parse_status durchzureichen."""
 
 from core.analysis_status import load_analysis_status
-from models.database import KnowledgeSource, SourceScanFile
+from doctus_models.database import KnowledgeSource, SourceScanFile
 
 
 def _make_source(db_session, test_project, test_team, name="src"):

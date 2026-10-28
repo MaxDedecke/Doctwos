@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import patch
 
 from core.config import UPLOADS_DIR
-from models.database import (
+from doctus_models.database import (
     JobCenterDismissal,
     KnowledgeSource,
     Project,
@@ -211,7 +211,7 @@ def test_source_files_includes_skipped_files_and_their_status(client, make_proje
     fehlt sie im Datei-Baum komplett. Der Endpunkt muss sie ergänzen UND ihren
     Status ausweisen, ohne die vielen unauffälligen ("complete") Dateien mit
     demselben Feld zu belasten."""
-    from models.database import DocumentChunk
+    from doctus_models.database import DocumentChunk
 
     project_id = make_project()
     resp = client.post(

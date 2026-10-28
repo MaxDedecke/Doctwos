@@ -28,7 +28,7 @@ from connectors.base import BaseConnector, Document
 from connectors.extract import extract_cloud_file
 from connectors.folder import SUPPORTED_EXTENSIONS as FOLDER_SUPPORTED_EXTENSIONS
 from db import SessionLocal
-from models.database import CodeEntity, DocumentChunk, SourceScanFile, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, SourceScanFile, KnowledgeSource
 
 logger = logging.getLogger(__name__)
 

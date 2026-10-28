@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from core.db_setup import get_db
 from core.teams import require_admin
-from models.database import Team, TeamMembership, User, Project, KnowledgeSource
+from doctus_models.database import Team, TeamMembership, User, Project, KnowledgeSource
 
 router = APIRouter(prefix="/teams", tags=["teams"], dependencies=[Depends(require_admin)])
 

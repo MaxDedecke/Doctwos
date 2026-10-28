@@ -1,6 +1,6 @@
 """Project insight nodes and their scoped evidence relationships."""
 
-from models.database import CodeEntity, DocumentChunk, Insight
+from doctus_models.database import CodeEntity, DocumentChunk, Insight
 
 
 def append_insight_graph(db, project_ids, nodes, edges, ensure_file, doc_node):

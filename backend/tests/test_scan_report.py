@@ -3,7 +3,7 @@
 import pytest
 
 from core.scan_report import classify_reason, summarize_edges, summarize_scan_reasons
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 
 
 @pytest.mark.parametrize(

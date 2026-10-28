@@ -8,7 +8,7 @@ from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 import core.config as cfg
 from core.tracing import get_trace_id
-from models.database import MCPToolAuditLog
+from doctus_models.database import MCPToolAuditLog
 
 logger = logging.getLogger(__name__)
 

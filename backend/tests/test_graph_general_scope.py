@@ -4,7 +4,7 @@ das der Nutzer irgendeine Team-/Projekt-Sichtbarkeit hatte -- unabhängig vom
 Projekt-Kontext. Jetzt braucht das Ziel-Projekt dafür das explizite Opt-in
 `expose_code_analysis_globally` (siehe core/projects.py, backend/api/graph.py)."""
 
-from models.database import (
+from doctus_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,

@@ -36,7 +36,7 @@ from core.projects import (
     get_visible_projects_page,
 )
 from core.teams import get_visible_team_ids
-from models.database import (
+from doctus_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

@@ -1,5 +1,5 @@
 from services.mcp_audit import record_mcp_tool_call, sanitize_mcp_arguments
-from models.database import MCPToolAuditLog
+from doctus_models.database import MCPToolAuditLog
 
 
 def test_sanitize_mcp_arguments_removes_secrets_and_bounds_values():

@@ -3,7 +3,7 @@ import uuid
 from db import SessionLocal
 from java.parse import parse_java_file
 from markup.parse import parse_xml_document
-from models.database import CodeEdge, CodeEntity, KnowledgeSource, Project, Team
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, Project, Team
 from structure_persist import persist_parse_result
 from tasks.edge_resolver import resolve_global_edges
 

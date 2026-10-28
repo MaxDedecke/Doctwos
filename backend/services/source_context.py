@@ -19,7 +19,7 @@ behandelt, nicht in <untrusted_...>-Tags gewrappt.
 
 from sqlalchemy.orm import Session
 
-from models.database import KnowledgeSource
+from doctus_models.database import KnowledgeSource
 
 # Deckel für die Summe aller Notizen bei projektweitem Chat — verhindert, dass
 # der System-Prompt mit wachsender Quellenzahl unkontrolliert wächst. Einzelne

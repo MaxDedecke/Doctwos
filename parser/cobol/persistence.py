@@ -8,7 +8,7 @@ COBOL's paragraph/data-item assumptions.
 from __future__ import annotations
 
 from core.model import ParsedEdge
-from models.database import CodeEntity
+from doctus_models.database import CodeEntity
 
 
 LOCAL_TARGET_TYPES: dict[str, tuple[str, ...]] = {

@@ -30,7 +30,7 @@ from connectors.office import (
 )
 from connectors.textio import read_text_file
 from db import SessionLocal
-from models.database import DocumentChunk, KnowledgeSource, SourceScanFile
+from doctus_models.database import DocumentChunk, KnowledgeSource, SourceScanFile
 from utils import extract_text_from_pdf_ocr
 
 logger = logging.getLogger(__name__)

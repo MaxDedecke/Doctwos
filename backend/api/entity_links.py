@@ -26,7 +26,7 @@ from api.schemas import LinkStatusUpdate, LlmReviewRequest, ManualLinkCreate
 from api.serializers import serialize_link
 from core.tracing import get_trace_id
 from core.db_setup import get_db
-from models.database import (
+from doctus_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,

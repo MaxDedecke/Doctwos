@@ -8,7 +8,7 @@ from java.modules import is_build_excluded
 from java.fingerprint import grammar_fingerprint
 from markup.parse import parse_xml_document
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS
-from models.database import CodeEdge, KnowledgeSource, Project, Team
+from doctus_models.database import CodeEdge, KnowledgeSource, Project, Team
 from structure_persist import persist_parse_result
 from tasks.edge_resolver import resolve_global_edges
 

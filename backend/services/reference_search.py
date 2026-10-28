@@ -2,7 +2,7 @@
 
 import re
 
-from models.database import DocumentChunk
+from doctus_models.database import DocumentChunk
 
 
 def _ilike_to_regex(pattern: str) -> re.Pattern:

@@ -14,7 +14,7 @@ from sqlalchemy import text
 from unittest.mock import patch, AsyncMock, MagicMock
 
 from db import SessionLocal
-from models.database import KnowledgeSource, DocumentChunk
+from doctus_models.database import KnowledgeSource, DocumentChunk
 from connectors.confluence import ConfluenceConnector
 from http_mocks import patch_http
 

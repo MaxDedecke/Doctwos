@@ -124,6 +124,8 @@ services:
   backend-api:
     build:
       context: ./backend
+      additional_contexts:
+        models: ./packages/doctus-models
       args:
         # Unset locally, GET /version just reports "unknown" — set by
         # scripts/build-offline-bundle.sh for shipped builds.
@@ -221,7 +223,10 @@ services:
       start_period: 15s
 
   parser-worker:
-    build: ./parser
+    build:
+      context: ./parser
+      additional_contexts:
+        models: ./packages/doctus-models
     image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
     container_name: doctus-parser
     restart: always
@@ -305,7 +310,10 @@ services:
       start_period: 20s
 
   parser-beat:
-    build: ./parser
+    build:
+      context: ./parser
+      additional_contexts:
+        models: ./packages/doctus-models
     image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
     container_name: doctus-beat
     restart: always

@@ -7,7 +7,7 @@ Gating-Prüfung zielt bewusst auf nicht existierende IDs: schlüge sie fehl,
 würde ein 404 aus der Routenlogik selbst ein fälschlich grünes 403 vortäuschen.
 """
 
-from models.database import Project, Team, Topic, TopicNode
+from doctus_models.database import Project, Team, Topic, TopicNode
 
 TEST_TOPIC_NAME = "TestTopicX"
 TEST_TOPIC_NAME_2 = "TestTopicY"

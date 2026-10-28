@@ -36,7 +36,7 @@ from services.graph_overview_limits import (
 from services.graph_overview_sampling import compute_degree, select_overview_nodes
 from core.db_setup import get_db
 from core.analysis_status import load_analysis_status
-from models.database import (
+from doctus_models.database import (
     CodeEdge,
     CodeEntity,
     EntityDocLink,

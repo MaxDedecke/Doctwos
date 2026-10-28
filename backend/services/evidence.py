@@ -13,7 +13,7 @@ import re
 from sqlalchemy.orm import Session
 
 from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, ROUTINE_TYPES, role_of
-from models.database import CodeEdge, CodeEntity, User
+from doctus_models.database import CodeEdge, CodeEntity, User
 from services.call_flow import TEST_PATH_PATTERN
 from services.source_access import site_excerpt, source_visible
 

@@ -14,7 +14,7 @@ from typing import Literal
 from sqlalchemy import case, or_
 from sqlalchemy.orm import Session, aliased
 
-from models.database import CodeEdge, CodeEntity
+from doctus_models.database import CodeEdge, CodeEntity
 
 
 CALL_FLOW_MAX_HOPS = 5

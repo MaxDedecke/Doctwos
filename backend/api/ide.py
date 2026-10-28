@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from core.db_setup import get_db
 from core.projects import assert_knowledge_source_visible, assert_project_visible
-from models.database import CodeEdge, CodeEntity, KnowledgeSource, User
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
 from services.mcp_tokens import find_token_user
 
 router = APIRouter(prefix="/ide", tags=["ide"])

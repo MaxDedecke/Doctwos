@@ -1,4 +1,4 @@
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 
 
 def test_process_focus_is_bounded_and_keeps_code_edge_provenance(

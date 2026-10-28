@@ -18,7 +18,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 from core.projects import assert_knowledge_source_visible, assert_project_visible
-from models.database import ChatMessage, KnowledgeSource, User
+from doctus_models.database import ChatMessage, KnowledgeSource, User
 from services.chat_errors import ChatInvalid, ChatNotFound
 
 # Vom Client gemeldete Ergebnisse; „requested" setzt nur der Server.

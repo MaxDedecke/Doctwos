@@ -9,7 +9,7 @@ Backend-Request.
 
 Datei bewusst dupliziert statt importiert: backend/ und parser/ sind getrennte
 Docker-Images ohne gemeinsames Package (siehe die bereits bestehende Duplizierung
-von models/database.py).
+von doctus_models/database.py).
 """
 
 import contextvars

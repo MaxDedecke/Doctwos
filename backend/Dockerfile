@@ -19,6 +19,11 @@ COPY requirements.txt .
 # Runtime-Stage.
 COPY vendor/ vendor/
 RUN pip install --no-cache-dir --user -r requirements.txt
+# Gemeinsames Datenmodell (packages/doctus-models) kommt als zweiter Build-Kontext
+# `models` (docker-compose.yml: additional_contexts) und wird wie jede andere
+# Abhängigkeit nach /root/.local installiert.
+COPY --from=models . /tmp/doctus-models
+RUN pip install --no-cache-dir --user /tmp/doctus-models
 
 FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
 
@@ -45,7 +50,6 @@ ENV PATH=/root/.local/bin:$PATH
 # Build-Kette obendrein.
 COPY api/ api/
 COPY core/ core/
-COPY models/ models/
 COPY services/ services/
 COPY alembic/ alembic/
 COPY alembic.ini .

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import core.config as cfg
 from core.db_setup import get_db
 from core.teams import require_admin
-from models.database import MCPToolAuditLog, User
+from doctus_models.database import MCPToolAuditLog, User
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 

@@ -5,7 +5,7 @@ from sqlalchemy import engine_from_config, pool
 from sqlalchemy.types import TypeDecorator
 
 from core.db_setup import DATABASE_URL
-from models.database import Base
+from doctus_models.database import Base
 
 config = context.config
 config.set_main_option("sqlalchemy.url", DATABASE_URL)

@@ -5,7 +5,7 @@ from sqlalchemy import text
 
 from core.external_targets import classify_external
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from tasks.edge_resolver import _resolve_jcl_edges
 
 

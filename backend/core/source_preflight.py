@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile
 
 STRUCTURED_LANGUAGES = ("cobol", "copybook", "jcl")
 _TOP_GAPS = 15

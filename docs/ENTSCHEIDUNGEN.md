@@ -42,7 +42,7 @@ zweigeteilt:
 Programmlokale Kanten sind damit schon beim Parsen auflösbar und brauchen den
 Nachlauf-Pass gar nicht — der bleibt für die echten Cross-Program-Kanten.
 
-**Fundstelle.** `backend/models/database.py::CodeEdge.scope_entity_id`,
+**Fundstelle.** `doctus_models/database.py::CodeEdge.scope_entity_id`,
 Index `ix_code_edges_scope_name`.
 
 ---

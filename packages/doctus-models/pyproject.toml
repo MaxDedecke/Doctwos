@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "doctus-models"
+dynamic = ["version"]
+description = "Gemeinsames SQLAlchemy-Datenmodell von Doctus-Backend und -Parser"
+requires-python = ">=3.11"
+# Die genauen Versionen pinnen backend/requirements.txt und parser/requirements.txt.
+dependencies = ["sqlalchemy>=2.0", "pgvector>=0.5", "cryptography>=42"]
+
+[tool.setuptools]
+packages = ["doctus_models"]
+
+[tool.setuptools.dynamic]
+version = { attr = "doctus_models.__version__" }

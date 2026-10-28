@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from core.projects import assert_knowledge_source_visible, assert_project_visible
 from core.teams import assert_team_visible, is_admin
-from models.database import ChatMessage, ChatSession, KnowledgeSource, Project, User
+from doctus_models.database import ChatMessage, ChatSession, KnowledgeSource, Project, User
 from services.chat_errors import ChatForbidden, ChatInvalid, ChatNotFound
 
 if TYPE_CHECKING:

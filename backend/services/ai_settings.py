@@ -5,7 +5,7 @@ from typing import Any
 
 import core.config as cfg
 from core.inference_admission import set_endpoint_limit
-from models.database import AIProfile, AISettings, EmbeddingProfile
+from doctus_models.database import AIProfile, AISettings, EmbeddingProfile
 from sqlalchemy.orm import Session
 
 

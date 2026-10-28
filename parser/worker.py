@@ -29,7 +29,7 @@ from celery import Celery
 from celery.schedules import crontab
 from celery.signals import worker_process_init
 from db import REDIS_URL, SessionLocal
-from models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun
+from doctus_models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun
 
 from core.tracing import TraceIdFilter, trace_id_scope
 from tasks.document import process_local_document_async
@@ -309,7 +309,7 @@ def scan_pull_sources():
     dieser Datei.
     """
     from connectors.registry import REGISTRY
-    from models.database import KnowledgeSource
+    from doctus_models.database import KnowledgeSource
 
     auto_sync_types = {k.lower() for k in REGISTRY.keys()}
     now = datetime.now(timezone.utc)

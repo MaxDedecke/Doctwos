@@ -3,7 +3,13 @@
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import load_only
 
-from models.database import CodeEntity, DocumentChunk, KnowledgeLink, KnowledgeSource, Project
+from doctus_models.database import (
+    CodeEntity,
+    DocumentChunk,
+    KnowledgeLink,
+    KnowledgeSource,
+    Project,
+)
 
 
 def _scope_side(side, project_id):

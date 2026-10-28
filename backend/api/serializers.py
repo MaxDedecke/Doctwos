@@ -8,7 +8,7 @@ Zentralisiert, damit alle Router dasselbe Format zurückgeben.
 """
 
 from typing import Optional
-from models.database import (
+from doctus_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,

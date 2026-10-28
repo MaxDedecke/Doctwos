@@ -3,7 +3,7 @@ from __future__ import annotations
 from structure_persist import _build_edge
 from java.parse import parse_java_file
 from java.resolution import resolve_global_edges
-from models.database import CodeEdge, CodeEntity
+from doctus_models.database import CodeEdge, CodeEntity
 from tasks.edge_resolver import _java_parse_results
 
 

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import core.config as cfg
-from models.database import AIProfile, EmbeddingProfile
+from doctus_models.database import AIProfile, EmbeddingProfile
 from services import ai_settings
 from services.deployer_client import DeployerError
 

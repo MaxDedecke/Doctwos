@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from core.db_setup import get_db
-from models.database import User
+from doctus_models.database import User
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids
 from core.projects import get_visible_project_ids

@@ -1,7 +1,14 @@
 import uuid
 from types import SimpleNamespace
 
-from models.database import Team, Project, KnowledgeSource, CodeEntity, CodeEdge, DocumentChunk
+from doctus_models.database import (
+    Team,
+    Project,
+    KnowledgeSource,
+    CodeEntity,
+    CodeEdge,
+    DocumentChunk,
+)
 from services.document_includes import selected_excerpts
 from services.graph_retrieval import expand_chunks_with_graph
 

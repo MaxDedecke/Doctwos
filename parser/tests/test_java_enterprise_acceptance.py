@@ -11,7 +11,7 @@ import pytest
 
 from connectors.git import GitConnector
 from db import SessionLocal
-from models.database import (
+from doctus_models.database import (
     Team,
     Project,
     KnowledgeSource,

@@ -25,7 +25,7 @@ import core.config as cfg
 from core.llm_providers import is_self_hosted_openai
 from core.inference_admission import admitted_post
 from core.inference_errors import raise_for_inference_status
-from models.database import DocumentChunk, KnowledgeSource
+from doctus_models.database import DocumentChunk, KnowledgeSource
 
 logger = logging.getLogger(__name__)
 

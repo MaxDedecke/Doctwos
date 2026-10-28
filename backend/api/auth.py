@@ -48,7 +48,7 @@ from core.login_throttle import (
     set_lock,
 )
 from core.passwords import MIN_PASSWORD_LENGTH, hash_password, needs_rehash, verify_password
-from models.database import User
+from doctus_models.database import User
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 

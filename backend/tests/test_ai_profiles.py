@@ -1,4 +1,4 @@
-from models.database import AIProfile, AISettings
+from doctus_models.database import AIProfile, AISettings
 from services.ai_settings import apply_profile
 
 

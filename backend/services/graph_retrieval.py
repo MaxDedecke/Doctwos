@@ -9,7 +9,7 @@ vier Zeichen pro Token sind eine konservative, deterministische Näherung.
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from models.database import CodeEdge, CodeEntity, DocumentChunk
+from doctus_models.database import CodeEdge, CodeEntity, DocumentChunk
 from services.document_includes import include_context, selected_excerpts
 
 

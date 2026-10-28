@@ -1,7 +1,7 @@
 """O-348: der Quellfilter der globalen Suche muss auch für Code-Entities greifen
 (vorher wurden Entities bei gesetztem source_id komplett übersprungen -> 0 Treffer)."""
 
-from models.database import CodeEntity, KnowledgeSource, Project
+from doctus_models.database import CodeEntity, KnowledgeSource, Project
 from services.search import search_nodes
 
 

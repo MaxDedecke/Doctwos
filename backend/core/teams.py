@@ -15,7 +15,7 @@ from fastapi import Depends, HTTPException
 from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
-from models.database import TeamMembership, User
+from doctus_models.database import TeamMembership, User
 
 # Team, dem der Erststart-Superuser beitritt und auf das `_resolve_team_id`
 # (knowledge_sources.py) für Admins ohne explizite Team-Wahl zurückfällt —

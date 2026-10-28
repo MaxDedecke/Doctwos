@@ -7,7 +7,7 @@ from xml.sax.saxutils import escape
 from sqlalchemy import or_
 
 from core.projects import assert_project_visible
-from models.database import Insight
+from doctus_models.database import Insight
 
 
 def retrieve_insight_context(db, user, project_id, message, sources=None):

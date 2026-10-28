@@ -1,5 +1,5 @@
 from api.graph import _code_file_id
-from models.database import (
+from doctus_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,
@@ -364,7 +364,7 @@ def test_callgraph_focus_marks_nodes_from_incompletely_analyzed_files(
 ):
     """O-120: ein Knoten aus einer nur teilweise geparsten Datei darf im
     Call-Graph nicht wie ein uneingeschränkt analysierter Knoten aussehen."""
-    from models.database import SourceScanFile
+    from doctus_models.database import SourceScanFile
 
     source, caller, target, copybook, paragraph, _ = _fixture_graph(
         db_session, test_project, test_team

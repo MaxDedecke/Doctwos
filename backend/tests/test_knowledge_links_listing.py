@@ -18,7 +18,7 @@ import pytest
 from sqlalchemy import event
 
 from core.db_setup import engine
-from models.database import (
+from doctus_models.database import (
     CodeEntity,
     DocumentChunk,
     KnowledgeLink,
@@ -155,7 +155,7 @@ def test_fremdes_projekt_bleibt_unsichtbar(member_client, db_session):
         db_session.add(
             ProjectMembership(project_id=foreign.id, user_id=_member_id(db_session), role="member")
         )
-        from models.database import TeamMembership
+        from doctus_models.database import TeamMembership
 
         db_session.add(TeamMembership(user_id=_member_id(db_session), team_id=team.id))
         db_session.commit()
@@ -167,7 +167,7 @@ def test_fremdes_projekt_bleibt_unsichtbar(member_client, db_session):
         counts_after = member_client.get("/knowledge-links/counts").json()
         assert counts_after["pending"] == counts_before["pending"] + 1
     finally:
-        from models.database import TeamMembership
+        from doctus_models.database import TeamMembership
 
         db_session.query(TeamMembership).filter(TeamMembership.team_id == team.id).delete()
         db_session.query(ProjectMembership).filter(

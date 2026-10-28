@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 import core.config as cfg
 from core.inference_admission import admitted_post, admitted_stream
 from core.inference_errors import raise_for_inference_status
-from models.database import (
+from doctus_models.database import (
     ChatMessage,
     CodeEdge,
     CodeEntity,

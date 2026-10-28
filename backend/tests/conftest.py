@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from core.db_setup import SessionLocal, get_db
 from main import app
-from models.database import Team, TeamMembership, User, Project, ProjectMembership
+from doctus_models.database import Team, TeamMembership, User, Project, ProjectMembership
 
 TEST_USERNAME = "test-fixture-user"
 TEST_USER_EMAIL = "fixture-user@example.com"

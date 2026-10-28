@@ -10,7 +10,13 @@ import pytest
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
+from doctus_models.database import (
+    CodeEdge,
+    CodeEntity,
+    DocumentChunk,
+    KnowledgeSource,
+    SourceScanFile,
+)
 from connectors.git import GitConnector
 
 

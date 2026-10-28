@@ -10,7 +10,7 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
 from core.teams import is_admin
-from models.database import Insight, KnowledgeSource, User
+from doctus_models.database import Insight, KnowledgeSource, User
 
 
 router = APIRouter(prefix="/projects", tags=["insights"])

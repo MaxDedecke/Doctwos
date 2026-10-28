@@ -71,10 +71,12 @@ Regeln dafür:
 - **DB:** PostgreSQL + pgvector (HNSW, bge-m3 = 1024 Dimensionen)
 - **Queue:** Redis/Valkey
 - **LLM:** Ollama (`qwen3:8b` als Standard, nur Untergrenze/Demo), Embeddings `bge-m3`
-- **Modell-Duplikat:** `backend/models/database.py` und `parser/models/database.py`
-  sind getrennte physische Dateien (getrennte Docker-Build-Kontexte) und müssen
-  **byte-identisch** bleiben — dasselbe gilt für `crypto_types.py`. Wer ORM-Modelle
-  ändert, ändert beide.
+- **Datenmodell:** ein gemeinsames Paket `packages/doctus-models` (Import `doctus_models`,
+  ORM in `doctus_models/database.py`, Spaltentypen in `crypto_types.py`). Backend- und
+  Parser-Image installieren es über den zweiten Build-Kontext `models`
+  (`additional_contexts` in `docker-compose.yml`); lokal/CI `pip install packages/doctus-models`.
+  Modelländerung = Alembic-Migration in `backend/alembic/` + Versionsnummer in
+  `doctus_models/__init__.py` erhöhen + Backend **und** Parser neu bauen.
 
 ## Umgebung
 

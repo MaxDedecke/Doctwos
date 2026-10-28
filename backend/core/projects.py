@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
-from models.database import DocumentChunk, Project, ProjectMembership, User, KnowledgeSource
+from doctus_models.database import DocumentChunk, Project, ProjectMembership, User, KnowledgeSource
 from core.teams import assert_team_visible, get_visible_team_ids, is_admin
 
 
@@ -220,7 +220,7 @@ def resolve_repository_id(project_id: int, db: Session) -> Optional[int]:
     """
     Findet die Repository-ID eines Projekts heraus, falls verknüpft.
     """
-    from models.database import KnowledgeSource
+    from doctus_models.database import KnowledgeSource
 
     source = (
         db.query(KnowledgeSource)

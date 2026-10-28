@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy import text
 from db import SessionLocal
-from models.database import LinkBuilderRun
+from doctus_models.database import LinkBuilderRun
 from tasks.link_builder import compute_entity_links_async, redis_client
 
 

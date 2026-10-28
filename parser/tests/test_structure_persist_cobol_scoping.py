@@ -14,7 +14,7 @@ from cobol.persistence import belongs_to_program as _belongs_to_program
 from cobol.persistence import find_source as _find_src
 from cobol.persistence import resolve_local_target as _resolve_local_target
 from structure_persist import _parent_id
-from models.database import CodeEntity
+from doctus_models.database import CodeEntity
 
 
 def _entity(id_: int, name: str, type_: str, qualified_name: str) -> CodeEntity:

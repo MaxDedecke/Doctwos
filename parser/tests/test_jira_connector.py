@@ -13,7 +13,7 @@ from sqlalchemy import text
 from unittest.mock import patch, MagicMock
 
 from db import SessionLocal
-from models.database import KnowledgeSource, DocumentChunk
+from doctus_models.database import KnowledgeSource, DocumentChunk
 from connectors.jira import JiraConnector
 from http_mocks import patch_http
 

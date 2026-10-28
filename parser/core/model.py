@@ -20,7 +20,7 @@ bewusst in `cobol/model.py` — sie sind an COBOLs Grammatik gebunden, nicht
 sprachneutral.
 
 `EntityType`/`EdgeType`/`Resolution` spiegeln bewusst die String-Werte aus
-`backend/models/database.py` (`CodeEntity.type`, `CodeEdge.type`/`.resolution`) —
+`doctus_models/database.py` (`CodeEntity.type`, `CodeEdge.type`/`.resolution`) —
 der Parser produziert hier schon die Werte, die `parse.py` später 1:1 in die
 DB schreibt, keine Übersetzungstabelle nötig.
 """
@@ -51,7 +51,7 @@ DiagnosticPhase = Literal["lexer", "parser", "profile", "import"]
 @dataclass
 class Chunk:
     """Ein Embedding-Chunk (F-041) — `content` plus `meta`, das 1:1 in
-    `DocumentChunk.metadata_json` landet (parser/models/database.py).
+    `DocumentChunk.metadata_json` landet (doctus_models/database.py).
 
     meta enthält immer `"program"`/`"format"`. Für den Normalfall (ein Chunk
     = ein Paragraph) zusätzlich `"section"`/`"paragraph"` (je `str`). Zwei

@@ -21,6 +21,8 @@ services:
     profiles: ["test"]
     build:
       context: ./parser
+      additional_contexts:
+        models: ./packages/doctus-models
       target: dev
     image: doctus-parser-test:dev
     command: ["python", "-m", "pytest", "tests/", "-q"]

@@ -39,7 +39,7 @@ from cobol.parse import parse_program, parse_copybook  # noqa: E402
 from structure_persist import persist_parse_result  # noqa: E402
 from tasks.edge_resolver import resolve_global_edges  # noqa: E402
 from db import SessionLocal  # noqa: E402
-from models.database import CodeEntity, CodeEdge  # noqa: E402
+from doctus_models.database import CodeEntity, CodeEdge  # noqa: E402
 from ollama_client import get_embeddings_batch  # noqa: E402
 
 

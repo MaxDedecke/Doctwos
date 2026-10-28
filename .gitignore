@@ -43,3 +43,4 @@ docs/evidence/graph-layout-after-2026-10-27/*.png
 !docs/evidence/graph-layout-after-2026-10-27/1280x800-4-views-details.png
 !docs/evidence/graph-layout-after-2026-10-27/1440x900-3-views.png
 !docs/evidence/graph-layout-after-2026-10-27/1440x900-3-views-neighborhood.png
+packages/*/build/

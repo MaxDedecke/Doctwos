@@ -31,7 +31,7 @@ import httpx
 
 from connectors.base import BaseConnector, Document
 from connectors.http_retry import request_with_retry
-from models.database import DocumentChunk
+from doctus_models.database import DocumentChunk
 
 ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 

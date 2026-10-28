@@ -21,7 +21,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-from models.crypto_types import EncryptedCredential, EncryptedString
+from doctus_models.crypto_types import EncryptedCredential, EncryptedString
 
 Base = declarative_base()
 

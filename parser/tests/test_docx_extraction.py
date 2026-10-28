@@ -15,7 +15,7 @@ from sqlalchemy import text
 
 from connectors.folder import _extract_text, extract_docx_text
 from db import SessionLocal
-from models.database import DocumentChunk, KnowledgeSource
+from doctus_models.database import DocumentChunk, KnowledgeSource
 
 from conftest import requires_ollama
 

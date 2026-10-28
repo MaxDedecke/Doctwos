@@ -23,7 +23,7 @@ import core.oidc as oidc
 from core.db_setup import get_db
 from core.oidc import redirect_uri
 from core.teams import require_admin
-from models.database import Team
+from doctus_models.database import Team
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/config", tags=["config"])

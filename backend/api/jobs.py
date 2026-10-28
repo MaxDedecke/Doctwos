@@ -19,7 +19,7 @@ from core.db_setup import get_db
 from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids, is_admin, require_admin
 from core.tracing import get_trace_id
-from models.database import (
+from doctus_models.database import (
     DiagnosticsRun,
     JobCenterDismissal,
     KnowledgeSource,

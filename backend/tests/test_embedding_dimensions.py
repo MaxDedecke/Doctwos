@@ -1,4 +1,4 @@
-from models.database import DocumentChunk
+from doctus_models.database import DocumentChunk
 
 
 def test_embedding_dimension_is_derived_without_model_name_rule():

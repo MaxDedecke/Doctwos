@@ -29,22 +29,9 @@ jobs:
       - name: Install Python quality tooling
         run: python -m pip install -r requirements-lint.txt
       - name: Lint backend and parser
-        run: python -m ruff check backend parser --output-format=github
+        run: python -m ruff check backend parser packages --output-format=github
       - name: Check Python formatting
-        run: python -m ruff format --check backend parser
-
-  # backend/ and parser/ are separate Docker build contexts (see CLAUDE.md
-  # "Models module duplication") — these files must be kept byte-identical by
-  # hand. This has silently drifted before and caused the parser Celery
-  # worker's ORM mapper to diverge from the actual DB schema.
-  model-sync:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-      - name: backend/models and parser/models must be byte-identical
-        run: |
-          diff backend/models/database.py parser/models/database.py
-          diff backend/models/crypto_types.py parser/models/crypto_types.py
+        run: python -m ruff format --check backend parser packages
 
   backend:
     runs-on: ubuntu-latest
@@ -82,6 +69,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          pip install ../packages/doctus-models
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
@@ -134,6 +122,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
           pip install alembic
+          pip install ../packages/doctus-models
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
@@ -157,6 +146,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
+          pip install ../packages/doctus-models
       - name: Run COBOL parser tests (golden files + unit tests)
         working-directory: parser
         run: python -m pytest tests/test_cobol_*.py -v
@@ -278,7 +268,9 @@ jobs:
           python-version: "3.11"
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          pip install ../packages/doctus-models
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
@@ -369,14 +361,13 @@ jobs:
       - uses: actions/checkout@v5
       - name: password_hash taucht nur an den erlaubten Stellen auf
         run: |
-          hits=$(grep -rn "password_hash" backend parser frontend \
+          hits=$(grep -rn "password_hash" backend parser packages frontend \
                    --include="*.py" --include="*.ts" --include="*.tsx" \
                    --exclude-dir=node_modules \
                  | grep -v "^backend/core/passwords.py:" \
                  | grep -v "^backend/api/auth.py:" \
                  | grep -v "^backend/core/users.py:" \
-                 | grep -v "^backend/models/database.py:" \
-                 | grep -v "^parser/models/database.py:" \
+                 | grep -v "^packages/doctus-models/doctus_models/database.py:" \
                  | grep -v "^backend/alembic/versions/" \
                  | grep -v "^backend/tests/" || true)
           if [ -n "$hits" ]; then

@@ -10,7 +10,7 @@ import pytest
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, DocumentChunk
+from doctus_models.database import CodeEdge, CodeEntity, DocumentChunk
 from tasks.link_builder import (
     MIN_SCORE_KEYWORD,
     _build_entity_context,
@@ -31,10 +31,8 @@ def db_session():
 
 @pytest.fixture
 def test_project(db_session):
-    # Raw SQL, not the ORM, for teams/projects/knowledge_sources: parser/models/database.py has no
-    # Team class (only backend does), so SQLAlchemy can't resolve Project.team_id's FK to a `teams`
-    # table it doesn't know about and flushing a Project/KnowledgeSource ORM object here would raise
-    # NoReferencedTableError -- pre-existing gap in the parser's model file, unrelated to this test.
+    # Raw SQL for teams/projects/knowledge_sources dates from a former parser-only model copy
+    # without a Team class; the shared doctus_models package has one, the SQL still works.
     team_id = db_session.execute(
         text("INSERT INTO teams (name, created_at) VALUES (:name, now()) RETURNING id"),
         {"name": "link-builder-test-team"},
@@ -609,7 +607,7 @@ def test_candidate_key_can_dedupe_per_chunk():
 
 def test_store_reviewed_links_updates_pending_and_keeps_decisions(db_session, test_project):
     from tasks.link_builder import _store_reviewed_links, _undecided_pages
-    from models.database import EntityDocLink
+    from doctus_models.database import EntityDocLink
 
     project_id, source_id = test_project
     entity = CodeEntity(project_id=project_id, file_path="src/a.py", name="calc", type="function")

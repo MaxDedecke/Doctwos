@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 import core.config as cfg
 from sqlalchemy.orm import Session
 from core.db_setup import get_db
-from models.database import (
+from doctus_models.database import (
     KnowledgeLink,
     CodeEntity,
     DocumentChunk,

@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from api.schemas import ChatFeedbackDiagnosticSettingsUpdate
 from core.db_setup import get_db
 from core.teams import require_admin
-from models.database import ChatFeedbackDiagnosticCase, User
+from doctus_models.database import ChatFeedbackDiagnosticCase, User
 from services.chat_feedback_diagnostics import get_settings, purge_expired_cases
 
 router = APIRouter(prefix="/feedback-diagnostics", tags=["feedback-diagnostics"])

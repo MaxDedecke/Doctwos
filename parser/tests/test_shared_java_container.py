@@ -14,7 +14,7 @@ from sqlalchemy import text
 from connectors.git import _delete_file_entities
 from db import SessionLocal
 from java.parse import parse_java_file
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from structure_persist import persist_parse_result
 
 

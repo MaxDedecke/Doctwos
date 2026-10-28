@@ -2,7 +2,7 @@ from uuid import uuid4
 
 import pytest
 
-from models.database import Insight, Project, ProjectMembership, TeamMembership, User
+from doctus_models.database import Insight, Project, ProjectMembership, TeamMembership, User
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 
 

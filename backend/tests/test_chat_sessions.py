@@ -3,7 +3,7 @@ import json
 import pytest
 
 from conftest import TEST_USERNAME
-from models.database import (
+from doctus_models.database import (
     ChatLinkFeedbackSignal,
     ChatMessage,
     ChatSession,

@@ -8,7 +8,7 @@ vector-search fallback branch is never reached.
 """
 
 from services.chat_service import find_pinned_chunks, hybrid_chunk_search
-from models.database import DocumentChunk
+from doctus_models.database import DocumentChunk
 
 
 def test_section_number_match_finds_decrypted_chunk(db_session, test_project):

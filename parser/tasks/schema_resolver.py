@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from models.database import CodeEntity, CodeEdge
+from doctus_models.database import CodeEntity, CodeEdge
 from java.modules import module_from_path
 
 SCHEMA_EDGES = {

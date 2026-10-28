@@ -48,7 +48,7 @@ from core.config import UPLOADS_DIR, REPOS_ROOT
 import core.config as cfg
 from core.db_setup import get_db
 from core.scan_report import summarize_edges, summarize_scan_reasons
-from models.database import (
+from doctus_models.database import (
     DocumentChunk,
     EntityDocLink,
     JobCenterDismissal,

@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from core.projects import assert_knowledge_source_visible
-from models.database import CodeEntity, DocumentChunk, KnowledgeSource, User
+from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource, User
 
 COMMENT_START = ("//", "/*", "*", "#", "--")
 

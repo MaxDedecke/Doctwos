@@ -64,7 +64,7 @@ from connectors.finalize import finalize_source
 from db import REPOS_ROOT
 from java.modules import is_build_excluded as _is_java_build_excluded
 from java.modules import module_from_path
-from models.database import (
+from doctus_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

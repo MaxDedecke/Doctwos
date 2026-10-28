@@ -19,7 +19,7 @@ einzuführen). Deshalb:
 
 Redaction-Logik dupliziert aus generate_diagnostics.py statt importiert:
 backend/parser sind getrennte Docker-Images ohne gemeinsames Package (gleiches
-Muster wie models/database.py).
+Muster wie doctus_models/database.py).
 """
 
 import csv
@@ -34,7 +34,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import (
+from doctus_models.database import (
     DiagnosticsRun,
     KnowledgeSource,
     LinkBuilderRun,

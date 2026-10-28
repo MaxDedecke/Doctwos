@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from core.analysis_status import load_analysis_status
 from core.projects import resolve_repository_id
-from models.database import DocumentChunk, KnowledgeSource
+from doctus_models.database import DocumentChunk, KnowledgeSource
 from services.provenance import build_provenance
 
 logger = logging.getLogger(__name__)

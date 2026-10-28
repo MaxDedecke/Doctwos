@@ -3,7 +3,7 @@
 from datetime import datetime, timezone
 from typing import Any
 
-from models.database import Insight, KnowledgeSource
+from doctus_models.database import Insight, KnowledgeSource
 
 
 def _references_source(value: Any, source_id: int) -> bool:

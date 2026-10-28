@@ -18,7 +18,7 @@ from core.db_setup import get_db
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin
 from core.projects import assert_project_visible, get_visible_project_ids, ALLOWED_PROJECT_ROLES
-from models.database import (
+from doctus_models.database import (
     Project,
     ProjectMembership,
     ProjectAccessRequest,
@@ -61,7 +61,7 @@ def _refs_for_file(project_id, file_path, base_name, db) -> list[dict]:
 
 
 def _default_team_id(db: Session) -> int:
-    from models.database import Team
+    from doctus_models.database import Team
 
     return db.query(Team.id).filter(Team.name == "Default Team").scalar()
 
@@ -326,7 +326,7 @@ def complete_project(
             source.project_id = None
 
         # DocumentChunk/CodeEntity carry their own denormalized project_id
-        # (see models/database.py) — retrieval filters on that column
+        # (see doctus_models/database.py) — retrieval filters on that column
         # directly, not via a join to knowledge_sources, so it must be
         # cleared too or promoted docs would stay invisible outside the project.
         db.query(DocumentChunk).filter(DocumentChunk.source_id.in_(found_ids)).update(

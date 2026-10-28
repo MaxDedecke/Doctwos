@@ -27,7 +27,7 @@ import core.config as cfg
 from core.inference_errors import VllmCapacityError
 from core.inference_admission import InferenceAdmissionTimeout
 from core.teams import get_visible_team_ids
-from models.database import DocumentChunk, KnowledgeSource, Project, User
+from doctus_models.database import DocumentChunk, KnowledgeSource, Project, User
 from services.ai_settings import get_active_embedding_profile, get_profile
 from services.chat_errors import ChatForbidden, ChatNotFound
 from services.chat_service import (

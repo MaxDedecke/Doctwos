@@ -4,7 +4,7 @@ import pytest
 
 from core.external_targets import classify_external
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from sqlalchemy import text
 from tasks.edge_resolver import _mark_external_targets
 

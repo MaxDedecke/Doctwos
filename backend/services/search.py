@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, func, case, false
 
 from core.projects import build_document_chunk_code_gate, get_globally_exposed_project_ids
-from models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
+from doctus_models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
 
 ALL_TYPES = "project,entity,document,knowledge_source"
 

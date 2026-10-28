@@ -19,7 +19,7 @@ from typing import Awaitable, Callable, Optional
 
 from sqlalchemy import ColumnElement
 
-from models.database import DocumentChunk, EntityDocLink
+from doctus_models.database import DocumentChunk, EntityDocLink
 from link_dirty import enqueue_dirty_item
 
 STALE_NOTE = "[Inhalt bei Re-Index geändert – erneute Prüfung nötig] "

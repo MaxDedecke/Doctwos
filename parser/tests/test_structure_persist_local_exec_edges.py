@@ -2,7 +2,7 @@
 müssen beim Persistieren aufgelöst werden; nur Copybook-Kreuzverweise warten auf Pass 2."""
 
 from core.model import ParsedEdge
-from models.database import CodeEntity
+from doctus_models.database import CodeEntity
 from structure_persist import _build_edge
 
 PGM = "COSGN00C"

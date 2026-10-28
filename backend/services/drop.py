@@ -16,7 +16,7 @@ from typing import Iterable
 from sqlalchemy.orm import Session
 
 from core.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, role_of
-from models.database import CodeEdge, CodeEntity, User
+from doctus_models.database import CodeEdge, CodeEntity, User
 from services.call_flow import TEST_PATH_PATTERN
 from services.source_access import source_visible
 

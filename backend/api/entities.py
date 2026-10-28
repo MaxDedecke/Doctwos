@@ -16,7 +16,7 @@ from core.projects import (
 )
 from core.teams import assert_team_visible
 from services import drop as drop_view
-from models.database import (
+from doctus_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

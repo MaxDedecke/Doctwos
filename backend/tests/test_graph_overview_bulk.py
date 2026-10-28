@@ -3,7 +3,7 @@
 from sqlalchemy import event
 
 from api.graph import _doc_node, _ensure_entity_file_node
-from models.database import CodeEntity, DocumentChunk, KnowledgeLink, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeLink, KnowledgeSource
 from services.graph_overview_links import append_overview_knowledge_links
 
 

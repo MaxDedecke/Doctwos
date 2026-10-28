@@ -6,7 +6,7 @@ from java.injection import derive_injection_edges
 from java.lambda_dispatch import derive_lambda_dispatch
 from java.modules import module_from_path
 from core.model import Entity, ParseResult
-from models.database import CodeEntity, CodeEdge
+from doctus_models.database import CodeEntity, CodeEdge
 from tasks.configuration_resolver import resolve_configuration_edges
 
 

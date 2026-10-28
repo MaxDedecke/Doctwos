@@ -1,6 +1,7 @@
 """Run bounded MCP security regressions using rollback-only TEMP tables.
 
-Requires the repository's .venv, .env and local PostgreSQL with migrated schema.
+Requires the repository's .venv (with `pip install ./packages/doctus-models`), .env and local
+PostgreSQL with migrated schema.
 All data is synthetic. No embedding provider or running API service is called.
 """
 import asyncio
@@ -25,7 +26,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 import httpx
 import mcp_server as server
-from models.database import (User, Team, TeamMembership, Project, ProjectMembership,
+from doctus_models.database import (User, Team, TeamMembership, Project, ProjectMembership,
     KnowledgeSource, DocumentChunk, MCPAccessToken, CodeEntity, CodeEdge)
 from api.mcp_tokens import revoke_token
 from fastapi import HTTPException

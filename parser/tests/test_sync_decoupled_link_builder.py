@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 
 from tasks import sync
-from models.database import KnowledgeSource, LinkBuilderRun
+from doctus_models.database import KnowledgeSource, LinkBuilderRun
 
 
 @pytest.mark.anyio

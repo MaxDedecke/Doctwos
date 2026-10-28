@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from models.database import (
+from doctus_models.database import (
     ChatFeedbackDiagnosticCase,
     ChatFeedbackDiagnosticSettings,
     ChatMessage,

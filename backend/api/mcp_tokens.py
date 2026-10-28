@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from models.database import MCPAccessToken, User
+from doctus_models.database import MCPAccessToken, User
 from services.mcp_tokens import create_token, public_token
 
 

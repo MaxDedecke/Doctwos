@@ -8,7 +8,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.analysis_status import load_analysis_status
-from models.database import CodeEdge, CodeEntity, KnowledgeLink
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeLink
 
 
 MAX_IMPACT_HOPS = 3

@@ -1,6 +1,7 @@
 import asyncio
 import os
 import pytest
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from sqlalchemy import create_engine
@@ -11,12 +12,10 @@ from connectors.git import (
     _analysis_dependency_paths,
 )
 from core.inference_admission import (
-    CHAT_RESERVE,
-    MAX_CONCURRENCY,
     admission_wait_tracker,
     track_admission_wait,
 )
-from models.database import Base, CodeEdge, CodeEntity
+from doctus_models.database import Base, CodeEdge, CodeEntity
 
 
 def test_analysis_dependency_paths_targeted_sql_join():
@@ -130,15 +129,24 @@ async def test_embed_document_fair_batching_and_metrics():
     assert metrics["admission_wait_ms"] == 15 * len(batch_calls)
 
 
-def test_embed_concurrency_clamps_to_admission_batch_reserve():
-    """Verify embed concurrency is bounded by available admission batch slots."""
-    available_batch_slots = max(1, MAX_CONCURRENCY - CHAT_RESERVE)
-    assert available_batch_slots == 3
+def test_embed_concurrency_clamps_to_admission_batch_reserve(monkeypatch):
+    """Embedding concurrency never exceeds the admission slots left after the chat reserve.
 
-    # If config.EMBED_CONCURRENCY is higher (e.g. 20), it clamps to 3
-    clamped = min(20, available_batch_slots)
-    assert clamped == 3
+    Uses fixed slot numbers: the deployment's INFERENCE_MAX_CONCURRENCY must not
+    decide whether this rule holds."""
+    import connectors.base as base
 
-    # If configured lower (e.g. 2), it respects the lower limit
-    clamped_lower = min(2, available_batch_slots)
-    assert clamped_lower == 2
+    async def gpu(_model):
+        return True
+
+    monkeypatch.setattr(base, "MAX_CONCURRENCY", 4)
+    monkeypatch.setattr(base, "CHAT_RESERVE", 1)
+    monkeypatch.setattr(base, "is_gpu_accelerated", gpu)
+    monkeypatch.setattr(base.config, "DOC_CONCURRENCY", 0)
+    connector = SimpleNamespace(embedding_model="bge-m3")
+
+    monkeypatch.setattr(base.config, "EMBED_CONCURRENCY", 20)
+    assert asyncio.run(base.BaseConnector._doc_concurrency(connector)) == 3
+
+    monkeypatch.setattr(base.config, "EMBED_CONCURRENCY", 2)
+    assert asyncio.run(base.BaseConnector._doc_concurrency(connector)) == 2

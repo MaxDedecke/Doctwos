@@ -22,7 +22,7 @@ from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import api.diagnostics as diagnostics_api
-from models.database import DiagnosticsRun
+from doctus_models.database import DiagnosticsRun
 
 ADMIN_GATED_ROUTES = [
     ("post", "/diagnostics/generate", None),

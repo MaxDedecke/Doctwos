@@ -22,7 +22,7 @@ import pytest
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 from tasks.document import process_local_document_async
 
 from conftest import requires_ollama

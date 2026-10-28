@@ -6,7 +6,7 @@ import csv
 import io
 
 from api.graph import _code_file_id
-from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 
 
 def _fixture_graph(db, project_id, team_id):
@@ -138,7 +138,7 @@ def test_graph_export_respects_project_visibility(client, db_session, test_proje
 
 
 def test_graph_export_neo4j_and_undirected_links(client, db_session, test_project, test_team):
-    from models.database import KnowledgeLink
+    from doctus_models.database import KnowledgeLink
 
     source, entity, chunk, link = _fixture_graph(db_session, test_project, test_team)
     klink = KnowledgeLink(

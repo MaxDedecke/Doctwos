@@ -13,7 +13,7 @@ from collections import Counter, defaultdict
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from models.database import CodeEdge
+from doctus_models.database import CodeEdge
 
 # Reihenfolge ist Priorität: der erste Treffer gewinnt.
 _REASON_CATEGORIES: tuple[tuple[str, tuple[str, ...]], ...] = (

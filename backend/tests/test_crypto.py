@@ -1,6 +1,6 @@
 from sqlalchemy import text
 
-from models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource
+from doctus_models.database import ChatMessage, ChatSession, DocumentChunk, KnowledgeSource
 
 
 def test_token_round_trips_through_the_orm(db_session, test_project, test_team):
@@ -106,7 +106,7 @@ def test_token_encrypted_with_foreign_key_reads_as_unset_but_content_stays_stric
     import pytest
     from cryptography.fernet import Fernet, InvalidToken
 
-    from models.crypto_types import EncryptedCredential, EncryptedString
+    from doctus_models.crypto_types import EncryptedCredential, EncryptedString
 
     foreign = Fernet(Fernet.generate_key()).encrypt(b"alt").decode()
 

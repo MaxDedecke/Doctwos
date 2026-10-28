@@ -15,7 +15,13 @@ from sqlalchemy import text
 
 from connectors.git import GitConnector
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, DocumentChunk, KnowledgeSource, SourceScanFile
+from doctus_models.database import (
+    CodeEdge,
+    CodeEntity,
+    DocumentChunk,
+    KnowledgeSource,
+    SourceScanFile,
+)
 
 
 def _init_remote(path: str) -> None:

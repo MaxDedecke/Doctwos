@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 from api import jobs as jobs_api
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from services import link_builder_runs as link_builder_runs_service
-from models.database import (
+from doctus_models.database import (
     DiagnosticsRun,
     JobCenterDismissal,
     KnowledgeSource,

@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.db_setup import get_db
-from models.database import User
+from doctus_models.database import User
 
 SESSION_COOKIE_NAME = "doctus_session"
 SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 14  # 14 Tage

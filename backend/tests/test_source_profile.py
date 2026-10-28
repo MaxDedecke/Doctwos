@@ -6,7 +6,7 @@ from core.build_profile import (
     validate_language_paths,
 )
 from core.source_preflight import parser_gaps
-from models.database import SourceScanFile
+from doctus_models.database import SourceScanFile
 from tests.test_knowledge_sources import make_project  # noqa: F401  (fixture)
 
 

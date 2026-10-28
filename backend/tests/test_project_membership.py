@@ -1,6 +1,6 @@
 import pytest
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from models.database import (
+from doctus_models.database import (
     Team,
     TeamMembership,
     User,
@@ -256,7 +256,7 @@ def test_delete_project_with_git_source_does_not_crash(client, db_session, test_
     that never existed on the current Project model (AEC-era leftover, the
     real Git-worktree path lives on KnowledgeSource since AP-3) — every DELETE
     /projects/{id} on a project with any data crashed with a 500 AttributeError."""
-    from models.database import KnowledgeSource
+    from doctus_models.database import KnowledgeSource
 
     proj = db_session.query(Project).filter(Project.id == test_project).first()
     source = KnowledgeSource(
@@ -297,7 +297,7 @@ def test_discoverable_lists_own_team_projects_without_membership(member_client, 
 
     Wie oben als gewöhnlicher Nutzer: für einen Superuser gibt es keine fremden
     Teams, und "foreign_project taucht nicht auf" wäre nicht mehr prüfbar."""
-    from models.database import User
+    from doctus_models.database import User
 
     user = db_session.query(User).filter(User.email == "fixture-member@example.com").first()
     default_team = (

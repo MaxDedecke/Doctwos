@@ -22,7 +22,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from core.db_setup import get_db
-from models.database import Topic, TopicNode, User
+from doctus_models.database import Topic, TopicNode, User
 from api.schemas import TopicCreate, TopicUpdate, TopicNodeAttach
 from api.serializers import serialize_topic, serialize_topic_node
 from services.search import search_nodes as _search_nodes, ALL_TYPES

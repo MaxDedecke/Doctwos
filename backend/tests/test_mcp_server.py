@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 import mcp_server
-from models.database import (
+from doctus_models.database import (
     CodeEntity,
     CodeEdge,
     DocumentChunk,
@@ -1777,7 +1777,7 @@ def test_ide_file_marks_known_system_targets_as_external(
     unauthenticated_client, db_session, mcp_project_context
 ):
     """O-325: ein COPY auf ein MQ-Systemcopybook ist `unresolved`, aber extern und keine Indexlücke."""
-    from models.database import CodeEdge
+    from doctus_models.database import CodeEdge
 
     owner, _outsider, project_id, _foreign = mcp_project_context
     source = KnowledgeSource(
@@ -1839,7 +1839,7 @@ def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(
     db_session, mcp_project_context
 ):
     """O-147: `ASSIGNED_DATASET` erscheint in der Datenzugriffsübersicht mit DD-Name und JCL-Fundstelle."""
-    from models.database import CodeEdge
+    from doctus_models.database import CodeEdge
 
     _owner, _outsider, project_id, _foreign = mcp_project_context
     source = KnowledgeSource(

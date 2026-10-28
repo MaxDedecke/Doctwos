@@ -13,7 +13,13 @@ from sqlalchemy import text
 from unittest.mock import patch, AsyncMock
 
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile, DocumentChunk
+from doctus_models.database import (
+    CodeEdge,
+    CodeEntity,
+    KnowledgeSource,
+    SourceScanFile,
+    DocumentChunk,
+)
 from connectors.git import GitConnector
 
 

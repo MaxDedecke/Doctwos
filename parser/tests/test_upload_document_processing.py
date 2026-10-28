@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import CodeEntity, DocumentChunk, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource
 from tasks import document as document_task
 from tasks.link_builder import _candidate_key, _pass_keyword
 

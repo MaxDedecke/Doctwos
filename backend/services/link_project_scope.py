@@ -4,7 +4,13 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 
 from core.projects import assert_project_visible
-from models.database import CodeEntity, DocumentChunk, KnowledgeLink, KnowledgeSource, Project
+from doctus_models.database import (
+    CodeEntity,
+    DocumentChunk,
+    KnowledgeLink,
+    KnowledgeSource,
+    Project,
+)
 
 
 def assert_link_project(project_id, user, db):

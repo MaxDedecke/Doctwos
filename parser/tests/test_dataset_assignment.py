@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 from core.dataset_assignment import DERIVED_BY, EDGE_TYPE, derive_assignments
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from tasks.edge_resolver import _derive_dataset_assignments
 
 

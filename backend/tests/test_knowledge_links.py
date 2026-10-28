@@ -30,7 +30,7 @@ import pytest
 
 import api.knowledge_links as knowledge_links_api
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from models.database import (
+from doctus_models.database import (
     AIProfile,
     CodeEntity,
     DocumentChunk,

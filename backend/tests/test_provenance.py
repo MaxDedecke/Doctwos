@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from types import SimpleNamespace
 
-from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 from services.change_package import _linked_documents
 from services.provenance import build_provenance, source_revision
 

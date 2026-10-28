@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from db import SessionLocal, REDIS_URL
-from models.database import (
+from doctus_models.database import (
     AIProfile,
     AISettings,
     CodeEntity,

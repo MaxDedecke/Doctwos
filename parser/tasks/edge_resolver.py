@@ -43,7 +43,7 @@ from core.doc_resolution import (
 )
 from core.resource_resolution import resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
-from models.database import CodeEdge, CodeEntity
+from doctus_models.database import CodeEdge, CodeEntity
 from maven.workspace import resolve_scoped_java
 from tasks.framework_resolver import resolve_framework_edges
 from tasks.schema_resolver import resolve_schema_edges

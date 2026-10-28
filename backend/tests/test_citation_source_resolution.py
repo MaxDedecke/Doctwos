@@ -16,7 +16,7 @@ from services.chat_sources import (
     resolve_citation_source_id,
     validate_answer_sources,
 )
-from models.database import KnowledgeSource, SourceScanFile
+from doctus_models.database import KnowledgeSource, SourceScanFile
 
 
 def test_repo_chunk_without_source_id_resolves_to_the_projects_git_source(

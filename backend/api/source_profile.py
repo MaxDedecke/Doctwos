@@ -25,7 +25,7 @@ from core.db_setup import get_db
 from core.projects import assert_knowledge_source_visible
 from core.source_preflight import build_preflight
 from core.teams import require_admin
-from models.database import KnowledgeSource, User
+from doctus_models.database import KnowledgeSource, User
 
 router = APIRouter(prefix="/knowledge-sources", tags=["knowledge-sources"])
 

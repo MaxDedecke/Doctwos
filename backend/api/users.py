@@ -27,7 +27,7 @@ from core.db_setup import get_db
 from core.passwords import MIN_PASSWORD_LENGTH
 from core.teams import require_admin
 from core.users import create_local_user, set_password, unlock
-from models.database import ChatSession, User
+from doctus_models.database import ChatSession, User
 from sqlalchemy.exc import IntegrityError
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(require_admin)])

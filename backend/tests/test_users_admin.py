@@ -10,7 +10,7 @@ from contextlib import contextmanager
 import pytest
 
 from core.auth_dependency import SESSION_COOKIE_NAME
-from models.database import User
+from doctus_models.database import User
 
 NEW_USERNAME = "test-managed-user"
 
@@ -208,7 +208,7 @@ def _user_id(client):
 def test_admin_can_delete_a_user_and_their_private_chats_but_not_shared_ones(
     client, db_session, cleanup_user
 ):
-    from models.database import ChatSession
+    from doctus_models.database import ChatSession
 
     _create(client)
     user_id = _user_id(client)
@@ -240,7 +240,7 @@ def test_delete_unknown_user_is_404(client):
 
 
 def test_user_with_authored_insights_cannot_be_deleted(client, db_session, cleanup_user):
-    from models.database import Insight, Project, Team
+    from doctus_models.database import Insight, Project, Team
 
     _create(client)
     user_id = _user_id(client)

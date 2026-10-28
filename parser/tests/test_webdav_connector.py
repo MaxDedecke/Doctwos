@@ -2,7 +2,7 @@ import pytest
 from sqlalchemy import text
 from unittest.mock import patch, MagicMock, AsyncMock
 from db import SessionLocal
-from models.database import KnowledgeSource, SourceScanFile, DocumentChunk
+from doctus_models.database import KnowledgeSource, SourceScanFile, DocumentChunk
 from connectors.webdav import WebdavConnector, _parse_webdav_xml
 
 

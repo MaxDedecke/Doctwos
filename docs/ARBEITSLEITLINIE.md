@@ -148,7 +148,7 @@ In dieser Reihenfolge, jeweils mit Messung am Hold-out-Satz vorher und nachher:
 | 3 | **Ein Antwortpfad:** immer Beweispaket vorab, Agent recherchiert nur bei gemeldeten Lücken nach. | KI: zwei Betriebsarten |
 | 4 | **`POST /chat` zerlegen** in Kontext → Agent → Belegprüfung → Persistenz. **Umgesetzt 28.10.2026** (`services/chat_turn.py`, `chat_sources.py`, `chat_sessions.py`, `chat_feedback.py`, `chat_view_actions.py`). | Architektur: God-Handler |
 | 5 | **UI-Kernfluss** Frage → Antwort → Originalstelle → Aufrufer; Nebenansichten (Tropfen, 3D-Graph, Topics) hinter „Erweitert“; Schrift ≥ 12 px; Kontrast ≥ 4,5:1 per axe-Test in CI; kontextbezogene Chat-Vorschläge statt rotierender Überschrift. | UI: Konzeptvielfalt, Typografie |
-| 6 | **Gemeinsames Modellpaket** statt zweier ORM-Kopien. | Architektur: Duplikat |
+| 6 | **Gemeinsames Modellpaket** statt zweier ORM-Kopien. **Umgesetzt 28.10.2026** (`packages/doctus-models`, von beiden Images installiert; CI-Gleichheitsprüfung entfällt). | Architektur: Duplikat |
 | 7 | **Nischenentscheidung BS2000/openUTM** (O-131 bis O-133, O-144) als E-18 treffen – Ausbau nur mit Pilotbezug. | Zukunft: Nische liegt brach |
 | 8 | **Zweite Person** mit Reviewrechten gewinnen; ab dann Merge auf `develop` nur mit Review. | Zukunft: Busfaktor 1 |
 

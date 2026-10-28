@@ -13,7 +13,7 @@ from api.entities import _assert_entity_visible, entity_json
 from core.analysis_status import load_analysis_status
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from models.database import CodeEdge, CodeEntity, User
+from doctus_models.database import CodeEdge, CodeEntity, User
 
 router = APIRouter(prefix="/callgraph", tags=["callgraph"])
 MAX_NODES = 500

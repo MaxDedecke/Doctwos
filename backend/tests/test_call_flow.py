@@ -1,6 +1,6 @@
 """Regression coverage for the agent's directed call-flow tool."""
 
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from services.call_flow import trace_call_flow
 from api.callgraph import _focus
 import pytest

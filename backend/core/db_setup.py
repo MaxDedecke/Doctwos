@@ -41,7 +41,7 @@ def bootstrap_superuser() -> None:
     from core import config as cfg
     from core.teams import DEFAULT_TEAM_NAME
     from core.users import create_local_user
-    from models.database import Team, TeamMembership, User
+    from doctus_models.database import Team, TeamMembership, User
 
     # Vor der ersten Migration existiert die Tabelle noch nicht — dann still zurück,
     # der nächste Start nach `alembic upgrade head` legt den Nutzer an.

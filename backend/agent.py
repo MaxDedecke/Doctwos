@@ -10,7 +10,7 @@ from typing import Dict, List, Any, Optional, AsyncGenerator
 from xml.sax.saxutils import escape
 import core.config as cfg
 from mcp_client import MCPClient
-from models.database import CodeEntity, KnowledgeSource, User
+from doctus_models.database import CodeEntity, KnowledgeSource, User
 from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids
 from services.mcp_audit import record_mcp_tool_call

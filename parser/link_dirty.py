@@ -1,6 +1,6 @@
 """Helpers for the persistent O-180 incremental link-builder queue."""
 
-from models.database import LinkBuilderDirtyItem
+from doctus_models.database import LinkBuilderDirtyItem
 
 
 def enqueue_dirty_item(

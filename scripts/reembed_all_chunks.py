@@ -9,7 +9,7 @@ backend/alembic/versions/b1c2d3e4f5a6_bge_m3_embedding_dims.py) that
 nulls out existing embeddings because the vector dimensions changed.
 
 Usage (inside the doctus-parser container, which has EMBED_MODEL/DATABASE_URL/
-OLLAMA_BASE_URL wired up and models/database.py + ollama_client.py on path):
+OLLAMA_BASE_URL wired up and the doctus-models package installed and ollama_client.py on path):
     docker exec doctus-parser python /app/reembed_all_chunks.py
 """
 import asyncio
@@ -19,7 +19,7 @@ sys.path.insert(0, "/app")
 
 from core import config
 from db import SessionLocal
-from models.database import DocumentChunk
+from doctus_models.database import DocumentChunk
 from ollama_client import get_embedding
 
 

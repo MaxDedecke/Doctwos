@@ -1,6 +1,6 @@
 """Dateieingabe der Änderungsanalyse: Mainframe-Endungen in Großbuchstaben (`.CBL`) werden eindeutig gefunden."""
 
-from models.database import CodeEdge, CodeEntity, KnowledgeSource, Project
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, Project
 from services.change_impact import inspect_change_impact
 
 

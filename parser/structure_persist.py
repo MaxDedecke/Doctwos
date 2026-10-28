@@ -45,7 +45,7 @@ from __future__ import annotations
 from sqlalchemy.orm import Session
 
 from core.model import ParsedEdge, ParseResult
-from models.database import CodeEdge, CodeEntity
+from doctus_models.database import CodeEdge, CodeEntity
 from link_dirty import enqueue_dirty_item
 
 

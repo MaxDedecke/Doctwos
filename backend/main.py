@@ -17,7 +17,7 @@ Konfiguration (URLs, Modellnamen, Redis):
     backend/core/config.py
 
 Datenbank-Schemata (ORM):
-    backend/models/database.py
+    packages/doctus-models/doctus_models/database.py (gemeinsam mit dem Parser)
 
 Schema-Migrationen (Alembic, alembic upgrade head läuft vor App-Start im
 Docker-Entrypoint — siehe backend/docker-entrypoint.sh):

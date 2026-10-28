@@ -41,7 +41,7 @@ from core.llm_providers import (
 )
 from core.teams import require_admin
 from core.db_setup import engine, get_db
-from models.database import AIProfile, EmbeddingProfile, User
+from doctus_models.database import AIProfile, EmbeddingProfile, User
 from services import deployer_client
 from services.deployer_client import DeployerError
 from services.ai_settings import (

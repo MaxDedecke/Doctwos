@@ -14,7 +14,7 @@ Logic:
 import logging
 from datetime import datetime, timezone
 from db import SessionLocal
-from models.database import (
+from doctus_models.database import (
     DocumentChunk,
     KnowledgeLink,
     CodeEntity,

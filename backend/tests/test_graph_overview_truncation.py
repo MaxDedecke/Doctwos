@@ -12,7 +12,7 @@ auch unverlinkte Entities -- die sind beim Kappen der uninteressanteste Teil).
 from unittest.mock import patch
 
 from api.graph import _capped_overview, _code_file_id
-from models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
+from doctus_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 
 
 def _make_source(db, project_id, team_id):

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 
 from db import SessionLocal
-from models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from tasks.edge_resolver import _resolve_maven_edges
 
 

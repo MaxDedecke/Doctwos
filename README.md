@@ -168,9 +168,11 @@ npm run build
 npm test
 ```
 
-Backend and parser tests:
+Backend and parser tests (both need the shared data model package
+`packages/doctus-models` installed in their environment):
 
 ```bash
+python -m pip install ./packages/doctus-models
 cd backend && python -m pytest tests/
 cd ../parser && python -m pytest tests/
 ```
@@ -192,12 +194,12 @@ Python lint and formatting (from the repository root, in a development venv):
 
 ```bash
 python -m pip install -r requirements-lint.txt
-python -m ruff check backend parser
-python -m ruff format --check backend parser
+python -m ruff check backend parser packages
+python -m ruff format --check backend parser packages
 ```
 
 CI runs both checks in the `python-quality` job. Run `python -m ruff format
-backend parser` to apply formatting locally. `ruff.toml` pins the tool version,
+backend parser packages` to apply formatting locally. `ruff.toml` pins the tool version,
 targets Python 3.11, and enables import/statement checks (`E4`, `E7`, `E9`)
 and Pyflakes (`F`). Tests and migrations are included. Generated ANTLR sources
 are excluded; router imports after logging

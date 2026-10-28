@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from api.graph import _attach_graph_analysis_status, _entity_file_node
-from models.database import SourceScanFile
+from doctus_models.database import SourceScanFile
 
 
 class _Rows:

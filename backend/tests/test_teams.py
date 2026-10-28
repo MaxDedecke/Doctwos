@@ -1,4 +1,4 @@
-from models.database import Team
+from doctus_models.database import Team
 
 
 def test_admin_teams_operations(client, db_session):

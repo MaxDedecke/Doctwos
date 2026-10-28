@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.users import create_oidc_user, get_by_oidc_subject
-from models.database import Team, TeamMembership, User
+from doctus_models.database import Team, TeamMembership, User
 
 
 logger = logging.getLogger(__name__)

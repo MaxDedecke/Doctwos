@@ -11,7 +11,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from models.database import (
+from doctus_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

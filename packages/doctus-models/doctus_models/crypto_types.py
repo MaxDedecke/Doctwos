@@ -1,6 +1,6 @@
 """
-backend/models/crypto_types.py
-================================
+doctus_models/crypto_types.py
+=============================
 Transparente At-Rest-Verschlüsselung für Spalten mit Zugangsdaten
 (KnowledgeSource.token) UND für Dokumentinhalte (DocumentChunk.content,
 ChatMessage.content). Deckt alle über die Connectoren eingelesenen Inhalte ab:
@@ -18,7 +18,7 @@ Chiffretext. Achtung: SQL-seitige Textsuche (ILIKE/LIKE) auf einer
 EncryptedString-Spalte funktioniert nicht mehr (Fernet-Chiffretext ist pro
 Verschlüsselung zufällig) — Aufrufer filtern stattdessen nach dem Entschlüsseln
 in Python, siehe backend/api/projects.py (_refs_for_document/_refs_for_file),
-backend/api/chat.py (_hybrid_chunk_search) und
+backend/services/chat_service.py (hybrid_chunk_search) und
 parser/tasks/link_builder.py (_pass_keyword).
 
 Schlüssel kommt aus MASTER_ENCRYPTION_KEY (Fernet-Key, 32 Byte urlsafe-base64).
@@ -26,7 +26,7 @@ Rotation des Schlüssels erfordert ein Neu-Verschlüsseln aller bestehenden
 Werte — das ist hier bewusst nicht automatisiert, siehe docs/DEPLOYMENT.md.
 Bestehende Klartextdaten in den content-Spalten werden beim Upgrade auf diese
 Version per Alembic-Migration nachträglich verschlüsselt (siehe
-alembic/versions/d4e5f6a7b8c9_encrypt_content_at_rest.py).
+backend/alembic/versions/d4e5f6a7b8c9_encrypt_content_at_rest.py).
 """
 
 import logging

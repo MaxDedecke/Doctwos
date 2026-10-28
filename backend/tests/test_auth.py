@@ -1,7 +1,8 @@
 import core.config as cfg
 import core.oidc as oidc_service
+from core import login_throttle
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from models.database import User
+from doctus_models.database import User
 
 
 def test_protected_endpoint_without_session_returns_401(unauthenticated_client):
@@ -193,12 +194,16 @@ def test_login_rejects_sso_only_account_without_crashing(unauthenticated_client,
     )
     db_session.add(user)
     db_session.commit()
+    # Fehlversuche zählt Redis 15 Minuten lang je Nutzer und IP; ohne Zurücksetzen
+    # sperrt der sechste Testlauf in diesem Fenster mit 423 statt 401.
+    login_throttle.clear_user("test-oidc-no-password")
     try:
         resp = unauthenticated_client.post(
             "/auth/login", json={"username": "test-oidc-no-password", "password": "irrelevant123"}
         )
         assert resp.status_code == 401
     finally:
+        login_throttle.clear_user("test-oidc-no-password")
         db_session.query(User).filter(User.username == "test-oidc-no-password").delete()
         db_session.commit()
 
