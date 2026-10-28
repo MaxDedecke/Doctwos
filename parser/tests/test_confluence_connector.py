@@ -6,6 +6,7 @@ HTML-zu-Text-Umwandlung und Delta-Sync (unveränderte Seite überspringen)
 weiterhin funktionieren.
 """
 
+import uuid
 from datetime import datetime, timezone
 
 import pytest
@@ -31,7 +32,8 @@ def db_session():
 def test_source(db_session):
     team_id = db_session.execute(
         text("INSERT INTO teams (name, created_at) VALUES (:name, now()) RETURNING id"),
-        {"name": "confluence-test-team"},
+        # Eindeutig, damit ein abgebrochener Lauf keinen Unique-Konflikt hinterlässt.
+        {"name": f"confluence-test-team-{uuid.uuid4().hex[:8]}"},
     ).scalar_one()
     project_id = db_session.execute(
         text(
@@ -56,6 +58,8 @@ def test_source(db_session):
 
     yield source
 
+    # Nach einem fehlgeschlagenen Commit im Test wäre die Transaktion sonst abgebrochen.
+    db_session.rollback()
     db_session.query(DocumentChunk).filter(DocumentChunk.source_id == source.id).delete()
     db_session.delete(source)
     db_session.execute(text("DELETE FROM projects WHERE id = :id"), {"id": project_id})
