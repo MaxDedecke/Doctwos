@@ -45,7 +45,7 @@ EdgeType = str
 Resolution = Literal["resolved", "unresolved", "dynamic"]
 
 DiagnosticSeverity = Literal["error", "warning", "info"]
-DiagnosticPhase = Literal["lexer", "parser", "profile"]
+DiagnosticPhase = Literal["lexer", "parser", "profile", "import"]
 
 
 @dataclass

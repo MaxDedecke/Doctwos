@@ -40,12 +40,18 @@ from sqlalchemy.orm import aliased
 import git_utils
 import parse_pool
 from git_utils import MAX_READ_BYTES
-from core.model import ParseResult, classify_completeness
+from core.model import ParseDiagnostic, ParseResult, classify_completeness
 from core.dependency_fingerprints import DependencyFingerprints
 from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.failure_location import describe_failure
-from core.source_decoder import SourceDecodeError, decode_source, looks_like_text
+from core.source_decoder import (
+    LEGACY_FALLBACK_ENCODING,
+    SourceDecodeError,
+    decode_legacy_source,
+    decode_source,
+    looks_like_text,
+)
 from cobol import copybook as copybook_mod
 from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
@@ -269,6 +275,26 @@ async def _run_prepare_hooks(
 # Einbetten — sonst blockiert ein langer Embed-Lauf jeden anderen Sync
 # desselben Bare-Mirrors unnötig lange.
 _GIT_FETCH_LOCK_SECONDS = 600
+
+
+# Sprachen, deren Quellen häufig als Windows-ANSI statt UTF-8 vorliegen.
+_LEGACY_ENCODING_LANGUAGES = frozenset({"cobol", "copybook", "jcl"})
+
+
+def _encoding_fallback_diagnostic(doc: dict) -> ParseDiagnostic:
+    return ParseDiagnostic(
+        code="SOURCE_ENCODING_FALLBACK",
+        severity="info",
+        phase="import",
+        message=(
+            f"Datei ist kein UTF-8-Text und wurde als {doc['extra_meta'].get('encoding')} "
+            f"gelesen ({LEGACY_FALLBACK_ENCODING}-Rückfall, keine Codepage im Buildprofil). "
+            "Bezeichner und Literale mit Sonderzeichen sind eine Annahme; "
+            "bei abweichender Codepage 'encoding' im Buildprofil setzen."
+        ),
+        line=0,
+        column=0,
+    )
 
 
 def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
@@ -695,6 +721,8 @@ class GitConnector(BaseConnector):
                     parse_kwargs["profile"] = profile
                 try:
                     parse_result = await self._parse_structure(entry, lang, doc, parse_kwargs)
+                    if doc["extra_meta"].get("encoding_fallback"):
+                        parse_result.diagnostics.append(_encoding_fallback_diagnostic(doc))
                     chunks = [
                         {
                             "content": c.content,
@@ -1301,15 +1329,24 @@ class GitConnector(BaseConnector):
             try:
                 configured_encoding = profile.encoding if profile is not None else None
                 is_properties = os.path.splitext(path)[1].lower() == ".properties"
-                content, codec = decode_source(
-                    raw,
-                    configured_encoding,
-                    fallback_encoding=(
-                        "iso-8859-1" if is_properties and not configured_encoding else None
-                    ),
+                if language in _LEGACY_ENCODING_LANGUAGES:
+                    content, codec = decode_legacy_source(raw, configured_encoding)
+                else:
+                    content, codec = decode_source(
+                        raw,
+                        configured_encoding,
+                        fallback_encoding=(
+                            "iso-8859-1" if is_properties and not configured_encoding else None
+                        ),
+                    )
+                encoding_fallback = (
+                    language in _LEGACY_ENCODING_LANGUAGES
+                    and not configured_encoding
+                    and codec != "utf-8"
                 )
             except SourceDecodeError as error:
-                reason = f"{error} (vermutlich Binärdaten), wird nicht embedded."
+                hint = " (vermutlich Binärdaten)" if error.suspected_binary else ""
+                reason = f"{error}{hint}, wird nicht embedded."
                 self._log(f"[SKIP] '{path}' ist {reason}")
                 self._record_skip(path, content_hash, analysis_fp, reason, language=language)
                 continue
@@ -1364,6 +1401,7 @@ class GitConnector(BaseConnector):
                     "content_hash": content_hash,
                     "analysis_fingerprint": analysis_fp,
                     "encoding": codec,
+                    "encoding_fallback": encoding_fallback,
                 },
             )
 

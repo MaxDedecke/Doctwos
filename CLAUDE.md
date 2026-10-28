@@ -88,6 +88,10 @@ Regeln dafür:
 
 - **Expliziter Auftrag 26.10.2026:** Die Parser-Erweiterungen aus
   `docs/JAVA_TEST_PROJECT.md` sind beauftragt; Paket 5 ist ausgenommen.
+- **Expliziter Auftrag 28.10.2026:** Der Feature-Stopp aus `docs/ARBEITSLEITLINIE.md` ist für den
+  COBOL-Parser-Ausbau aufgehoben (On-Prem-Reife bei vorhandenem Git): Kodierungs-Rückfall,
+  Buildprofil mit Preflight, Copybook-Suchfolge, Grammatik-Masken und BMS. Quellsystem-Flexibilität
+  (Endevor, PDS u. ä.) bleibt zurückgestellt.
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im

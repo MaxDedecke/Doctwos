@@ -771,7 +771,7 @@ async def test_git_connector_resumes_via_content_hash(
             analysis_fingerprint=analysis_fingerprint(
                 source_revision=tracked["PROG.CBL"],
                 profile=BuildProfile(),
-                parser_version="cobol-structure-10",
+                parser_version="cobol-structure-11",
                 grammar_version=STRUCTURE_PARSERS["cobol"].grammar_fingerprint(),
                 libraries={},
                 embedding_model=config.EMBED_MODEL,
@@ -1193,6 +1193,44 @@ async def test_git_connector_skips_non_utf8_content_despite_text_looking_extensi
     assert scan_file is not None
     assert scan_file.parse_status == "skipped"
     assert "UTF-8" in scan_file.parse_error
+
+
+@pytest.mark.anyio
+async def test_git_connector_reads_windows_ansi_cobol_with_visible_fallback(
+    db_session, test_source, git_remote
+):
+    """Ein Umlaut in cp1252 darf die COBOL-Datei nicht als Binärdaten überspringen."""
+    source = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. ANSIPGM.\n"
+        "      * Prüfung der Währung\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           CALL 'SUBPGM'.\n"
+        "           GOBACK.\n"
+    )
+    _commit_file(git_remote, "ansi.cbl", "placeholder", "add file")
+    _commit_binary_file(git_remote, "ansi.cbl", source.encode("cp1252"), "write cp1252 source")
+
+    connector = GitConnector(test_source.id)
+    p1, p2, p3, p4 = _patched_sync(connector)
+    with p1, p2, p3, p4:
+        await connector.sync()
+
+    scan_file = (
+        db_session.query(SourceScanFile)
+        .filter(SourceScanFile.source_id == test_source.id, SourceScanFile.file_path == "ansi.cbl")
+        .first()
+    )
+    assert scan_file is not None
+    assert scan_file.parse_status != "skipped"
+    assert scan_file.encoding == "cp1252"
+    chunks = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.source_id == test_source.id, DocumentChunk.file_path == "ansi.cbl")
+        .all()
+    )
+    assert chunks and any("Währung" in chunk.content for chunk in chunks)
 
 
 @pytest.mark.anyio

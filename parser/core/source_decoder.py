@@ -11,6 +11,22 @@ _CCSID = re.compile(r"^(?:IBM|CCSID)[-_ ]?(\d+)$", re.I)
 class SourceDecodeError(ValueError):
     """Dekodierung ist nicht sicher möglich und darf nicht erraten werden."""
 
+    # Der Connector hängt bei Verdacht auf Binärdaten einen entsprechenden Hinweis an.
+    suspected_binary = True
+
+
+class ImplausibleFallbackError(SourceDecodeError):
+    """Der Rückfall-Codec dekodiert zwar, ergibt aber überwiegend Nicht-ASCII-Zeichen."""
+
+    suspected_binary = False
+
+
+# Mainframe-Quellen (COBOL, Copybook, JCL) liegen in deutschen Beständen oft als
+# Windows-ANSI vor. Ein einzelnes Umlaut-Byte macht die Datei sonst für striktes
+# UTF-8 unlesbar.
+LEGACY_FALLBACK_ENCODING = "cp1252"
+_MAX_FALLBACK_NON_ASCII_RATIO = 0.1
+
 
 def resolve_encoding(encoding: str | None) -> str:
     """Löst Profilnamen wie ``CCSID-273`` auf einen Python-Codec auf."""
@@ -51,6 +67,26 @@ def decode_source(
                 pass
         label = encoding or "UTF-8"
         raise SourceDecodeError(f"kein {label}-Text: Byte {error.start} ist ungültig") from error
+
+
+def decode_legacy_source(raw: bytes, encoding: str | None = None) -> tuple[str, str]:
+    """Wie :func:`decode_source`, mit sichtbarem cp1252-Rückfall für ältere Quellen.
+
+    Ein ausdrücklich konfigurierter Codec bleibt strikt. Ohne Konfiguration gilt
+    UTF-8 und erst bei ungültigen Bytes ``LEGACY_FALLBACK_ENCODING``. Ein
+    Fallback-Ergebnis mit überwiegend Nicht-ASCII-Zeichen (typisch für EBCDIC) wird
+    abgelehnt, statt Datenmüll als Quelltext zu behandeln.
+    """
+    fallback = None if encoding else LEGACY_FALLBACK_ENCODING
+    content, codec = decode_source(raw, encoding, fallback_encoding=fallback)
+    if fallback is not None and codec == resolve_encoding(fallback) and content:
+        non_ascii = sum(1 for char in content if ord(char) > 127)
+        if non_ascii / len(content) > _MAX_FALLBACK_NON_ASCII_RATIO:
+            raise ImplausibleFallbackError(
+                f"weder UTF-8 noch plausibler {codec}-Text (überwiegend Nicht-ASCII-Zeichen, "
+                "möglicherweise EBCDIC; Codepage im Buildprofil (encoding) angeben)"
+            )
+    return content, codec
 
 
 def looks_like_text(content: str, max_control_char_ratio: float) -> bool:

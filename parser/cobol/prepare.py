@@ -10,7 +10,7 @@ from cobol.copybook import CopybookIndex
 from cobol.names import canonical_identifier
 from cobol.parse import parse_copybook
 from core.model import ParseResult
-from core.source_decoder import SourceDecodeError, decode_source
+from core.source_decoder import SourceDecodeError, decode_legacy_source
 from cobol.profile import BuildProfile
 
 
@@ -40,7 +40,7 @@ def prepare_copybook_index(
             if os.path.getsize(full_path) > git_utils.MAX_READ_BYTES:
                 continue
             with open(full_path, "rb") as f:
-                content, _ = decode_source(
+                content, _ = decode_legacy_source(
                     f.read(git_utils.MAX_READ_BYTES),
                     (profiles_by_path or {}).get(path).encoding
                     if (profiles_by_path or {}).get(path) is not None
