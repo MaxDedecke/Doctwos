@@ -10,6 +10,7 @@ import pytest
 
 import core.config as cfg
 from agent import (
+    MAX_AGENT_TURNS,
     MAX_MCP_TOOL_RESULT_CHARS,
     _cap_tool_result,
     _tool_result_was_truncated,
@@ -17,6 +18,7 @@ from agent import (
     list_repo_files,
     run_agent_loop,
 )
+from services.agent_providers import DEFAULT_AGENT_TEMPERATURE
 
 
 def test_cap_tool_result_leaves_short_text_untouched():
@@ -182,7 +184,7 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
         ) as response:
             yield response
 
-    monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.agent_providers.admitted_stream", mock_admitted_stream)
 
     events = [
         event
@@ -317,7 +319,7 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
         ) as response:
             yield response
 
-    monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.agent_providers.admitted_stream", mock_admitted_stream)
 
     events = [
         event
@@ -407,7 +409,7 @@ async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkey
         response.aiter_lines = lines
         yield response
 
-    monkeypatch.setattr("agent.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.agent_providers.admitted_stream", mock_admitted_stream)
 
     events = [
         event
@@ -487,6 +489,8 @@ async def test_openai_responses_agent_executes_function_call(monkeypatch):
     requests = []
 
     class FakeResponse:
+        is_success = True
+
         def __init__(self, data):
             self._data = data
 
@@ -563,6 +567,8 @@ async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_
     requests = []
 
     class FakeResponse:
+        is_success = True
+
         def __init__(self, data):
             self._data = data
 
@@ -696,3 +702,232 @@ async def test_mcp_preflight_reports_not_configured_ready_and_unavailable():
     )
     assert unconfigured["status"] == "unavailable"
     assert unconfigured["servers"][0]["status"] == "not_configured"
+
+
+class _JsonResponse:
+    is_success = True
+
+    def __init__(self, data):
+        self._data = data
+
+    def raise_for_status(self):
+        return None
+
+    def json(self):
+        return self._data
+
+
+def _non_streaming_reply(provider: str, *, text: str = "", call: str | None = None) -> dict:
+    """Antwort im Format des Anbieters: entweder Text oder ein Aufruf von ``call``."""
+    if provider == "anthropic":
+        blocks = [{"type": "text", "text": text}] if text else []
+        if call:
+            blocks.append({"type": "tool_use", "id": "toolu_1", "name": call, "input": {}})
+        return {"content": blocks}
+    if provider == "gemini":
+        parts = [{"text": text}] if text else []
+        if call:
+            parts.append({"functionCall": {"name": call, "args": {}}})
+        return {"candidates": [{"content": {"role": "model", "parts": parts}}]}
+    output = []
+    if text:
+        output.append({"type": "message", "content": [{"type": "output_text", "text": text}]})
+    if call:
+        output.append(
+            {"type": "function_call", "call_id": "call-x", "name": call, "arguments": "{}"}
+        )
+    return {"output": output}
+
+
+def _wants_no_tools(provider: str, payload: dict) -> bool:
+    if provider == "anthropic":
+        return payload.get("tool_choice") == {"type": "none"}
+    if provider == "gemini":
+        return payload.get("toolConfig", {}).get("functionCallingConfig", {}).get("mode") == "NONE"
+    return payload.get("tool_choice") == "none"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider", ["openai_responses", "anthropic", "gemini"])
+async def test_every_provider_answers_from_evidence_when_the_budget_is_used_up(
+    monkeypatch, provider
+):
+    """Recherchebudget und Abschlussrunde gelten für alle Anbieter, nicht nur für OpenAI."""
+    requests = []
+
+    async def mock_post(self, url, **kwargs):
+        payload = json.loads(json.dumps(kwargs["json"]))
+        requests.append(payload)
+        if _wants_no_tools(provider, payload):
+            return _JsonResponse(_non_streaming_reply(provider, text="Antwort aus Belegen"))
+        return _JsonResponse(_non_streaming_reply(provider, call="big_lookup"))
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider=provider,
+            model_name="model",
+            api_key="secret",
+            base_url=None,
+            system_prompt="System",
+            prompt="Frage",
+            temperature=None,
+            repo_id=None,
+            db_session=SimpleNamespace(),
+            mcp_clients=[_FakeMcpClient("Ergebnis")],
+        )
+    ]
+
+    assert events[-1] == {
+        "type": "answer",
+        "content": "Antwort aus Belegen",
+        "agent_steps": events[-1]["agent_steps"],
+    }
+    assert len(requests) == MAX_AGENT_TURNS
+    assert [_wants_no_tools(provider, r) for r in requests] == [False] * 7 + [True]
+    assert "Recherchebudget" in json.dumps(requests[-1], ensure_ascii=False)
+    assert sum(event["type"] == "tool_result" for event in events) == MAX_AGENT_TURNS - 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("provider", ["anthropic", "gemini"])
+async def test_every_provider_receives_the_bootstrap_evidence(monkeypatch, tmp_path, provider):
+    """Das vorab gelesene Beleg-Werkzeug muss beim Modell ankommen, nicht nur in der UI."""
+    (tmp_path / "config.sh").write_text("#!/bin/sh\nMODE=prod\n", encoding="utf-8")
+    monkeypatch.setattr(
+        "agent.get_repo_path",
+        lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path),
+    )
+    requests = []
+
+    async def mock_post(self, url, **kwargs):
+        requests.append(json.loads(json.dumps(kwargs["json"])))
+        return _JsonResponse(_non_streaming_reply(provider, text="Belegt."))
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider=provider,
+            model_name="model",
+            api_key="secret",
+            base_url=None,
+            system_prompt="System",
+            prompt="Was passiert hier?",
+            temperature=0.2,
+            repo_id=1,
+            db_session=SimpleNamespace(),
+            mcp_clients=[],
+            project_id=1,
+            pinned_file="config.sh",
+            pinned_line=2,
+            require_initial_tool_call=True,
+        )
+    ]
+
+    conversation = json.dumps(requests[0], ensure_ascii=False)
+    assert "MODE=prod" in conversation
+    assert '"bootstrap-0"' in conversation or provider == "gemini"
+    # Mit vorab gelesenem Beleg ist die Recherche erfüllt; das Modell wählt frei.
+    assert "tool_choice" not in requests[0] and "toolConfig" not in requests[0]
+    assert events[-1]["content"] == "Belegt."
+
+
+def _ollama_lines(*, text: str = "", call: str | None = None) -> list[str]:
+    delta: dict = {}
+    if text:
+        delta["content"] = text
+    if call:
+        delta["tool_calls"] = [
+            {
+                "index": 0,
+                "id": "call-1",
+                "type": "function",
+                "function": {"name": call, "arguments": "{}"},
+            }
+        ]
+    return ["data: " + json.dumps({"choices": [{"delta": delta}]}), "data: [DONE]"]
+
+
+@pytest.mark.asyncio
+async def test_required_research_retries_once_and_then_accepts_the_answer(monkeypatch):
+    """Ignoriert der Server ``tool_choice=required`` einmal, wird wiederholt; nach der
+    Recherche wird die Antwort normal übernommen statt durch die Fehlermeldung ersetzt."""
+    payloads = []
+    replies = [
+        _ollama_lines(text="Ungeprüfte Vermutung"),
+        _ollama_lines(call="big_lookup"),
+        _ollama_lines(text="Belegte Antwort"),
+    ]
+
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(_client, _url, **kwargs):
+        payloads.append(kwargs["json"])
+        lines = replies[len(payloads) - 1]
+        response = SimpleNamespace(is_success=True)
+
+        async def aiter_lines():
+            for line in lines:
+                yield line
+
+        response.aiter_lines = aiter_lines
+        yield response
+
+    monkeypatch.setattr("services.agent_providers.admitted_stream", mock_admitted_stream)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="ollama",
+            model_name="test-model",
+            api_key=None,
+            base_url=None,
+            system_prompt="System",
+            prompt="Frage",
+            temperature=None,
+            repo_id=None,
+            db_session=SimpleNamespace(),
+            mcp_clients=[_FakeMcpClient("Ergebnis")],
+            require_initial_tool_call=True,
+        )
+    ]
+
+    assert [p.get("tool_choice") for p in payloads] == ["required", "required", None]
+    assert all(p["temperature"] == DEFAULT_AGENT_TEMPERATURE for p in payloads)
+    # Die verworfene Vermutung erreicht weder den Stream noch den Verlauf des Modells.
+    assert not any("Ungeprüfte" in json.dumps(e, ensure_ascii=False) for e in events)
+    assert not any(
+        "Ungeprüfte" in json.dumps(m, ensure_ascii=False) for m in payloads[1]["messages"]
+    )
+    assert events[-1]["content"] == "Belegte Antwort"
+
+
+@pytest.mark.asyncio
+async def test_required_research_gives_a_fixed_notice_when_the_retry_is_ignored_too(monkeypatch):
+    async def mock_post(self, url, **kwargs):
+        return _JsonResponse(_non_streaming_reply("openai_responses", text="Vermutung"))
+
+    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+
+    events = [
+        event
+        async for event in run_agent_loop(
+            provider="openai_responses",
+            model_name="gpt-5.6-luna",
+            api_key="secret",
+            base_url=None,
+            system_prompt="System",
+            prompt="Frage",
+            temperature=None,
+            repo_id=None,
+            db_session=SimpleNamespace(),
+            mcp_clients=[_FakeMcpClient("Ergebnis")],
+            require_initial_tool_call=True,
+        )
+    ]
+
+    assert "nicht verlässlich" in events[-1]["content"]
+    assert not any(e["type"] == "content_chunk" for e in events)

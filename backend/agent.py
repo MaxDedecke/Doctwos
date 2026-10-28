@@ -9,9 +9,6 @@ from sqlalchemy import func
 from typing import Dict, List, Any, Optional, AsyncGenerator
 from xml.sax.saxutils import escape
 import core.config as cfg
-from core.llm_providers import is_self_hosted_openai
-from core.inference_admission import admitted_post, admitted_stream
-from core.inference_errors import raise_for_inference_status
 from mcp_client import MCPClient
 from models.database import CodeEntity, KnowledgeSource, User
 from core.projects import get_visible_project_ids
@@ -22,6 +19,12 @@ from services.change_impact import inspect_change_impact
 from services.change_package import inspect_change_package
 from api.graph import get_graph_neighborhood
 from services.search import search_nodes
+from services.agent_providers import (
+    ModelTurn,
+    ProviderAdapter,
+    ToolCall,
+    make_provider_adapter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -279,20 +282,19 @@ def get_repo_entities(
 # search_repo_code/get_repo_entities) sind alle schon auf vernünftige Größen
 # gedeckelt (300 Zeilen, 250 Dateien, 80 Treffer). MCP-Werkzeuge (Jira/
 # Confluence etc.) sind das nicht -- ein einzelnes großes Confluence-Dokument
-# oder Jira-Ticket kann unbegrenzt groß sein. Über bis zu max_turns Runden mit
+# oder Jira-Ticket kann unbegrenzt groß sein. Über bis zu MAX_AGENT_TURNS Runden mit
 # mehreren Werkzeugaufrufen pro Runde summiert sich das ungedeckelt in der
 # `messages`-Liste, die bei jeder weiteren Runde komplett erneut ans Modell
 # geschickt wird. Deckel hier statt in mcp_client.py: dort wäre der Kontext
 # (wie viele Runden noch offen sind, was das Modell sonst schon gesehen hat)
-# nicht bekannt; execute_tool() ist außerdem der einzige Punkt, den alle drei
-# Provider-Zweige (OpenAI/Ollama, Anthropic, Gemini) gemeinsam durchlaufen.
+# nicht bekannt; execute_tool() ist außerdem der einzige Punkt, den alle
+# Anbieter-Adapter (services/agent_providers.py) gemeinsam durchlaufen.
 MAX_MCP_TOOL_RESULT_CHARS = 8000
 
-# Auch als Marker genutzt, um an den drei agent_steps.append()/yield-Stellen zu
-# erkennen, ob ein bestimmtes Werkzeugergebnis gekürzt wurde (_cap_tool_result
-# gibt nur den fertigen String zurück, execute_tool() bleibt bewusst bei
-# "-> str" statt eines Tupels, weil alle drei Provider-Zweige das Ergebnis
-# direkt als Nachrichteninhalt verwenden). Das gesetzte "truncated"-Flag löst
+# Auch als Marker genutzt, um in _tool_events zu erkennen, ob ein bestimmtes
+# Werkzeugergebnis gekürzt wurde (_cap_tool_result gibt nur den fertigen String
+# zurück, execute_tool() bleibt bewusst bei "-> str" statt eines Tupels, weil
+# jeder Anbieter-Adapter das Ergebnis direkt als Nachrichteninhalt verwendet). Das gesetzte "truncated"-Flag löst
 # in AgentSteps.tsx ein immer sichtbares Badge im (auch eingeklappten) Header
 # aus, statt dass die Kürzung nur im ausgeklappten Werkzeugergebnis auffällt.
 _TOOL_RESULT_TRUNCATION_MARKER = "[… gekürzt:"
@@ -518,6 +520,108 @@ async def _prefetch_evidence(
     return "answer_context", args, json.dumps(result, ensure_ascii=False)
 
 
+MAX_AGENT_TURNS = 8
+# Letzte Runde: keine Werkzeuge mehr, stattdessen Antwort aus den bisher abgerufenen Belegen. Ohne
+# diese Runde endet ein Lauf, der das Recherchebudget aufbraucht, ohne jede Antwort (obwohl Quellen vorliegen).
+_FINAL_TURN_INSTRUCTION = (
+    "Das Recherchebudget ist ausgeschöpft. Rufe keine weiteren Werkzeuge auf. Beantworte die Frage jetzt "
+    "ausschließlich mit den bisher abgerufenen Belegen, nenne Fundstellen mit Zeilen und benenne ausdrücklich, "
+    "was die Recherche nicht klären konnte."
+)
+_NO_RESEARCH_ANSWER = (
+    "Ich konnte die projektbezogene Frage nicht verlässlich über "
+    "das Repository-Tool prüfen. Bitte wiederhole die Frage kurz."
+)
+
+
+def _tool_events(call: ToolCall, result: str, metadata: dict) -> tuple[dict, dict]:
+    return (
+        {"type": "tool_call", "name": call.name, "arguments": call.arguments, "id": call.id},
+        {
+            "type": "tool_result",
+            "name": call.name,
+            "result": result,
+            "id": call.id,
+            "truncated": _tool_result_was_truncated(result),
+            **metadata,
+        },
+    )
+
+
+async def _research_loop(
+    adapter: ProviderAdapter,
+    execute_tool,
+    execution_metadata,
+    agent_steps: list,
+    *,
+    must_research: bool,
+    researched: bool,
+) -> AsyncGenerator[Dict[str, Any], None]:
+    """Anbieterunabhängige Werkzeugschleife.
+
+    - Recherchebudget: höchstens MAX_AGENT_TURNS Modellaufrufe; der letzte ohne
+      Werkzeuge mit der Aufforderung, aus den Belegen zu antworten.
+    - Erzwungene Recherche (``must_research``): Bis ein Werkzeug gelaufen ist,
+      wird ``tool_choice=required`` verlangt und Antworttext zurückgehalten.
+      Manche Server behandeln ``required`` stillschweigend wie ``auto``; eine
+      solche Antwort wird verworfen und einmal wiederholt, danach gibt es eine
+      feste Meldung statt ungeprüften Texts.
+    - Fehler der Modellaufrufe werden nicht abgefangen; der Aufrufer fällt auf
+      Standard-RAG zurück bzw. meldet Kapazitätsfehler.
+    """
+    retried = False
+    async with httpx.AsyncClient(timeout=120.0) as client:
+        for turn_index in range(MAX_AGENT_TURNS):
+            final = turn_index == MAX_AGENT_TURNS - 1
+            pending = must_research and not researched and not final
+            if final:
+                adapter.add_user_text(_FINAL_TURN_INSTRUCTION)
+            tool_choice = "none" if final else "required" if pending else None
+
+            turn: Optional[ModelTurn] = None
+            async for item in adapter.complete(client, turn_index, tool_choice):
+                if isinstance(item, ModelTurn):
+                    turn = item
+                elif not pending:
+                    yield {"type": "content_chunk", "content": item}
+            calls = [] if final else turn.tool_calls
+            if turn.text and (calls or not pending):
+                agent_steps.append({"type": "thought", "content": turn.text})
+                if pending or not adapter.streams:
+                    yield {"type": "content_chunk", "content": turn.text}
+
+            if calls:
+                results = []
+                for call in calls:
+                    call_event, _ = _tool_events(call, "", {})
+                    agent_steps.append(call_event)
+                    yield dict(call_event)
+                    result = await execute_tool(call.name, call.arguments, call.id)
+                    _, result_event = _tool_events(call, result, execution_metadata(call.id))
+                    agent_steps.append(result_event)
+                    yield dict(result_event)
+                    results.append(result)
+                adapter.add_tool_results(calls, results, turn)
+                researched = True
+                yield {"type": "turn_completed", "has_tool_calls": True}
+                continue
+
+            if pending:
+                if not retried:
+                    retried = True
+                    logger.warning(
+                        "LLM ignorierte tool_choice=required; erzwinge einen zweiten Tool-Versuch"
+                    )
+                    continue
+                yield {"type": "turn_completed", "has_tool_calls": False}
+                yield {"type": "answer", "content": _NO_RESEARCH_ANSWER, "agent_steps": agent_steps}
+                return
+
+            yield {"type": "turn_completed", "has_tool_calls": False}
+            yield {"type": "answer", "content": turn.text, "agent_steps": agent_steps}
+            return
+
+
 async def run_agent_loop(
     provider: str,
     model_name: str,
@@ -546,7 +650,8 @@ async def run_agent_loop(
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
-    presents them to the LLM, resolves model tool calls recursively (up to 7 turns),
+    presents them to the LLM via a provider adapter and resolves model tool calls in the
+    shared research loop (_research_loop, up to MAX_AGENT_TURNS model calls),
     tracks thoughts and actions into an 'agent_steps' timeline, yielding steps in real-time.
     """
 
@@ -1646,7 +1751,8 @@ async def run_agent_loop(
     # ``tool_choice=required``. Make the first evidence-producing action
     # deterministic and feed its result into the model before it formulates
     # an answer.
-    bootstrap_tool: Optional[dict[str, Any]] = None
+    bootstrap_tool: Optional[ToolCall] = None
+    bootstrap_result: Optional[str] = None
     prefetched = None
     if require_initial_tool_call and project_id and not pinned_file and cfg.CHAT_EVIDENCE_PREFETCH:
         prefetched = await _prefetch_evidence(
@@ -1654,30 +1760,6 @@ async def run_agent_loop(
         )
     if prefetched is not None:
         bootstrap_name, bootstrap_args, bootstrap_result = prefetched
-        bootstrap_id = "bootstrap-0"
-        bootstrap_tool = {
-            "name": bootstrap_name,
-            "arguments": bootstrap_args,
-            "result": bootstrap_result,
-            "id": bootstrap_id,
-            "truncated": _tool_result_was_truncated(bootstrap_result),
-        }
-        agent_steps.append(
-            {
-                "type": "tool_call",
-                "name": bootstrap_name,
-                "arguments": bootstrap_args,
-                "id": bootstrap_id,
-            }
-        )
-        yield {
-            "type": "tool_call",
-            "name": bootstrap_name,
-            "arguments": bootstrap_args,
-            "id": bootstrap_id,
-        }
-        agent_steps.append({"type": "tool_result", **bootstrap_tool})
-        yield {"type": "tool_result", **bootstrap_tool}
     elif require_initial_tool_call and project_id:
         if pinned_file and repo_available:
             start_line = pinned_line or 1
@@ -1798,748 +1880,36 @@ async def run_agent_loop(
             # get_repo_entities/search tool call afterwards if needed.
             bootstrap_args = {"limit": 20}
             bootstrap_name = "get_repo_entities"
-        bootstrap_id = "bootstrap-0"
         bootstrap_result = await execute_tool(bootstrap_name, bootstrap_args)
-        bootstrap_tool = {
-            "name": bootstrap_name,
-            "arguments": bootstrap_args,
-            "result": bootstrap_result,
-            "id": bootstrap_id,
-            "truncated": _tool_result_was_truncated(bootstrap_result),
-        }
-        agent_steps.append(
-            {
-                "type": "tool_call",
-                "name": bootstrap_name,
-                "arguments": bootstrap_args,
-                "id": bootstrap_id,
-            }
-        )
-        yield {
-            "type": "tool_call",
-            "name": bootstrap_name,
-            "arguments": bootstrap_args,
-            "id": bootstrap_id,
-        }
-        agent_steps.append({"type": "tool_result", **bootstrap_tool})
-        yield {"type": "tool_result", **bootstrap_tool}
+    if bootstrap_result is not None:
+        bootstrap_tool = ToolCall("bootstrap-0", bootstrap_name, bootstrap_args)
+        for event in _tool_events(bootstrap_tool, bootstrap_result, {}):
+            agent_steps.append(event)
+            yield dict(event)
 
-    # --- Run provider specific loops ---
-    max_turns = 8
-    # Letzte Runde: keine Werkzeuge mehr, stattdessen Antwort aus den bisher abgerufenen Belegen. Ohne
-    # diese Runde endet ein Lauf, der das Recherchebudget aufbraucht, ohne jede Antwort (obwohl Quellen vorliegen).
-    final_turn_instruction = (
-        "Das Recherchebudget ist ausgeschöpft. Rufe keine weiteren Werkzeuge auf. Beantworte die Frage jetzt "
-        "ausschließlich mit den bisher abgerufenen Belegen, nenne Fundstellen mit Zeilen und benenne ausdrücklich, "
-        "was die Recherche nicht klären konnte."
+    adapter = make_provider_adapter(
+        provider,
+        api_key=api_key,
+        base_url=base_url,
+        endpoint_path=endpoint_path,
+        ollama_base_url=ollama_base_url,
+        model_name=model_name,
+        system_prompt=full_system_prompt,
+        tools=all_tools,
+        history=chat_history or [],
+        prompt=prompt,
+        temperature=temperature,
     )
-
-    if provider == "openai_responses":
-        # The Responses API has a different tool contract from the
-        # OpenAI-compatible Chat Completions API.  In particular, tool
-        # definitions are flat and follow-up results are sent as
-        # ``function_call_output`` input items instead of role=tool messages.
-        url = (base_url or "https://api.openai.com/v1").rstrip("/")
-        headers = {"Content-Type": "application/json"}
-        if api_key:
-            headers["Authorization"] = f"Bearer {api_key}"
-        full_url = f"{url}/{(endpoint_path or '/responses').lstrip('/')}"
-        model = model_name or "gpt-4o"
-        responses_tools = [
-            {
-                "type": "function",
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "parameters": tool.get("inputSchema", {"type": "object", "properties": {}}),
-                **(
-                    {"strict": False}
-                    if tool["name"] in {"inspect_change_impact", "inspect_change_package"}
-                    else {}
-                ),
-            }
-            for tool in all_tools
-        ]
-
-        response_input: list[dict[str, Any]] = []
-        if chat_history:
-            response_input.extend(
-                {"role": msg["role"], "content": msg["content"]} for msg in chat_history
-            )
-        response_input.append({"role": "user", "content": prompt})
-        if bootstrap_tool:
-            response_input.extend(
-                [
-                    {
-                        "type": "function_call",
-                        "call_id": bootstrap_tool["id"],
-                        "name": bootstrap_tool["name"],
-                        "arguments": json.dumps(bootstrap_tool["arguments"]),
-                    },
-                    {
-                        "type": "function_call_output",
-                        "call_id": bootstrap_tool["id"],
-                        "output": bootstrap_tool["result"],
-                    },
-                ]
-            )
-
-        async with httpx.AsyncClient(timeout=120.0) as client_http:
-            required_tool_retry = False
-            for turn in range(max_turns):
-                final_turn = turn == max_turns - 1
-                if final_turn:
-                    response_input.append({"role": "user", "content": final_turn_instruction})
-                payload = {
-                    "model": model,
-                    "instructions": full_system_prompt,
-                    "input": response_input,
-                    "tools": responses_tools,
-                    "stream": False,
-                }
-                if final_turn:
-                    payload["tool_choice"] = "none"
-                if cfg.openai_model_supports_custom_temperature(model):
-                    payload["temperature"] = temperature if temperature is not None else 0.7
-                if (
-                    require_initial_tool_call
-                    and not bootstrap_tool
-                    and (turn == 0 or required_tool_retry)
-                ):
-                    payload["tool_choice"] = "required"
-
-                resp = await admitted_post(
-                    client_http, full_url, kind="chat", json=payload, headers=headers
-                )
-                resp.raise_for_status()
-                response_data = resp.json()
-                output_items = response_data.get("output", [])
-                answer_parts: list[str] = []
-                function_calls: list[dict[str, Any]] = []
-
-                for item in output_items:
-                    item_type = item.get("type")
-                    if item_type == "message":
-                        for content in item.get("content", []):
-                            if content.get("type") == "output_text" and content.get("text"):
-                                answer_parts.append(content["text"])
-                    elif item_type == "function_call":
-                        function_calls.append(item)
-
-                thought_content = "".join(answer_parts)
-                if thought_content:
-                    agent_steps.append({"type": "thought", "content": thought_content})
-                    yield {"type": "content_chunk", "content": thought_content}
-
-                # Preserve the model's output items for the next Responses
-                # request. The API uses these items as the assistant turn that
-                # introduced the function calls.
-                response_input.extend(output_items)
-
-                if function_calls:
-                    for index, function_call in enumerate(function_calls):
-                        fn_name = function_call.get("name", "")
-                        call_id = function_call.get("call_id") or function_call.get("id")
-                        tc_id = call_id or f"tc-{turn}-{index}"
-                        raw_args = function_call.get("arguments", "")
-                        try:
-                            fn_args = json.loads(raw_args) if raw_args else {}
-                        except (TypeError, json.JSONDecodeError):
-                            fn_args = raw_args
-
-                        agent_steps.append(
-                            {
-                                "type": "tool_call",
-                                "name": fn_name,
-                                "arguments": fn_args,
-                                "id": tc_id,
-                            }
-                        )
-                        yield {
-                            "type": "tool_call",
-                            "name": fn_name,
-                            "arguments": fn_args,
-                            "id": tc_id,
-                        }
-
-                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
-                        execution_metadata = _mcp_execution_metadata(tc_id)
-                        truncated = _tool_result_was_truncated(tool_res)
-                        agent_steps.append(
-                            {
-                                "type": "tool_result",
-                                "name": fn_name,
-                                "result": tool_res,
-                                "id": tc_id,
-                                "truncated": truncated,
-                                **execution_metadata,
-                            }
-                        )
-                        yield {
-                            "type": "tool_result",
-                            "name": fn_name,
-                            "result": tool_res,
-                            "id": tc_id,
-                            "truncated": truncated,
-                            **execution_metadata,
-                        }
-                        response_input.append(
-                            {
-                                "type": "function_call_output",
-                                "call_id": tc_id,
-                                "output": tool_res,
-                            }
-                        )
-
-                    yield {"type": "turn_completed", "has_tool_calls": True}
-                    continue
-
-                yield {"type": "turn_completed", "has_tool_calls": False}
-                yield {
-                    "type": "answer",
-                    "content": thought_content or response_data.get("output_text", ""),
-                    "agent_steps": agent_steps,
-                }
-                return
-
-        yield {
-            "type": "answer",
-            "content": "Agent: Maximale Anzahl von Durchläufen überschritten.",
-            "agent_steps": agent_steps,
-        }
+    if adapter is None:
         return
-
-    if provider in {"openai", "ollama"} or is_self_hosted_openai(provider):
-        # Both support standard OpenAI-like JSON interface
-        is_ollama = provider == "ollama"
-
-        if is_ollama:
-            url = f"{ollama_base_url}/v1"
-            headers = {"Content-Type": "application/json"}
-            # A remote Ollama profile may carry its own credential.  The
-            # process-global value is only the fallback for the local/default
-            # profile; otherwise the active profile could never authenticate
-            # its agent tool-loop independently (O-259).
-            ollama_api_key = api_key or cfg.OLLAMA_API_KEY
-            if ollama_api_key:
-                headers["Authorization"] = f"Bearer {ollama_api_key}"
-            model = cfg.resolve_ollama_model(model_name)
-            full_url = f"{url}/chat/completions"
-        else:
-            url = base_url or "https://api.openai.com/v1"
-            if url.endswith("/"):
-                url = url[:-1]
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-            model = model_name or "gpt-4o"
-            full_url = f"{url}/{(endpoint_path or '/chat/completions').lstrip('/')}"
-
-        openai_tools = []
-        for t in all_tools:
-            openai_tools.append(
-                {
-                    "type": "function",
-                    "function": {
-                        "name": t["name"],
-                        "description": t.get("description", ""),
-                        "parameters": t.get("inputSchema", {"type": "object", "properties": {}}),
-                        **(
-                            {"strict": False}
-                            if t["name"] in {"inspect_change_impact", "inspect_change_package"}
-                            else {}
-                        ),
-                    },
-                }
-            )
-
-        messages = []
-        if full_system_prompt:
-            messages.append({"role": "system", "content": full_system_prompt})
-        if chat_history:
-            for msg in chat_history:
-                messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": prompt})
-        if bootstrap_tool:
-            messages.extend(
-                [
-                    {
-                        "role": "assistant",
-                        "content": None,
-                        "tool_calls": [
-                            {
-                                "id": bootstrap_tool["id"],
-                                "type": "function",
-                                "function": {
-                                    "name": bootstrap_tool["name"],
-                                    "arguments": json.dumps(bootstrap_tool["arguments"]),
-                                },
-                            }
-                        ],
-                    },
-                    {
-                        "role": "tool",
-                        "tool_call_id": bootstrap_tool["id"],
-                        "name": bootstrap_tool["name"],
-                        "content": bootstrap_tool["result"],
-                    },
-                ]
-            )
-
-        async with httpx.AsyncClient(timeout=120.0) as client_http:
-            required_tool_retry = False
-            for turn in range(max_turns):
-                final_turn = turn == max_turns - 1
-                if final_turn:
-                    messages.append({"role": "user", "content": final_turn_instruction})
-                payload = {
-                    "model": model,
-                    "messages": messages,
-                    "tools": openai_tools,
-                    "stream": True,
-                }
-                if final_turn:
-                    payload["tool_choice"] = "none"
-                if is_ollama or cfg.openai_model_supports_custom_temperature(model):
-                    payload["temperature"] = temperature if temperature is not None else 0.7
-                if is_ollama:
-                    # O-168: explizites Kontextfenster statt Ollamas kleinem,
-                    # stillschweigend kürzendem Default -- hier besonders
-                    # relevant, weil die Werkzeugschleife über bis zu
-                    # max_turns Runden Zwischenergebnisse an `messages` anhängt.
-                    payload["num_ctx"] = cfg.OLLAMA_NUM_CTX
-                if (
-                    require_initial_tool_call
-                    and not bootstrap_tool
-                    and (turn == 0 or required_tool_retry)
-                ):
-                    # Erst recherchieren, danach wieder automatisch zwischen
-                    # weiteren Werkzeugaufrufen und der finalen Antwort wählen.
-                    payload["tool_choice"] = "required"
-
-                accumulated_content = ""
-                accumulated_tool_calls = {}
-
-                async with admitted_stream(
-                    client_http, full_url, kind="chat", json=payload, headers=headers
-                ) as resp:
-                    raise_for_inference_status(resp, provider)
-                    async for line in resp.aiter_lines():
-                        if not line.strip():
-                            continue
-                        if line.startswith("data: "):
-                            line_data = line[6:].strip()
-                            if line_data == "[DONE]":
-                                break
-                            try:
-                                chunk = json.loads(line_data)
-                                if not chunk.get("choices"):
-                                    continue
-                                delta = chunk["choices"][0].get("delta", {})
-
-                                content_chunk = delta.get("content")
-                                if content_chunk:
-                                    accumulated_content += content_chunk
-                                    # Do not stream an answer that may have to be
-                                    # discarded when Ollama ignores required tool use.
-                                    if not (
-                                        require_initial_tool_call
-                                        and not bootstrap_tool
-                                        and turn in (0, 1)
-                                    ):
-                                        yield {"type": "content_chunk", "content": content_chunk}
-
-                                tool_calls_delta = delta.get("tool_calls")
-                                if tool_calls_delta:
-                                    for tc in tool_calls_delta:
-                                        idx = tc.get("index", 0)
-                                        if idx not in accumulated_tool_calls:
-                                            accumulated_tool_calls[idx] = {
-                                                "id": tc.get("id"),
-                                                "type": tc.get("type"),
-                                                "function": {
-                                                    "name": tc.get("function", {}).get("name", ""),
-                                                    "arguments": tc.get("function", {}).get(
-                                                        "arguments", ""
-                                                    ),
-                                                },
-                                            }
-                                        else:
-                                            tc_accum = accumulated_tool_calls[idx]
-                                            if tc.get("id"):
-                                                tc_accum["id"] = tc["id"]
-                                            if tc.get("function", {}).get("name"):
-                                                tc_accum["function"]["name"] = tc["function"][
-                                                    "name"
-                                                ]
-                                            if tc.get("function", {}).get("arguments"):
-                                                tc_accum["function"]["arguments"] += tc["function"][
-                                                    "arguments"
-                                                ]
-                            except Exception as e:
-                                logger.error(f"Error parsing stream chunk: {e}")
-
-                tool_calls_list = []
-                for idx in sorted(accumulated_tool_calls.keys()):
-                    tc_accum = accumulated_tool_calls[idx]
-                    tool_calls_list.append(
-                        {
-                            "id": tc_accum.get("id") or f"tc-{turn}-{idx}",
-                            "type": tc_accum.get("type") or "function",
-                            "function": tc_accum["function"],
-                        }
-                    )
-
-                msg = {"role": "assistant", "content": accumulated_content or None}
-                if tool_calls_list:
-                    msg["tool_calls"] = tool_calls_list
-                messages.append(msg)
-
-                if accumulated_content and (
-                    tool_calls_list
-                    or not (require_initial_tool_call and not bootstrap_tool and turn in (0, 1))
-                ):
-                    agent_steps.append({"type": "thought", "content": accumulated_content})
-
-                if tool_calls_list:
-                    if (
-                        accumulated_content
-                        and require_initial_tool_call
-                        and not bootstrap_tool
-                        and turn in (0, 1)
-                    ):
-                        yield {"type": "content_chunk", "content": accumulated_content}
-                    for tc in tool_calls_list:
-                        tc_id = tc["id"]
-                        fn_name = tc["function"]["name"]
-                        fn_args_str = tc["function"]["arguments"]
-                        try:
-                            fn_args = json.loads(fn_args_str) if fn_args_str else {}
-                        except Exception:
-                            fn_args = fn_args_str
-
-                        agent_steps.append(
-                            {
-                                "type": "tool_call",
-                                "name": fn_name,
-                                "arguments": fn_args,
-                                "id": tc_id,
-                            }
-                        )
-                        yield {
-                            "type": "tool_call",
-                            "name": fn_name,
-                            "arguments": fn_args,
-                            "id": tc_id,
-                        }
-
-                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
-                        execution_metadata = _mcp_execution_metadata(tc_id)
-                        truncated = _tool_result_was_truncated(tool_res)
-
-                        agent_steps.append(
-                            {
-                                "type": "tool_result",
-                                "name": fn_name,
-                                "result": tool_res,
-                                "id": tc_id,
-                                "truncated": truncated,
-                                **execution_metadata,
-                            }
-                        )
-                        yield {
-                            "type": "tool_result",
-                            "name": fn_name,
-                            "result": tool_res,
-                            "id": tc_id,
-                            "truncated": truncated,
-                            **execution_metadata,
-                        }
-
-                        messages.append(
-                            {
-                                "role": "tool",
-                                "tool_call_id": tc_id,
-                                "name": fn_name,
-                                "content": tool_res,
-                            }
-                        )
-
-                    yield {"type": "turn_completed", "has_tool_calls": True}
-                else:
-                    if require_initial_tool_call and not bootstrap_tool and turn == 0:
-                        # Some Ollama releases silently treat required as auto.
-                        # Remove the discarded assistant turn and retry once;
-                        # no unverified text reaches the user or the audit log.
-                        messages.pop()
-                        required_tool_retry = True
-                        logger.warning(
-                            "LLM ignorierte tool_choice=required; erzwinge einen zweiten Tool-Versuch"
-                        )
-                        continue
-                    if require_initial_tool_call and not bootstrap_tool and required_tool_retry:
-                        yield {"type": "turn_completed", "has_tool_calls": False}
-                        yield {
-                            "type": "answer",
-                            "content": (
-                                "Ich konnte die projektbezogene Frage nicht verlässlich über "
-                                "das Repository-Tool prüfen. Bitte wiederhole die Frage kurz."
-                            ),
-                            "agent_steps": agent_steps,
-                        }
-                        return
-                    yield {"type": "turn_completed", "has_tool_calls": False}
-                    yield {
-                        "type": "answer",
-                        "content": accumulated_content,
-                        "agent_steps": agent_steps,
-                    }
-                    return
-
-            yield {
-                "type": "answer",
-                "content": "Agent: Maximale Anzahl von Durchläufen überschritten.",
-                "agent_steps": agent_steps,
-            }
-            return
-
-    elif provider == "anthropic":
-        full_url = "https://api.anthropic.com/v1/messages"
-        headers = {
-            "Content-Type": "application/json",
-            "x-api-key": api_key or "",
-            "anthropic-version": "2023-06-01",
-        }
-
-        anthropic_tools = []
-        for t in all_tools:
-            anthropic_tools.append(
-                {
-                    "name": t["name"],
-                    "description": t.get("description", ""),
-                    "input_schema": t.get("inputSchema", {"type": "object", "properties": {}}),
-                }
-            )
-
-        messages = []
-        if chat_history:
-            for msg in chat_history:
-                messages.append({"role": msg["role"], "content": msg["content"]})
-        messages.append({"role": "user", "content": prompt})
-
-        async with httpx.AsyncClient(timeout=120.0) as client_http:
-            for turn in range(max_turns):
-                payload = {
-                    "model": model_name or "claude-3-5-sonnet-20241022",
-                    "max_tokens": 4096,
-                    "messages": messages,
-                    "temperature": temperature if temperature is not None else 0.7,
-                    "tools": anthropic_tools,
-                }
-                if full_system_prompt:
-                    payload["system"] = full_system_prompt
-
-                resp = await admitted_post(
-                    client_http, full_url, kind="chat", json=payload, headers=headers
-                )
-                resp.raise_for_status()
-                res_data = resp.json()
-
-                assistant_blocks = res_data["content"]
-                messages.append({"role": "assistant", "content": assistant_blocks})
-
-                # Check for thoughts/text block
-                text_blocks = [b for b in assistant_blocks if b.get("type") == "text"]
-                thought_content = ""
-                if text_blocks:
-                    thought_content = "".join([b.get("text", "") for b in text_blocks])
-                    agent_steps.append({"type": "thought", "content": thought_content})
-                    yield {"type": "content_chunk", "content": thought_content}
-
-                tool_calls = [b for b in assistant_blocks if b.get("type") == "tool_use"]
-                if tool_calls:
-                    tool_result_content = []
-                    for tc in tool_calls:
-                        tc_id = tc["id"]
-                        fn_name = tc["name"]
-                        fn_args = tc["input"]
-
-                        agent_steps.append(
-                            {
-                                "type": "tool_call",
-                                "name": fn_name,
-                                "arguments": fn_args,
-                                "id": tc_id,
-                            }
-                        )
-                        yield {
-                            "type": "tool_call",
-                            "name": fn_name,
-                            "arguments": fn_args,
-                            "id": tc_id,
-                        }
-
-                        # Execute
-                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
-                        execution_metadata = _mcp_execution_metadata(tc_id)
-                        truncated = _tool_result_was_truncated(tool_res)
-
-                        agent_steps.append(
-                            {
-                                "type": "tool_result",
-                                "name": fn_name,
-                                "result": tool_res,
-                                "id": tc_id,
-                                "truncated": truncated,
-                                **execution_metadata,
-                            }
-                        )
-                        yield {
-                            "type": "tool_result",
-                            "name": fn_name,
-                            "result": tool_res,
-                            "id": tc_id,
-                            "truncated": truncated,
-                            **execution_metadata,
-                        }
-
-                        tool_result_content.append(
-                            {"type": "tool_result", "tool_use_id": tc_id, "content": tool_res}
-                        )
-                    messages.append({"role": "user", "content": tool_result_content})
-                    yield {"type": "turn_completed", "has_tool_calls": True}
-                else:
-                    yield {"type": "turn_completed", "has_tool_calls": False}
-                    yield {"type": "answer", "content": thought_content, "agent_steps": agent_steps}
-                    return
-
-            yield {
-                "type": "answer",
-                "content": "Agent: Maximale Anzahl von Durchläufen überschritten.",
-                "agent_steps": agent_steps,
-            }
-            return
-
-    elif provider == "gemini":
-        gemini_tools = []
-        declarations = []
-        for t in all_tools:
-            declarations.append(
-                {
-                    "name": t["name"],
-                    "description": t.get("description", ""),
-                    "parameters": t.get("inputSchema", {"type": "object", "properties": {}}),
-                }
-            )
-        gemini_tools.append({"functionDeclarations": declarations})
-
-        full_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name or 'gemini-1.5-flash'}:generateContent?key={api_key}"
-        headers = {"Content-Type": "application/json"}
-
-        contents = []
-        if chat_history:
-            for msg in chat_history:
-                g_role = "user" if msg["role"] == "user" else "model"
-                contents.append({"role": g_role, "parts": [{"text": msg["content"]}]})
-        contents.append({"role": "user", "parts": [{"text": prompt}]})
-
-        async with httpx.AsyncClient(timeout=120.0) as client_http:
-            for turn in range(max_turns):
-                payload = {
-                    "contents": contents,
-                    "tools": gemini_tools,
-                    "generationConfig": {
-                        "temperature": temperature if temperature is not None else 0.7
-                    },
-                }
-                if full_system_prompt:
-                    payload["systemInstruction"] = {"parts": [{"text": full_system_prompt}]}
-
-                resp = await admitted_post(
-                    client_http, full_url, kind="chat", json=payload, headers=headers
-                )
-                resp.raise_for_status()
-                res_data = resp.json()
-
-                candidate = res_data["candidates"][0]
-                assistant_content = candidate["content"]
-                contents.append(assistant_content)
-
-                parts = assistant_content.get("parts", [])
-
-                # Extract thoughts/text
-                text_parts = [p for p in parts if "text" in p]
-                thought_content = ""
-                if text_parts:
-                    thought_content = "".join([p.get("text", "") for p in text_parts])
-                    agent_steps.append({"type": "thought", "content": thought_content})
-                    yield {"type": "content_chunk", "content": thought_content}
-
-                function_calls = [p for p in parts if "functionCall" in p]
-                if function_calls:
-                    response_parts = []
-                    for fc_index, fc_part in enumerate(function_calls):
-                        fc = fc_part["functionCall"]
-                        fn_name = fc["name"]
-                        fn_args = fc.get("args", {})
-
-                        tc_id = f"tc-{turn}-{fc_index}"
-                        agent_steps.append(
-                            {
-                                "type": "tool_call",
-                                "name": fn_name,
-                                "arguments": fn_args,
-                                "id": tc_id,
-                            }
-                        )
-                        yield {
-                            "type": "tool_call",
-                            "name": fn_name,
-                            "arguments": fn_args,
-                            "id": tc_id,
-                        }
-
-                        # Execute
-                        tool_res = await execute_tool(fn_name, fn_args, tc_id)
-                        execution_metadata = _mcp_execution_metadata(tc_id)
-                        truncated = _tool_result_was_truncated(tool_res)
-
-                        agent_steps.append(
-                            {
-                                "type": "tool_result",
-                                "name": fn_name,
-                                "result": tool_res,
-                                "id": tc_id,
-                                "truncated": truncated,
-                                **execution_metadata,
-                            }
-                        )
-                        yield {
-                            "type": "tool_result",
-                            "name": fn_name,
-                            "result": tool_res,
-                            "id": tc_id,
-                            "truncated": truncated,
-                            **execution_metadata,
-                        }
-
-                        response_parts.append(
-                            {
-                                "functionResponse": {
-                                    "name": fn_name,
-                                    "response": {"result": tool_res},
-                                }
-                            }
-                        )
-                    contents.append({"role": "user", "parts": response_parts})
-                    yield {"type": "turn_completed", "has_tool_calls": True}
-                else:
-                    yield {"type": "turn_completed", "has_tool_calls": False}
-                    yield {"type": "answer", "content": thought_content, "agent_steps": agent_steps}
-                    return
-
-            yield {
-                "type": "answer",
-                "content": "Agent: Maximale Anzahl von Durchläufen überschritten.",
-                "agent_steps": agent_steps,
-            }
-            return
+    if bootstrap_tool is not None:
+        adapter.add_tool_results([bootstrap_tool], [bootstrap_result], None)
+    async for event in _research_loop(
+        adapter,
+        execute_tool,
+        _mcp_execution_metadata,
+        agent_steps,
+        must_research=require_initial_tool_call,
+        researched=bootstrap_tool is not None,
+    ):
+        yield event

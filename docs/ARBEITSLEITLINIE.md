@@ -137,10 +137,10 @@ In dieser Reihenfolge, jeweils mit Messung am Hold-out-Satz vorher und nachher:
 
 | # | Vorhaben | Befund, der damit schließt |
 |---:|---|---|
-| 1 | **Eine Agentenschleife** mit Adaptern je Anbieter statt vier Kopien in `backend/agent.py`. | Architektur: 4× Agentenschleife |
+| 1 | **Eine Agentenschleife** mit Adaptern je Anbieter statt vier Kopien in `backend/agent.py`. **Umgesetzt 28.10.2026** (`agent.py::_research_loop`, Adapter in `services/agent_providers.py`); Hold-out-Messung vorher/nachher steht aus. | Architektur: 4× Agentenschleife |
 | 2 | **Belegpflicht strukturell:** Antwort als Liste von Aussagen mit Zitat-ID; Aussagen ohne gültige ID werden verworfen. Graphfragen (Aufrufer, Copybooks, Importe) deterministisch aus dem Index rendern. | KI: erfundene Kanten (O-346) |
 | 3 | **Ein Antwortpfad:** immer Beweispaket vorab, Agent recherchiert nur bei gemeldeten Lücken nach. | KI: zwei Betriebsarten |
-| 4 | **`POST /chat` zerlegen** in Kontext → Agent → Belegprüfung → Persistenz. | Architektur: God-Handler |
+| 4 | **`POST /chat` zerlegen** in Kontext → Agent → Belegprüfung → Persistenz. **Umgesetzt 28.10.2026** (`services/chat_turn.py`, `chat_sources.py`, `chat_sessions.py`, `chat_feedback.py`, `chat_view_actions.py`). | Architektur: God-Handler |
 | 5 | **UI-Kernfluss** Frage → Antwort → Originalstelle → Aufrufer; Nebenansichten (Tropfen, 3D-Graph, Topics) hinter „Erweitert“; Schrift ≥ 12 px; Kontrast ≥ 4,5:1 per axe-Test in CI; kontextbezogene Chat-Vorschläge statt rotierender Überschrift. | UI: Konzeptvielfalt, Typografie |
 | 6 | **Gemeinsames Modellpaket** statt zweier ORM-Kopien. | Architektur: Duplikat |
 | 7 | **Nischenentscheidung BS2000/openUTM** (O-131 bis O-133, O-144) als E-18 treffen – Ausbau nur mit Pilotbezug. | Zukunft: Nische liegt brach |
