@@ -281,7 +281,7 @@ arrayInitializer
 classType:
     (
       ( packageName '.' annotation* )? typeIdentifier typeArguments?
-    )+ ( '.' annotation* typeIdentifier typeArguments? )*
+    ) ( '.' annotation* typeIdentifier typeArguments? )*
     ;
 
 packageName:

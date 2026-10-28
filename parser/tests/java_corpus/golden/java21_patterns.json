@@ -187,8 +187,9 @@
                 "qualified_name": "corpus.modern.Area#calculate(Shape)@param:shape"
               },
               {
-                "kind": "unknown",
+                "kind": "local_variable",
                 "name": "circle",
+                "qualified_name": "corpus.modern.Area#calculate(Shape)@pattern:circle:10:24",
                 "via": "receiver"
               },
               {
@@ -205,12 +206,14 @@
                 "via": "member"
               },
               {
-                "kind": "unknown",
-                "name": "width"
+                "kind": "local_variable",
+                "name": "width",
+                "qualified_name": "corpus.modern.Area#calculate(Shape)@pattern:width:11:34"
               },
               {
-                "kind": "unknown",
-                "name": "height"
+                "kind": "local_variable",
+                "name": "height",
+                "qualified_name": "corpus.modern.Area#calculate(Shape)@pattern:height:11:48"
               }
             ],
             "target": {
@@ -264,6 +267,93 @@
       "qualified_name": "corpus.modern.Area#calculate(Shape)@param:shape",
       "start_line": 8,
       "type": "parameter"
+    },
+    {
+      "end_line": 10,
+      "meta": {
+        "declaration_column": 30,
+        "declaration_line": 10,
+        "language": "java",
+        "pattern_binding": true,
+        "scope_end_column": 5,
+        "scope_end_line": 13,
+        "scope_start_column": 41,
+        "scope_start_line": 8,
+        "variable_type": "Circle",
+        "visibility_ranges": [
+          {
+            "end_column": 55,
+            "end_line": 10,
+            "start_column": 31,
+            "start_line": 10
+          },
+          {
+            "end_column": 103,
+            "end_line": 10,
+            "start_column": 59,
+            "start_line": 10
+          }
+        ]
+      },
+      "name": "circle",
+      "parent_qualified_name": "corpus.modern.Area#calculate(Shape)",
+      "qualified_name": "corpus.modern.Area#calculate(Shape)@pattern:circle:10:24",
+      "start_line": 10,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "declaration_column": 39,
+        "declaration_line": 11,
+        "language": "java",
+        "pattern_binding": true,
+        "scope_end_column": 5,
+        "scope_end_line": 13,
+        "scope_start_column": 41,
+        "scope_start_line": 8,
+        "variable_type": "double",
+        "visibility_ranges": [
+          {
+            "end_column": 74,
+            "end_line": 11,
+            "start_column": 59,
+            "start_line": 11
+          }
+        ]
+      },
+      "name": "width",
+      "parent_qualified_name": "corpus.modern.Area#calculate(Shape)",
+      "qualified_name": "corpus.modern.Area#calculate(Shape)@pattern:width:11:34",
+      "start_line": 11,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "declaration_column": 54,
+        "declaration_line": 11,
+        "language": "java",
+        "pattern_binding": true,
+        "scope_end_column": 5,
+        "scope_end_line": 13,
+        "scope_start_column": 41,
+        "scope_start_line": 8,
+        "variable_type": "double",
+        "visibility_ranges": [
+          {
+            "end_column": 74,
+            "end_line": 11,
+            "start_column": 59,
+            "start_line": 11
+          }
+        ]
+      },
+      "name": "height",
+      "parent_qualified_name": "corpus.modern.Area#calculate(Shape)",
+      "qualified_name": "corpus.modern.Area#calculate(Shape)@pattern:height:11:48",
+      "start_line": 11,
+      "type": "local_variable"
     }
   ]
 }

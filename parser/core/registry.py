@@ -95,7 +95,7 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "java": ParserEntry(
         parse=_parse_java,
         root_entity_types=("compilation_unit",),
-        parser_version="java-structure-12",
+        parser_version="java-structure-13",
         grammar_fingerprint=java_grammar_fingerprint,
     ),
     "maven": ParserEntry(

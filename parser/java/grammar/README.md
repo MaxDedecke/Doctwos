@@ -30,6 +30,11 @@ in `../modern.py`; `test_java25_maven_workspace.py` covers source ownership,
 physical lines, module exports and calls. Flexible constructor bodies use the
 existing block grammar. Preview features require separate acceptance cases.
 
+Local correction (28.10.2026): `classType` has one leading type segment followed
+by dotted segments. Repeating the undelimited leading group incorrectly consumed
+`Service s` as a type after `instanceof`, hiding the pattern variable from visitors.
+The upstream source pin above remains the provenance of this locally patched grammar.
+
 `parser/java/generate_parser.sh` is the supported offline regeneration entry
 point. Provide a local ANTLR 4.13.2 complete JAR through `ANTLR_JAR`; the script
 generates the Python 3 lexer, parser and visitor under `parser/java/_antlr/`.

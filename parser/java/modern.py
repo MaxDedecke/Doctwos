@@ -8,6 +8,12 @@ from .relationships import JavaRelationshipVisitor
 
 
 class ModernDeclarationVisitor(JavaDeclarationVisitor):
+    def visitPattern(self, context):
+        from .patterns import add_pattern_declarations
+
+        add_pattern_declarations(self, context)
+        return self.visitChildren(context)
+
     def _parameters(self, owner, context, **kwargs):
         before = len(self.entities)
         super()._parameters(owner, context, **kwargs)

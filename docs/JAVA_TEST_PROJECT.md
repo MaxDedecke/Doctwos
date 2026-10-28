@@ -149,3 +149,12 @@ Auswertung von `&&` und `||`. Selektoren und Bedingungen selbst werden nicht dem
 ausgewählten Ergebniszweig zugerechnet. Verschachtelte Pfade behalten Originalzeilen
 und das bestehende, sprachneutrale `control_path`-Format der Prozessansicht.
 Abnahme: `parser/tests/test_java_control_paths.py` und vorhandene Java-Golden-Tests.
+
+Strukturversion 13 ergänzt Pattern-Bindungen mit expliziten Sichtbarkeitsbereichen
+für `if`, `switch`/`when`, boolesche Kurzschlussauswertung und negierte Rückkehr-Guards.
+Eine Weitergabe des Testergebnisses an eine beliebige Funktion erweitert den
+Bindungsbereich nicht. Die lokale Grammatikkorrektur verhindert, dass `Service s`
+als ein Typ statt als Pattern gelesen wird. Für `var` aus Factory-Aufrufen wird
+der Rückgabetyp des an der Initialisierungsstelle tatsächlich aufgelösten Aufrufs
+im Importkontext der Factory verwendet. Mehrdeutige Initialisierer bleiben offen.
+Abnahme: `parser/tests/test_java_pattern_inference.py`; Java-Golden-Dateien aktualisiert.

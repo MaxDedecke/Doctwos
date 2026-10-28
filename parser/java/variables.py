@@ -28,6 +28,14 @@ def select_visible_variable(variables: list, use_line: int, use_column: int) -> 
     for item in variables:
         meta = item.meta or {}
         declaration = _coordinates(item)
+        ranges = meta.get("visibility_ranges")
+        if ranges is not None and not any(
+            (region["start_line"], region["start_column"])
+            <= use_position
+            <= (region["end_line"], region["end_column"])
+            for region in ranges
+        ):
+            continue
         scope_start = (
             int(meta.get("scope_start_line", item.start_line or 1)),
             int(meta.get("scope_start_column", 0)),

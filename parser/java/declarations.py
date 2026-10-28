@@ -764,51 +764,9 @@ class JavaDeclarationVisitor(JavaParserVisitor):
             )
 
     def visitLocalVariableDeclaration(self, context):
-        if self.parent.type in {"method", "constructor", "lambda", "initializer"}:
-            if context.VAR() is not None:
-                declarations = [(context.identifier(), None)]
-                variable_type = "var"
-                initializer = context.expression()
-                initializer_text = initializer.getText() if initializer is not None else ""
-                inferred_match = re.fullmatch(
-                    r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)",
-                    initializer_text,
-                )
-                inferred_type = inferred_match.group(1) if inferred_match else None
-            else:
-                variable_type = context.typeType().getText()
-                inferred_type = None
-                declarations = [
-                    (declarator.variableDeclaratorId().identifier(), declarator)
-                    for declarator in context.variableDeclarators().variableDeclarator()
-                ]
-            for identifier, declarator in declarations:
-                start_line, end_line = self._span(declarator or context)
-                name = identifier.getText()
-                self.entities.append(
-                    Entity(
-                        type="local_variable",
-                        name=name,
-                        start_line=start_line,
-                        end_line=end_line,
-                        parent_name=self.parent.name,
-                        qualified_name=(
-                            f"{self.parent.qualified_name}@local:{name}:"
-                            f"{start_line}:{identifier.start.column}"
-                        ),
-                        parent_qualified_name=self.parent.qualified_name,
-                        meta=self._java_meta(
-                            {
-                                "variable_type": variable_type,
-                                **self._lexical_scope(context),
-                                "declaration_line": identifier.start.line,
-                                "declaration_column": identifier.stop.column
-                                + len(identifier.stop.text),
-                                **({"inferred_type": inferred_type} if inferred_type else {}),
-                            }
-                        ),
-                    )
-                )
+        from .local_declarations import add_local_declarations
+
+        add_local_declarations(self, context)
         return self.visitChildren(context)
 
     def visitCatchClause(self, context):

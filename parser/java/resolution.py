@@ -659,7 +659,21 @@ def _receiver_type_candidates(
         if not declared_type or declared_type == "var":
             declared_type = (declaration.meta or {}).get("inferred_type")
         if not declared_type:
-            return [], declaration_reason
+            from .factory_inference import factory_receiver
+
+            return factory_receiver(
+                declaration,
+                result,
+                methods_by_qname,
+                result_by_type,
+                lambda name, context, owner: _global_type_candidates(
+                    name,
+                    result=context,
+                    source_owner=owner,
+                    types_by_qname=types_by_qname,
+                    types_by_name=types_by_name,
+                ),
+            )
         declaration_result = result_by_type.get(declaration.parent_qualified_name or "", result)
         types, type_reason = _global_type_candidates(
             declared_type,
@@ -1264,6 +1278,7 @@ def resolve_global_edges(results: Iterable[ParseResult]) -> int:
             result.edges,
             key=lambda edge: (
                 edge.src_start_line or 0,
+                (edge.meta or {}).get("src_start_column", 0),
                 len((edge.meta or {}).get("receiver") or "") if edge.type == "CALLS" else -1,
             ),
         )
