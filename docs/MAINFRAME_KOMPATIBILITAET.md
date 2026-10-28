@@ -34,6 +34,25 @@ Parsertechnik wird nur mit einem tatsächlich genutzten Verbraucher eingeführt.
 | `copybook.py` löst Namen anhand quellenweiter Pfade bzw. Verzeichnisnamen auf; unterstützt bereits COPY/REPLACING und transitive Feldvererbung. | Vorhandene Funktion ausbauen: echte Suchreihenfolge, Versions-/Bibliothekskontext und Compileroptionen fehlen als Eingabe. Nicht als vollständig fehlende COPY-Unterstützung beschreiben. |
 | `embedded.py` maskiert EXEC-Blöcke; `sql.py` analysiert SQL separat, `procedure.py` sucht CALL/PERFORM/GO TO. | Maskierung von CICS ist keine vollständige CICS-Programm-/Ressourcenanalyse. Weitere Subsysteme einzeln nachweisen. |
 
+## Stand 28.10.2026: Ausbau für Kundenumgebungen mit Git
+
+Aufhebung des Feature-Stopps für den COBOL-Parser (siehe `CLAUDE.md`). Quellsystem-Flexibilität
+(Endevor, PDS u. ä.) bleibt zurückgestellt.
+
+| Bereich | Stand |
+|---|---|
+| Kodierung | COBOL, Copybook und JCL fallen ohne Profil-`encoding` von UTF-8 auf cp1252 zurück (Diagnose `SOURCE_ENCODING_FALLBACK`, gespeicherte Kodierung). Ergibt der Rückfall überwiegend Nicht-ASCII (EBCDIC), wird die Datei weiter übersprungen. Ein gesetztes Profil-`encoding` bleibt strikt. |
+| Klassifikation | Endungslose Dateien werden am Inhalt als `cobol`/`copybook` erkannt (`core/language_detection.py::sniff_cobol_family`). `spaces.language_paths` ordnet Verzeichnispräfixe zu, deren Endung nichts aussagt. Eine Vorab-Klassifikation je Sync speist Profil, Copybook-Index, Fingerprint und Parser. |
+| Profil und Preflight | `GET/PUT /knowledge-sources/{id}/build-profile` (Schreiben nur Admin) prüft `build_profile` und `language_paths`. `GET /knowledge-sources/{id}/preflight` zeigt Dateien nach Sprache und Status, Kodierungen, die häufigsten Grammatikfehler mit Beispielstelle, offene COPY-Namen (mehrdeutig/fehlend) und Hinweise. Die Bedienoberfläche dafür fehlt noch. |
+| COPY-Suchfolge | `copy_search_order` entscheidet gleichnamige Copybooks (erstes Verzeichnis mit genau einem Treffer; kein Raten innerhalb eines Verzeichnisses). Das gewählte Ziel steht als `meta.target_path` an der Kante, damit der globale Resolver die richtige Entity findet. |
+| Fingerprint | Ein nicht auflösbarer COPY-Name (Systemmember wie `DFHAID`) macht den Fingerprint nicht mehr bestandsweit: fehlende und mehrdeutige Namen stehen als `?NAME` in `copybook_dependencies`. Am CardDemo hatten vorher 24 von 106 Dateien einen bestandsweiten Fingerprint, jetzt keine. |
+| Grammatik | SLL scheiterte an jedem Subskript und jeder Referenzmodifikation; das ganze Programm wurde dann in LL(*) wiederholt (`COACTUPC.cbl`, 4.236 Zeilen: 130 s). Die Grammatik-Sicht blendet Klammern direkt hinter Datennamen aus (`antlr_bridge._blank_subscripts`), Länge und Zeilen bleiben gleich: 9 s, bei 76 verglichenen CardDemo-Dateien identische Entities und Kanten (einzige Abweichung: ein kaputtes Makro-Copybook mit weniger Müll-Sections). `JSON`/`XML GENERATE|PARSE` werden maskiert. |
+
+Offen: Bedienoberfläche für Profil und Preflight, BMS-Parser (die 17 BMS-Dateien von CardDemo sind
+`text_fallback`), Copybooks mit Prozedur-Code (`CSSETATY.cpy` bleibt `partial`), die Kante für
+`XML PARSE … PROCESSING PROCEDURE`, EBCDIC-Autoerkennung (O-330) und ein konfigurierbares
+Größenlimit (derzeit 2 MiB je Datei).
+
 Reproduzierbare Minimalprobe für O-124 (als Test-Fixture zu übernehmen):
 
 ```cobol
