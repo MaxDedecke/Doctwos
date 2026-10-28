@@ -771,7 +771,7 @@ async def test_git_connector_resumes_via_content_hash(
             analysis_fingerprint=analysis_fingerprint(
                 source_revision=tracked["PROG.CBL"],
                 profile=BuildProfile(),
-                parser_version="cobol-structure-12",
+                parser_version="cobol-structure-13",
                 grammar_version=STRUCTURE_PARSERS["cobol"].grammar_fingerprint(),
                 libraries={},
                 embedding_model=config.EMBED_MODEL,

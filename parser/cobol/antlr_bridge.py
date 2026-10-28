@@ -397,6 +397,67 @@ def _blank_separators(text: str) -> str:
     return "".join(out)
 
 
+# Wörter, nach denen eine Klammer keine Subskript-/Refmod-Angabe ist, sondern eine Bedingung
+# oder ein Rechenausdruck.
+_NOT_A_NAME = frozenset(
+    """UNTIL IF AND OR NOT WHEN WHILE THAN EQUAL TO BY FROM VARYING AFTER THEN ELSE ALSO GIVING
+    RETURNING USING FUNCTION IS ARE OF IN ON INTO WITH TIMES DELIMITED SIZE SET MOVE ADD SUBTRACT
+    MULTIPLY DIVIDE COMPUTE DISPLAY EVALUATE PERFORM CALL REFERENCE CONTENT VALUE GREATER LESS
+    EXCEPTION INVALID KEY AT END""".split()
+)
+_PROCEDURE_START = re.compile(r"(?im)^[^\n]*\bPROCEDURE\s+DIVISION\b")
+_WORD_BEFORE = re.compile(r"([A-Za-z0-9][A-Za-z0-9-]*)\s*$")
+
+
+def _blank_subscripts(text: str, from_procedure: bool = False) -> str:
+    """Ersetzt Subskript- und Referenzmodifikations-Klammern ``NAME(...)`` durch Leerraum.
+
+    SLL kann Tabellenzugriff ``NAME(index)`` nicht von den anderen ``identifier``-
+    Alternativen der Grammatik unterscheiden und scheitert an Subskripten und
+    Referenzmodifikation (``NAME(start:länge)``); der Parser fällt dann für das GANZE
+    Programm auf LL(*) zurück: bei einem 4.000-Zeilen-CICS-Programm 130 s statt 9 s.
+    Als bloßer Name parst die Stelle in SLL sauber. Nur die PROCEDURE DIVISION und nur
+    Klammern direkt hinter einem Datennamen (kein Schlüsselwort wie UNTIL oder
+    FUNCTION, kein Operator davor) werden angefasst. Kein Konsument liest diese
+    Ausdrücke aus dem Baum: Kanten und Xref arbeiten auf dem Token-Scanner mit dem
+    Originaltext. Länge, Spalten und Zeilenumbrüche bleiben erhalten, Literale auch."""
+    if "(" not in text:
+        return text
+    if from_procedure:
+        begin = 0
+    else:
+        marker = _PROCEDURE_START.search(text)
+        if marker is None:
+            return text
+        begin = marker.end()
+    out = list(text)
+    opened: list[tuple[int, bool]] = []  # (Index, ist Subskript-Klammer)
+    quote = ""
+    for i in range(begin, len(text)):
+        ch = text[i]
+        if ch == "\n":
+            quote = ""
+        elif quote:
+            if ch == quote:
+                quote = ""
+        elif ch in ("'", '"'):
+            quote = ch
+        elif ch == "(":
+            before = _WORD_BEFORE.search(text, max(begin, i - 80), i)
+            is_name = False
+            if before is not None and before.group(1).upper() not in _NOT_A_NAME:
+                earlier = _WORD_BEFORE.search(text, max(begin, before.start() - 40), before.start())
+                is_name = earlier is None or earlier.group(1).upper() != "FUNCTION"
+            opened.append((i, is_name))
+        elif ch == ")" and opened:
+            start, is_name = opened.pop()
+            if is_name:
+                for k in range(start, i + 1):
+                    if not text[k].isspace():
+                        out[k] = " "
+    return "".join(out)
+
+
 def _prepend_header(text: str, header: str) -> str:
     lines = text.split("\n")
     for idx, line in enumerate(lines):
@@ -493,7 +554,10 @@ def build_tree(
             else None
         ),
     )
-    text = _blank_separators(_reconstruct_text(grammar_lines))
+    text = _blank_subscripts(
+        _blank_separators(_reconstruct_text(grammar_lines)),
+        from_procedure=bool(header) and header.rstrip().upper().endswith("PROCEDURE DIVISION."),
+    )
     if header:
         text = _prepend_header(text, header)
 
