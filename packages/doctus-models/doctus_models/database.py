@@ -217,6 +217,10 @@ class KnowledgeSource(Base):
     spaces = Column(JSON, nullable=True)
     last_synced_at = Column(DateTime(timezone=True), nullable=True)
     sync_status = Column(String, default="pending")  # pending, syncing, completed, error, cancelled
+    # Letzter Lauf, der vollständig und konsistent abgeschlossen hat (Status "completed").
+    # last_synced_at wird auch nach Fehlern gesetzt. Bei Git gehört dazu
+    # sync_cursor["last_commit"]; beide werden im selben Commit geschrieben.
+    indexed_at = Column(DateTime(timezone=True), nullable=True)
     celery_task_id = Column(String(255), nullable=True)
     progress = Column(Integer, default=0)
     progress_message = Column(String, nullable=True)

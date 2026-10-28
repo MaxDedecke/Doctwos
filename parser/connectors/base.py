@@ -550,6 +550,7 @@ class BaseConnector(ABC):
                 # Sync-Zeitstempel erst nach erfolgreichem Durchlauf setzen, damit
                 # bei einem Abbruch der nächste Sync alle Dokumente erneut prüft
                 self.source.last_synced_at = self._sync_start_time
+                self.source.indexed_at = self._sync_start_time
                 self.source.sync_status = "completed"
                 self.source.progress_message = "Synchronisierung abgeschlossen"
             self.source.progress = 100

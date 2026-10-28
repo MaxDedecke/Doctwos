@@ -1666,6 +1666,8 @@ class GitConnector(BaseConnector):
             # bereits persistierte).
             if self._new_commit and not failed_files:
                 self.source.sync_cursor = {"last_commit": self._new_commit}
+            if not failed_files:
+                self.source.indexed_at = self._sync_start_time
 
             self.source.last_synced_at = self._sync_start_time
             self.source.sync_status = "error" if failed_files else "completed"

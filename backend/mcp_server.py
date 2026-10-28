@@ -52,6 +52,7 @@ from services.call_flow import (
 )
 from services.ai_settings import get_active_embedding_profile
 from services.mcp_audit import record_mcp_tool_call
+from services.index_state import stale_sources
 from services.mcp_tokens import find_token_user
 from services.ollama_client import embed_text, search_project_chunks
 from services.search import search_nodes
@@ -1494,15 +1495,19 @@ def build_answer_context(
         resolved.append((term, entity, others, mode))
     if not resolved:
         found, suggestions, _mode = _find_entities(db, user, project_id, text[:200], 6)
-        return {
-            "project_id": project_id,
-            "question": text,
-            "resolved": [],
-            "unresolved_terms": unresolved or terms,
-            "candidates": [_compact_entity(e) for e in found[:6]],
-            "did_you_mean": suggestions,
-            "hint": "No named symbol found. Use search_code with a name from the candidates or search_knowledge for wording.",
-        }
+        return _with_index_status(
+            db,
+            project_id,
+            {
+                "project_id": project_id,
+                "question": text,
+                "resolved": [],
+                "unresolved_terms": unresolved or terms,
+                "candidates": [_compact_entity(e) for e in found[:6]],
+                "did_you_mean": suggestions,
+                "hint": "No named symbol found. Use search_code with a name from the candidates or search_knowledge for wording.",
+            },
+        )
     # Method-level references first, then the rest; at most three entities share the budget.
     resolved.sort(key=lambda row: 0 if row[1].type in {"method", "paragraph"} else 1)
     primary = resolved[:3]
@@ -1772,21 +1777,37 @@ def build_answer_context(
                 entry["call_sites"] = sites
         evidence.append(entry)
     _fit_evidence(evidence, max_chars - 600)
-    return {
-        "project_id": project_id,
-        "resolved": [
-            {
-                "symbol": e.qualified_name,
-                "type": e.type,
-                "location": f"{e.file_path}:{e.start_line}-{e.end_line}",
-            }
-            for _t, e, _o, _m in primary
-        ],
-        "unresolved_terms": unresolved,
-        "evidence": evidence,
-        "notice": "Evidence assembled by the server from the index. Cite every fact as `path/file.ext:line` in backticks, "
-        "copying the `cite` fields where present; never write 'line N of file'. Call explain_symbol for any other symbol.",
-    }
+    return _with_index_status(
+        db,
+        project_id,
+        {
+            "project_id": project_id,
+            "resolved": [
+                {
+                    "symbol": e.qualified_name,
+                    "type": e.type,
+                    "location": f"{e.file_path}:{e.start_line}-{e.end_line}",
+                }
+                for _t, e, _o, _m in primary
+            ],
+            "unresolved_terms": unresolved,
+            "evidence": evidence,
+            "notice": "Evidence assembled by the server from the index. Cite every fact as `path/file.ext:line` in backticks, "
+            "copying the `cite` fields where present; never write 'line N of file'. Call explain_symbol for any other symbol.",
+        },
+    )
+
+
+def _with_index_status(db: Session, project_id: int, result: dict) -> dict:
+    """Hängt den Indexstand an, wenn eine Quelle des Projekts nicht auf einem einheitlichen Stand ist."""
+    stale = stale_sources(db, project_id=project_id)
+    if stale:
+        result["index_status"] = {
+            "sources": stale,
+            "notice": "The index is not on one consistent revision for these sources; files may come "
+            "from different revisions and relations to changed files may be missing. Say so in the answer.",
+        }
+    return result
 
 
 @mcp.tool(annotations=READ_ONLY)

@@ -788,3 +788,45 @@ Erkenntnisse gelten dabei als fachlich freigegebene Aussagen, nicht als zusätzl
 geprüfter Codebeweis. Bestehende Antworten erhalten keine nachträglich geratenen
 Erkenntnisreferenzen. Entwürfe, veraltete und gelöschte Erkenntnisse bleiben für
 neue Retrieval-Abfragen ausgeschlossen.
+
+## E-19 — Transaktionsgrenzen des Imports und sichtbarer Indexstand statt atomarer Umschaltung
+
+**Frage.** Was bleibt, wenn ein Import nach dem Schreiben der Entities, aber vor dem
+Aktualisieren der Kanten abstürzt, und auf welchem Stand lesen Chat, Graph und MCP?
+
+**Transaktionsgrenzen.**
+- *Eine Datei = eine Transaktion.* Chunks, Entities, Kanten der Datei, Einträge der
+  Link-Warteschlange und der Journal-Eintrag (`SourceScanFile`) werden gemeinsam
+  committet (`GitConnector._save_document_chunks`). Fehler → Rollback, die vorige
+  Revision der Datei bleibt stehen. Parallele Log-Zeilen committen innerhalb dieser
+  Klammer nicht (`BaseConnector._file_write`).
+- *Wiederholbar.* Entities per UPSERT auf (Quelle, Variante, Datei, qualified_name),
+  Kanten der Datei werden im selben Commit ersetzt; Wiederaufsetzen über den
+  Fingerprint im Journal.
+- *Pass 2* (dateiübergreifende Beziehungsauflösung) ist eine eigene Transaktion über die
+  ganze Quelle und wird bei jedem Lauf vollständig neu berechnet; ein Abbruch darin
+  wird beim nächsten Lauf repariert.
+- *Indexstand.* `KnowledgeSource.indexed_at` (bei Git zusammen mit
+  `sync_cursor["last_commit"]`) wird nur im Abschluss-Commit eines vollständigen Laufs
+  ohne Dateifehler gesetzt. `last_synced_at` wird auch nach Fehlern gesetzt und
+  bezeichnet keinen konsistenten Stand.
+
+**Nachweis.** `parser/tests/test_import_crash_consistency.py` bricht einen Sync an fünf
+Stellen hart ab (nach Entities vor dem Commit, zwischen Dateien, beim Löschen, mitten
+in und nach Pass 2). Direkt danach: keine doppelten Entities/Kanten, keine Kante mit
+totem Ziel, jede Datei auf genau einer Revision, Cursor und `indexed_at` unverändert.
+Nach dem Wiederaufsetzen ist der Bestand identisch mit einem ununterbrochenen Import.
+
+**Entscheidung.** Keine atomare Umschaltung (Generationsspalte, Schattentabellen):
+Sie würde bei 100-GB-Beständen doppelten Speicher kosten und jede Abfrage filtern
+müssen, während die Tests zeigen, dass jede Datei für sich konsistent bleibt.
+Stattdessen wird ein gemischter Stand **benannt**: `services/index_state.py`
+unterscheidet `current`, `updating`, `interrupted` (Status `syncing` ohne Sync-Sperre),
+`incomplete` und `not_indexed`. Ist eine Quelle im Bereich nicht `current`, trägt
+das Beweispaket `answer_context` ein `index_status`, Chat-Antworten im Evidenzmodus
+erhalten einen festen Hinweis mit dem letzten vollständigen Stand, und das Job-Center
+zeigt einen abgestürzten Lauf als abgebrochen (neu startbar) statt als laufend.
+
+**Grenzen.** Während eines Laufs sind Beziehungen zu geänderten Dateien bis zum Ende
+von Pass 2 unvollständig; das wird angezeigt, nicht verhindert. Eine atomare
+Umschaltung wird erst mit Pilotbedarf erneut bewertet.

@@ -410,7 +410,9 @@ async def test_crash_leaves_a_consistent_index_and_resume_matches_an_uninterrupt
     reference_id = make_source(remote, "referenz")
     source_id = make_source(remote, "abbruch")
     await _sync(source_id)
-    v1_commit = _source(db_session, source_id).sync_cursor["last_commit"]
+    v1 = _source(db_session, source_id)
+    v1_commit, v1_indexed_at = v1.sync_cursor["last_commit"], v1.indexed_at
+    assert v1_indexed_at is not None
     _assert_consistent(db_session, source_id)
 
     _apply_v2(remote)
@@ -424,12 +426,15 @@ async def test_crash_leaves_a_consistent_index_and_resume_matches_an_uninterrupt
     crashed = _source(db_session, source_id)
     assert crashed.sync_status == "syncing", "ein Absturz darf nicht als fertig gelten"
     assert crashed.sync_cursor["last_commit"] == v1_commit
+    # Der vollständige Stand bleibt der alte, bis ein Lauf ganz durch ist.
+    assert crashed.indexed_at == v1_indexed_at
     _assert_consistent(db_session, source_id)
 
     await _sync(source_id)
     resumed = _source(db_session, source_id)
     assert resumed.sync_status == "completed"
     assert resumed.sync_cursor["last_commit"] != v1_commit
+    assert resumed.indexed_at > v1_indexed_at
     _assert_consistent(db_session, source_id)
     _assert_same(_snapshot(db_session, source_id), expected)
 

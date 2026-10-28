@@ -200,6 +200,7 @@ async def process_local_document_async(source_id: int, file_path: str):
         had_previous_sync = source.last_synced_at is not None
         source.sync_status = "completed"
         source.last_synced_at = datetime.now(timezone.utc)
+        source.indexed_at = source.last_synced_at
         if had_previous_sync:
             mark_source_insights_outdated(db, source)
         db.commit()

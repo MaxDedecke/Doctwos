@@ -49,6 +49,7 @@ from services.chat_sources import (
     validate_answer_sources,
 )
 from services.chat_view_actions import ViewActionTracker
+from services.index_state import answer_notice, stale_sources
 from services.insight_context import resolve_insight_sources
 from services.source_context import build_source_context_block
 
@@ -283,6 +284,7 @@ class _Outcome:
     agent_steps: list = field(default_factory=list)
     agent_answered: bool = False
     aborted: bool = False
+    answer_event: Optional[dict] = None
 
 
 class ChatTurnRun:
@@ -352,6 +354,14 @@ class ChatTurnRun:
             answer = append_agent_source_fallback(
                 answer, evidence.sources, rejected=not outcome.source_consistent
             )
+        stale = (
+            stale_sources(self.db, project_id=request.project_id, source_id=request.source_id)
+            if intent.use_retrieval
+            else []
+        )
+        if stale:
+            answer = answer.rstrip() + "\n\n" + answer_notice(stale)
+        yield {**(outcome.answer_event or {"type": "answer"}), "content": answer}
         sources = resolve_cited_sources(answer, candidates)
         if request.pinned_file and intent.use_retrieval:
             if not any(s["file"] == request.pinned_file for s in sources):
@@ -382,6 +392,7 @@ class ChatTurnRun:
         message.metadata_json = {
             **(message.metadata_json or {}),
             "chat_mode": request.mode,
+            **({"index_status": stale} if stale else {}),
             "telemetry": {"events": self.telemetry.events, "metrics": self.telemetry.metrics()},
         }
         self.db.commit()
@@ -515,7 +526,10 @@ class ChatTurnRun:
                         event["content"], final_steps or outcome.agent_steps, request.message
                     )
                     outcome.agent_steps = actions.merge_into(final_steps)
-                    event = {**event, "content": outcome.answer, "agent_steps": outcome.agent_steps}
+                    # Der fertige Antworttext entsteht erst in events() (Quellen-
+                    # Rückfall, Indexhinweis); erst dann geht er raus.
+                    outcome.answer_event = {**event, "agent_steps": outcome.agent_steps}
+                    continue
                 elif kind in ("thought", "tool_call", "tool_result", "mcp_preflight"):
                     outcome.agent_steps.append(event)
                     evidence.observe(event)
@@ -582,7 +596,8 @@ class ChatTurnRun:
                     )
                 else:
                     outcome.answer = event["content"]
-                event = {**event, "content": outcome.answer}
+                outcome.answer_event = event
+                continue
             yield event
             if event["type"] == "error":
                 outcome.aborted = True

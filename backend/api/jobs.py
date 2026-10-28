@@ -27,6 +27,7 @@ from doctus_models.database import (
     Project,
     User,
 )
+from services.index_state import sync_running
 from services.job_control import revoke_tracked_task, send_tracked_task
 from services.link_builder_runs import (
     find_active_knowledge_link_run,
@@ -54,14 +55,23 @@ def _source_can_start(source: KnowledgeSource, admin: bool, status: str) -> bool
     return bool(path_name and os.path.isfile(os.path.join(UPLOADS_DIR, path_name)))
 
 
+_INTERRUPTED_MESSAGE = (
+    "Einlesen abgebrochen: Der Verarbeitungsprozess wurde beendet. Der Index ist nicht "
+    "vollständig aktualisiert; ein erneuter Start setzt an der Abbruchstelle fort."
+)
+
+
+def _source_status(source: KnowledgeSource) -> str:
+    """Job-Status einer Quelle; ``syncing`` ohne aktive Sync-Sperre ist ein abgebrochener Lauf."""
+    if source.sync_status in {"syncing", "parsing"}:
+        return "failed" if sync_running(source.id) is False else "running"
+    if source.sync_status == "error":
+        return "failed"
+    return source.sync_status or "pending"
+
+
 def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
-    status = (
-        "running"
-        if source.sync_status in {"syncing", "parsing"}
-        else (source.sync_status or "pending")
-    )
-    if status == "error":
-        status = "failed"
+    status = _source_status(source)
     return {
         "key": f"source:{source.id}",
         "kind": "source",
@@ -70,7 +80,9 @@ def _source_job(source: KnowledgeSource, admin: bool = False) -> dict:
         "status": status,
         "progress": source.progress or 0,
         "progress_message": source.progress_message,
-        "error_message": source.last_error_detail or source.last_error,
+        "error_message": source.last_error_detail
+        or source.last_error
+        or (_INTERRUPTED_MESSAGE if status == "failed" else None),
         "created_at": _iso(source.parse_started_at or source.created_at),
         "finished_at": _iso(source.parse_finished_at),
         "can_resume": status == "failed",
@@ -270,13 +282,7 @@ def start_job(
         )
         if not source:
             raise HTTPException(404, "Job nicht gefunden")
-        status = (
-            "running"
-            if source.sync_status in {"syncing", "parsing"}
-            else (source.sync_status or "pending")
-        )
-        if status == "error":
-            status = "failed"
+        status = _source_status(source)
         if status in ACTIVE:
             raise HTTPException(409, "Job läuft bereits")
         if status != "failed":
@@ -319,13 +325,7 @@ def delete_job(
     """Dismiss a completed job while retaining the underlying execution record."""
     if kind == "source":
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
-        status = (
-            "running"
-            if source and source.sync_status in {"syncing", "parsing"}
-            else (source.sync_status if source else None)
-        )
-        if status == "error":
-            status = "failed"
+        status = _source_status(source) if source else None
         if not source:
             raise HTTPException(404, "Job nicht gefunden")
     elif kind == "link_builder":
@@ -374,13 +374,7 @@ def stop_job(
         record = db.query(KnowledgeSource).filter(KnowledgeSource.id == job_id).first()
         if not record:
             raise HTTPException(404, "Job nicht gefunden")
-        status = (
-            "running"
-            if record.sync_status in {"syncing", "parsing"}
-            else (record.sync_status or "pending")
-        )
-        if status == "error":
-            status = "failed"
+        status = _source_status(record)
         if status not in ACTIVE:
             raise HTTPException(409, "Nur laufende Jobs können abgebrochen werden")
         task_id = record.celery_task_id
