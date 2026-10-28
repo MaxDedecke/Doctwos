@@ -1102,6 +1102,8 @@
     "generatingResponse": "Generating response...",
     "agentWorking": "Agent working...",
     "referencedSources": "Referenced sources:",
+    "insightSource": "Insight: {{title}}",
+    "insightSnapshot": "Snapshot of the approved insight used for this answer, including its saved evidence.",
     "sourceFileTitle": "{{file}} (Lines {{lines}})",
     "sourceLabel": "Source: {{name}}",
     "clearSourceFocusTitle": "Clear source focus",

@@ -257,6 +257,22 @@ describe('ChatView', () => {
       expect(handleFileSelect).toHaveBeenCalledWith('src/DISPATCHER.cbl', 10, '7');
     });
 
+    it('zeigt zitierte Erkenntnisse mit Aussage und öffnet ihre Originalbelege', () => {
+      const handleFileSelect = vi.fn();
+      renderChat({ handleFileSelect, chatMessages: [{ role: 'assistant', content: 'Aussage [Insight:10].', sources: [{
+        kind: 'insight', file: 'insight:10', insight_id: 10, title: 'Zahlungsregel',
+        content: 'Zahlung wird geprüft.', evidence: [{ file: 'PAY.cbl', start_line: 15, source_id: 7 }],
+      }] }] });
+      expect(screen.getByText('Referenzierte Quellen:')).toBeTruthy();
+      fireEvent.click(screen.getByText('Erkenntnis: Zahlungsregel'));
+      expect(screen.getByText('Zahlung wird geprüft.')).toBeTruthy();
+      fireEvent.click(screen.getByText('1 Beleg(e)'));
+      fireEvent.click(screen.getByRole('button', { name: 'Quelle öffnen' }));
+      expect(handleFileSelect).toHaveBeenCalledWith('PAY.cbl', 15, '7');
+      expect(screen.queryByText('Lundefined')).toBeNull();
+      expect(screen.queryByRole('button', { name: /insight:10/i })).toBeNull();
+    });
+
     it('zeigt bei einer Einzelzeilen-Quelle nur die eine Zeilennummer, nicht "L43-43"', () => {
       const chatMessages = [
         {

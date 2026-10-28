@@ -228,6 +228,13 @@ export interface ChatTelemetry {
 }
 export interface ChatSource {
   file: string;
+  kind?: 'insight';
+  insight_id?: number;
+  project_id?: number;
+  title?: string;
+  content?: string;
+  status?: string;
+  evidence?: Array<Record<string, unknown>>;
   source_id?: number | string | null;
   /** Internal exact reference used for feedback-to-link mapping; never rendered. */
   chunk_id?: number | null;

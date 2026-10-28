@@ -80,6 +80,7 @@ from services.chat_service import (
 from services.chat_feedback_diagnostics import capture_downvote_case, remove_case_for_message
 from services.ai_settings import get_active_embedding_profile, get_profile
 from services.provenance import build_provenance
+from services.insight_context import resolve_insight_sources
 
 # Compatibility imports for focused regression tests and downstream callers. The
 # implementation now lives in services.chat_service with the rest of retrieval.
@@ -1524,6 +1525,7 @@ async def chat(
                 pinned_chunks = retrieval.pinned_chunks
                 resolved_repo_id = retrieval.resolved_repo_id
                 focused_source_id = retrieval.focused_source_id
+                insight_sources = getattr(retrieval, "insight_sources", [])
             else:
                 # Greetings and other smalltalk must not pay the retrieval cost or
                 # accidentally turn project context into a forced agent/tool turn.
@@ -1532,6 +1534,7 @@ async def chat(
                 pinned_chunks = []
                 resolved_repo_id = None
                 focused_source_id = None
+                insight_sources = []
                 telemetry.retrieval_wait_ms = 0
 
             provider = selected_profile.provider.lower()
@@ -1939,6 +1942,8 @@ async def chat(
             if pinned_source and not any(s["file"] == pinned_source["file"] for s in sources):
                 sources.insert(0, pinned_source)
             sources = _attach_analysis_status(db, sources)
+            if answer_is_source_consistent:
+                sources += resolve_insight_sources(answer, insight_sources)
             yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
 
             assistant_msg = persist_assistant_message(

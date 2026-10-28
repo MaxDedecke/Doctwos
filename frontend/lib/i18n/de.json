@@ -1102,6 +1102,8 @@
     "generatingResponse": "Antwort wird generiert...",
     "agentWorking": "Agent arbeitet...",
     "referencedSources": "Referenzierte Quellen:",
+    "insightSource": "Erkenntnis: {{title}}",
+    "insightSnapshot": "Bei dieser Antwort verwendete, damals freigegebene Erkenntnis mit ihren gespeicherten Belegen.",
     "sourceFileTitle": "{{file}} (Zeilen {{lines}})",
     "sourceLabel": "Quelle: {{name}}",
     "clearSourceFocusTitle": "Quellen-Fokus aufheben",

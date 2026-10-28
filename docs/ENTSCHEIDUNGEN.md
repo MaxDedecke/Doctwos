@@ -778,3 +778,13 @@ Projektsichtbarkeit und Admin-Rolle und bindet die Erkenntnis an das angegebene
 Projekt. Originalquellen bleiben erhalten; folgende Graph- und Retrieval-Abfragen
 enthalten die gelöschte Erkenntnis nicht mehr. Die automatische Markierung als
 veraltet bei Quellenänderungen bleibt bestehen.
+
+Im Chat tragen abgerufene Erkenntnisse einen Zitiermarker `[Insight:<ID>]`.
+Nur im aktuellen Kontext enthaltene und in der Antwort ausdrücklich zitierte
+Erkenntnisse erscheinen unter „Referenzierte Quellen“ (Standard-RAG und Agent).
+Titel, Aussage und Beleg-Snapshot werden zusammen mit der Antwort gespeichert;
+die Quellenkarte zeigt diesen damaligen Stand und öffnet die Originalbelege.
+Erkenntnisse gelten dabei als fachlich freigegebene Aussagen, nicht als zusätzlich
+geprüfter Codebeweis. Bestehende Antworten erhalten keine nachträglich geratenen
+Erkenntnisreferenzen. Entwürfe, veraltete und gelöschte Erkenntnisse bleiben für
+neue Retrieval-Abfragen ausgeschlossen.

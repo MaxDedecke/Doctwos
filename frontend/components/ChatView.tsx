@@ -11,6 +11,7 @@ import { DoctusIcon } from "@/components/Logo";
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { ProvenanceDisclosure } from "@/components/ProvenanceDisclosure";
 import { InsightDraftAction } from '@/components/InsightDraftAction';
+import { ChatInsightSource } from '@/components/ChatInsightSource';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -356,7 +357,7 @@ export function ChatView({
                           )}
 
                           {m.content ? (
-                            <MarkdownContent content={m.content} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources} />
+                            <MarkdownContent content={m.content} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => source.kind !== 'insight')} />
                           ) : (
                             isLoading && i === chatMessages.length - 1 && (!m.metadata?.agent_steps || m.metadata.agent_steps.length === 0) && (
                               <div className="flex items-center gap-2.5 text-ds-zinc-500/80 py-1.5 animate-pulse">
@@ -867,6 +868,7 @@ export function ChatView({
                             )}>
                               <span className="text-[0.625rem] text-ds-zinc-500 font-bold uppercase tracking-wider">{t('chatView.referencedSources')}</span>
                               {m.sources.map((src, sIdx) => {
+                                if (src.kind === 'insight') return <ChatInsightSource key={`insight-${src.insight_id}`} source={src} onOpenFile={(path, line, sourceId) => handleFileSelect(path, line ?? undefined, sourceId == null ? undefined : String(sourceId))} />;
                                 const filename = src.file.split('/').pop();
                                 return (
                                   <span key={sIdx} className="inline-flex max-w-full items-center gap-0.5">
@@ -971,7 +973,7 @@ export function ChatView({
                                   <InsightDraftAction
                                     projectId={selectedProject?.id}
                                     origin="chat"
-                                    evidence={(m.sources || []).map(source => ({ chat_message_id: m.id, source_id: source.source_id, file: source.file, lines: source.lines }))}
+                                    evidence={(m.sources || []).map(source => source.kind === 'insight' ? { chat_message_id: m.id, insight_id: source.insight_id } : { chat_message_id: m.id, source_id: source.source_id, file: source.file, lines: source.lines })}
                                     defaultTitle={m.content.split('\n')[0].slice(0, 240) || t('insightDraft.chatDefaultTitle')}
                                     theme={theme}
                                   />

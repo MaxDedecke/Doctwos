@@ -11,7 +11,7 @@ import os
 import re
 from xml.sax.saxutils import escape
 from collections.abc import AsyncIterator
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Optional
 
 import httpx
@@ -169,6 +169,7 @@ class ChatRetrieval:
     resolved_repo_id: Optional[int]
     focused_source_id: Optional[int]
     multi_project_names: list[str]
+    insight_sources: list[dict] = field(default_factory=list)
 
 
 def _focused_entity(
@@ -788,7 +789,8 @@ async def retrieve_chat_context(
         pinned_context = code_focus_metadata + pinned_context
     from services.insight_context import retrieve_insight_context
 
-    context += retrieve_insight_context(db, user, project_id, message)
+    insight_sources = []
+    context += retrieve_insight_context(db, user, project_id, message, sources=insight_sources)
     prompt = build_chat_prompt(
         context=context,
         pinned_context=pinned_context,
@@ -807,6 +809,7 @@ async def retrieve_chat_context(
         resolved_repo_id=resolved_repo_id,
         focused_source_id=focused_source_id,
         multi_project_names=multi_project_names,
+        insight_sources=insight_sources,
     )
 
 
@@ -1310,6 +1313,8 @@ def build_chat_prompt(
         "Instruction: Cite a file that genuinely informed the answer inline in backticks as "
         "`path/to/file.ext:line`, with exactly one line number. Cite extensionless knowledge "
         "sources by their exact title without a line number. Do not cite uninvolved context. "
+        "When using an approved insight, cite its exact [Insight:id] marker from the context. "
+        "This identifies a reviewed claim, not independently checked source code. "
         "Treat Java, COBOL, XSLT, XML, JSP/HTML and shell files as distinct languages. Use "
         "language-specific symbols only when the cited file or indexed entity supports them; "
         "describe cross-language links (for example Java-to-XSLT/JSP or shell-to-Java) only "
