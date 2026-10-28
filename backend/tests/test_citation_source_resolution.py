@@ -1,20 +1,20 @@
 """O-090 follow-up: a citation/pin built from a repo-backed chunk must stay
 openable even when no project is currently selected in the workspace — a new,
 general chat spanning multiple projects has no `project.repo_id` for the
-frontend to fall back to. See `_resolve_citation_source_id` in api/chat.py.
+frontend to fall back to. See `resolve_citation_source_id` in services/chat_sources.py.
 """
 
 from types import SimpleNamespace
 
-import api.chat as chat_module
-from api.chat import (
-    _attach_analysis_status,
-    _append_agent_source_fallback,
-    _extract_tool_edge_pairs,
-    _extract_tool_sources,
-    _record_agent_source,
-    _resolve_citation_source_id,
-    _validate_answer_sources,
+import services.chat_sources as chat_module
+from services.chat_sources import (
+    attach_analysis_status,
+    append_agent_source_fallback,
+    extract_tool_edge_pairs,
+    extract_tool_sources,
+    record_agent_source,
+    resolve_citation_source_id,
+    validate_answer_sources,
 )
 from models.database import KnowledgeSource, SourceScanFile
 
@@ -32,7 +32,7 @@ def test_repo_chunk_without_source_id_resolves_to_the_projects_git_source(
         chunk = SimpleNamespace(source_id=None, project_id=test_project)
         cache: dict = {}
 
-        assert _resolve_citation_source_id(db_session, chunk, cache) == git_source.id
+        assert resolve_citation_source_id(db_session, chunk, cache) == git_source.id
         assert cache == {test_project: git_source.id}
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == git_source.id).delete()
@@ -43,17 +43,17 @@ def test_chunk_with_its_own_source_id_is_left_untouched(db_session, test_project
     # A chunk from a project's own (non-repo) knowledge source already has a
     # resolvable source_id — no lookup needed or wanted.
     chunk = SimpleNamespace(source_id=42, project_id=test_project)
-    assert _resolve_citation_source_id(db_session, chunk, {}) == 42
+    assert resolve_citation_source_id(db_session, chunk, {}) == 42
 
 
 def test_project_without_a_git_source_resolves_to_none(db_session, test_project):
     chunk = SimpleNamespace(source_id=None, project_id=test_project)
-    assert _resolve_citation_source_id(db_session, chunk, {}) is None
+    assert resolve_citation_source_id(db_session, chunk, {}) is None
 
 
 def test_chunk_without_a_project_resolves_to_none():
     chunk = SimpleNamespace(source_id=None, project_id=None)
-    assert _resolve_citation_source_id(None, chunk, {}) is None
+    assert resolve_citation_source_id(None, chunk, {}) is None
 
 
 def test_repo_id_lookup_is_cached_across_chunks_from_the_same_project(
@@ -79,8 +79,8 @@ def test_repo_id_lookup_is_cached_across_chunks_from_the_same_project(
         chunk_a = SimpleNamespace(source_id=None, project_id=test_project)
         chunk_b = SimpleNamespace(source_id=None, project_id=test_project)
 
-        _resolve_citation_source_id(db_session, chunk_a, cache)
-        _resolve_citation_source_id(db_session, chunk_b, cache)
+        resolve_citation_source_id(db_session, chunk_a, cache)
+        resolve_citation_source_id(db_session, chunk_b, cache)
 
         assert calls == [test_project]
     finally:
@@ -99,7 +99,7 @@ def test_agent_tool_sources_carry_the_agents_resolved_repository_id():
         "result": {"file_path": "cbl/PROGRAM.cbl", "start_line": 10, "end_line": 40},
     }
 
-    _extract_tool_sources(event, agent_sources, source_id=99)
+    extract_tool_sources(event, agent_sources, source_id=99)
 
     assert agent_sources == [{"file": "cbl/PROGRAM.cbl", "lines": [10, 40], "source_id": 99}]
 
@@ -112,7 +112,7 @@ def test_agent_tool_sources_without_a_resolved_repository_stay_none():
         "result": {"matches": [{"file": "cbl/OTHER.cbl", "line": 5}]},
     }
 
-    _extract_tool_sources(event, agent_sources, source_id=None)
+    extract_tool_sources(event, agent_sources, source_id=None)
 
     assert agent_sources == [{"file": "cbl/OTHER.cbl", "lines": [5, 5], "source_id": None}]
 
@@ -130,7 +130,7 @@ def test_call_flow_tool_sources_make_traced_steps_citable():
         },
     }
 
-    _extract_tool_sources(event, agent_sources, source_id=99)
+    extract_tool_sources(event, agent_sources, source_id=99)
 
     assert agent_sources == [
         {"file": "api/orders.py", "lines": [12, 24], "source_id": 99},
@@ -140,15 +140,15 @@ def test_call_flow_tool_sources_make_traced_steps_citable():
 
 def test_record_agent_source_still_dedupes_by_file_and_lines():
     agent_sources: list = []
-    _record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)
-    _record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)
+    record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)
+    record_agent_source(agent_sources, "cbl/PROGRAM.cbl", 1, 10, source_id=7)
 
     assert len(agent_sources) == 1
 
 
 def test_agent_source_fallback_adds_exact_location_when_model_omits_citation():
     answer = "Die Methode verarbeitet die Zahlungsdaten."
-    result = _append_agent_source_fallback(
+    result = append_agent_source_fallback(
         answer,
         [{"file": "src/main/java/PaymentService.java", "lines": [42, 68]}],
     )
@@ -158,7 +158,7 @@ def test_agent_source_fallback_adds_exact_location_when_model_omits_citation():
 
 def test_agent_source_fallback_keeps_a_valid_model_citation_unchanged():
     answer = "Die Validierung steht in `src/main/java/PaymentService.java:55`."
-    result = _append_agent_source_fallback(
+    result = append_agent_source_fallback(
         answer,
         [{"file": "src/main/java/PaymentService.java", "lines": [42, 68]}],
     )
@@ -169,9 +169,9 @@ def test_agent_source_fallback_keeps_a_valid_model_citation_unchanged():
 def test_answer_source_validation_rejects_an_unread_file_or_line():
     sources = [{"file": "src/PaymentService.java", "lines": [42, 68]}]
 
-    valid, is_valid = _validate_answer_sources("Belegt: `src/PaymentService.java:55`.", sources)
-    wrong_file, wrong_file_valid = _validate_answer_sources("Belegt: `src/Other.java:55`.", sources)
-    wrong_line, wrong_line_valid = _validate_answer_sources(
+    valid, is_valid = validate_answer_sources("Belegt: `src/PaymentService.java:55`.", sources)
+    wrong_file, wrong_file_valid = validate_answer_sources("Belegt: `src/Other.java:55`.", sources)
+    wrong_line, wrong_line_valid = validate_answer_sources(
         "Belegt: `src/PaymentService.java:69`.", sources
     )
 
@@ -190,10 +190,10 @@ def test_answer_source_validation_requires_a_trace_edge_for_call_claims():
             "edges": [{"source": 1, "target": 2, "resolution": "resolved"}],
         },
     }
-    edges = _extract_tool_edge_pairs(event)
+    edges = extract_tool_edge_pairs(event)
 
-    _, supported = _validate_answer_sources("ENTRY ruft TARGET auf.", [], edges)
-    rejected, unsupported = _validate_answer_sources("ENTRY ruft OTHER auf.", [], edges)
+    _, supported = validate_answer_sources("ENTRY ruft TARGET auf.", [], edges)
+    rejected, unsupported = validate_answer_sources("ENTRY ruft OTHER auf.", [], edges)
 
     assert edges == {("entry", "target")}
     assert supported
@@ -221,7 +221,7 @@ def test_attach_analysis_status_marks_a_partial_citation(db_session, test_projec
     db_session.commit()
 
     sources = [{"file": "PAYROLL.cbl", "lines": [1, 5], "source_id": git_source.id}]
-    result = _attach_analysis_status(db_session, sources)
+    result = attach_analysis_status(db_session, sources)
 
     assert result[0]["analysis_status"] == "partial"
     assert result[0]["analysis_reasons"] == ["mismatched input"]
@@ -246,7 +246,7 @@ def test_attach_analysis_status_leaves_a_clean_citation_untouched(
     db_session.commit()
 
     sources = [{"file": "OK.cbl", "lines": [1, 5], "source_id": git_source.id}]
-    result = _attach_analysis_status(db_session, sources)
+    result = attach_analysis_status(db_session, sources)
 
     assert "analysis_status" not in result[0]
     assert result[0]["provenance"]["source_name"] == "repo"
@@ -255,7 +255,7 @@ def test_attach_analysis_status_leaves_a_clean_citation_untouched(
 def test_attach_analysis_status_tolerates_a_source_without_source_id(db_session):
     # z.B. ein Fallback-Zitat ohne verknüpfte KnowledgeSource -- darf nicht crashen.
     sources = [{"file": "unknown.txt", "lines": None, "source_id": None}]
-    result = _attach_analysis_status(db_session, sources)
+    result = attach_analysis_status(db_session, sources)
     assert "analysis_status" not in result[0]
     assert result[0]["provenance"]["kind"] == "unknown"
     assert result[0]["provenance"]["verification_status"] == "unavailable"
@@ -264,13 +264,13 @@ def test_attach_analysis_status_tolerates_a_source_without_source_id(db_session)
 def test_rejected_answer_still_lists_the_lines_the_tools_really_read():
     """O-346: eine verworfene Antwort darf nicht mit sources=[] enden, wenn Tools
     belegte Stellen geliefert haben."""
-    from api.chat import _append_agent_source_fallback
+    from services.chat_sources import append_agent_source_fallback
 
     sources = [{"file": "a/Real.java", "lines": [10, 20]}]
-    out = _append_agent_source_fallback("Nicht belegt.", sources, rejected=True)
+    out = append_agent_source_fallback("Nicht belegt.", sources, rejected=True)
     assert "`a/Real.java:10`" in out
     assert "keine Aussage zur Anfrage" in out
-    assert _append_agent_source_fallback("Nicht belegt.", [], rejected=True) == "Nicht belegt."
+    assert append_agent_source_fallback("Nicht belegt.", [], rejected=True) == "Nicht belegt."
 
 
 def test_answer_with_one_verified_citation_keeps_its_text_and_flags_the_extra_one():
@@ -279,7 +279,7 @@ def test_answer_with_one_verified_citation_keeps_its_text_and_flags_the_extra_on
     sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
     answer = "Liest den Parameter in `app/cbl/COBSWAIT.cbl:36`; der JCL-Step steht in `app/jcl/WAITSTEP.jcl:26`."
 
-    text, consistent = _validate_answer_sources(answer, sources)
+    text, consistent = validate_answer_sources(answer, sources)
 
     assert consistent
     assert "`app/cbl/COBSWAIT.cbl:36`" in text
@@ -290,7 +290,7 @@ def test_answer_with_one_verified_citation_keeps_its_text_and_flags_the_extra_on
 
 def test_answer_with_only_unverified_citations_is_still_rejected():
     sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
-    text, consistent = _validate_answer_sources("Siehe `app/jcl/WAITSTEP.jcl:26`.", sources)
+    text, consistent = validate_answer_sources("Siehe `app/jcl/WAITSTEP.jcl:26`.", sources)
     assert not consistent and "nicht belastbar belegt" in text
 
 
@@ -331,17 +331,17 @@ _ANSWER_CONTEXT = {
 
 def test_answer_context_supplies_edges_and_sources_for_validation():
     """Live-Fall COBSWAIT: das Evidenzpaket nennt Aufrufer und Aufgerufene ausdrücklich."""
-    edges = _extract_tool_edge_pairs(_ANSWER_CONTEXT)
+    edges = extract_tool_edge_pairs(_ANSWER_CONTEXT)
     assert ("cobswait", "mvswait") in edges
     assert ("waitstep", "cobswait") in edges
 
     sources: list = []
-    _extract_tool_sources(_ANSWER_CONTEXT, sources, 7)
+    extract_tool_sources(_ANSWER_CONTEXT, sources, 7)
     answer = "COBSWAIT ruft MVSWAIT auf (`app/cbl/COBSWAIT.cbl:38`); gestartet von `app/jcl/WAITSTEP.jcl:26`."
-    text, consistent = _validate_answer_sources(answer, sources, edges)
+    text, consistent = validate_answer_sources(answer, sources, edges)
     assert consistent
     assert "nicht belegt" not in text
-    _, other = _validate_answer_sources("COBSWAIT ruft OTHERPGM auf.", sources, edges)
+    _, other = validate_answer_sources("COBSWAIT ruft OTHERPGM auf.", sources, edges)
     assert not other
 
 
@@ -352,9 +352,9 @@ def test_quoted_call_statement_is_evidence_not_an_edge_claim():
         "Zeile 38: CALL 'MVSWAIT' USING MVSWAIT-TIME",
         "Aufruf in `CALL 'MVSWAIT' USING MVSWAIT-TIME` (Zeile 38).",
     ):
-        _, consistent = _validate_answer_sources(answer, [], edges)
+        _, consistent = validate_answer_sources(answer, [], edges)
         assert consistent, answer
-    _, invented = _validate_answer_sources("COBSWAIT ruft OTHERPGM auf", [], edges)
+    _, invented = validate_answer_sources("COBSWAIT ruft OTHERPGM auf", [], edges)
     assert not invented
 
 
@@ -366,7 +366,7 @@ def test_dots_inside_code_spans_do_not_split_a_sentence_into_a_false_edge_claim(
         "überträgt ihn nach `MVSWAIT-TIME` und übergibt ihn mit `CALL 'MVSWAIT' USING MVSWAIT-TIME`."
     )
     sources = [{"file": "app/cbl/COBSWAIT.cbl", "lines": [22, 40]}]
-    text, consistent = _validate_answer_sources(answer, sources, edges)
+    text, consistent = validate_answer_sources(answer, sources, edges)
     assert consistent and text.startswith("COBSWAIT liest")
 
 
@@ -378,9 +378,9 @@ def test_negated_statement_about_a_missing_edge_is_not_an_edge_claim():
         "POSTTRAN ruft CBTRN02C nicht auf (Index).",
         "There is no edge: POSTTRAN calls CBTRN02C only in the README.",
     ):
-        _, consistent = _validate_answer_sources(answer, [], edges)
+        _, consistent = validate_answer_sources(answer, [], edges)
         assert consistent, answer
-    _, invented = _validate_answer_sources("POSTTRAN ruft CBTRN02C auf.", [], edges)
+    _, invented = validate_answer_sources("POSTTRAN ruft CBTRN02C auf.", [], edges)
     assert not invented
 
 
@@ -392,7 +392,7 @@ def test_verified_answer_keeps_an_unbacked_edge_sentence_but_marks_it():
         "COBSWAIT ruft MVSWAIT auf (`app/cbl/COBSWAIT.cbl:38`). Der JCL-Schritt ruft DFSRRC00 auf."
     )
 
-    text, consistent = _validate_answer_sources(answer, sources, edges)
+    text, consistent = validate_answer_sources(answer, sources, edges)
 
     assert consistent
     assert "COBSWAIT ruft MVSWAIT auf" in text
@@ -407,7 +407,7 @@ def test_fenced_mermaid_block_is_neither_checked_nor_annotated():
         "`UserLogic.create` delegiert (`UserLogic.java:133`).\n\n"
         '```mermaid\nflowchart TD\n  n1["a"] -->|CALLS| n2["b"]\n```\n'
     )
-    text, consistent = _validate_answer_sources(answer, sources, {("x", "y")})
+    text, consistent = validate_answer_sources(answer, sources, {("x", "y")})
     assert consistent and text == answer
 
 
@@ -415,13 +415,13 @@ def test_no_result_answer_gets_no_unrelated_read_locations_appended():
     """Live-Fall: „Die Suche lieferte keine Treffer“ hängte zufällig gelesene JCL-Zeilen an."""
     sources = [{"file": "app/jcl/POSTTRAN.jcl", "lines": [34, 34]}]
     text = "Die Suche nach „Autorisierung“ lieferte keine Treffer."
-    assert _append_agent_source_fallback(text, sources) == text
-    assert "POSTTRAN" in _append_agent_source_fallback("Der Job ruft CBTRN02C auf.", sources)
+    assert append_agent_source_fallback(text, sources) == text
+    assert "POSTTRAN" in append_agent_source_fallback("Der Job ruft CBTRN02C auf.", sources)
 
 
 def test_answer_source_validation_replaces_an_empty_answer_with_a_notice():
     for empty in ("", "  \n"):
-        answer, consistent = _validate_answer_sources(
+        answer, consistent = validate_answer_sources(
             empty, [{"file": "src/A.java", "lines": [1, 5]}]
         )
         assert not consistent
@@ -429,7 +429,7 @@ def test_answer_source_validation_replaces_an_empty_answer_with_a_notice():
 
 
 def test_answer_source_validation_marks_file_names_no_tool_result_mentions():
-    from api.chat import _tool_evidence_text
+    from services.chat_sources import tool_evidence_text
 
     steps = [
         {
@@ -438,10 +438,10 @@ def test_answer_source_validation_marks_file_names_no_tool_result_mentions():
             "result": {"copybooks": ["CMQV", "CCPAURQY.cpy"]},
         }
     ]
-    evidence = _tool_evidence_text(steps, "Welche Copybooks bindet `COPAUA0C.cbl` ein?")
+    evidence = tool_evidence_text(steps, "Welche Copybooks bindet `COPAUA0C.cbl` ein?")
     answer = "Genutzt werden `CCPAURQY.cpy`, `COPAUA0C.cbl` und `CICS-UTILITIES.cbl`."
 
-    checked, consistent = _validate_answer_sources(answer, [], evidence_text=evidence)
+    checked, consistent = validate_answer_sources(answer, [], evidence_text=evidence)
 
     assert consistent
     assert "CICS-UTILITIES.cbl (nicht belegt)" in checked
@@ -451,7 +451,7 @@ def test_answer_source_validation_marks_file_names_no_tool_result_mentions():
 
 def test_answer_source_validation_skips_file_name_check_without_tool_evidence():
     answer = "Siehe `Irgendwo.cbl`."
-    assert _validate_answer_sources(answer, [], evidence_text=None) == (answer, True)
+    assert validate_answer_sources(answer, [], evidence_text=None) == (answer, True)
 
 
 def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
@@ -502,7 +502,7 @@ def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
         },
     }
 
-    _extract_tool_sources(event, agent_sources, source_id=7)
+    extract_tool_sources(event, agent_sources, source_id=7)
 
     cited = {(item["file"], tuple(item["lines"])) for item in agent_sources}
     assert {
@@ -513,14 +513,14 @@ def test_answer_context_origin_chain_and_copybooks_become_clickable_sources():
         ("cpy/AMT.cpy", (34, 34)),
     } <= cited
     # Eine solche Zitatform besteht die Validierung gegen die abgerufenen Quellen.
-    answer, consistent = _validate_answer_sources(
+    answer, consistent = validate_answer_sources(
         "Zuweisung in `cbl/PROG.cbl:885` und `cbl/PROG.cbl:376`.", agent_sources
     )
     assert consistent and "nicht belegt" not in answer
 
 
 def test_answer_context_edge_pairs_cover_control_flow_includes_and_origin():
-    from api.chat import _answer_context_edge_pairs
+    from services.chat_sources import answer_context_edge_pairs
 
     result = {
         "evidence": [
@@ -548,6 +548,6 @@ def test_answer_context_edge_pairs_cover_control_flow_includes_and_origin():
             }
         ]
     }
-    pairs = {(a.lower(), b.lower()) for a, b in _answer_context_edge_pairs(result)}
+    pairs = {(a.lower(), b.lower()) for a, b in answer_context_edge_pairs(result)}
     assert ("create", "docreate") in pairs
     assert ("docreate", "beforecreate") in pairs

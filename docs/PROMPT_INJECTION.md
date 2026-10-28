@@ -13,7 +13,7 @@ instruction to the LLM rather than data to answer a question about (e.g.
 see"* embedded in a Jira ticket description). Two paths bring this content
 into the LLM's context:
 
-1. **RAG retrieval** (`backend/api/chat.py`): connector-ingested chunks are
+1. **RAG retrieval** (`backend/services/chat_service.py`): connector-ingested chunks are
    retrieved by similarity search and interpolated into the chat prompt.
 2. **Live MCP tool-calling** (`backend/mcp_client.py`, `backend/agent.py`):
    during chat, the LLM can call Confluence/Jira/Notion tools directly; the
@@ -24,7 +24,7 @@ into the LLM's context:
 To address this gap, we implemented strict trusted/untrusted context separation at query time. Verbatim external data injected into the LLM's prompt is now isolated inside explicit XML tags, and the system prompt is appended with security enforcement guidelines to ignore steering instructions inside these blocks.
 
 ### 1. XML Delimiter Tagging
-During prompt assembly in `backend/api/chat.py` and the agent loop in `backend/agent.py`, external data is wrapped in matching XML tags:
+During prompt assembly in `backend/services/chat_service.py` and `backend/services/chat_turn.py` and the agent loop in `backend/agent.py`, external data is wrapped in matching XML tags:
 - `<untrusted_context>` ... `</untrusted_context>`: Encloses all untrusted RAG chunks, pinned files, and focused objects.
 - `<untrusted_source path="...">` ... `</untrusted_source>`: Encloses retrieved context chunks from Wissensquellen.
 - `<untrusted_pinned_file path="...">` ... `</untrusted_pinned_file>`: Encloses code snippets from pinned repository files.

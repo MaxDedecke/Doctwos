@@ -2,7 +2,7 @@
 backend/services/source_context.py
 ====================================
 Baut den "Fachwissen"-Block aus KnowledgeSource.context_note für den
-System-Prompt (siehe api/chat.py).
+System-Prompt (siehe services/chat_turn.py).
 
 Anders als RAG-Retrieval (DocumentChunk, embedding-basiert) wird die Notiz
 nicht durchsucht/gerankt, sondern immer komplett mitgeschickt, sobald ihre

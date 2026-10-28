@@ -119,7 +119,7 @@ const BR_TAG_TEST_RE = /^<br\s*\/?>$/i;
 /**
  * Local models frequently skip the backtick citation format inside table cells
  * even though the prompt asks for it there too (see the citation_note in
- * backend/api/chat.py) -- this recognizes a known knowledge-source title as plain
+ * backend/services/chat_service.py) -- this recognizes a known knowledge-source title as plain
  * text, optionally followed by a `:page` or `:start-end` suffix the model
  * sometimes appends, so the citation still becomes clickable without backticks.
  */
@@ -216,8 +216,8 @@ const parseTextSegment = (
       }
 
       // A model frequently cites just the bare filename (`DISPATCHER.cbl`) instead of the
-      // full repo-relative path -- mirrors the by_basename fallback in _resolve_cited_sources
-      // (backend/api/chat.py) that already resolved this same citation to its full path in
+      // full repo-relative path -- mirrors the by_basename fallback in resolve_cited_sources
+      // (backend/services/chat_sources.py) that already resolved this same citation to its full path in
       // knownSources. Without this, the exact-match lookup above misses, the button falls
       // back to the bare filename as its fetch path, and the editor opens empty (file not
       // found at repo root) instead of the actual nested file.

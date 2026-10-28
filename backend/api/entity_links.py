@@ -507,7 +507,7 @@ async def llm_review_link(
     durch das LLM-Urteil, ändert aber bewusst NICHT den Status — der Nutzer entscheidet
     danach selbst per Bestätigen/Ablehnen. Nutzt das im Link-Manager-Header aktive
     LLM-Profil (body.llm_*, vom Frontend mitgeschickt) statt fix das lokale Ollama —
-    für Cloud-Provider greift dasselbe Opt-in-Gate wie beim normalen Chat (api/chat.py).
+    für Cloud-Provider greift dasselbe Opt-in-Gate wie beim normalen Chat (services/chat_turn.py).
     """
     try:
         selected_profile = get_profile(db, body.llm_profile_id)

@@ -55,7 +55,7 @@ def test_chat_endpoint_rejects_cloud_provider_when_disabled_by_default(
     # Explicit False, not just the config default — this deployment's mounted
     # config/features.json may set allowCloudProviders: true for demo purposes,
     # which would otherwise make this test flaky depending on where it runs.
-    monkeypatch.setattr("api.chat.cfg.cloud_llm_allowed", lambda: False)
+    monkeypatch.setattr("core.config.cloud_llm_allowed", lambda: False)
     profile = _cloud_profile(db_session)
     try:
         res = client.post("/chat", json={"message": "Hallo", "llm_profile_id": profile.id})

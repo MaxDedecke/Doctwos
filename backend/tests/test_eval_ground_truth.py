@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 
 import agent as agent_module
-from api.chat import _validate_answer_sources
+from services.chat_sources import validate_answer_sources
 from agent import find_repo_files
 
 
@@ -43,8 +43,8 @@ def test_eval_case_never_substitutes_a_neighbouring_file(monkeypatch, tmp_path, 
 
     answer = f"Belegt: `{case['file']}:{case['line']}`."
     evidence = [{"file": case["file"], "lines": [1, line_count]}]
-    _, accepted = _validate_answer_sources(answer, evidence)
-    fallback, accepted_fallback = _validate_answer_sources(
+    _, accepted = validate_answer_sources(answer, evidence)
+    fallback, accepted_fallback = validate_answer_sources(
         f"Falsch: `neighbour/{primary.name}:{case['line']}`.",
         evidence,
     )
@@ -59,10 +59,10 @@ def test_eval_case_never_substitutes_a_neighbouring_file(monkeypatch, tmp_path, 
 )
 def test_eval_call_claims_require_the_ground_truth_edge(case):
     source, target = case["edge"]
-    _, accepted = _validate_answer_sources(
+    _, accepted = validate_answer_sources(
         f"{source} ruft {target} auf.", [], {(source.casefold(), target.casefold())}
     )
-    _, rejected = _validate_answer_sources(
+    _, rejected = validate_answer_sources(
         f"{source} ruft UNKNOWN auf.", [], {(source.casefold(), target.casefold())}
     )
 

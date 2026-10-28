@@ -56,7 +56,7 @@ Regeln dafür:
    (Rollen der Entitäts- und Kantentypen; Datenzugriffe mit Anweisungsbezug als Kantenmetadaten `operation`/`operand_role`
    oder als Tabelle `meta.data_flow` an der Routine).
 3. **Jede belegbare Angabe trägt `cite`** (`pfad/datei.ext:zeile`) und ist als klickbare Quelle auffindbar
-   (`api/chat.py::_extract_tool_sources`). Unbelegtes wird als Lücke benannt (`unresolved`, `external`, `unknown`),
+   (`services/chat_sources.py::extract_tool_sources`). Unbelegtes wird als Lücke benannt (`unresolved`, `external`, `unknown`),
    nie ergänzt.
 4. **Das Paket bleibt begrenzt** (`max_chars`, `_fit_evidence`) und trägt Bausteine nur, wenn die Frage danach klingt
    (Intent), damit andere Fragen nichts kosten.

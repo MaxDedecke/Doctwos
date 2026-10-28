@@ -7,7 +7,7 @@ parser/core/model.py::classify_completeness) für eine Menge von
 (source_id, file_path)-Paaren nachschlägt — verwendet von den drei Stellen,
 die O-120 ausdrücklich als Durchreich-Ziele nennt: Editor-Dateibaum
 (api/knowledge_sources.py), Call-Graph (api/callgraph.py) und Chat-Zitate
-(api/chat.py). Eine Stelle statt drei Kopien derselben Batch-Query.
+(services/chat_sources.py). Eine Stelle statt drei Kopien derselben Batch-Query.
 
 Liefert absichtlich NUR Einträge für Dateien, deren Analyse nicht
 uneingeschränkt vollständig ist (`parse_status` gesetzt und != "complete") —

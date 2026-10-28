@@ -1,5 +1,5 @@
 """
-Regression coverage for backend/api/chat.py::_hybrid_chunk_search's section-number match after
+Regression coverage for backend/services/chat_service.py::hybrid_chunk_search's section-number match after
 docs/GAPS.md #4: DocumentChunk.content is now Fernet-encrypted at rest, so the exact-match lookup
 for a literal section number (e.g. "4.2.1") can no longer be a SQL ILIKE and instead scans
 decrypted candidates in Python (see _SECTION_MATCH_SCAN_LIMIT). This proves it still finds the
@@ -7,7 +7,7 @@ chunk containing the section number without needing a real embedding call -- lim
 vector-search fallback branch is never reached.
 """
 
-from api.chat import _find_pinned_chunks, _hybrid_chunk_search
+from services.chat_service import find_pinned_chunks, hybrid_chunk_search
 from models.database import DocumentChunk
 
 
@@ -35,7 +35,7 @@ def test_section_number_match_finds_decrypted_chunk(db_session, test_project):
         base_query = db_session.query(DocumentChunk).filter(
             DocumentChunk.project_id == test_project
         )
-        results = _hybrid_chunk_search(
+        results = hybrid_chunk_search(
             base_query,
             query_embedding=[0.0] * 1024,
             query_text="Was verlangt Abschnitt 4.2.1 zur Brandschutzklasse?",
@@ -67,7 +67,7 @@ def test_pinned_chunk_lookup_prefers_the_chunk_covering_the_focused_line(db_sess
     db_session.commit()
 
     try:
-        results = _find_pinned_chunks(
+        results = find_pinned_chunks(
             db_session,
             project_id=test_project,
             source_id=None,
@@ -118,7 +118,7 @@ def test_pinned_chunk_lookup_covers_an_entity_range_spanning_several_chunks(
     db_session.commit()
 
     try:
-        results = _find_pinned_chunks(
+        results = find_pinned_chunks(
             db_session,
             project_id=test_project,
             source_id=None,

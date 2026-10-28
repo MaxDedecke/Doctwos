@@ -291,7 +291,7 @@ def complete_project(
     """Closes out a project and decides where the knowledge it produced goes.
     Sources in promote_source_ids become global (project_id=None) so they
     stay reachable from every future project's chat context (see the null
-    merge in services/search.py and api/chat.py) as well as from the
+    merge in services/search.py and services/chat_service.py) as well as from the
     general/non-project context. Everything not promoted stays attached to
     this now-archived project and drops out of both — matching the rule
     that project knowledge isn't implicitly global, only the reverse."""

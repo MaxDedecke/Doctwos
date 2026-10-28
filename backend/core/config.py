@@ -214,7 +214,7 @@ BOOTSTRAP_SUPERUSER_EMAIL: str = os.getenv("BOOTSTRAP_SUPERUSER_EMAIL", "")
 # ── Cloud-LLM-Opt-in-Gate ─────────────────────────────────────────────────────
 # Zentral hier statt pro Aufrufer dupliziert: jeder Call-Site, der einen
 # Cloud-Provider (OpenAI/Gemini/Anthropic) tatsächlich aufrufen könnte —
-# aktuell Chat (api/chat.py) — muss vor dem Aufruf cloud_llm_allowed() prüfen.
+# aktuell Chat (services/chat_turn.py::select_chat_profile) — muss vor dem Aufruf cloud_llm_allowed() prüfen.
 
 CLOUD_LLM_PROVIDERS: set[str] = {"openai", "gemini", "anthropic"}
 

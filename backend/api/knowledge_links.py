@@ -473,7 +473,7 @@ async def llm_review_knowledge_link(
     einzelnes Paar statt den vollen Cross-Source-Scan. Ändert bewusst nicht
     den Status — der Nutzer entscheidet danach selbst per Bestätigen/Ablehnen.
     Nutzt das im Link-Manager-Header aktive LLM-Profil (body.llm_*), Cloud-
-    Provider gated wie beim normalen Chat (api/chat.py).
+    Provider gated wie beim normalen Chat (services/chat_turn.py).
     """
     try:
         selected_profile = get_profile(db, body.llm_profile_id)

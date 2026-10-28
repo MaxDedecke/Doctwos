@@ -42,9 +42,9 @@ def test_chat_exposes_only_cited_insights_in_sse_and_history(
         }
 
     monkeypatch.setattr("services.chat_service.embed_text", embed)
-    monkeypatch.setattr("api.chat._agent_profile_supports_tools", lambda _: agent)
-    monkeypatch.setattr("api.chat.stream_agent_events", stream)
-    monkeypatch.setattr("api.chat.stream_standard_rag_events", stream)
+    monkeypatch.setattr("services.chat_turn.agent_profile_supports_tools", lambda _: agent)
+    monkeypatch.setattr("services.chat_turn.stream_agent_events", stream)
+    monkeypatch.setattr("services.chat_turn.stream_standard_rag_events", stream)
     session_id = None
     try:
         response = client.post(

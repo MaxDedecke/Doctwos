@@ -1622,7 +1622,7 @@ def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(
 ):
     import asyncio
     import agent
-    from api import chat as chat_api
+    from services import chat_sources
 
     user, _outsider, project_id, _foreign = mcp_project_context
     method = _method(
@@ -1650,7 +1650,9 @@ def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(
     assert name == "answer_context" and args["symbols"] == ["org.demo.Auth#authenticate(String)"]
 
     sources: list = []
-    chat_api._extract_tool_sources({"type": "tool_result", "name": name, "result": raw}, sources, 7)
+    chat_sources.extract_tool_sources(
+        {"type": "tool_result", "name": name, "result": raw}, sources, 7
+    )
     assert {"file": "src/Auth.java", "lines": [1, 3], "source_id": 7} in sources
 
     # Unknown symbols fall back to the regular bootstrap.
@@ -1697,11 +1699,11 @@ def test_outline_facts_carry_message_texts_and_assigned_codes(db_session, mcp_pr
 
 
 def test_evidence_budget_scales_with_the_context_window():
-    from api.chat import _evidence_budget
+    from services.chat_turn import evidence_budget
 
-    assert _evidence_budget(None) is None
-    assert _evidence_budget(8192) == 5538
-    assert _evidence_budget(2048) == 3000 and _evidence_budget(131072) == 14000
+    assert evidence_budget(None) is None
+    assert evidence_budget(8192) == 5538
+    assert evidence_budget(2048) == 3000 and evidence_budget(131072) == 14000
 
 
 def test_relevant_children_follows_perform_one_step_and_skips_housekeeping():

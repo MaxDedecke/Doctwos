@@ -1,6 +1,6 @@
 """Regression contract for the O-323 SSE timing protocol."""
 
-from api.chat import ChatSseTelemetry
+from services.chat_turn import ChatSseTelemetry
 
 
 def test_chat_sse_telemetry_keeps_monotonic_milestones_and_eval_metrics():

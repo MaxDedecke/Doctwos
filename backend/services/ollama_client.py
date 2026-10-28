@@ -3,7 +3,7 @@ backend/services/ollama_client.py
 ==================================
 Geteilte Ollama-Aufrufe für die AEC-Agenten (compliance, hoai).
 Fasst ein bisher pro Router dupliziertes Muster zusammen: die Embedding-Suche aus
-api/chat.py:230-285 (vormals auch api/link_chat.py, entfernt mit O-115 als toter
+dem Chat (vormals auch api/link_chat.py, entfernt mit O-115 als toter
 Endpunkt), und den Single-Shot-JSON-LLM-Call im Stil von
 parser/ollama_client.py:get_chat_json (dortiger Parser-Service, hier für den
 Backend-Service nachgebaut, da Container getrennt sind).
@@ -68,7 +68,7 @@ async def embed_text(
 ) -> list[float]:
     """Erzeugt ein Embedding via Ollama. nomic-embed-text braucht ein Prefix
     ("search_query:"/"search_document:"), damit Anfragen und Dokumente sauber
-    getrennt kodiert werden (siehe api/chat.py:234-236)."""
+    getrennt kodiert werden."""
     embedding_model = (model or cfg.OLLAMA_EMBED_MODEL).strip()
     prompt = text
     if embedding_model.startswith("nomic-embed-text") and not text.startswith(
@@ -236,7 +236,7 @@ async def ask_llm_json_for_profile(
 ) -> dict:
     """Single-Shot-JSON-LLM-Aufruf für ein beliebiges LLM-Profil (lokales Ollama
     oder Cloud-Opt-in OpenAI/Gemini/Anthropic) — Provider-Dispatch analog
-    api/chat.py, hier Non-Streaming-JSON für Einzel-Bewertungen wie
+    services/chat_service.py, hier Non-Streaming-JSON für Einzel-Bewertungen wie
     entity_links.py::llm_review_link.
 
     WICHTIG: Aufrufer MUSS für provider in cfg.CLOUD_LLM_PROVIDERS vorher

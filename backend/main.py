@@ -6,7 +6,7 @@ App-Factory für den Doctus AI Backend Service.
 Diese Datei hat nur eine Aufgabe: FastAPI konfigurieren und die Router einbinden.
 Alle Endpoint-Logik liegt in backend/api/ — je eine Datei pro Ressource:
 
-    api/chat.py            — Chat mit SSE-Streaming und Session-Management
+    api/chat.py            — Chat-HTTP-Schicht (SSE); Fachlogik in services/chat_*.py
     api/knowledge_sources.py — Wissensquellen (Git, Confluence, Jira, WebDAV, Upload)
     api/connectors.py      — Verbindungstest für Git- und Wissensquellen-Connectoren
     api/entity_links.py    — Link Manager (Code-Entity ↔ Wissens-Dokument)
