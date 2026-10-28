@@ -8,6 +8,28 @@ from .relationships import JavaRelationshipVisitor
 
 
 class ModernDeclarationVisitor(JavaDeclarationVisitor):
+    def _type(self, context, entity_type, body_context):
+        from .type_metadata import type_parameters, add_record_accessors
+
+        index = len(self.entities)
+        value = super()._type(context, entity_type, body_context)
+        owner = self.entities[index]
+        parameters = type_parameters(context)
+        if parameters:
+            owner.meta["type_parameters"] = parameters
+        if entity_type == "record":
+            add_record_accessors(self.entities, owner)
+        return value
+
+    def _method_entity(self, context, *args, **kwargs):
+        from .type_metadata import type_parameters
+
+        entity = super()._method_entity(context, *args, **kwargs)
+        parameters = type_parameters(context.parentCtx)
+        if parameters:
+            entity.meta["type_parameters"] = parameters
+        return entity
+
     def visitPattern(self, context):
         from .patterns import add_pattern_declarations
 

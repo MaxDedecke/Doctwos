@@ -158,3 +158,10 @@ als ein Typ statt als Pattern gelesen wird. Für `var` aus Factory-Aufrufen wird
 der Rückgabetyp des an der Initialisierungsstelle tatsächlich aufgelösten Aufrufs
 im Importkontext der Factory verwendet. Mehrdeutige Initialisierer bleiben offen.
 Abnahme: `parser/tests/test_java_pattern_inference.py`; Java-Golden-Dateien aktualisiert.
+
+Strukturversion 14 modelliert implizite Record-Accessor als ausdrücklich synthetische
+Methoden an der Zeile ihrer Komponente; explizite Accessor haben Vorrang. Receiver
+aus vollständig indizierten Arrays erhalten ihren Elementtyp. Direkte generische
+Receiver wie `Box<Service>` spezialisieren den Rückgabetyp `T` von `get()`; generische
+Methodenparameter werden nicht mit Klassenparametern verwechselt. Nicht belegbare
+Dimensionen und Wildcards bleiben offen. Abnahme: `test_java_receiver_types.py`.

@@ -170,6 +170,9 @@
         "modifiers": [
           "public"
         ],
+        "type_parameters": [
+          "T"
+        ],
         "visibility": "public"
       },
       "name": "Catalog",

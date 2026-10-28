@@ -523,6 +523,32 @@ def _receiver_type_candidates(
         return _candidates_at_stage(parents, types_by_qname), "superclass"
 
     receiver_name = receiver
+    from .receiver_types import array_receiver, specialize_return
+
+    def resolve_type(name, context, owner):
+        return _global_type_candidates(
+            name,
+            result=context,
+            source_owner=owner,
+            types_by_qname=types_by_qname,
+            types_by_name=types_by_name,
+        )
+
+    array = array_receiver(
+        receiver_name,
+        edge,
+        lambda name: _receiver_declaration(
+            name,
+            edge,
+            fields_by_owner_and_name=fields_by_owner_and_name,
+            variables_by_parent_and_name=variables_by_parent_and_name,
+            hierarchy=hierarchy,
+        ),
+        resolve_type,
+        lambda declaration: result_by_type.get(declaration.parent_qualified_name or "", result),
+    )
+    if array is not None:
+        return array
     new_match = re.fullmatch(r"new([A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*)\(.*\)", receiver_name)
     if new_match:
         return _global_type_candidates(
@@ -563,6 +589,11 @@ def _receiver_type_candidates(
             return_type = next(iter(return_types))
             method_owner = declarations[0].parent_qualified_name
             owner_result = result_by_type.get(method_owner or "", result)
+            return_type, exact_substitution = specialize_return(
+                return_type, declarations[0], matching_calls, types_by_qname.get(method_owner, [])
+            )
+            if exact_substitution:
+                owner_result, method_owner = result, source_owner
             candidates, reason = _global_type_candidates(
                 return_type,
                 result=owner_result,
@@ -674,6 +705,8 @@ def _receiver_type_candidates(
                     types_by_name=types_by_name,
                 ),
             )
+        if "<" in declared_type:
+            edge.meta["receiver_declared_type"] = declared_type
         declaration_result = result_by_type.get(declaration.parent_qualified_name or "", result)
         types, type_reason = _global_type_candidates(
             declared_type,

@@ -1,17 +1,72 @@
 {
   "chunks": [
     {
-      "content": "package corpus.modern;\n\nsealed interface Shape permits Circle, Rectangle {}\nrecord Circle(double radius) implements Shape {}\nrecord Rectangle(double width, double height) implements Shape {}\n\nfinal class Area {",
-      "end_line": 7,
+      "content": "package corpus.modern;\n\nsealed interface Shape permits Circle, Rectangle {}",
+      "end_line": 3,
       "meta": {
         "container_path": null,
-        "end_line": 7,
+        "end_line": 3,
         "language": "java",
         "start_line": 1,
         "symbol_qualified_name": null,
         "symbol_type": "context"
       },
       "start_line": 1
+    },
+    {
+      "content": "record Circle(double radius) implements Shape {}",
+      "end_line": 4,
+      "meta": {
+        "container_path": "corpus.modern.Circle",
+        "end_line": 4,
+        "language": "java",
+        "start_line": 4,
+        "symbol_name": "radius",
+        "symbol_qualified_name": "corpus.modern.Circle#radius()",
+        "symbol_type": "method"
+      },
+      "start_line": 4
+    },
+    {
+      "content": "record Rectangle(double width, double height) implements Shape {}",
+      "end_line": 5,
+      "meta": {
+        "container_path": "corpus.modern.Rectangle",
+        "end_line": 5,
+        "language": "java",
+        "start_line": 5,
+        "symbol_name": "width",
+        "symbol_qualified_name": "corpus.modern.Rectangle#width()",
+        "symbol_type": "method"
+      },
+      "start_line": 5
+    },
+    {
+      "content": "record Rectangle(double width, double height) implements Shape {}",
+      "end_line": 5,
+      "meta": {
+        "container_path": "corpus.modern.Rectangle",
+        "end_line": 5,
+        "language": "java",
+        "start_line": 5,
+        "symbol_name": "height",
+        "symbol_qualified_name": "corpus.modern.Rectangle#height()",
+        "symbol_type": "method"
+      },
+      "start_line": 5
+    },
+    {
+      "content": "\nfinal class Area {",
+      "end_line": 7,
+      "meta": {
+        "container_path": null,
+        "end_line": 7,
+        "language": "java",
+        "start_line": 6,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 6
     },
     {
       "content": "    static double calculate(Shape shape) {\n        return switch (shape) {\n            case Circle circle when circle.radius() > 0 -> Math.PI * circle.radius() * circle.radius();\n            case Rectangle(double width, double height) -> width * height;\n        };\n    }",
@@ -113,6 +168,29 @@
       "type": "record_component"
     },
     {
+      "end_line": 4,
+      "meta": {
+        "component_type": "double",
+        "generated_by": "record",
+        "index": 0,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "double",
+        "signature": "radius()",
+        "source_component": "corpus.modern.Circle#component:radius",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "radius",
+      "parent_qualified_name": "corpus.modern.Circle",
+      "qualified_name": "corpus.modern.Circle#radius()",
+      "start_line": 4,
+      "type": "method"
+    },
+    {
       "end_line": 5,
       "meta": {
         "annotation_details": [],
@@ -152,6 +230,52 @@
       "qualified_name": "corpus.modern.Rectangle#component:height",
       "start_line": 5,
       "type": "record_component"
+    },
+    {
+      "end_line": 5,
+      "meta": {
+        "component_type": "double",
+        "generated_by": "record",
+        "index": 0,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "double",
+        "signature": "width()",
+        "source_component": "corpus.modern.Rectangle#component:width",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "width",
+      "parent_qualified_name": "corpus.modern.Rectangle",
+      "qualified_name": "corpus.modern.Rectangle#width()",
+      "start_line": 5,
+      "type": "method"
+    },
+    {
+      "end_line": 5,
+      "meta": {
+        "component_type": "double",
+        "generated_by": "record",
+        "index": 1,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "double",
+        "signature": "height()",
+        "source_component": "corpus.modern.Rectangle#component:height",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "height",
+      "parent_qualified_name": "corpus.modern.Rectangle",
+      "qualified_name": "corpus.modern.Rectangle#height()",
+      "start_line": 5,
+      "type": "method"
     },
     {
       "end_line": 14,
