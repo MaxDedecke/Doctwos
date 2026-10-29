@@ -21,6 +21,7 @@ import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { KnowledgeGraphView, withKeptAnchor } from './KnowledgeGraphView';
 
 const centerAt = vi.fn();
+const zoomToFit = vi.fn();
 
 type GraphStubProps = {
   autoPauseRedraw?: boolean;
@@ -44,7 +45,7 @@ const ForceGraph2DStub = React.forwardRef<{ zoom: () => number; zoomToFit: () =>
     centerAt,
     d3Force: () => undefined,
     d3ReheatSimulation: () => {},
-    zoomToFit: () => {},
+    zoomToFit,
   }));
   return (
     <div data-testid="force-graph-stub">
@@ -119,6 +120,7 @@ function renderGraph() {
 describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', () => {
   beforeEach(() => {
     centerAt.mockClear();
+    zoomToFit.mockClear();
     vi.stubGlobal('ResizeObserver', ResizeObserverStub);
   });
 
@@ -577,6 +579,28 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     // Der Startknoten ist in der Übersicht weiter ausgewählt: Die Detailkarte bietet wieder "Nur Nachbarschaft laden".
     expect(await screen.findByText('Nur Nachbarschaft laden')).toBeTruthy();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('fits the camera to a loaded neighborhood and centers the start node back in the overview', async () => {
+    const overviewResponse = {
+      nodes: [
+        { id: 'doc:Ticket', type: 'document', label: 'Ticket', project_id: 1 },
+        { id: 'file:1:2:A.java', type: 'code_file', label: 'A.java', file_path: 'A.java', project_id: 1 },
+      ],
+      edges: [{ id: 'edl:1', source: 'doc:Ticket', target: 'file:1:2:A.java', link_type: 'semantic', relation_type: 'documented', score: 0.9, context: null }],
+    };
+    const neighborhood = { focus_id: 'doc:Ticket', nodes: overviewResponse.nodes, edges: overviewResponse.edges, has_more: false, next_cursor: null };
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
+      .mockResolvedValueOnce({ ok: true, json: async () => neighborhood }));
+
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-doc:Ticket'));
+    fireEvent.click(await screen.findByText('Nur Nachbarschaft laden'));
+    await waitFor(() => expect(zoomToFit).toHaveBeenCalledTimes(1));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Zurück zur Übersicht' }));
+    await waitFor(() => expect(centerAt).toHaveBeenCalled());
   });
 
   it('loads neighborhood with cursor pagination and expands more connections (O-298)', async () => {

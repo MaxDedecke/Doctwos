@@ -197,6 +197,9 @@ export function KnowledgeGraphView({
   const [isGrouped, setIsGrouped] = useState(false);
   const expandedGroupsRef = useRef<string[]>([]);
   const sceneNodesRef = useRef<GraphNode[]>([]);
+  // Die Nachbarschaft wird an fester Stelle angeordnet, die Kamera bleibt dagegen, wo man in der
+  // Übersicht hingeschaut hat. Nach dem Wechsel wird sie deshalb einmal nachgeführt.
+  const cameraAfterLayoutRef = useRef<{ fit: true } | { centerOn: string } | null>(null);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -469,6 +472,7 @@ export function KnowledgeGraphView({
       setRawNodes(data.nodes ?? []);
       setRawEdges(data.edges ?? []);
       setViewMode('neighborhood');
+      cameraAfterLayoutRef.current = { fit: true };
       setNeighborhoodFocusNode(node);
       setNeighborhoodHasMore(Boolean(data.has_more));
       setNeighborhoodCursor(data.next_cursor ?? null);
@@ -496,6 +500,7 @@ export function KnowledgeGraphView({
       return;
     }
     const touchesAnchor = (end: GraphEdge['source']) => (typeof end === 'object' ? end.id : end) === anchor.id;
+    cameraAfterLayoutRef.current = { centerOn: anchor.id };
     void loadOverview(false, undefined, {
       node: anchor,
       edges: rawEdges.filter(e => touchesAnchor(e.source) || touchesAnchor(e.target)),
@@ -827,6 +832,23 @@ export function KnowledgeGraphView({
   useKnowledgeGraphLayout({ graphRef, ready: !!ForceGraphComponent && !isLoading && dimensions.width > 0,
     nodes: filteredData.nodes, links: filteredData.links, degrees: nodeDegrees,
     mode: viewMode, focusId: neighborhoodFocusNode?.id, direction: traversalDirection });
+
+  // Runs after the layout effect above has placed the new scene. The request is only consumed when
+  // the camera moves: a scene that changes again right away (filter reset) reschedules it.
+  useEffect(() => {
+    const camera = cameraAfterLayoutRef.current;
+    if (!camera || !graphRef.current || !filteredData.nodes.length) return;
+    const timer = setTimeout(() => {
+      cameraAfterLayoutRef.current = null;
+      if ('fit' in camera) {
+        graphRef.current?.zoomToFit(400, 60);
+        return;
+      }
+      const anchor = filteredData.nodes.find(node => node.id === camera.centerOn);
+      if (anchor?.x != null && anchor.y != null) graphRef.current?.centerAt(anchor.x, anchor.y, 400);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [filteredData, viewMode]);
 
   // Selecting a node highlights its direct one-hop neighborhood. The current
   // graph selection takes priority over a stale/external focus; when no node is
