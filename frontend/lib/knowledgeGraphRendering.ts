@@ -22,7 +22,7 @@ export function nodeRadius(node: GraphNode, degree = 0): number {
 }
 
 export function getNodeDisplayLabel(node: GraphNode): string {
-  if (node.type === 'group') return `${node.label} (${(node.file_count ?? 0) + (node.doc_count ?? 0)})`;
+  if (node.type === 'group') return node.label;
   return node.type === 'code_file' && node.file_path
     ? node.file_path.split(/[\\/]/).filter(Boolean).pop() || node.label : node.label;
 }

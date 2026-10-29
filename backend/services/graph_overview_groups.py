@@ -13,7 +13,7 @@ und liefert die passende Szene:
   eingeklappten Gruppen zeigen auf die Gruppe. Dokumente eines Topics gehören zu dessen Gruppe.
 """
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Callable, Optional
 
@@ -267,6 +267,15 @@ def grouped_overview(
     # ── Kanten ───────────────────────────────────────────────────────────────
     out_edges: list[dict] = []
     bundles: dict = {}
+    # Verbindungen eines sichtbaren Knotens, die nur gebündelt in eine eingeklappte Gruppe laufen.
+    hidden: Counter = Counter()
+
+    def count_hidden(source: str, target: str, original_source: str, original_target: str):
+        if source != original_source and target == original_target:
+            hidden[target] += 1
+        elif target != original_target and source == original_source:
+            hidden[source] += 1
+
     for edge in edges:
         source = remap.get(edge["source"], edge["source"])
         target = remap.get(edge["target"], edge["target"])
@@ -275,6 +284,7 @@ def grouped_overview(
         if source == edge["source"] and target == edge["target"]:
             out_edges.append(edge)
             continue
+        count_hidden(source, target, edge["source"], edge["target"])
         kind = edge.get("relation_type") or edge.get("link_type")
         _bundle(bundles, source, target, kind, 1, 0, [])
         bundles[(source, target, kind)].setdefault("template", edge)
@@ -307,6 +317,7 @@ def grouped_overview(
         if source == target:
             continue
         if source.startswith(GROUP_NODE_PREFIX) or target.startswith(GROUP_NODE_PREFIX):
+            count_hidden(source, target, helpers.file_id(*a), helpers.file_id(*b))
             _bundle(bundles, source, target, "code_dependency", row.edge_count, 1, row.edge_types)
             continue
         detailed.extend(row.sample_edge_ids)
@@ -322,7 +333,9 @@ def grouped_overview(
     for (source, target, kind), bundle in bundles.items():
         template = bundle.get("template")
         if template is not None and bundle["edges"] == 1:
-            out_edges.append({**template, "source": source, "target": target})
+            # Zeigt auf die Gruppe statt auf die Datei: gilt wie ein Bündel, nicht als Einzelkante.
+            meta = {**(template.get("meta") or {}), "bundled": True, "edge_count": 1}
+            out_edges.append({**template, "source": source, "target": target, "meta": meta})
             continue
         types = sorted(t for t in bundle["edge_types"] if t)
         if kind == "code_dependency":
@@ -363,6 +376,16 @@ def grouped_overview(
         for n in out_nodes.values()
         if n["id"] in connected or n.get("type") in {"group", "insight"} or n.get("group_parent")
     ]
+    # Echte Verbindungszahl: einzeln sichtbare Kanten plus die nur gebündelt sichtbaren. Das
+    # Frontend zeigt die Differenz zu den einzeln geladenen Kanten als „+N“.
+    individual: Counter = Counter()
+    for edge in out_edges:
+        if not (edge.get("meta") or {}).get("bundled"):
+            individual[edge["source"]] += 1
+            individual[edge["target"]] += 1
+    for node in result_nodes:
+        if node.get("type") != "group":
+            node["degree"] = individual[node["id"]] + hidden[node["id"]]
     return {
         "nodes": result_nodes,
         "edges": [e for e in out_edges if e["source"] in out_nodes and e["target"] in out_nodes],
@@ -373,3 +396,29 @@ def grouped_overview(
         "total_nodes": len(result_nodes),
         "total_edges": len(out_edges),
     }
+
+
+def annotate_group_membership(db: Session, project_id: Optional[int], nodes: list[dict]) -> None:
+    """Dateien, die einzeln aus ihrer Gruppe geholt werden (Nachbarschaft, Einblenden), nennen sie."""
+    files = {
+        (n.get("project_id"), n.get("source_id"), n["file_path"]): n
+        for n in nodes
+        if n.get("type") == "code_file" and n.get("file_path")
+    }
+    if not project_id or not files:
+        return
+    rows = db.execute(
+        text(
+            "SELECT m.file_project_id, m.file_source_id, m.file_path, m.group_key, g.label, "
+            "g.topic_id, t.name AS topic_name FROM code_file_group_members m "
+            "JOIN code_file_groups g ON g.project_id = m.project_id AND g.group_key = m.group_key "
+            "LEFT JOIN topics t ON t.id = g.topic_id "
+            "WHERE m.project_id = :p AND m.file_path = ANY(:paths)"
+        ),
+        {"p": project_id, "paths": sorted({key[2] for key in files})},
+    )
+    for row in rows:
+        node = files.get((row.file_project_id, row.file_source_id, row.file_path))
+        if node is not None:
+            node["member_group"] = row.group_key
+            node["member_group_label"] = row.topic_name or row.label

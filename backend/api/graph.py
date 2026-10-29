@@ -31,7 +31,12 @@ from sqlalchemy.orm import Session, load_only
 
 from services.graph_overview_backbone import load_code_file_graph
 from services.graph_overview_degree import overview_degrees
-from services.graph_overview_groups import GraphHelpers, grouped_overview, grouping_available
+from services.graph_overview_groups import (
+    GraphHelpers,
+    annotate_group_membership,
+    grouped_overview,
+    grouping_available,
+)
 from services.graph_overview_links import append_overview_knowledge_links
 from services.graph_overview_limits import (
     CODE_EDGES_PER_NODE_BUDGET as CODE_EDGES_PER_NODE_BUDGET,
@@ -1125,6 +1130,9 @@ def get_graph_neighborhood(
             "truncated": {"incoming": has_more, "outgoing": has_more},
         }
         _attach_graph_analysis_status(db, response["nodes"])
+        annotate_group_membership(
+            db, project_id or (chunk.project_id if chunk else None), response["nodes"]
+        )
         return response
 
     # Fall 2: Code-Datei-Knoten. Parser-Entities werden nur für die
@@ -1360,6 +1368,7 @@ def get_graph_neighborhood(
             "truncated": {"incoming": has_more, "outgoing": has_more},
         }
         _attach_graph_analysis_status(db, response["nodes"])
+        annotate_group_membership(db, proj_id, response["nodes"])
         return response
 
     # Fall 3: resolve old entity URLs to their containing file so this API
@@ -1590,6 +1599,7 @@ def get_graph_neighborhood(
         "truncated": {"incoming": has_more, "outgoing": has_more},
     }
     _attach_graph_analysis_status(db, response["nodes"])
+    annotate_group_membership(db, proj_id, response["nodes"])
     return response
 
 

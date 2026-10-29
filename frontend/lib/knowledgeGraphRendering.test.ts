@@ -90,7 +90,7 @@ describe('knowledge graph rendering', () => {
     const renderer = createKnowledgeGraphRenderer({ ...options, nodes: [...options.nodes, group], selectedNodeId: null, focusNeighborIds: null });
     renderer.drawNode(group, ctx, 1);
     expect(ctx.setLineDash).toHaveBeenCalled();
-    expect(ctx.fillText).toHaveBeenCalledWith('core · Billing (42)', expect.any(Number), expect.any(Number));
+    expect(ctx.fillText).toHaveBeenCalledWith('core · Billing', expect.any(Number), expect.any(Number));
     expect(renderer.hitRadius(group)).toBeGreaterThan(renderer.hitRadius(options.nodes[0]));
   });
 

@@ -1452,6 +1452,7 @@
     "expandInPlaceTitle": "Loads this node's remaining connections into the overview; all other nodes stay where they are",
     "collapseExpansion": "Hide added connections",
     "collapseGroup": "Collapse group “{{label}}”",
+    "memberGroupLabel": "Group",
     "groupedHint": "grouped by coupling – click a group to expand it",
     "backToOverview": "Back to overview",
     "backTo": "Back to {{label}}",

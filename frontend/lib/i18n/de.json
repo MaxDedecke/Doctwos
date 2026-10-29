@@ -1452,6 +1452,7 @@
     "expandInPlaceTitle": "Lädt die übrigen Verbindungen dieses Knotens in die Übersicht; die übrigen Knoten bleiben, wo sie sind",
     "collapseExpansion": "Eingeblendete Verbindungen ausblenden",
     "collapseGroup": "Gruppe „{{label}}“ einklappen",
+    "memberGroupLabel": "Gruppe",
     "groupedHint": "gruppiert nach Kopplung – Klick auf eine Gruppe klappt sie auf",
     "backToOverview": "Zurück zur Übersicht",
     "backTo": "Zurück zu {{label}}",

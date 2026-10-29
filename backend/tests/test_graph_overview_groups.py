@@ -199,3 +199,33 @@ def test_small_projects_and_disabled_grouping_keep_the_file_overview(
     with patch(GROUPS, 0):
         body = client.get("/graph", params={"project_id": test_project, "group": "false"}).json()
     assert "grouped" not in body
+
+
+def test_grouped_nodes_carry_their_real_connection_count(client, test_project, grouped_project):
+    _, collapsed = _overview(client, test_project)
+    runbook = next(n for n in collapsed.values() if n.get("label") == "Runbook")
+    # Die einzige Verbindung des Runbooks zeigt in eine eingeklappte Gruppe: gebündelt, also verdeckt.
+    assert runbook["degree"] == 1
+    a_group = next(
+        n for n in collapsed.values() if n["type"] == "group" and n["central_file"].startswith("A/")
+    )
+    body, nodes = _overview(client, test_project, [a_group["group_key"]])
+    a0 = next(n for n in nodes.values() if n.get("file_path") == "A/A0.java")
+    individual = [
+        e
+        for e in body["edges"]
+        if a0["id"] in (e["source"], e["target"]) and not (e.get("meta") or {}).get("bundled")
+    ]
+    assert a0["degree"] == len(individual) + 1
+
+
+def test_neighborhood_names_the_group_of_files_shown_on_their_own(
+    client, test_project, grouped_project
+):
+    _, collapsed = _overview(client, test_project)
+    runbook = next(n for n in collapsed.values() if n.get("label") == "Runbook")
+    body = client.get(
+        "/graph/neighborhood", params={"node_id": runbook["id"], "project_id": test_project}
+    ).json()
+    a1 = next(n for n in body["nodes"] if n.get("file_path") == "A/A1.java")
+    assert a1["member_group"].startswith("c") and a1["member_group_label"]

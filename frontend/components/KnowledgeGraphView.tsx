@@ -1101,6 +1101,14 @@ export function KnowledgeGraphView({
                 </div>
               )
             )}
+            {(selectedNode.member_group_label ?? selectedNode.group_parent_label) && (
+              <div className="flex items-baseline gap-2">
+                <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.memberGroupLabel')}</span>
+                <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
+                  {selectedNode.member_group_label ?? selectedNode.group_parent_label}
+                </span>
+              </div>
+            )}
             {selectedNode.source_type && (
               <div className="flex items-baseline gap-2">
                 <span className={cn('text-[0.625rem] w-14 shrink-0', textMuted)}>{t('knowledgeGraphView.sourceLabel')}</span>

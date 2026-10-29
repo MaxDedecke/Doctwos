@@ -10,14 +10,24 @@ export function canExpandInPlace(node: GraphNode): boolean {
   return node.type === 'code_file' || node.type === 'document' || node.id.startsWith('doc:');
 }
 
-/** Connections of a node that exist on the server (`degree`) but are not loaded. */
+/**
+ * What a node hides: for a group its contents, for other nodes the connections that exist on the
+ * server (`degree`) but are not loaded individually. Bundled edges into a collapsed group count as
+ * hidden, since they do not show which object is connected.
+ */
 export function hiddenEdgeCounts(nodes: GraphNode[], edges: GraphEdge[]): Map<string, number> {
   const loaded = new Map<string, number>();
   for (const edge of edges) {
+    if (edge.meta?.bundled) continue;
     for (const end of [graphEndId(edge.source), graphEndId(edge.target)]) loaded.set(end, (loaded.get(end) ?? 0) + 1);
   }
   const hidden = new Map<string, number>();
   for (const node of nodes) {
+    if (node.type === 'group') {
+      const contents = (node.file_count ?? 0) + (node.doc_count ?? 0);
+      if (contents > 0) hidden.set(node.id, contents);
+      continue;
+    }
     const missing = (node.degree ?? 0) - (loaded.get(node.id) ?? 0);
     if (missing > 0) hidden.set(node.id, missing);
   }

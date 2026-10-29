@@ -32,6 +32,9 @@ export interface GraphNode {
   /** Set on everything shown because its group is expanded; collapsing returns to the group. */
   group_parent?: string | null;
   group_parent_label?: string | null;
+  /** A file shown on its own (neighborhood, in-place expansion) names the group it belongs to. */
+  member_group?: string | null;
+  member_group_label?: string | null;
   x?: number;
   y?: number;
   fx?: number;

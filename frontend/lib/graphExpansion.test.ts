@@ -6,6 +6,14 @@ const file = (id: string, degree?: number): GraphNode => ({ id, type: 'code_file
 const edge = (id: string, source: string, target: string): GraphEdge => ({ id, source, target, link_type: 'code_dependency', score: null, context: null });
 
 describe('hiddenEdgeCounts', () => {
+  it('counts the contents of a group and connections that are only bundled into collapsed groups', () => {
+    const group: GraphNode = { id: 'group:c1', type: 'group', label: 'c1', group_key: 'c1', file_count: 12, doc_count: 2 };
+    const bundled: GraphEdge = { ...edge('bundle:a-c1', 'a', 'group:c1'), meta: { bundled: true, edge_count: 3 } };
+    const counts = hiddenEdgeCounts([group, file('a', 4), file('b')], [bundled, edge('ab', 'a', 'b')]);
+    expect(counts.get('group:c1')).toBe(14);
+    expect(counts.get('a')).toBe(3);
+  });
+
   it('reports connections the server knows but the graph has not loaded', () => {
     const counts = hiddenEdgeCounts([file('a', 3), file('b', 1), file('c')], [edge('ab', 'a', 'b')]);
     expect(counts.get('a')).toBe(2);
