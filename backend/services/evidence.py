@@ -1,7 +1,7 @@
 """Language-neutral evidence blocks for the MCP evidence pack (``answer_context``).
 
 Each block answers one kind of question from the index in one go, so an agent does not have to assemble it from
-several tool calls. They read roles from ``core.language_profile`` and never name a language's edge or entity types.
+several tool calls. They read roles from ``doctus_models.language_profile`` and never name a language's edge or entity types.
 Every item carries ``cite`` (``path/file.ext:line``); what the index cannot prove is reported as a gap
 (``unresolved``, ``external``), never filled in.
 """
@@ -12,7 +12,7 @@ import re
 
 from sqlalchemy.orm import Session
 
-from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, ROUTINE_TYPES, role_of
+from doctus_models.language_profile import CONTROL_EDGES, INCLUDE_EDGES, ROUTINE_TYPES, role_of
 from doctus_models.database import CodeEdge, CodeEntity, User
 from services.call_flow import TEST_PATH_PATTERN
 from services.source_access import site_excerpt, source_visible

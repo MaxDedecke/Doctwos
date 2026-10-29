@@ -664,7 +664,7 @@ O-296 setzt die angegebenen sichtbaren Umbenennungen um.
 
 **Entscheidung vom 05.10.2026.** Das Beweispaket des MCP-Servers (`answer_context`) soll typische Agentenfragen in einem
 Aufruf beantworten. Seine Bausteine (`services/evidence.py`: Einbindungen, Kontrollfluss, Datenherkunft) sind
-sprachneutral; sie lesen nur Rollen aus `core/language_profile.py` und die Angaben, die der Parser liefert. **Fehlt dem
+sprachneutral; sie lesen nur Rollen aus `doctus_models/language_profile.py` und die Angaben, die der Parser liefert. **Fehlt dem
 Server eine Angabe, wird der Parser erweitert** – nicht im Server geraten und nicht mit Zeilennähe überbrückt.
 
 **Was ein Sprachparser liefern muss**

@@ -8,6 +8,7 @@ Aufgaben (Tasks):
     process_knowledge_source  — Wissensquelle synchronisieren (alle Typen via Registry)
     compute_entity_links      — Semantische Links zwischen Code-Entities und Docs berechnen
     generate_diagnostics_bundle — Diagnose-Bundle erzeugen (Settings > Logs Button)
+    rebuild_code_file_edges   — Dateikanten der Graph-Übersicht eines Projekts neu berechnen
 
 Connector-Architektur:
     Alle Wissensquellen (Git, Confluence, Jira, ...) werden über die ConnectorRegistry
@@ -37,6 +38,7 @@ from tasks.sync import process_knowledge_source_async
 from tasks.link_builder import compute_entity_links_async
 from tasks.cross_link_builder import compute_knowledge_links_async
 from tasks.diagnostics import generate_diagnostics_bundle_async
+from tasks.file_edges import refresh_code_file_edges
 
 # Celery installs its own root handler by default (no basicConfig call existed
 # here before), so log lines from this worker had a different format than
@@ -271,6 +273,19 @@ def compute_knowledge_links(
             )
         )
     return {"status": "finished", "run_id": run_id}
+
+
+@app.task(name="rebuild_code_file_edges")
+def rebuild_code_file_edges_task(project_id: int | None):
+    """Celery-Task: Dateikanten der Graph-Übersicht neu berechnen, wenn sich Code-Beziehungen
+    außerhalb eines Syncs geändert haben (z. B. eine Quelle wurde gelöscht)."""
+    db = SessionLocal()
+    try:
+        built = refresh_code_file_edges(db, project_id)
+        db.commit()
+    finally:
+        db.close()
+    return {"status": "finished", "project_id": project_id, "file_edges": built}
 
 
 @app.task(name="generate_diagnostics_bundle", bind=True)

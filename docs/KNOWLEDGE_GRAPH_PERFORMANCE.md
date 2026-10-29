@@ -151,10 +151,41 @@ Maximum. Dokumentations-/manuelle Kanten haben weiterhin keinen separaten harten
 Kantendeckel.
 
 Seit dem 29.10.2026 bildet der Server die Dateikanten aus allen Parser-Beziehungen
-(`services/graph_overview_backbone.py`) statt aus einer Stichprobe von
-Roh-Beziehungen. Ab 1.000 Dateikanten zeigt die Übersicht nur das Grundgerüst; die
-übrigen Kanten sind über `degree` als nicht geladen erkennbar und im Frontend
-nachladbar. Die Abschnitte unten beschreiben den Stand davor.
+statt aus einer Stichprobe von Roh-Beziehungen. Ab 1.000 Dateikanten zeigt die
+Übersicht nur das Grundgerüst (je Datei die 3 gewichtigsten Kanten, je
+Beziehungsart mindestens 3); die übrigen Kanten sind über `degree` als nicht
+geladen erkennbar und im Frontend nachladbar. Das Grundgerüst berechnet der Parser
+am Ende jedes Syncs je Projekt vor (`doctus_models/code_file_edges.py`, Tabelle
+`code_file_edges`); die Übersicht liest nur diese Tabelle und rechnet nur dann direkt,
+wenn für ein Projekt noch nichts berechnet ist. Die Abschnitte unten beschreiben den
+Stand davor.
+
+### Messung Dateikanten-Vorberechnung (29.10.2026)
+
+Echte Bestände (Übersicht gesamt, aus der Tabelle):
+
+| Projekt | Beziehungen | Dateikanten | Grundgerüst | Übersicht vorher (direkt) | Übersicht jetzt | Neuberechnung je Sync |
+|---|---|---|---|---|---|---|
+| CardDemo | 16.758 | 284 | 284 | 0,2 s | < 0,1 s | 1,7 s |
+| Spring WS | 62.044 | 3.474 | 1.867 | 0,5 s | 0,3 s | 0,4 s |
+| Apache Syncope | 325.594 | 25.654 | 7.934 | 2,9 s | 1,8 s | 2,0 s |
+
+Synthetischer Bestand in einer Wegwerf-Datenbank (100.000 Dateien, 1 Mio. Entities,
+10 Mio. Beziehungen, Postgres 16 mit `work_mem` = 4 MB): Die Ziele streuen stärker
+als in echtem Code, 10 Mio. Beziehungen ergeben 8,8 Mio. Dateikanten (Syncope: im
+Schnitt 13 Beziehungen je Dateikante). Die Zahlen sind daher eher ungünstig.
+
+| Schritt | Zeit |
+|---|---|
+| Dateikanten bei jedem Öffnen direkt zusammenfassen (alter Weg) | 119–129 s |
+| Grundgerüst am Sync-Ende neu berechnen | 142 s |
+| Grundgerüst aus der Tabelle lesen (100.000 Kanten) | 1,9–2,0 s |
+| Belegstellen der gelieferten Kanten laden | 1,2 s |
+
+Die Tabelle speichert nur das Grundgerüst (183.346 Zeilen, 36 MB). Eine erste Fassung
+mit allen Dateikanten war 1,36 GB groß und las sich langsamer (3,9–7,7 s).
+Offen: Die Neuberechnung läuft bei jedem Sync für das ganze Projekt; bei solchen
+Größen wäre eine Neuberechnung nur der betroffenen Dateien die nächste Stufe.
 
 Die Backend-Suite besteht mit zwei neuen Grenz-/Trunkierungsfällen 731 Tests
 (2 übersprungen). Der Browsermesslauf kann über `GRAPH_BENCH_GRAPH=<json>`

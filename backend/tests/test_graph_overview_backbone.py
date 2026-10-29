@@ -4,13 +4,16 @@ damit das Frontend die übrigen Kanten als nicht geladen anzeigen und nachladen 
 
 from unittest.mock import patch
 
+from sqlalchemy import text
+
 import pytest
 
 from api.graph import _code_file_id
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
+from doctus_models.code_file_edges import rebuild_code_file_edges
 from services.graph_overview_backbone import load_code_file_graph
 
-BACKBONE = "services.graph_overview_backbone"
+BACKBONE = "doctus_models.code_file_edges"
 
 
 @pytest.fixture
@@ -171,3 +174,48 @@ def test_overview_without_backbone_ships_every_edge(client, test_project, hub_gr
     hub_id, b_id = _file_id(test_project, source, "HUB"), _file_id(test_project, source, "B")
     hub_to_b = next(e for e in body["edges"] if e["id"] == f"code-files:{hub_id}:{b_id}")
     assert hub_to_b["meta"]["edge_count"] == 5
+
+
+def test_precomputed_file_edges_match_the_live_aggregation(db_session, test_project, hub_graph):
+    with (
+        patch(f"{BACKBONE}.BACKBONE_MIN_FILE_EDGES", 0),
+        patch(f"{BACKBONE}.BACKBONE_EDGES_PER_NODE", 1),
+        patch(f"{BACKBONE}.BACKBONE_MIN_PER_EDGE_TYPE", 0),
+    ):
+        live = load_code_file_graph(db_session, test_project, [], _code_file_id, max_pairs=1000)
+        assert rebuild_code_file_edges(db_session, test_project) == len(live.pairs) < 6
+        db_session.commit()
+    stored = load_code_file_graph(db_session, test_project, [], _code_file_id, max_pairs=1000)
+
+    assert live.precomputed is False
+    assert stored.precomputed is True
+    assert _pairs(stored) == _pairs(live)
+    assert stored.degree == live.degree
+    assert (stored.total_pairs, stored.backbone) == (live.total_pairs, live.backbone)
+    a_to_b = next(p for p in stored.pairs if p.target[2] == "B.java" and p.source[2] == "A.java")
+    assert a_to_b.edge_types == ["CALLS"] and len(a_to_b.sample_edge_ids) == 1
+
+
+def test_rebuild_replaces_the_previous_state(db_session, test_project, hub_graph):
+    source, files = hub_graph
+    rebuild_code_file_edges(db_session, test_project)
+    db_session.commit()
+    db_session.query(CodeEdge).filter(CodeEdge.src_entity_id == files["PROG"].id).delete()
+    rebuild_code_file_edges(db_session, test_project)
+    db_session.commit()
+    graph = load_code_file_graph(db_session, test_project, [], _code_file_id, max_pairs=1000)
+    assert graph.total_pairs == 5
+    assert ("PROG", "FIELDS") not in _pairs(graph)
+
+
+def test_deleting_a_source_requests_a_rebuild(client, db_session, test_project, hub_graph):
+    source, _ = hub_graph
+    rebuild_code_file_edges(db_session, test_project)
+    db_session.commit()
+    with patch("api.knowledge_sources.celery_app.send_task") as send_task:
+        assert client.delete(f"/knowledge-sources/{source.id}").status_code == 200
+    send_task.assert_called_once_with("rebuild_code_file_edges", args=[test_project])
+    remaining = db_session.execute(
+        text("SELECT count(*) FROM code_file_edges WHERE project_id = :p"), {"p": test_project}
+    ).scalar_one()
+    assert remaining == 0

@@ -49,7 +49,7 @@ die Prüfung zuverlässig; wo der Agent selbst suchen muss, schwankt sie.
 Regeln dafür:
 
 1. **Sprachunabhängig bauen.** Beweispaket-Bausteine (Einbindungen, Kontrollfluss, Datenherkunft, ...) lesen nur
-   Rollen aus dem `LanguageProfile` (`backend/core/language_profile.py`), nie `COPY`, `PERFORM`, `data_item` oder
+   Rollen aus dem `LanguageProfile` (`packages/doctus-models/doctus_models/language_profile.py`), nie `COPY`, `PERFORM`, `data_item` oder
    `IMPORTS` direkt. COBOL und Java müssen mit demselben Baustein funktionieren; weitere Sprachen kommen durch einen
    Profil-Eintrag dazu, nicht durch neuen Servercode.
 2. **Fehlt dem Server eine Angabe, wird der Parser erweitert** (Entscheidung E-15), nicht im Server geraten oder mit
@@ -97,7 +97,8 @@ Regeln dafür:
   (Endevor, PDS u. ä.) bleibt zurückgestellt.
 - **Expliziter Auftrag 29.10.2026:** Wissensgraph – nicht geladene Verbindungen je Knoten anzeigen („+N“)
   und an Ort und Stelle in die Übersicht nachladen; Kanten-Grundgerüst der Übersicht (ab 1.000
-  Dateikanten je Datei die 3 gewichtigsten). Gruppen-Knoten sind nicht beauftragt.
+  Dateikanten je Datei die 3 gewichtigsten); vorberechnete Dateikanten (`code_file_edges`, am
+  Sync-Ende je Projekt neu berechnet). Gruppen-Knoten sind nicht beauftragt.
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im

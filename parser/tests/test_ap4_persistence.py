@@ -329,3 +329,22 @@ async def test_removed_paragraph_entity_is_deleted_on_reparse(db_session, test_s
         .one_or_none()
         is not None
     )
+
+
+@pytest.mark.anyio
+async def test_sync_precomputes_file_edges_for_the_graph_overview(db_session, test_source):
+    """Der Sync schreibt die Dateikanten der Graph-Übersicht; CALL und COPY sind Kanten der
+    stärksten Rolle, die dateiinternen PERFORMs keine Dateikanten."""
+    await _sync(test_source.id)
+    rows = db_session.execute(
+        text(
+            "SELECT src_file_path, dst_file_path, edge_types, priority, total_pairs "
+            "FROM code_file_edges WHERE project_id = :p"
+        ),
+        {"p": test_source.project_id},
+    ).all()
+    by_pair = {(row.src_file_path, row.dst_file_path): row for row in rows}
+    assert set(by_pair) == {("MAIN.CBL", "SUB.CBL"), ("MAIN.CBL", "FIELDS.CPY")}
+    assert by_pair[("MAIN.CBL", "SUB.CBL")].edge_types == ["CALL"]
+    assert "COPY" in by_pair[("MAIN.CBL", "FIELDS.CPY")].edge_types
+    assert all(row.priority == 3 and row.total_pairs == 2 for row in rows)

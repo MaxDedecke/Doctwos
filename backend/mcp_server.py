@@ -56,7 +56,7 @@ from services.index_state import stale_sources
 from services.mcp_tokens import find_token_user
 from services.ollama_client import embed_text, search_project_chunks
 from services.search import search_nodes
-from core.language_profile import role_of
+from doctus_models.language_profile import role_of
 from services import drop as drop_view
 from services import evidence as evidence_blocks
 from services.source_access import numbered as _numbered

@@ -2107,7 +2107,7 @@ def test_answer_context_follows_a_data_field_back_to_its_origin(
 
 
 def test_language_profile_gives_cobol_java_and_jcl_the_same_roles():
-    from core.language_profile import CONTROL_EDGES, INCLUDE_EDGES, profile_of, role_of
+    from doctus_models.language_profile import CONTROL_EDGES, INCLUDE_EDGES, profile_of, role_of
 
     assert [role_of(t) for t in ("program", "paragraph", "data_item")] == [
         "container",

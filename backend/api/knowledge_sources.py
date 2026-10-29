@@ -46,6 +46,7 @@ from api.serializers import serialize_source
 from api.connectors import source_http_verify
 from core.config import UPLOADS_DIR, REPOS_ROOT
 import core.config as cfg
+from core.config import celery_app
 from core.db_setup import get_db
 from core.scan_report import summarize_edges, summarize_scan_reasons
 from doctus_models.database import (
@@ -239,8 +240,15 @@ def delete_knowledge_source(
                 except Exception as e:
                     logger.error(f"Fehler beim Löschen von {full_path}: {e}")
 
+    project_id = db_source.project_id
     db.delete(db_source)
     db.commit()
+    # Die Dateikanten zur Quelle sind per Fremdschlüssel weg; Grad und Grundgerüst der übrigen
+    # berechnet der Parser neu, außerhalb des Requests.
+    try:
+        celery_app.send_task("rebuild_code_file_edges", args=[project_id])
+    except Exception:
+        logger.exception("Neuberechnung der Dateikanten nach Löschen von Quelle %s", source_id)
     return {"message": "Wissensquelle erfolgreich gelöscht"}
 
 

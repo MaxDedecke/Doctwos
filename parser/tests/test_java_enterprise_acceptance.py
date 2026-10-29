@@ -9,7 +9,10 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
+from sqlalchemy import text
+
 from connectors.git import GitConnector
+from doctus_models.code_file_edges import file_edges_params, file_edges_query
 from db import SessionLocal
 from doctus_models.database import (
     Team,
@@ -87,6 +90,25 @@ async def sync_source(db, source_id):
     db.expire_all()
     source = db.get(KnowledgeSource, source_id)
     assert source.sync_status == "completed", source.last_error
+
+
+def assert_file_edges(db, source_id):
+    """Das vom Sync gespeicherte Grundgerüst stimmt mit der direkten Zusammenfassung überein."""
+    project_id = db.get(KnowledgeSource, source_id).project_id
+    columns = "src_file_path, dst_file_path, edge_count, priority, total_pairs"
+    stored = db.execute(
+        text(f"SELECT {columns} FROM code_file_edges WHERE project_id = :project_id"),
+        {"project_id": project_id},
+    ).all()
+    live = db.execute(
+        text(
+            f"SELECT {columns} FROM ({file_edges_query('e.project_id = :project_id')}) f "
+            "WHERE in_backbone"
+        ),
+        {**file_edges_params(), "project_id": project_id},
+    ).all()
+    assert stored and sorted(stored) == sorted(live)
+    assert any(row.priority == 3 for row in stored)
 
 
 def assert_static_graph(db, source_id):
@@ -179,6 +201,7 @@ async def test_enterprise_project_import_resume_context_and_attribute_change(
     db, source_id, remote = enterprise
     await sync_source(db, source_id)
     assert_static_graph(db, source_id)
+    assert_file_edges(db, source_id)
     assert_retrieval(db, source_id, monkeypatch)
     chunks = {
         row.id for row in db.query(DocumentChunk).filter(DocumentChunk.source_id == source_id).all()

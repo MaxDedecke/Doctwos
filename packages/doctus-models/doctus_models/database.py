@@ -695,6 +695,43 @@ class CodeEdge(Base):
     )
 
 
+class CodeFileEdge(Base):
+    """
+    Grundgerüst der Graph-Übersicht: die gewichtigsten Dateikanten eines Projekts.
+
+    Abgeleitete Daten: am Ende jedes Syncs je Projekt aus code_edges neu berechnet
+    (doctus_models.code_file_edges.rebuild_code_file_edges), nie einzeln gepflegt.
+    Gespeichert wird nur das Grundgerüst; Grad und Gesamtzahl tragen die Zeilen mit,
+    die übrigen Kanten lädt das Frontend bei Bedarf aus code_edges nach.
+    """
+
+    __tablename__ = "code_file_edges"
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    src_project_id = Column(Integer, nullable=True)
+    src_source_id = Column(
+        Integer, ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True
+    )
+    src_file_path = Column(String, nullable=False)
+    dst_project_id = Column(Integer, nullable=True)
+    dst_source_id = Column(
+        Integer, ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True
+    )
+    dst_file_path = Column(String, nullable=False)
+    edge_count = Column(Integer, nullable=False)
+    edge_types = Column(JSON, nullable=False)
+    sample_edge_ids = Column(JSON, nullable=False)
+    # Stärkste Beziehungsrolle laut LanguageProfile: 3 Kontrollfluss/Einbindung … 0 nur Import.
+    priority = Column(Integer, nullable=False)
+    # Dateikanten von Quell- und Zieldatei im vollständigen Graphen (echter Grad).
+    src_degree = Column(Integer, nullable=False)
+    dst_degree = Column(Integer, nullable=False)
+    # Alle Dateikanten des Projekts, auch die nicht gespeicherten.
+    total_pairs = Column(Integer, nullable=False)
+
+    __table_args__ = (Index("ix_code_file_edges_project", "project_id"),)
+
+
 class EntityDocLink(Base):
     __tablename__ = "entity_doc_links"
     id = Column(Integer, primary_key=True, index=True)

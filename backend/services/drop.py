@@ -1,7 +1,7 @@
 """Drop view: hop layers around one start entity, widening like a pyramid (O-387).
 
 ``direction="down"`` follows what the start point uses (callees, includes, data it touches), ``"up"`` follows who
-uses it. Which edge types count as ``control``, ``data`` or ``includes`` comes from ``core.language_profile``, so the
+uses it. Which edge types count as ``control``, ``data`` or ``includes`` comes from ``doctus_models.language_profile``, so the
 view works for every language with a profile. Every node and edge carries ``cite`` (``path/file.ext:line``); edges the
 index could not resolve are counted per layer (``unresolved``), never invented. Layers larger than ``collapse_above``
 come back collapsed (count only) and are expanded on demand with ``expand``; nothing below a collapsed layer is
@@ -15,7 +15,7 @@ from typing import Iterable
 
 from sqlalchemy.orm import Session
 
-from core.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, role_of
+from doctus_models.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, role_of
 from doctus_models.database import CodeEdge, CodeEntity, User
 from services.call_flow import TEST_PATH_PATTERN
 from services.source_access import source_visible
