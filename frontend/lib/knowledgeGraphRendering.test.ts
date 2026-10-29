@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { EDGE_MIN_SCREEN_WIDTH } from './graphLayout';
 import { createKnowledgeGraphRenderer, type GraphViewport } from './knowledgeGraphRendering';
 import type { GraphNode, GraphEdge } from './knowledgeGraphTypes';
 
@@ -45,7 +46,7 @@ describe('knowledge graph rendering', () => {
   it('lets unselected edges recede when zoomed out while the selected node keeps its edges strong', () => {
     const { options, links } = fixture();
     const zoomedOut = createKnowledgeGraphRenderer({ ...options, selectedNodeId: null, focusNeighborIds: null, zoom: () => 0.05 });
-    expect(zoomedOut.linkWidth(links[0])).toBeLessThan(0.5);
+    expect(zoomedOut.linkWidth(links[0])).toBe(EDGE_MIN_SCREEN_WIDTH);
     expect(zoomedOut.linkColor(links[0])).toMatch(/\/ 0\.3\)$|var\(/);
     const selected = createKnowledgeGraphRenderer({ ...options, zoom: () => 0.05 });
     expect(selected.linkWidth(links[0])).toBeGreaterThanOrEqual(1.2);
