@@ -239,6 +239,18 @@ describe('Pfad A — globale Navigation (Sidebar, globale Suche)', () => {
     expect(result.current.panelSelections).toHaveLength(1);
     expect(result.current.selectedFile).toBe('app/main.cbl');
   });
+  it('PS-32: ein mit eigenem Ziel geöffnetes Panel folgt danach der globalen Auswahl wieder', () => {
+    const { result } = renderLayout();
+
+    // Ein Chat-Verweis, ein Dokument-Sprung oder der Prozessfluss öffnen ihr Panel mit Ziel.
+    act(() => { result.current.addPanel('code', { selectedFile: 'app/target.cbl' }); });
+    expect(result.current.panelSelections[1].selectedFile).toBe('app/target.cbl');
+
+    act(() => { result.current.setSelectedFile('app/other.cbl'); });
+
+    expect(result.current.panelSelections[1].selectedFile).toBe('app/other.cbl');
+  });
+
   it('PS-31: der Projektwechsel leert die Auswahl in allen Panels, die Panels bleiben offen', () => {
     const { result } = renderLayout();
 
@@ -457,7 +469,7 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     }, false);
   });
 
-  it('PS-11: der Graph-Einfachklick stupst nur an -- ohne passendes Panel passiert nichts', async () => {
+  it('PS-11: der Graph-Einfachklick öffnet ohne passendes Panel keins, setzt aber den Fokus für Chat und Graph', async () => {
     const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['chat', 'graph'] }));
 
     await act(async () => {
@@ -465,10 +477,25 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     });
 
     expect(result.current.addPanel).not.toHaveBeenCalled();
-    expect(result.current.selectedFile).toBeNull();
+    expect(result.current.selectedFile).toBe('app/main.cbl');
+    expect(result.current.selectedLine).toBe(4);
+    expect(result.current.pinnedCode).toMatchObject({ filepath: 'app/main.cbl', line: 4 });
   });
 
-  it('PS-12: bei vier offenen Panels ohne passenden Typ bleibt die Navigation wirkungslos', async () => {
+  it('PS-11: ein Objektknoten bleibt der Fokus, auch wenn die Datei sich zu einem Programm auflösen ließe', async () => {
+    vi.mocked(api.resolveEntity).mockResolvedValue(axiosResponse({ id: 1, name: 'MAIN', type: 'program', file_path: 'app/main.cbl', start_line: 1 }));
+    const paragraph = { id: 7, name: 'CALC-TOTAL', type: 'paragraph', file_path: 'app/main.cbl', start_line: 40 } as CodeEntity;
+    const { result } = renderHook(() => useNavigationHarness({ panelConfigs: ['chat', 'graph', 'callgraph'] }));
+
+    await act(async () => {
+      await result.current.navigation.handlePanelFileSelect(1, 'app/main.cbl', 40, 3, false, paragraph);
+    });
+
+    expect(result.current.selectedEntity).toBe(paragraph);
+    expect(result.current.pinnedCode).toMatchObject({ label: 'CALC-TOTAL', entityId: 7 });
+  });
+
+  it('PS-12: bei vier offenen Panels ohne passenden Typ öffnet sich nichts, der Fokus wechselt trotzdem', async () => {
     const { result } = renderHook(() => useNavigationHarness({
       panelConfigs: ['chat', 'graph', 'callgraph', 'linkmanager'],
     }));
@@ -476,7 +503,7 @@ describe('Pfad B — panel-lokale Navigation (Chat, Editor, Graph, Call-Graph)',
     await act(async () => { await result.current.navigation.handlePanelFileSelect(0, 'app/main.cbl', 2); });
 
     expect(result.current.addPanel).not.toHaveBeenCalled();
-    expect(result.current.selectedFile).toBeNull();
+    expect(result.current.selectedFile).toBe('app/main.cbl');
     // D-2: der Klick verpufft nicht mehr kommentarlos.
     expect(result.current.showToast).toHaveBeenCalledWith('page.toast.noPanelSpace', 'error');
   });

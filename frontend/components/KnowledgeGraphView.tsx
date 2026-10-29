@@ -98,6 +98,18 @@ function extractEntityDbId(id: unknown): number | null {
   return null;
 }
 
+/** Ein Objektknoten als Code-Entität; `source_id` braucht der Code-Editor, um den Inhalt zu laden. */
+function nodeEntity(node: GraphNode): CodeEntity {
+  return {
+    name: node.label,
+    type: node.entity_type,
+    id: extractEntityDbId(node.id) ?? undefined,
+    file_path: node.file_path || '',
+    start_line: node.start_line ?? 1,
+    source_id: node.source_id ?? null,
+  };
+}
+
 /* ── Types ───────────────────────────────────────────────────────────────────── */
 
 export type { GraphNode, GraphEdge } from '@/lib/knowledgeGraphTypes';
@@ -115,7 +127,8 @@ interface Props {
   // (code/doc/webview) is decided exactly once behind this callback, in
   // usePanelNavigation::handlePanelFileSelect via getSelectionViewType -- this
   // component must not route document nodes on a second, parallel path.
-  onFileSelect?: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void> | void;
+  /** `entity`: der angeklickte Objektknoten; er bleibt der Fokus, statt dass die Datei zu ihrem Programm aufgelöst wird. */
+  onFileSelect?: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean, entity?: CodeEntity | null) => Promise<void> | void;
   // Kept for callers restoring existing workspace layouts. The graph itself
   // adapts to its measured panel size, independently of the workspace grid.
   layoutMode?: '1-pane' | 'split' | '3-col' | '4-grid';
@@ -1374,14 +1387,9 @@ export function KnowledgeGraphView({
             {(selectedNode.type === 'entity' || selectedNode.type === 'code_file') && selectedNode.file_path && onFileSelect && (
               <button
                 onClick={() => {
-                  onFileSelect(selectedNode.file_path!, selectedNode.start_line ?? null, selectedNode.source_id ?? null);
-                  if (selectedNode.type === 'entity') onEntitySelect?.({
-                    name: selectedNode.label,
-                    type: selectedNode.entity_type,
-                    id: extractEntityDbId(selectedNode.id) ?? undefined,
-                    file_path: selectedNode.file_path || '',
-                    start_line: selectedNode.start_line ?? 1,
-                  });
+                  const entity = selectedNode.type === 'entity' ? nodeEntity(selectedNode) : null;
+                  onFileSelect(selectedNode.file_path!, selectedNode.start_line ?? null, selectedNode.source_id ?? null, true, entity);
+                  if (entity) onEntitySelect?.(entity);
                 }}
                 className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
                 <ExternalLink className="w-3 h-3" />
@@ -1867,18 +1875,11 @@ export function KnowledgeGraphView({
                   // nicht) — der Editor bleibt dann leer, siehe SplitPaneWorkspace.tsx'
                   // Lade-Effekt, der ohne selectedEntity.source_id keinen der drei
                   // Content-Zweige treffen kann.
+                  const entity = node.type === 'entity' ? nodeEntity(node) : null;
                   if (node.file_path && onFileSelect) {
-                    onFileSelect(node.file_path, node.start_line || null, node.source_id ?? null, false);
+                    onFileSelect(node.file_path, node.start_line || null, node.source_id ?? null, false, entity);
                   }
-                  if (node.type === 'entity' && onEntitySelect) {
-                    onEntitySelect({
-                      name: node.label,
-                      type: node.entity_type,
-                      id: extractEntityDbId(node.id) ?? undefined,
-                      file_path: node.file_path || '',
-                      start_line: node.start_line ?? 1,
-                    });
-                  }
+                  if (entity && onEntitySelect) onEntitySelect(entity);
                 } else if (node.type === 'document' || node.type === 'external') {
                   const { pathVal, sourceIdVal } = resolveDocSelector(node);
                   // Wie im Entity-Zweig: nur anstupsen, nicht öffnen (openIfMissing=false).

@@ -859,22 +859,10 @@ function AppContent() {
     setActiveRightTab('graph');
     setActiveMobileTab('graph');
 
-    const existingIndex = panelConfigs.indexOf('graph');
-    if (existingIndex === -1) {
-      ensurePanelType('graph', { selectedFile: null, selectedDoc: null, selectedEntity: null }, true);
-    } else {
-      setPanelSelections(prev => {
-        const next = [...prev];
-        next[existingIndex] = { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
-        return next;
-      });
-      setPanelFrozen(prev => {
-        const next = [...prev];
-        next[existingIndex] = true;
-        return next;
-      });
-    }
-  }, [ensurePanelType, panelConfigs, setActiveMobileTab, setActiveRightTab, setPanelFrozen, setPanelSelections]);
+    // PS-24: live wie über „Ansicht“, damit der Graph dem Fokus der anderen Ansichten folgt;
+    // ein vorhandener Graph behält seinen Zustand.
+    if (!ensurePanelType('graph')) showToast(t('page.toast.noPanelSpace'), 'error');
+  }, [ensurePanelType, setActiveMobileTab, setActiveRightTab, showToast, t]);
 
   const handleOpenGraphView = useCallback(() => {
     if (activeSessionId !== null || chatMessages.length > 0 || (panelConfigs.includes('chat') && panelConfigs.length > 1)) {

@@ -121,7 +121,7 @@ interface SplitPaneWorkspaceProps {
   setSelectedDoc: (doc: WorkspaceDocument | null) => void;
   fileContent?: string;
   fileContentFormat?: string;
-  handleFileSelect: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean) => Promise<void>;
+  handleFileSelect: (path: string, line?: number | null, sourceId?: number | string | null, openIfMissing?: boolean, focusedEntity?: CodeEntity | null) => Promise<void>;
   isLoadingFile?: boolean;
 
   // Monaco ref passed from parent to allow scrolling & decorations from page.tsx
@@ -402,6 +402,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   useEffect(() => {
     if (activeRightTab === 'graph') return;
 
+    // Wechselt die Auswahl schneller, als der Inhalt lädt, darf die ältere Antwort nichts mehr setzen.
+    let cancelled = false;
     const loadContent = async () => {
       let path = selectedFile;
       let docId = selectedDoc?.id;
@@ -440,10 +442,12 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
           if (isWeb) {
             const res = await api.resolveWebOrigin(docId, selectedDoc.url || selectedDoc.name, theme);
+            if (cancelled) return;
             setLocalFileContent(res.data.content);
             setLocalFileContentFormat("html");
           } else {
             const res = await api.getKnowledgeSourceContent(docId, documentPath);
+            if (cancelled) return;
             setLocalFileContent(res.data.content);
             setLocalFileContentFormat(res.data.format || "text");
           }
@@ -454,6 +458,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           // Project.repo_id. Ohne diesen Zweig blieb der Editor nach einem
           // Sprung aus dem Referenzen-Menü leer.
           const res = await api.getKnowledgeSourceContent(selectedEntity.source_id, path);
+          if (cancelled) return;
           setLocalFileContent(res.data.content);
           setLocalFileContentFormat(res.data.format || "text");
         } else if (path && selectedProject?.repo_id) {
@@ -462,17 +467,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           // "/repositories/.../file-content"-Endpunkt, siehe handleFileSelect
           // in app/page.tsx für denselben Fix.
           const res = await api.getKnowledgeSourceContent(selectedProject.repo_id, path);
+          if (cancelled) return;
           setLocalFileContent(res.data.content);
           setLocalFileContentFormat(res.data.format || "text");
         }
       } catch (err) {
-        console.error("Failed to load file content inside panel:", err);
+        if (!cancelled) console.error("Failed to load file content inside panel:", err);
       } finally {
-        setLocalIsLoadingFile(false);
+        if (!cancelled) setLocalIsLoadingFile(false);
       }
     };
 
     loadContent();
+    return () => { cancelled = true; };
     // Only selectedEntity's source_id actually affects which content gets
     // fetched (see the branch above) — depending on the whole entity object
     // meant picking a *different* code object in the *same* file (a new

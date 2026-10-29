@@ -1,6 +1,6 @@
 # Doctwos — Panel-Synchronisation (Soll-Matrix)
 
-**Stand:** 29.10.2026 (Abschnitt 7 neu: wer welchen Zustand besitzt, Projektwechsel als ein Übergang, veraltete Antworten; PS-31. Davor 06.09.2026: D-1 bis D-4 entschieden, offen ist nur D-5)
+**Stand:** 29.10.2026 (Abschnitt 7 neu: wer welchen Zustand besitzt, Projektwechsel als ein Übergang, veraltete Antworten; PS-31. Fokus-Debugging: PS-11, PS-12 und PS-24 geändert, PS-32 neu. Davor 06.09.2026: D-1 bis D-4 entschieden, offen ist nur D-5)
 **Anlass:** O-092 (abgeschlossen; aktiver Backlog: [TODO.md](TODO.md)) — „Eine Aktion in einer Ansicht wird
 nicht in jeder Konstellation korrekt in die anderen Ansichten synchronisiert; das
 Verhalten wirkt fallabhängig."
@@ -100,7 +100,7 @@ Welcher Auslöser welchen Pfad mit welchen Parametern benutzt — geprüft am Co
 | Code-Editor | Gutter-Klick / „Objekt fragen" | Chat-Pin | `ensurePanelType('chat')` | `usePanelNavigation::handleGutterClick` |
 | Wissensgraph | „In passender Ansicht öffnen" (Objekt) | B | `openIfMissing=true` + `onEntitySelect` | `KnowledgeGraphView.tsx:860` |
 | Wissensgraph | „In passender Ansicht öffnen" (Dokument) | B | `openIfMissing=true` + `onDocFocus` | `KnowledgeGraphView.tsx:877` |
-| Wissensgraph | Einfachklick auf einen Knoten | B | `openIfMissing=false` | `KnowledgeGraphView.tsx:1199` |
+| Wissensgraph | Einfachklick auf einen Knoten | B | `openIfMissing=false`, bei Objektknoten mit dem Objekt (`focusedEntity`) | `KnowledgeGraphView.tsx` (`onNodeClick`) |
 | Call-Graph | Knoten anklicken | B | `preserveFrozenTarget=true` | `PanelContentRenderer.tsx` (callgraph-Zweig) |
 | Link-Manager | — | **keiner** | — | `PanelContentRenderer.tsx` (linkmanager-Zweig) |
 | Panel-Kopf | Typ wechseln, Historie, Einfrieren, Schließen | eigene | — | `PanelRenderer.tsx` / `useWorkspaceLayout.ts` |
@@ -126,8 +126,8 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 | PS-08 | B | nur ein **eingefrorenes** Zielpanel | Kein Rückfall mehr: neues Live-Panel bzw. Hinweis an der Obergrenze. `resolvePanelNavigationTarget` kennt eingefrorene Panels nicht mehr als Ziel (D-1 umgesetzt 06.09.2026) | wie Ist | ✅ |
 | PS-09 | B | dasselbe aus dem Call-Graph | Identisch zu PS-08. Der Sonderparameter `preserveFrozenTarget`, mit dem bisher nur der Call-Graph diesen Schutz hatte, ist mit D-1 entfallen — der Schutz gilt jetzt für alle Auslöser | wie Ist | ✅ |
 | PS-10 | B | Ziel fehlt, `openIfMissing=true`, < 4 Panels | Neues Live-Panel mit der Auswahl | wie Ist | ✅ |
-| PS-11 | B | Ziel fehlt, `openIfMissing=false` (Graph-Einfachklick) | Nichts passiert | wie Ist („nur anstupsen") | ✅ |
-| PS-12 | B | Ziel fehlt, `openIfMissing=true`, 4 Panels | Hinweis-Toast; `resolvePanelNavigationTarget` unterscheidet dafür `ignoreReason: no-space` von `no-matching-panel` (PS-11 bleibt still) | wie Ist | ✅ |
+| PS-11 | B | Ziel fehlt, `openIfMissing=false` (Graph-Einfachklick) | Kein neues Panel, aber der Fokus wechselt global: Chat-Pin, Wissensgraph, Prozess- und Tropfenansicht folgen. Ein Objektknoten bleibt dabei das Objekt und wird nicht zum Programm seiner Datei aufgelöst. Bis 29.10.2026 passierte nichts, im häufigen Aufbau Chat + Graph erreichte ein Klick also weder Chat noch Prozessansicht | wie Ist | ✅ (geändert 29.10.2026) |
+| PS-12 | B | Ziel fehlt, `openIfMissing=true`, 4 Panels | Hinweis-Toast; `resolvePanelNavigationTarget` unterscheidet dafür `ignoreReason: no-space` von `no-matching-panel` (PS-11 bleibt still). Der Fokus wechselt wie in PS-11 und wie bei Pfad A (PS-04) trotzdem | wie Ist | ✅ (geändert 29.10.2026) |
 
 ### 4.2 Dokument und Web-Origin öffnen
 
@@ -142,7 +142,7 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 
 | ID | Auslöser | Ist-Verhalten | Soll | Status |
 |---|---|---|---|---|
-| PS-17 | Wissensgraph, Objektknoten | `onFileSelect` öffnet/aktualisiert das Code-Panel; `onEntitySelect` schreibt die Entity **panel-lokal in das Graph-Panel** und (nur wenn das Graph-Panel live ist) global. Da „Graph öffnen" das Panel eingefroren anlegt, ist der Normalfall: nur lokal | wie Ist — der Code-Editor löst seine Entity ohnehin selbst über `api.resolveEntity` auf | ✅ |
+| PS-17 | Wissensgraph, Objektknoten | `onFileSelect` öffnet/aktualisiert das Code-Panel; `onEntitySelect` schreibt die Entity **panel-lokal in das Graph-Panel** und (nur wenn das Graph-Panel live ist) global. Seit PS-24 ist der Graph im Normalfall live, die Entity also auch global | wie Ist — der Code-Editor löst seine Entity ohnehin selbst über `api.resolveEntity` auf | ✅ |
 | PS-18 | Code-Editor, Objekt im Kontextmenü | Panel-lokale Entity, global nur wenn das Panel live ist | wie Ist | ✅ |
 | PS-19 | Globale Suche, Objekt-Treffer | `handleEntitySelect`: globale Entity + Referenzen laden + Pfad A | wie Ist | ✅ |
 
@@ -159,7 +159,7 @@ eigener O-Punkt) · ❓ noch nicht entschieden (siehe Abschnitt 5)
 |---|---|---|---|---|
 | PS-22 | Panel einfrieren | Panel behält seine Auswahl und folgt der globalen nicht mehr | wie Ist | ✅ |
 | PS-23 | Panel auftauen | Panel übernimmt die globale Auswahl **samt Zeile**. `togglePanelFreeze` setzt `selectedLine` zwar hart auf `null`, die unmittelbar folgende Render-Synchronisation schreibt die globale Zeile aber zurück — das `null` ist redundant, nicht schädlich (beim Schreiben der Tests nachgewiesen; zuerst als Fehler notiert) | wie Ist | ✅ |
-| PS-24 | „Wissensgraph öffnen" aus dem Menü | Legt das Graph-Panel **eingefroren** an bzw. friert ein bestehendes ein und leert dessen Auswahl | wie Ist (bewusst: der Graph soll nicht bei jedem Klick woanders hinspringen) | ✅ |
+| PS-24 | „Wissensgraph öffnen" (Kopfzeile) | Legt das Graph-Panel **live** an, mit dem aktuellen Fokus, genau wie über „Ansicht"; ein vorhandener Graph bleibt, wie er ist. Bis 29.10.2026 wurde er eingefroren angelegt und folgte deshalb, anders als derselbe Graph über „Ansicht", keinem Fokus. Seit der Fokus-Fahrt (Gruppen schrittweise öffnen) ist das Folgen gewollt; wer einen festen Graphen will, friert ihn ein | wie Ist | ✅ (geändert 29.10.2026) |
 | PS-25 | Historie zurück/vor (Alt+←/→) in einem **Live**-Panel | Setzt die Panel-Auswahl **und** die globale Auswahl → alle anderen **Live**-Panels ziehen nach, eingefrorene bleiben stehen | wie Ist (D-4 entschieden 06.09.2026) | ✅ |
 | PS-26 | Historie in einem **eingefrorenen** Panel | Bleibt lokal | wie Ist | ✅ |
 | PS-27 | Panel-Typ im Kopf wechseln | Auswahl des Panels bleibt, Fokus-Objekt und Panel-Historie werden geleert; ein Live-Panel zieht sich anschließend über die Sync-Regel die passende globale Auswahl | wie Ist | ✅ |
@@ -195,7 +195,7 @@ bestätigt den Ist-Zustand); offen ist nur noch D-5.
 
 ## 6. Stand der Automatisierung
 
-`frontend/hooks/panelSyncMatrix.test.tsx` (32 Fälle, PS-31 seit 29.10.2026) hält die Matrix fest:
+`frontend/hooks/panelSyncMatrix.test.tsx` (34 Fälle; PS-31 und PS-32 seit 29.10.2026) hält die Matrix fest, PS-24 prüft `app/page.test.tsx`:
 
 - **Alle 30 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
   (dessen Sync-Regel war bis dahin gar nicht getestet), Pfad B gegen
@@ -273,6 +273,7 @@ jeder Stelle, die nach einem Wechsel eine späte Antwort übernehmen könnte:
 | Referenzen (`useKnowledgeSources`) | Referenzen einer zuvor geöffneten Datei überschrieben die aktuelle | `useKnowledgeSources.test.tsx` |
 | Dateiinhalt (`page.tsx::handleFileSelect`) | Der Editor zeigte den Inhalt einer zuvor geöffneten Datei unter dem neuen Namen | — (siehe unten) |
 | Wissensgraph (Übersicht, Nachbarschaft) | Der Graph des vorigen Projekts ersetzte den des neuen | `KnowledgeGraphView.test.tsx` |
+| Inhalt im Code-/Dokument-Panel (`SplitPaneWorkspace`, Lade-Effekt) | Bei schnellem Fokuswechsel überschrieb der Inhalt der vorigen Datei den der neuen | — (Abbruch im Effekt-Cleanup) |
 
 Die Tests für Chat, Sitzung, Projekte und Referenzen scheitern am Stand vor dieser Änderung und belegen
 damit die Fehler. Der Dateiinhalt hat noch keinen eigenen Test, weil `handleFileSelect` in `page.tsx`
@@ -281,6 +282,7 @@ liegt; er nutzt denselben, gesondert getesteten Baustein.
 | ID | Auslöser | Soll | Status |
 |---|---|---|---|
 | PS-31 | Projektwechsel | Auswahl, Objektfokus, Historie und Chat-Pin aller Panels sind leer; die Panels bleiben offen | ✅ |
+| PS-32 | Panel mit eigenem Ziel geöffnet (Chat-Verweis, „In passender Ansicht öffnen", Dokument-Sprung, Prozessfluss, Agent) | Das Panel zeigt sein Ziel und folgt danach, sobald sich die globale Auswahl ändert, wie jedes Live-Panel. Bis 29.10.2026 blieb es dauerhaft stehen, wirkte also eingefroren, ohne so angezeigt zu werden | ✅ |
 
 ---
 

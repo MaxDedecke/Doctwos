@@ -125,7 +125,8 @@ export function useWorkspaceLayout({
   const pendingPanelTypesRef = useRef<Set<string>>(new Set());
   const pendingPanelCountRef = useRef(0);
   const panelIdCounterRef = useRef(1);
-  const explicitlySeededPanelIdsRef = useRef<Set<string>>(new Set());
+  /** Neu geöffnete Panels mit eigenem Ziel und die globale Auswahl beim Öffnen (siehe Sync-Regel). */
+  const explicitlySeededPanelsRef = useRef<Map<string, PanelSelection>>(new Map());
   const isRestoringSnapshotRef = useRef(false);
   const snapshotDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -193,10 +194,18 @@ export function useWorkspaceLayout({
     const nextSelections = panelSelections.map((selection, index) => {
       if (panelFrozen[index]) return selection;
       // A newly-created panel can carry an explicit destination (for example a
-      // code-tour step). The global selection snapshot still describes the old
-      // workspace on this render; syncing it immediately would erase the new
-      // panel's destination and leave its editor blank until the next action.
-      if (explicitlySeededPanelIdsRef.current.has(panelIds[index])) return selection;
+      // code-tour step). The global selection still describes the old workspace;
+      // syncing it immediately would erase the new panel's destination. The
+      // panel waits only until the global selection moves on, then follows it
+      // like any live panel (it used to stay pinned for good, looking frozen).
+      const seededFrom = explicitlySeededPanelsRef.current.get(panelIds[index]);
+      if (seededFrom) {
+        if (
+          seededFrom.selectedFile === selectedFile && seededFrom.selectedDoc === selectedDoc &&
+          seededFrom.selectedEntity === selectedEntity && seededFrom.selectedLine === selectedLine
+        ) return selection;
+        explicitlySeededPanelsRef.current.delete(panelIds[index]);
+      }
       const panelType = panelConfigs[index];
       const shouldSync = (
         panelType === 'chat' || panelType === 'graph' || panelType === 'callgraph' || panelType === 'dropview'
@@ -302,11 +311,11 @@ export function useWorkspaceLayout({
       )
     );
     if (hasExplicitDestination) {
-      explicitlySeededPanelIdsRef.current.add(newPanelId);
+      explicitlySeededPanelsRef.current.set(newPanelId, { selectedFile, selectedDoc, selectedEntity, selectedLine });
     }
     setPanelIds((previous) => [...previous, newPanelId]);
     return true;
-  }, [linkManagerEnabled, panelConfigs.length, selectedDoc, selectedEntity, selectedFile]);
+  }, [linkManagerEnabled, panelConfigs.length, selectedDoc, selectedEntity, selectedFile, selectedLine]);
 
   useEffect(() => {
     pendingPanelTypesRef.current.clear();

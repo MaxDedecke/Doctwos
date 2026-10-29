@@ -202,6 +202,15 @@ export function usePanelNavigation({
         return;
       }
       if (resolution.ignored || resolution.targetIndex === null) {
+        // Kein Panel zum Anzeigen, der Fokus wechselt trotzdem (PS-11/PS-12): Chat-Pin,
+        // Wissensgraph, Prozess- und Tropfenansicht folgen ihm, ein später geöffnetes
+        // Panel des Zieltyps startet damit.
+        if (focusedEntityOverride) pinEntityFocus(focusedEntityOverride);
+        else pinFileFocus(path, line, resolvedSourceId);
+        setSelectedDoc(targetDoc);
+        setSelectedFile(targetDoc ? null : path);
+        setSelectedEntity(focusedEntity);
+        setSelectedLine(targetDoc ? null : line);
         // D-2: an der Panel-Obergrenze verpufft der Klick sonst kommentarlos.
         // Der "nur anstupsen"-Fall (openIfMissing=false) bleibt bewusst still.
         if (resolution.ignoreReason === 'no-space') showToast(t('page.toast.noPanelSpace'), 'error');

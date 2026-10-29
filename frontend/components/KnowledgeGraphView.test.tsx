@@ -456,7 +456,9 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
 
     fireEvent.click(await screen.findByTestId('node-entity:101'));
 
-    expect(onFileSelect).toHaveBeenCalledWith(javaNode.file_path, javaNode.start_line, javaNode.source_id, false);
+    // Das angeklickte Objekt geht mit, damit es der Fokus bleibt (und nicht zum Programm der Datei wird).
+    expect(onFileSelect).toHaveBeenCalledWith(javaNode.file_path, javaNode.start_line, javaNode.source_id, false,
+      expect.objectContaining({ id: 101, file_path: javaNode.file_path, source_id: javaNode.source_id }));
   });
 
   it('loads the real neighborhood via GET /graph/focus and replaces the (possibly truncated) overview', async () => {

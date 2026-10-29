@@ -42,6 +42,7 @@ type PanelContentRendererProps = {
     line?: number | null,
     sourceId?: number | string | null,
     openIfMissing?: boolean,
+    focusedEntity?: CodeEntity | null,
   ) => Promise<void>;
   activeProfileId: string;
   setActiveProfileId: (value: string) => void;
@@ -245,8 +246,8 @@ export function PanelContentRenderer({
       setIsEditorMaximized={() => {}}
       setSelectedFile={(path) => handlePanelFileSelect(index, path)}
       setSelectedDoc={(doc) => handlePanelFileSelect(index, doc?.name || null, null, doc?.id || null)}
-      handleFileSelect={(path, line, sourceId, openIfMissing) =>
-        handlePanelFileSelect(index, path, line, sourceId, openIfMissing)
+      handleFileSelect={(path, line, sourceId, openIfMissing, focusedEntity) =>
+        handlePanelFileSelect(index, path, line, sourceId, openIfMissing, focusedEntity)
       }
       isReferencesDropdownOpen={isReferencesDropdownOpen}
       setIsReferencesDropdownOpen={setIsReferencesDropdownOpen}

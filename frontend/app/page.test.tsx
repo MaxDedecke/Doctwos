@@ -139,6 +139,7 @@ vi.mock('@/components/PanelContentRenderer', () => ({
       <span data-testid={`panel-type-${props.index}`}>{props.contentType}</span>
       <span data-testid={`panel-project-${props.index}`}>{props.selectedProject?.name ?? 'none'}</span>
       <span data-testid={`panel-messages-${props.index}`}>{props.chatMessages.length}</span>
+      <span data-testid={`panel-file-${props.index}`}>{props.selection.selectedFile ?? 'none'}</span>
     </div>
   ),
 }));
@@ -299,6 +300,16 @@ describe('app/page.tsx — Orchestrierung', () => {
       expect(screen.getByTestId('sidebar-active-session').textContent).toBe('7');
       expect(screen.getByTestId('panel-messages-0').textContent).toBe('2');
       expect(routerPush).not.toHaveBeenCalled();
+    });
+
+    it('opens the graph live, so it follows a file chosen elsewhere (PS-24)', async () => {
+      await loginWithActiveSession(chatSession({ snapshot_json: { panelConfigs: ['chat', 'code'] } }));
+      fireEvent.click(screen.getByText('open-graph'));
+      fireEvent.click(screen.getByRole('button', { name: 'In Session bleiben' }));
+      fireEvent.click(screen.getByText('sidebar-select-file'));
+
+      await waitFor(() => expect(screen.getByTestId('panel-file-2').textContent).toBe('ACCOUNT.cbl'));
+      expect(screen.getByTestId('panel-file-1').textContent).toBe('ACCOUNT.cbl');
     });
 
     it('clears the session and opens the graph only after choosing a new session', async () => {
