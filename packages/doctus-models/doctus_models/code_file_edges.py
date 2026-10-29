@@ -7,8 +7,11 @@ oder Zieldatei unter deren `BACKBONE_EDGES_PER_NODE` gewichtigsten ist oder zu d
 Datei; die übrigen Kanten bleiben über den Grad als nicht geladen erkennbar.
 
 Gewicht: zuerst die stärkste enthaltene Rolle laut `language_profile` (Kontrollfluss und
-Einbindung, dann Datennutzung, dann sonstige, zuletzt reine Imports), danach die Zahl der
-Einzelbeziehungen.
+Einbindung, dann Datennutzung, dann sonstige, zuletzt reine Imports). Innerhalb davon gehen
+Kontrollfluss-Kanten vor Einbindungen, dann Kanten zu Nachbarn mit wenig Verbindungen, zuletzt die
+Zahl der Einzelbeziehungen. Sonst bevorzugt die Zahl jede Kante zu einem Hub: In COBOL-Beständen
+binden fast alle Programme dieselben Copybooks ein, und deren Zugriffe zählen nach Hunderten,
+ein CALL zählt 1. Die Aufrufe zwischen den Programmen fielen aus dem Grundgerüst.
 
 Der Parser schreibt am Ende jedes Syncs je Projekt das Grundgerüst in `code_file_edges`
 (`rebuild_code_file_edges`); nur das liest die Übersicht. Dieselbe Abfrage dient dem Backend als
@@ -48,24 +51,28 @@ pairs AS (
            max(CASE WHEN type = ANY(:strong) THEN 3
                     WHEN type = ANY(:data) THEN 2
                     WHEN type = ANY(:naming) THEN 0
-                    ELSE 1 END) AS priority
+                    ELSE 1 END) AS priority,
+           bool_or(type = ANY(:control)) AS is_control
     FROM raw
     WHERE NOT (sf = df AND ss = ds AND sp = dp)
     GROUP BY sp, ss, sf, dp, ds, df
 ),
 ends AS (
-    SELECT pid, sp AS np, ss AS ns, sf AS nf, priority, edge_count FROM pairs
+    SELECT pid, sp AS np, ss AS ns, sf AS nf, dp AS op, ds AS os, df AS of,
+           priority, is_control, edge_count FROM pairs
     UNION ALL
-    SELECT pid, dp, ds, df, priority, edge_count FROM pairs
+    SELECT pid, dp, ds, df, sp, ss, sf, priority, is_control, edge_count FROM pairs
 ),
 node_degree AS (
     SELECT np, ns, nf, count(*) AS degree FROM ends GROUP BY np, ns, nf
 ),
 per_node AS (
     SELECT pid FROM (
-        SELECT pid, row_number() OVER (
-            PARTITION BY np, ns, nf ORDER BY priority DESC, edge_count DESC, pid) AS r
-        FROM ends) ranked
+        SELECT e.pid, row_number() OVER (
+            PARTITION BY e.np, e.ns, e.nf
+            ORDER BY e.priority DESC, e.is_control DESC, o.degree, e.edge_count DESC, e.pid) AS r
+        FROM ends e
+        JOIN node_degree o ON o.np = e.op AND o.ns = e.os AND o.nf = e.of) ranked
     WHERE r <= :per_node
 ),
 per_type AS (
@@ -100,6 +107,7 @@ _COLUMNS = (
 def _params() -> dict:
     return {
         "strong": sorted(CONTROL_EDGES | (INCLUDE_EDGES - NAMING_EDGES)),
+        "control": sorted(CONTROL_EDGES),
         "data": sorted(DATA_EDGES),
         "naming": sorted(NAMING_EDGES),
         "per_node": BACKBONE_EDGES_PER_NODE,

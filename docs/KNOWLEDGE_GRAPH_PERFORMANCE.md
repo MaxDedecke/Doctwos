@@ -187,6 +187,27 @@ mit allen Dateikanten war 1,36 GB groß und las sich langsamer (3,9–7,7 s).
 Offen: Die Neuberechnung läuft bei jedem Sync für das ganze Projekt; bei solchen
 Größen wäre eine Neuberechnung nur der betroffenen Dateien die nächste Stufe.
 
+### Gewichtung bei Hubs (29.10.2026)
+
+Befund an CardDemo: 87 % der Dateikanten führen von einem Programm zu einem Copybook, vier
+Copybooks binden je 21 der 44 Programme ein. Eine Copybook-Kante sammelt Hunderte Lese- und
+Schreibzugriffe, ein CALL zählt 1. Bei Gleichstand der Rolle gewann die Zahl, also verloren die
+Aufrufe des Anmeldeprogramms ins Haupt- und Admin-Menü. Gruppen hießen nach dem Hub-Copybook.
+
+Jetzt: innerhalb derselben Rolle gehen Kontrollfluss-Kanten vor Einbindungen, dann Kanten zu
+Nachbarn mit wenig Verbindungen, zuletzt die Zahl. Der Mittelpunkt einer Gruppe (und damit ihr
+Name) ist die Datei mit dem höchsten Gewicht unter denen, die selbst auf andere verweisen.
+Mit `BACKBONE_MIN_FILE_EDGES = 0` verglichen:
+
+| Projekt | Grundgerüst alt → neu | Zusammenhangskomponenten | Größter Hub, Kanten im Grundgerüst |
+|---|---|---|---|
+| CardDemo | 177 → 153 (CALL 4/6 → 6/6) | 6 → 9 (Anwendungsfamilien statt eine Masse) | COCOM01Y 16 → 3 |
+| Spring WS | 1.867 → 1.731 | 27 → 27 | MessageContext 73 → 26 |
+| Apache Syncope | 7.934 → 7.108 | 6 → 5 | Entity 67 → 29 |
+
+Die Hubs behalten weniger Kanten, die übrigen sind über „+N“ erreichbar. Neue Gruppennamen bei
+CardDemo: „app · CORPT00C“, „app · COCRDUPC“ statt „app · COCOM01Y“, „app · CSDAT01Y“.
+
 ### Gruppen-Knoten (29.10.2026)
 
 Louvain auf dem vollständigen Dateigraphen, Topics gehen vor, Gruppen über 150 Dateien

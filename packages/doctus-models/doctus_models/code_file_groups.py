@@ -150,9 +150,14 @@ class GroupEdge:
     edge_types: set = field(default_factory=set)
 
 
-def _label(files: Iterable[FileKey], weighted_degree: dict[FileKey, float]):
+def _label(files: Iterable[FileKey], weighted_degree: dict[FileKey, float], users: set[FileKey]):
+    """Name und Mittelpunkt einer Gruppe. Mittelpunkt ist die Datei mit dem höchsten Gewicht unter
+    denen, die selbst auf andere verweisen (Programme, Jobs, Klassen). Reine Ziele wie Copybooks, an
+    denen viele hängen, wären sonst immer der Name, obwohl sie nichts über die Gruppe sagen."""
     files = sorted(files, key=lambda f: f[2])
-    central = max(files, key=lambda f: (weighted_degree.get(f, 0.0), f[2]))
+    central = max(
+        [f for f in files if f in users] or files, key=lambda f: (weighted_degree.get(f, 0.0), f[2])
+    )
     directories = [f[2].rsplit("/", 1)[0] if "/" in f[2] else "" for f in files]
     prefix = commonpath(directories) if all(directories) else ""
     stem = splitext(central[2].rsplit("/", 1)[-1])[0]
@@ -176,6 +181,7 @@ def build_groups(
         adjacency[source][target] += weight
         adjacency[target][source] += weight
     weighted_degree = {f: sum(n.values()) for f, n in adjacency.items()}
+    users = {source for source, *_ in pairs}
 
     leaf: dict[FileKey, str] = {}
     groups: list[Group] = []
@@ -221,10 +227,10 @@ def build_groups(
     for group in groups:
         if group.kind == "community":
             group.label, group.path_prefix, group.central_file = _label(
-                group.files, weighted_degree
+                group.files, weighted_degree, users
             )
         elif group.files:
-            _, group.path_prefix, group.central_file = _label(group.files, weighted_degree)
+            _, group.path_prefix, group.central_file = _label(group.files, weighted_degree, users)
 
     edges: dict[tuple[str, str], GroupEdge] = {}
     for source, target, count, _, types in pairs:

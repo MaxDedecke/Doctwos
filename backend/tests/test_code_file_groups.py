@@ -51,6 +51,24 @@ def test_groups_bundle_edges_between_communities_and_name_them():
     assert a_group.path_prefix == "src/a" and a_group.label.startswith("src/a · a")
 
 
+@pytest.mark.parametrize(
+    "ext, edge_type, hub_name",
+    [("cbl", "COPY", "HUB.cpy"), ("java", "CALLS", "Hub.java")],
+    ids=["cobol", "java"],
+)
+def test_group_is_named_after_a_file_that_uses_others_not_after_the_hub_everyone_uses(
+    ext, edge_type, hub_name
+):
+    users = [(1, 2, f"src/P{i}.{ext}") for i in range(5)]
+    hub = (1, 2, f"src/{hub_name}")
+    pairs = [(user, hub, 9, 3, [edge_type]) for user in users]
+    pairs += [(a, b, 1, 3, ["CALL"]) for a, b in zip(users, users[1:])]
+    groups, _, _ = build_groups(pairs, {}, {})
+    group = next(g for g in groups if hub in g.files)
+    assert group.central_file != hub[2]
+    assert group.central_file.startswith("src/P") and "HUB" not in group.label.upper()
+
+
 def test_topics_take_precedence_and_the_smallest_topic_wins():
     edges = _clique("a", 5) + _clique("b", 5) + [("a0", "b0")]
     topics = {7: {_file("a0"), _file("a1")}, 8: {_file("a0")}}

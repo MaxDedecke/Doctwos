@@ -219,3 +219,107 @@ def test_deleting_a_source_requests_a_rebuild(client, db_session, test_project, 
         text("SELECT count(*) FROM code_file_edges WHERE project_id = :p"), {"p": test_project}
     ).scalar_one()
     assert remaining == 0
+
+
+def _crowded_entry_graph(db_session, test_project, test_team, *, kind, ext, hub_kind, hub_ext, hub_edge):
+    """ENTRY ruft NEXT1 und NEXT2 je einmal und nutzt vier Hub-Dateien je achtmal. Dieselben Hubs
+    nutzen auch sechs andere Dateien, und auch NEXT1/NEXT2 hängen an drei Hubs: Nach Zahl der
+    Einzelbeziehungen verdrängen die Hub-Kanten den Aufruf an beiden Enden."""
+    source = KnowledgeSource(
+        name=f"crowded-{ext}",
+        type="Git",
+        url=f"https://example.test/crowded-{ext}.git",
+        branch="main",
+        project_id=test_project,
+        team_id=test_team,
+    )
+    db_session.add(source)
+    db_session.flush()
+
+    def entity(name, type_, extension):
+        item = CodeEntity(
+            project_id=test_project,
+            source_id=source.id,
+            file_path=f"{name}.{extension}",
+            name=name,
+            qualified_name=name,
+            type=type_,
+            start_line=1,
+            end_line=10,
+        )
+        db_session.add(item)
+        db_session.flush()
+        return item
+
+    def edge(src, dst, kind_, times=1):
+        for _ in range(times):
+            db_session.add(
+                CodeEdge(
+                    project_id=test_project,
+                    source_id=source.id,
+                    src_entity_id=src.id,
+                    dst_entity_id=dst.id,
+                    dst_name=dst.name,
+                    type=kind_,
+                    resolution="resolved",
+                )
+            )
+
+    entry = entity("ENTRY", kind, ext)
+    nexts = [entity(f"NEXT{i}", kind, ext) for i in (1, 2)]
+    hubs = [entity(f"HUB{i}", hub_kind, hub_ext) for i in range(4)]
+    users = [entity(f"USER{i}", kind, ext) for i in range(6)]
+    for target in nexts:
+        edge(entry, target, "CALL" if kind == "program" else "CALLS")
+        for hub in hubs[:3]:
+            edge(target, hub, hub_edge, times=8)
+    for hub in hubs:
+        edge(entry, hub, hub_edge, times=8)
+        for user in users:
+            edge(user, hub, hub_edge, times=8)
+    db_session.commit()
+    yield source
+    db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+    db_session.commit()
+
+
+@pytest.fixture
+def crowded_cobol(db_session, test_project, test_team):
+    yield from _crowded_entry_graph(
+        db_session, test_project, test_team,
+        kind="program", ext="cbl", hub_kind="copybook", hub_ext="cpy", hub_edge="COPY",
+    )
+
+
+@pytest.fixture
+def crowded_java(db_session, test_project, test_team):
+    yield from _crowded_entry_graph(
+        db_session, test_project, test_team,
+        kind="class", ext="java", hub_kind="class", hub_ext="java", hub_edge="CALLS",
+    )
+
+
+def _backbone_pairs(db_session, test_project):
+    with (
+        patch(f"{BACKBONE}.BACKBONE_MIN_FILE_EDGES", 0),
+        patch(f"{BACKBONE}.BACKBONE_EDGES_PER_NODE", 3),
+        patch(f"{BACKBONE}.BACKBONE_MIN_PER_EDGE_TYPE", 0),
+    ):
+        graph = load_code_file_graph(db_session, test_project, [], _code_file_id, max_pairs=1000)
+    return graph, _pairs(graph)
+
+
+def test_cobol_backbone_keeps_calls_between_programs_despite_hub_copybooks(
+    db_session, test_project, crowded_cobol
+):
+    graph, pairs = _backbone_pairs(db_session, test_project)
+    assert graph.backbone is True
+    assert {("ENTRY", "NEXT1"), ("ENTRY", "NEXT2")} <= pairs
+
+
+def test_java_backbone_keeps_calls_to_rarely_used_classes_despite_hub_classes(
+    db_session, test_project, crowded_java
+):
+    graph, pairs = _backbone_pairs(db_session, test_project)
+    assert graph.backbone is True
+    assert {("ENTRY", "NEXT1"), ("ENTRY", "NEXT2")} <= pairs
