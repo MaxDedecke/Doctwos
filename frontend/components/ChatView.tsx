@@ -8,7 +8,8 @@ import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 
 import { api } from '@/app/services/api';
 import { DoctusIcon } from "@/components/Logo";
-import { MarkdownContent } from "@/components/MarkdownContent";
+import { RevealedMarkdown } from "@/components/RevealedMarkdown";
+import { useChatFollowScroll } from "@/hooks/useChatFollowScroll";
 import { ProvenanceDisclosure } from "@/components/ProvenanceDisclosure";
 import { InsightDraftAction } from '@/components/InsightDraftAction';
 import { ChatInsightSource } from '@/components/ChatInsightSource';
@@ -142,6 +143,19 @@ export function ChatView({
   const { t } = useLanguage();
   const sessionChatMode = lockedChatMode(chatMessages);
   const activeChatMode = sessionChatMode ?? chatMode;
+  // Mitscrollen bis höchstens zur letzten Frage, damit eine lange Antwort von ihrem Anfang an lesbar bleibt.
+  const messageStreamRef = React.useRef<HTMLDivElement>(null);
+  useChatFollowScroll(messageStreamRef, chatMessages.length);
+  const anchorIndex = chatMessages.map(message => message.role).lastIndexOf('user');
+  // Die Antwort der laufenden Anfrage wird eingeblendet. Gemerkt wird sie, solange die Anfrage läuft,
+  // denn eine Antwort am Stück kommt oft im selben Moment wie das Ende der Anfrage. Ein anderer
+  // Verlauf (anderes erstes Element) hebt die Markierung auf.
+  const [liveTurn, setLiveTurn] = React.useState<{ index: number; first: ChatMessage | undefined } | null>(null);
+  if (isLoading && chatMessages.length > 0
+    && (liveTurn?.index !== chatMessages.length - 1 || liveTurn.first !== chatMessages[0])) {
+    setLiveTurn({ index: chatMessages.length - 1, first: chatMessages[0] });
+  }
+  const liveIndex = liveTurn && liveTurn.first === chatMessages[0] ? liveTurn.index : -1;
 
   const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
   const handleOpenFlow = (flow: CallFlowData, key: string | number, action?: AgentViewAction) => {
@@ -255,7 +269,7 @@ export function ChatView({
 
       {/* Chat message stream container */}
       <ScrollArea className="flex-1 w-full min-w-0">
-        <div className={cn(
+        <div ref={messageStreamRef} className={cn(
           "w-full px-4 @sm/chat:px-6 py-6 @sm/chat:py-8 flex flex-col min-h-full justify-between mx-auto",
           chatMessages.length === 0 ? "max-w-7xl" : "max-w-4xl"
         )}>
@@ -279,6 +293,7 @@ export function ChatView({
                 return (
                   <div
                     key={i}
+                    data-chat-anchor={i === anchorIndex ? 'true' : undefined}
                     className={cn(
                       "flex gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300",
                       isUser ? "justify-end" : "justify-start"
@@ -357,7 +372,7 @@ export function ChatView({
                           )}
 
                           {m.content ? (
-                            <MarkdownContent content={m.content} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => source.kind !== 'insight')} />
+                            <RevealedMarkdown live={i === liveIndex} content={m.content} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => source.kind !== 'insight')} />
                           ) : (
                             isLoading && i === chatMessages.length - 1 && (!m.metadata?.agent_steps || m.metadata.agent_steps.length === 0) && (
                               <div className="flex items-center gap-2.5 text-ds-zinc-500/80 py-1.5 animate-pulse">

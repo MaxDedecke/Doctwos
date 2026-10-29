@@ -306,10 +306,6 @@ function AppContent() {
     }
   }, [chatUuidParam, sessions, activeSessionId, isSessionsLoaded, pathname, router, t, setSessions, showToast]);
 
-  useEffect(() => {
-    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
-
   // Resets just the chat/session identity — used internally whenever the app
   // auto-starts a fresh conversation as a side effect of something else (switching
   // project/file mid-chat, removing the active session, opening the graph view),
