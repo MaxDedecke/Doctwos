@@ -633,6 +633,58 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.queryByText('Weitere Verbindungen laden')).toBeNull();
   });
 
+  it('shows hidden connections and expands and collapses them in place without leaving the overview', async () => {
+    const overviewResponse = {
+      nodes: [
+        { id: 'file:1:2:A.cbl', type: 'code_file', label: 'A.cbl', project_id: 1, degree: 3 },
+        { id: 'file:1:2:B.cbl', type: 'code_file', label: 'B.cbl', project_id: 1, degree: 1 },
+      ],
+      edges: [{ id: 'code-files:A:B', source: 'file:1:2:A.cbl', target: 'file:1:2:B.cbl', link_type: 'code_dependency', direction: 'directed' }],
+      truncated: true,
+      edges_sampled: true,
+      total_nodes: 2,
+    };
+    const neighborhood = {
+      focus_id: 'file:1:2:A.cbl',
+      nodes: [
+        { id: 'file:1:2:A.cbl', type: 'code_file', label: 'A.cbl', project_id: 1 },
+        { id: 'file:1:2:C.cbl', type: 'code_file', label: 'C.cbl', project_id: 1 },
+        { id: 'file:1:2:D.cbl', type: 'code_file', label: 'D.cbl', project_id: 1 },
+      ],
+      edges: [
+        { id: 'code-files:A:C', source: 'file:1:2:A.cbl', target: 'file:1:2:C.cbl', link_type: 'code_dependency', direction: 'directed' },
+        { id: 'code-files:D:A', source: 'file:1:2:D.cbl', target: 'file:1:2:A.cbl', link_type: 'code_dependency', direction: 'directed' },
+      ],
+      has_more: false,
+      next_cursor: null,
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => overviewResponse })
+      .mockResolvedValueOnce({ ok: true, json: async () => neighborhood });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-file:1:2:A.cbl'));
+    expect(await screen.findByText('2 weitere Verbindungen sind nicht geladen')).toBeTruthy();
+
+    fireEvent.click(screen.getByText('Verbindungen hier einblenden'));
+    await waitFor(() => expect(screen.getByTestId('node-file:1:2:D.cbl')).toBeTruthy());
+    const url = String(fetchMock.mock.calls[1][0]);
+    expect(url).toContain('/graph/neighborhood?');
+    expect(url).toContain(`node_id=${encodeURIComponent('file:1:2:A.cbl')}`);
+    expect(screen.getByTestId('node-file:1:2:B.cbl')).toBeTruthy();
+    expect(screen.getByTestId('node-file:1:2:C.cbl')).toBeTruthy();
+    expect(screen.queryByText('Zurück zur Übersicht')).toBeNull();
+    expect(screen.queryByText('2 weitere Verbindungen sind nicht geladen')).toBeNull();
+
+    fireEvent.click(screen.getByText('Eingeblendete Verbindungen ausblenden'));
+    await waitFor(() => expect(screen.queryByTestId('node-file:1:2:D.cbl')).toBeNull());
+    expect(screen.queryByTestId('node-file:1:2:C.cbl')).toBeNull();
+    expect(screen.getByTestId('node-file:1:2:B.cbl')).toBeTruthy();
+    expect(screen.getByText('2 weitere Verbindungen sind nicht geladen')).toBeTruthy();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it('loads neighborhood for a document node via GET /graph/neighborhood (O-298)', async () => {
     const overviewResponse = {
       nodes: [

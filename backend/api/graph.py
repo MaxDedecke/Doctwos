@@ -27,6 +27,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, load_only
 
+from services.graph_overview_degree import overview_degrees
 from services.graph_overview_links import append_overview_knowledge_links
 from services.graph_overview_limits import (
     CODE_EDGES_PER_NODE_BUDGET as CODE_EDGES_PER_NODE_BUDGET,
@@ -775,6 +776,15 @@ def get_graph(
         _doc_node,
     )
     preserved_node_ids.update(nid for nid in nodes if nid.startswith("insight:"))
+    degree = overview_degrees(
+        db,
+        nodes,
+        edges,
+        code_edges_sampled=bool(code_edges_truncated),
+        project_id=project_id,
+        exposed_project_ids=exposed_project_ids,
+        file_id=_code_file_id,
+    )
     result = _capped_overview(
         nodes,
         edges,
@@ -784,6 +794,9 @@ def get_graph(
         min_per_kind=min_per_kind,
         focus_source_id=focus_source_id,
     )
+    # Gesamtzahl der Verbindungen; das Frontend zeigt die Differenz zu den gelieferten Kanten an.
+    for node in result["nodes"]:
+        node["degree"] = degree.get(node["id"], 0)
     result["focus_source_id"] = focus_source_id
     # `edges_sampled` trennt die Kürzung der Code-Beziehungen von der Knotenkappung: Die Knoten
     # der Übersicht sind Dateien, die sich erst aus den ausgewählten Beziehungen ergeben. Ist nur

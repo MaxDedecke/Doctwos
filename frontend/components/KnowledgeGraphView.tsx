@@ -25,9 +25,11 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { edgeLineWidth } from '@/lib/graphLayout';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
+import { useGraphExpansion } from '@/hooks/useGraphExpansion';
+import { canExpandInPlace, hiddenEdgeCounts, type GraphData } from '@/lib/graphExpansion';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
-import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GraphSourceFocus } from './GraphSourceFocus';
@@ -276,6 +278,24 @@ export function KnowledgeGraphView({
     return () => observer.disconnect();
   }, []);
 
+  const neighborhoodProjectId = useCallback((node: GraphNode): number | null => {
+    return node.project_id ?? selectedProject?.id ?? null;
+  }, [selectedProject]);
+
+  // In-place expansion edits the overview itself, so the cached overview has to follow along.
+  const loadedGraph = useMemo(() => ({ nodes: rawNodes, edges: rawEdges }), [rawNodes, rawEdges]);
+  const replaceOverviewGraph = useCallback((graph: GraphData) => {
+    const recount = (truncation: { shown: number; total: number; edgesSampled: boolean } | null) => truncation
+      && { ...truncation, shown: graph.nodes.length, total: Math.max(truncation.total, graph.nodes.length) };
+    setRawNodes(graph.nodes);
+    setRawEdges(graph.edges);
+    setOverviewTruncation(recount);
+    const cached = overviewCacheRef.current;
+    if (cached) overviewCacheRef.current = { ...cached, ...graph, truncation: recount(cached.truncation) };
+  }, []);
+  const expansion = useGraphExpansion({ graph: loadedGraph, setGraph: replaceOverviewGraph, projectIdFor: neighborhoodProjectId });
+  const resetExpansions = expansion.reset;
+
   const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean, keepAnchor?: { node: GraphNode; edges: GraphEdge[] } | null) => {
     /** Loads all approved links of the repository from the backend. */
     const projectId = selectedProject?.id ?? null;
@@ -321,6 +341,7 @@ export function KnowledgeGraphView({
         ? { shown: nodes.length, total: data.total_nodes ?? nodes.length, edgesSampled: Boolean(data.edges_sampled) }
         : null;
       overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation };
+      resetExpansions();
       const restored = withKeptAnchor(nodes, edges, keepAnchor);
       setRawNodes(restored.nodes);
       setRawEdges(restored.edges);
@@ -351,11 +372,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoading(false);
     }
-  }, [selectedProject, selectedDoc, onlyLinked, addFocusParam]);
-
-  const neighborhoodProjectId = useCallback((node: GraphNode): number | null => {
-    return node.project_id ?? selectedProject?.id ?? null;
-  }, [selectedProject]);
+  }, [selectedProject, selectedDoc, onlyLinked, addFocusParam, resetExpansions]);
 
   const loadNeighborhood = useCallback(async (node: GraphNode, focusOptions?: AgentGraphViewAction['target']) => {
     /**
@@ -707,8 +724,14 @@ export function KnowledgeGraphView({
       degrees.set(sourceId, (degrees.get(sourceId) ?? 0) + 1);
       degrees.set(targetId, (degrees.get(targetId) ?? 0) + 1);
     }
+    // Size follows the real number of connections, not only the loaded ones.
+    for (const node of filteredData.nodes) {
+      if ((node.degree ?? 0) > (degrees.get(node.id) ?? 0)) degrees.set(node.id, node.degree!);
+    }
     return degrees;
-  }, [filteredData.links]);
+  }, [filteredData.nodes, filteredData.links]);
+  const hiddenCounts = useMemo(() => viewMode === 'overview' ? hiddenEdgeCounts(rawNodes, rawEdges) : new Map<string, number>(),
+    [viewMode, rawNodes, rawEdges]);
 
   // Von außen gesetzter Fokus (z. B. Suchtreffer): nur zentrieren, der Zoom bleibt. Ein Klick im
   // Graph setzt den Fokus nicht, dort bewegt sich die Kamera nicht.
@@ -797,11 +820,11 @@ export function KnowledgeGraphView({
   // eslint-disable-next-line react-hooks/refs
   const renderer = useMemo(() => createKnowledgeGraphRenderer({
     nodes: filteredData.nodes, links: filteredData.links, degrees: nodeDegrees, ghostIds,
-    selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark,
+    selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, hiddenCounts,
     viewport: () => viewportRef.current, zoom: () => zoomRef.current,
     // The subscription invalidates colors after parent effects apply theme CSS.
     styleRevision,
-  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, styleRevision]);
+  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, hiddenCounts, styleRevision]);
   const updateViewport = useCallback(() => {
     const graph = graphRef.current;
     if (!graph?.screen2GraphCoords) return;
@@ -822,6 +845,41 @@ export function KnowledgeGraphView({
   // keep using url/label instead.
   const isWebOriginSourceType = (sourceType: string | null | undefined) =>
     !!sourceType && ['confluence', 'notion', 'jira'].includes(sourceType.toLowerCase());
+
+  // Nicht geladene Verbindungen eines Knotens: in die Übersicht einblenden und wieder einklappen.
+  const renderExpansionControls = (node: GraphNode) => {
+    if (viewMode !== 'overview' || !canExpandInPlace(node)) return null;
+    const hidden = hiddenCounts.get(node.id) ?? 0;
+    const expanded = expansion.expansions.get(node.id);
+    if (!hidden && !expanded) return null;
+    const loading = expansion.loadingId === node.id;
+    const actionClass = cn('flex items-center gap-1.5 text-[0.6875rem] transition-colors',
+      loading ? 'opacity-50 cursor-not-allowed text-ds-indigo-400' : 'text-ds-indigo-400 hover:text-ds-indigo-300');
+    return (
+      <div className="mt-2 flex flex-col gap-1.5" data-testid="node-expansion">
+        {hidden > 0 && <p className="text-[0.625rem] text-ds-zinc-500">{t('knowledgeGraphView.hiddenConnections', { count: hidden })}</p>}
+        {hidden > 0 && (!expanded || expanded.hasMore) && (
+          <button onClick={() => void expansion.expand(node, { x: node.x, y: node.y })} disabled={loading}
+            title={t('knowledgeGraphView.expandInPlaceTitle')} className={actionClass}>
+            {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+            {t(expanded ? 'knowledgeGraphView.expandMore' : 'knowledgeGraphView.expandInPlace')}
+          </button>
+        )}
+        {expanded && (
+          <button onClick={() => expansion.collapse(node.id)} disabled={loading} className={actionClass}>
+            <Minus className="w-3 h-3" />
+            {t('knowledgeGraphView.collapseExpansion')}
+          </button>
+        )}
+        {expansion.errorNodeId === node.id && (
+          <p className="flex items-center gap-1.5 text-[0.625rem] text-ds-red-400">
+            <AlertTriangle className="w-3 h-3 shrink-0" />
+            {t('knowledgeGraphView.loadNeighborhoodError')}
+          </p>
+        )}
+      </div>
+    );
+  };
 
   const resolveDocSelector = (node: GraphNode) => {
     const pathVal = (node.file_path && !isWebOriginSourceType(node.source_type))
@@ -1035,6 +1093,7 @@ export function KnowledgeGraphView({
                       );
                     })}
                   </div>
+                  {renderExpansionControls(selectedNode)}
                 </>
               );
             })()}

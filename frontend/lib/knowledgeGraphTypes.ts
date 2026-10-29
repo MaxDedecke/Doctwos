@@ -19,6 +19,8 @@ export interface GraphNode {
   entity_ids?: number[];
   resource_type?: string;
   resource_id?: string | number | null;
+  /** Total connections on the server; more than the loaded edges means some are not shown. */
+  degree?: number;
   x?: number;
   y?: number;
   fx?: number;

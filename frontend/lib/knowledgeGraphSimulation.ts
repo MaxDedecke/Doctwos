@@ -15,12 +15,15 @@ export function simulateGraph(request: LayoutRequest, emit: (result: LayoutResul
     return () => {};
   }
   const byId = new Map(nodes.map(node => [node.id, node]));
+  // With fixed neighbors (nodes added to an existing layout), the global rings would drag the new
+  // nodes away from the node they were loaded for.
+  const incremental = nodes.some(node => node.fx != null && node.fy != null);
   const simulation = forceSimulation<LayoutNode>(nodes, 2).stop()
     .alphaDecay(GRAPH_ALPHA_DECAY).velocityDecay(0.3)
     .force('charge', forceManyBody<LayoutNode>()
       .strength(node => chargeStrength(nodes.length, node.degree)).distanceMax(CHARGE_DISTANCE_MAX))
     .force('collide', forceCollide<LayoutNode>(node => collisionRadius(node.radius, node.degree)).iterations(nodes.length > 2000 ? 1 : 2))
-    .force('radial', forceRadial<LayoutNode>(node => radialRadius(node.degree)).strength(0.12))
+    .force('radial', incremental ? null : forceRadial<LayoutNode>(node => radialRadius(node.degree)).strength(0.12))
     .force('link', forceLink(request.links).id((node: LayoutNode) => node.id)
       .distance((edge: { source: string | LayoutNode; target: string | LayoutNode }) => {
         const source = typeof edge.source === 'object' ? edge.source : byId.get(edge.source)!;

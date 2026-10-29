@@ -27,6 +27,8 @@ type RenderOptions = {
   nodes: GraphNode[]; links: GraphEdge[]; degrees: Map<string, number>; ghostIds: Set<string>;
   selectedNodeId: string | null; selectedEdgeId: string | null; focusNodeId: string | null;
   focusNeighborIds: Set<string> | null; isDark: boolean;
+  /** Connections per node that exist but are not loaded, drawn as a "+N" badge. */
+  hiddenCounts?: Map<string, number>;
   styleRevision?: string;
   viewport: () => GraphViewport | null; zoom: () => number;
 };
@@ -34,7 +36,7 @@ type RenderOptions = {
 /** Snapshot CSS and topology once. No DOM reads or graph searches during a frame. */
 export function createKnowledgeGraphRenderer(options: RenderOptions) {
   const { nodes, links, degrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId,
-    focusNeighborIds, isDark, viewport, zoom } = options;
+    focusNeighborIds, isDark, hiddenCounts, viewport, zoom } = options;
   const byId = new Map(nodes.map(node => [node.id, node]));
   const colors = new Map<string, string>();
   const resolve = (value: string) => {
@@ -48,6 +50,8 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
   const outline = canvasColor(isDark ? 'white' : 'neutral-900', isDark ? 0.4 : 0.5);
   const labelColor = canvasColor(isDark ? 'neutral-200' : 'neutral-600');
   const dimLink = canvasColor('neutral-400', isDark ? 0.06 : 0.12);
+  const badgeFill = canvasColor(isDark ? 'neutral-100' : 'neutral-800', 0.92);
+  const badgeText = canvasColor(isDark ? 'neutral-900' : 'white');
   const nodeStyles = new Map(nodes.map(node => [node.id, {
     radius: nodeRadius(node, degrees.get(node.id) ?? 0), label: getNodeDisplayLabel(node),
     color: ghostIds.has(node.id) ? ghost : resolve(getGraphNodeColor(node)),
@@ -131,6 +135,8 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
       ctx.stroke();
     }
     if (r * scale >= 9) drawKnowledgeNodeIcon(node, ctx, scale, NODE_RADIUS_SCALE, r);
+    const hidden = hiddenCounts?.get(node.id);
+    if (hidden && !dimmed && (primary || r * scale >= 6)) drawHiddenBadge(ctx, x + r * 0.72, y - r * 0.72, hidden, scale);
     if ((scale > 0.45 && !dimmed) || primary) {
       ctx.font = `${primary ? '600 ' : ''}${primary ? 11 / scale : Math.min(11, 14.4 / scale)}px Inter, system-ui, sans-serif`;
       ctx.textAlign = 'center';
@@ -139,6 +145,22 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
       ctx.fillText(style.label, x, y + r + 3 / scale);
     }
     ctx.restore();
+  }
+
+  function drawHiddenBadge(ctx: CanvasRenderingContext2D, cx: number, cy: number, count: number, scale: number) {
+    const text = `+${count > 999 ? '999+' : count}`;
+    const fontSize = 10 / scale;
+    ctx.font = `600 ${fontSize}px Inter, system-ui, sans-serif`;
+    const height = fontSize * 1.5;
+    const width = Math.max(height, ctx.measureText(text).width + fontSize * 0.9);
+    ctx.beginPath();
+    ctx.roundRect(cx - width / 2, cy - height / 2, width, height, height / 2);
+    ctx.fillStyle = badgeFill;
+    ctx.fill();
+    ctx.fillStyle = badgeText;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(text, cx, cy);
   }
 
   function edgeArrowLength(edge: GraphEdge) {

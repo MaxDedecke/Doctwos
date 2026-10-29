@@ -95,6 +95,9 @@ Regeln dafür:
   COBOL-Parser-Ausbau aufgehoben (On-Prem-Reife bei vorhandenem Git): Kodierungs-Rückfall,
   Buildprofil mit Preflight, Copybook-Suchfolge, Grammatik-Masken und BMS. Quellsystem-Flexibilität
   (Endevor, PDS u. ä.) bleibt zurückgestellt.
+- **Expliziter Auftrag 29.10.2026:** Wissensgraph – nicht geladene Verbindungen je Knoten anzeigen („+N“)
+  und an Ort und Stelle in die Übersicht nachladen. Kanten-Grundgerüst und Gruppen-Knoten sind nicht
+  beauftragt.
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
