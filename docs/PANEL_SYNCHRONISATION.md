@@ -235,7 +235,7 @@ Architektur-Review (Punkt 6, 29.10.2026).
 | Quellen, Referenzen der geöffneten Datei | `hooks/useKnowledgeSources.ts` | Props |
 | Chat-Sitzung, Nachrichten, laufender Stream | `hooks/useChatSessions.ts` (Zustand), `hooks/useChatController.ts` (Ablauf, Stream) | Props; `invalidateChat()` zum Beenden |
 | Globale Auswahl, Panel-Auswahl, Objektfokus, Historie, Chat-Pin, Dateiinhalt | `hooks/useWorkspaceLayout.ts` | Props; Sync-Regel aus Abschnitt 4 |
-| Auswahl, Fokus, aufgeklappte Gruppen im Wissensgraphen | `components/KnowledgeGraphView.tsx` | lokal; folgt der Panel-Auswahl (Fokus-Fahrt) |
+| Auswahl, Fokus, aufgeklappte Gruppen im Wissensgraphen | `components/KnowledgeGraphView.tsx` | lokal; folgt der Panel-Auswahl (Fokus-Fahrt: in der gruppierten Übersicht Gruppen bis zum Ziel öffnen, in „Nur Nachbarschaft“ zur Nachbarschaft des Ziels wechseln; ist das Ziel schon zu sehen, nur hinfahren) |
 | Übergänge über mehrere Besitzer | `hooks/useProjectTransition.ts` (Projektwechsel), `page.tsx` (neuer Chat) | — |
 
 Kein Besitzer schreibt in den Zustand eines anderen; ein Übergang ruft die Funktionen der Besitzer

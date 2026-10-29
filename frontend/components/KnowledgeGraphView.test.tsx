@@ -756,6 +756,48 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   }, 10000);
 
+  it('switches to the neighborhood of an object focused in another panel while showing only a neighborhood', async () => {
+    const file = (name: string) => ({ id: `file:${name}`, type: 'code_file', label: name, file_path: name, project_id: 1 });
+    const doc = { id: 'doc:Runbook', type: 'document', label: 'Runbook' };
+    const link = (from: string) => ({ id: `l-${from}`, source: `file:${from}`, target: 'doc:Runbook', link_type: 'documented', score: 1, context: null });
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const u = String(url);
+      const body = u.includes('/graph/locate')
+        ? { node_id: u.includes('B.java') ? 'file:B.java' : 'file:A.java', label: u.includes('B.java') ? 'B.java' : 'A.java', group_path: [] }
+        : u.includes('/graph/neighborhood') && u.includes('B.java') ? { nodes: [file('B.java'), doc], edges: [link('B.java')] }
+          : u.includes('/graph/neighborhood') ? { nodes: [file('A.java'), doc], edges: [link('A.java')] }
+            : { nodes: [file('A.java'), doc], edges: [link('A.java')] };
+      return { ok: true, json: async () => body };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const view = (selectedFile: string | null) => (
+      <LanguageProvider>
+        <KnowledgeGraphView theme="dark" selectedProject={{ id: 1, name: 'Testprojekt' }} selectedFile={selectedFile} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(view(null));
+    fireEvent.click(await screen.findByTestId('node-file:A.java'));
+    fireEvent.click(await screen.findByText('Nur Nachbarschaft laden'));
+    await screen.findByRole('button', { name: 'Zurück zur Übersicht' });
+
+    // Ein Ziel in der gezeigten Nachbarschaft: nur hinfahren, nichts nachladen.
+    const before = fetchMock.mock.calls.length;
+    rerender(view('A.java'));
+    await waitFor(() => expect(fetchMock.mock.calls.length).toBe(before + 1));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(fetchMock.mock.calls.slice(before).every(call => String(call[0]).includes('/graph/locate'))).toBe(true);
+
+    rerender(view('B.java'));
+    expect((await screen.findByRole('status')).textContent).toContain('Wechsle');
+    await waitFor(() => expect(screen.getByTestId('node-file:B.java')).toBeTruthy(), { timeout: 6000 });
+    const urls = fetchMock.mock.calls.map(call => String(call[0]));
+    expect(urls.some(url => url.includes('/graph/neighborhood') && url.includes('B.java'))).toBe(true);
+    expect(screen.queryByTestId('node-file:A.java')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Zurück zur Übersicht' })).toBeTruthy();
+    await waitFor(() => expect(screen.getByTestId('graph-tool-panel').getAttribute('aria-label')).toBe('B.java'), { timeout: 3000 });
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+  }, 10000);
+
   it('keeps the graph of the newly chosen project when the previous project answers late', async () => {
     let releaseFirst: (value: unknown) => void = () => {};
     const graphOf = (projectId: number) => ({

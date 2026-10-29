@@ -508,100 +508,6 @@ export function KnowledgeGraphView({
     if (expand) toggleGroup(expand.key, true);
   }, [autoExpandGroups, isGrouped, viewMode, dimensions, toggleGroup]);
 
-  const runFocusJourney = useCallback(async (request: FocusRequest) => {
-    const projectId = selectedProject?.id;
-    if (!projectId) return;
-    const token = ++journeyRef.current;
-    const cancelled = () => token !== journeyRef.current;
-    const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
-    const params = new URLSearchParams({ project_id: String(projectId) });
-    if (request.entity_id != null) params.set('entity_id', String(request.entity_id));
-    if (request.file_path) params.set('file_path', request.file_path);
-    if (request.source_id != null && request.source_id !== '') params.set('source_id', String(request.source_id));
-    if (request.chunk_id != null) params.set('chunk_id', String(request.chunk_id));
-    let target: { node_id: string; label?: string; group_path: string[] };
-    try {
-      const res = await api.fetch(`${API_URL}/graph/locate?${params}`);
-      if (!res.ok) return;
-      target = await res.json();
-    } catch {
-      return;
-    }
-    if (cancelled()) return;
-    const find = (id: string) => sceneNodesRef.current.find(node => node.id === id && node.x != null && node.y != null);
-    const shortSide = Math.min(dimensions.width, dimensions.height) || 600;
-    const arrive = (id: string) => {
-      setSelectedNodeId(id);
-      setSelectedEdgeId(null);
-      const node = find(id);
-      if (!node) return;
-      graphRef.current?.centerAt(node.x!, node.y!, JOURNEY_CAMERA_MS);
-      graphRef.current?.zoom(Math.min(2, Math.max(0.4, JOURNEY_ARRIVAL_RADIUS_PX / nodeRadius(node))), JOURNEY_CAMERA_MS);
-    };
-    if (find(target.node_id)) {
-      // Schon sichtbar: hinfahren. Ist es schon ausgewählt, ist das der Rückkanal eines Klicks im
-      // Graphen selbst, und die Kamera bleibt.
-      if (selectedNodeIdRef.current !== target.node_id) arrive(target.node_id);
-      return;
-    }
-    journeyActiveRef.current = token;
-    setJourneyLabel(target.label ?? '');
-    try {
-      for (const keep of journeyUpSteps(expandedGroupsRef.current)) {
-        const closing = expandedGroupsRef.current.find(key => !keep.includes(key)) ?? null;
-        await loadOverview(true, undefined, undefined, { expanded: keep, collapsedKey: closing });
-        if (cancelled()) return;
-        const graph = graphRef.current;
-        graph?.zoom(graph.zoom() * 0.6, JOURNEY_CAMERA_MS);
-        await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
-        if (cancelled()) return;
-      }
-      graphRef.current?.zoomToFit(JOURNEY_CAMERA_MS, 40);
-      await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
-      for (const [index, key] of target.group_path.entries()) {
-        if (cancelled()) return;
-        const group = find(`group:${key}`);
-        if (group) {
-          graphRef.current?.centerAt(group.x!, group.y!, JOURNEY_CAMERA_MS);
-          const contents = (group.file_count ?? 0) + (group.doc_count ?? 0);
-          graphRef.current?.zoom(Math.min((shortSide / 4) / (2 * nodeRadius(group)), contentFitZoom(contents, shortSide)), JOURNEY_CAMERA_MS);
-          await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
-          if (cancelled()) return;
-        }
-        suppressedGroupsRef.current.delete(key);
-        await loadOverview(true, undefined, undefined, { expanded: target.group_path.slice(0, index + 1), collapsedKey: null });
-        await pause(JOURNEY_PAUSE_MS);
-      }
-      if (cancelled()) return;
-      setGroupHistory(target.group_path);
-      arrive(target.node_id);
-    } finally {
-      if (journeyActiveRef.current === token) {
-        journeyActiveRef.current = null;
-        setJourneyLabel(null);
-      }
-    }
-  }, [selectedProject?.id, dimensions, loadOverview]);
-
-  // Ein Fokus aus Code-, Prozess-, Tropfen- oder Doku-Ansicht oder aus dem Chat: im gruppierten
-  // Graphen die Gruppen bis zu ihm öffnen.
-  const focusRequest = useMemo<FocusRequest | null>(() => {
-    const entityId = selectedEntity ? extractEntityDbId(selectedEntity.id) : null;
-    if (entityId != null) return { key: `entity:${entityId}`, entity_id: entityId };
-    if (selectedFile) return { key: `file:${selectedFile}`, file_path: selectedFile };
-    if (selectedDoc?.chunkId != null) return { key: `doc:${selectedDoc.chunkId}`, chunk_id: selectedDoc.chunkId };
-    // Ohne Kennung (z. B. aus der Suche): Pfad oder Schlüssel, das Backend sucht auch Dokumente.
-    const docPath = selectedDoc?.url || selectedDoc?.name;
-    if (docPath) return { key: `docpath:${docPath}`, file_path: docPath };
-    return null;
-  }, [selectedEntity, selectedFile, selectedDoc]);
-  useEffect(() => {
-    if (!focusRequest || !isGrouped || viewMode !== 'overview') return;
-    void runFocusJourney(focusRequest);
-    // Nur ein neuer Fokus (oder der erste gruppierte Stand) startet eine Fahrt.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [focusRequest?.key, isGrouped]);
-
   const scheduleAutoGroups = useCallback(() => {
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
     autoTimerRef.current = setTimeout(updateAutoGroups, AUTO_EXPAND_DELAY_MS);
@@ -688,6 +594,117 @@ export function KnowledgeGraphView({
       setIsLoadingNeighborhood(false);
     }
   }, [graphLoadGate, neighborhoodProjectId, t, traversalDirection, traversalHops]);
+
+  const runFocusJourney = useCallback(async (request: FocusRequest) => {
+    const projectId = selectedProject?.id;
+    if (!projectId) return;
+    const token = ++journeyRef.current;
+    const cancelled = () => token !== journeyRef.current;
+    const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+    const params = new URLSearchParams({ project_id: String(projectId) });
+    if (request.entity_id != null) params.set('entity_id', String(request.entity_id));
+    if (request.file_path) params.set('file_path', request.file_path);
+    if (request.source_id != null && request.source_id !== '') params.set('source_id', String(request.source_id));
+    if (request.chunk_id != null) params.set('chunk_id', String(request.chunk_id));
+    let target: { node_id: string; label?: string; group_path: string[] };
+    try {
+      const res = await api.fetch(`${API_URL}/graph/locate?${params}`);
+      if (!res.ok) return;
+      target = await res.json();
+    } catch {
+      return;
+    }
+    if (cancelled()) return;
+    const find = (id: string) => sceneNodesRef.current.find(node => node.id === id && node.x != null && node.y != null);
+    const shortSide = Math.min(dimensions.width, dimensions.height) || 600;
+    const arrive = (id: string) => {
+      setSelectedNodeId(id);
+      setSelectedEdgeId(null);
+      const node = find(id);
+      if (!node) return;
+      graphRef.current?.centerAt(node.x!, node.y!, JOURNEY_CAMERA_MS);
+      graphRef.current?.zoom(Math.min(2, Math.max(0.4, JOURNEY_ARRIVAL_RADIUS_PX / nodeRadius(node))), JOURNEY_CAMERA_MS);
+    };
+    if (find(target.node_id)) {
+      // Schon sichtbar: hinfahren. Ist es schon ausgewählt, ist das der Rückkanal eines Klicks im
+      // Graphen selbst, und die Kamera bleibt.
+      if (selectedNodeIdRef.current !== target.node_id) arrive(target.node_id);
+      return;
+    }
+    journeyActiveRef.current = token;
+    setJourneyLabel(target.label ?? '');
+    try {
+      if (viewMode === 'neighborhood') {
+        // Nur Nachbarschaft: herauszoomen, die Nachbarschaft des Ziels laden, dort ankommen.
+        const graph = graphRef.current;
+        graph?.zoom(graph.zoom() * 0.6, JOURNEY_CAMERA_MS);
+        await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
+        if (cancelled()) return;
+        await loadNeighborhood({
+          id: target.node_id,
+          label: target.label ?? target.node_id,
+          type: target.node_id.startsWith('doc:') ? 'document' : 'code_file',
+        } as GraphNode);
+        if (cancelled()) return;
+        await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
+        if (cancelled()) return;
+        arrive(target.node_id);
+        return;
+      }
+      for (const keep of journeyUpSteps(expandedGroupsRef.current)) {
+        const closing = expandedGroupsRef.current.find(key => !keep.includes(key)) ?? null;
+        await loadOverview(true, undefined, undefined, { expanded: keep, collapsedKey: closing });
+        if (cancelled()) return;
+        const graph = graphRef.current;
+        graph?.zoom(graph.zoom() * 0.6, JOURNEY_CAMERA_MS);
+        await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
+        if (cancelled()) return;
+      }
+      graphRef.current?.zoomToFit(JOURNEY_CAMERA_MS, 40);
+      await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
+      for (const [index, key] of target.group_path.entries()) {
+        if (cancelled()) return;
+        const group = find(`group:${key}`);
+        if (group) {
+          graphRef.current?.centerAt(group.x!, group.y!, JOURNEY_CAMERA_MS);
+          const contents = (group.file_count ?? 0) + (group.doc_count ?? 0);
+          graphRef.current?.zoom(Math.min((shortSide / 4) / (2 * nodeRadius(group)), contentFitZoom(contents, shortSide)), JOURNEY_CAMERA_MS);
+          await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
+          if (cancelled()) return;
+        }
+        suppressedGroupsRef.current.delete(key);
+        await loadOverview(true, undefined, undefined, { expanded: target.group_path.slice(0, index + 1), collapsedKey: null });
+        await pause(JOURNEY_PAUSE_MS);
+      }
+      if (cancelled()) return;
+      setGroupHistory(target.group_path);
+      arrive(target.node_id);
+    } finally {
+      if (journeyActiveRef.current === token) {
+        journeyActiveRef.current = null;
+        setJourneyLabel(null);
+      }
+    }
+  }, [selectedProject?.id, dimensions, loadOverview, loadNeighborhood, viewMode]);
+
+  // Ein Fokus aus Code-, Prozess-, Tropfen- oder Doku-Ansicht oder aus dem Chat: im gruppierten
+  // Graphen die Gruppen bis zu ihm öffnen, in „Nur Nachbarschaft“ zu seiner Nachbarschaft wechseln.
+  const focusRequest = useMemo<FocusRequest | null>(() => {
+    const entityId = selectedEntity ? extractEntityDbId(selectedEntity.id) : null;
+    if (entityId != null) return { key: `entity:${entityId}`, entity_id: entityId };
+    if (selectedFile) return { key: `file:${selectedFile}`, file_path: selectedFile };
+    if (selectedDoc?.chunkId != null) return { key: `doc:${selectedDoc.chunkId}`, chunk_id: selectedDoc.chunkId };
+    // Ohne Kennung (z. B. aus der Suche): Pfad oder Schlüssel, das Backend sucht auch Dokumente.
+    const docPath = selectedDoc?.url || selectedDoc?.name;
+    if (docPath) return { key: `docpath:${docPath}`, file_path: docPath };
+    return null;
+  }, [selectedEntity, selectedFile, selectedDoc]);
+  useEffect(() => {
+    if (!focusRequest || (viewMode === 'overview' ? !isGrouped : viewMode !== 'neighborhood')) return;
+    void runFocusJourney(focusRequest);
+    // Nur ein neuer Fokus (oder der erste gruppierte Stand) startet eine Fahrt.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusRequest?.key, isGrouped]);
 
   const handleBackToOverview = () => {
     const anchor = neighborhoodFocusNode;
