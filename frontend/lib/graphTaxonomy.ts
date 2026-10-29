@@ -9,7 +9,7 @@ export type GraphIconKind = 'code' | 'document' | 'web';
 /** One distinct glyph per node category; `web`/`code` cover nodes that only fall back to `file`. */
 export type GraphNodeIconName =
   | 'insight' | 'cobol' | 'jcl' | 'copybook' | 'git' | 'external' | 'confluence' | 'jira'
-  | 'pdf' | 'file' | 'txt' | 'md' | 'document' | 'web' | 'code';
+  | 'pdf' | 'file' | 'txt' | 'md' | 'document' | 'web' | 'code' | 'group' | 'topic';
 export type GraphLocale = 'de' | 'en';
 export type GraphEdgeDirection = 'directed' | 'undirected' | 'bidirectional';
 
@@ -64,6 +64,8 @@ export interface GraphTaxonomyNode {
   node_meta?: Record<string, unknown> | null;
   meta?: Record<string, unknown> | null;
   file_path?: string;
+  group_kind?: unknown;
+  topic_color?: unknown;
 }
 
 export interface GraphNodeTypeDefinition {
@@ -75,6 +77,8 @@ export interface GraphNodeTypeDefinition {
 
 export const NODE_TYPE_TAXONOMY: Record<string, GraphNodeTypeDefinition> = {
   insight: { labelDe: 'Erkenntnisse', labelEn: 'Insights', color: 'rgb(var(--ds-warning-base))', icon: 'insight' },
+  group:      { labelDe: 'Gruppen (Kopplung)', labelEn: 'Groups (coupling)', color: 'rgb(var(--ds-success-strong))', icon: 'group' },
+  topic:      { labelDe: 'Topics', labelEn: 'Topics', color: 'rgb(var(--ds-graph-a-base))', icon: 'topic' },
   cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: 'rgb(var(--ds-info-base))', icon: 'cobol' },
   pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: 'rgb(var(--ds-danger-base))', icon: 'pdf' },
   jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))', icon: 'jcl' },
@@ -270,6 +274,7 @@ export function getGraphNodeCategory(node: GraphTaxonomyNode | null | undefined)
   const nodeType = textValue(node.type || node.node_type || node.kind);
   const entityType = textValue(node.entity_type || node.entityType);
   if (nodeType === 'insight') return 'insight';
+  if (nodeType === 'group') return textValue(node.group_kind) === 'topic' ? 'topic' : 'group';
   if (nodeType === 'code_file') {
     const path = String(node.file_path || node.label || '').toLowerCase();
     if (/\.(cbl|cob|cobol)$/.test(path)) return 'cobol';
@@ -306,8 +311,21 @@ export function getGraphNodeIconName(node: GraphTaxonomyNode | null | undefined,
   return NODE_TYPE_TAXONOMY[category]?.icon ?? 'file';
 }
 
+/** Colors a topic can be given in the topics panel, as design tokens. */
+const TOPIC_COLORS: Record<string, string> = {
+  indigo: 'rgb(var(--ds-accent))',
+  emerald: 'rgb(var(--ds-success-base))',
+  amber: 'rgb(var(--ds-warning-base))',
+  rose: 'rgb(var(--ds-danger-base))',
+  violet: 'rgb(var(--ds-graph-a-base))',
+  sky: 'rgb(var(--ds-info-base))',
+  orange: 'rgb(var(--ds-warning-strong))',
+};
+
 export function getGraphNodeColor(node: GraphTaxonomyNode | null | undefined): string {
-  return NODE_TYPE_TAXONOMY[getGraphNodeCategory(node)]?.color || 'rgb(var(--ds-neutral-300))';
+  const category = getGraphNodeCategory(node);
+  const topicColor = category === 'topic' ? TOPIC_COLORS[textValue(node?.topic_color)] : undefined;
+  return topicColor || NODE_TYPE_TAXONOMY[category]?.color || 'rgb(var(--ds-neutral-300))';
 }
 
 /** Stable color for an arbitrary relationship type. */

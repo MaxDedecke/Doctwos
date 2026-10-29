@@ -14,7 +14,7 @@ function fixture() {
     selectedNodeId: 'a', selectedEdgeId: null, focusNodeId: null, focusNeighborIds: new Set(['a', 'b']),
     isDark: true, viewport: () => viewport.current, zoom: () => 1 };
   const ctx = Object.fromEntries(['save', 'restore', 'beginPath', 'arc', 'stroke', 'fill', 'fillText', 'ellipse',
-    'moveTo', 'lineTo', 'closePath', 'rect'].map(method => [method, vi.fn()])) as unknown as CanvasRenderingContext2D;
+    'moveTo', 'lineTo', 'closePath', 'rect', 'setLineDash', 'roundRect', 'measureText'].map(method => [method, vi.fn()])) as unknown as CanvasRenderingContext2D;
   return { ...options, options, ctx, viewport };
 }
 
@@ -82,6 +82,16 @@ describe('knowledge graph rendering', () => {
     const selected = createKnowledgeGraphRenderer({ ...options, selectedNodeId: 'a' });
     nodes[1].x = 5000;
     expect(selected.linkCanvasObjectMode(links[0])).toBe('after');
+  });
+
+  it('draws group nodes larger with a second ring and their size in the label', () => {
+    const { options, ctx } = fixture();
+    const group: GraphNode = { id: 'group:c1', type: 'group', label: 'core · Billing', group_key: 'c1', group_kind: 'topic', file_count: 40, doc_count: 2, x: 0, y: 0 };
+    const renderer = createKnowledgeGraphRenderer({ ...options, nodes: [...options.nodes, group], selectedNodeId: null, focusNeighborIds: null });
+    renderer.drawNode(group, ctx, 1);
+    expect(ctx.setLineDash).toHaveBeenCalled();
+    expect(ctx.fillText).toHaveBeenCalledWith('core · Billing (42)', expect.any(Number), expect.any(Number));
+    expect(renderer.hitRadius(group)).toBeGreaterThan(renderer.hitRadius(options.nodes[0]));
   });
 
   it('keeps crossing edges when both endpoints are outside the viewport', () => {

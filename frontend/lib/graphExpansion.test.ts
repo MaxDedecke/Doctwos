@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canExpandInPlace, collapseExpansion, hiddenEdgeCounts, mergeExpansion, type GraphData, type GraphExpansion } from './graphExpansion';
+import { canExpandInPlace, collapseExpansion, collapseGroupKeys, hiddenEdgeCounts, mergeExpansion, seedGroupPositions, type GraphData, type GraphExpansion } from './graphExpansion';
 import type { GraphEdge, GraphNode } from './knowledgeGraphTypes';
 
 const file = (id: string, degree?: number): GraphNode => ({ id, type: 'code_file', label: id, degree });
@@ -58,5 +58,25 @@ describe('mergeExpansion / collapseExpansion', () => {
     expect(canExpandInPlace(file('file:1:2:A.cbl'))).toBe(true);
     expect(canExpandInPlace({ id: 'doc:1:Runbook.md', type: 'document', label: 'Runbook' })).toBe(true);
     expect(canExpandInPlace({ id: 'insight:4', type: 'insight', label: 'Erkenntnis' })).toBe(false);
+  });
+});
+
+describe('group positions', () => {
+  const group = (key: string, extra: Partial<GraphNode> = {}): GraphNode => ({ id: `group:${key}`, type: 'group', label: key, group_key: key, ...extra });
+
+  it('starts the contents of an expanded group around the group and keeps placed nodes', () => {
+    const previous = [group('c1', { x: 1000, y: 500 }), group('c2', { x: -50, y: 0 })];
+    const next = [group('c2'), { ...file('a'), group_parent: 'c1' }, { ...file('b'), group_parent: 'c1' }];
+    const seeded = seedGroupPositions(next, previous);
+    expect(seeded[0]).toBe(next[0]);
+    for (const node of seeded.slice(1)) expect(Math.hypot(node.x! - 1000, node.y! - 500)).toBeLessThan(400);
+  });
+
+  it('returns a collapsed group to the centre of its former contents, including subgroups', () => {
+    const previous = [{ ...file('a'), group_parent: 'c1', x: 0, y: 0 }, { ...group('c1.2'), group_parent: 'c1', x: 100, y: 100 },
+      { ...file('b'), group_parent: 'c1.2', x: 200, y: 200 }, { ...file('z'), group_parent: 'c9', x: 9000, y: 9000 }];
+    const [collapsed] = seedGroupPositions([group('c1')], previous, 'c1');
+    expect([collapsed.x, collapsed.y]).toEqual([100, 100]);
+    expect(collapseGroupKeys(['c1', 'c1.2', 'c10', 't4'], 'c1')).toEqual(['c10', 't4']);
   });
 });

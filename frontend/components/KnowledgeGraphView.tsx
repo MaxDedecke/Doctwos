@@ -25,7 +25,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
 import { useGraphExpansion } from '@/hooks/useGraphExpansion';
-import { canExpandInPlace, hiddenEdgeCounts, type GraphData } from '@/lib/graphExpansion';
+import { canExpandInPlace, collapseGroupKeys, hiddenEdgeCounts, seedGroupPositions, type GraphData } from '@/lib/graphExpansion';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
 import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
@@ -191,7 +191,12 @@ export function KnowledgeGraphView({
     nodes: GraphNode[];
     edges: GraphEdge[];
     truncation: { shown: number; total: number; edgesSampled: boolean } | null;
+    expanded: string;
   } | null>(null);
+  // Gruppen-Knoten: welche Gruppen aufgeklappt sind, schickt der Browser bei jedem Laden mit.
+  const [isGrouped, setIsGrouped] = useState(false);
+  const expandedGroupsRef = useRef<string[]>([]);
+  const sceneNodesRef = useRef<GraphNode[]>([]);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -317,12 +322,15 @@ export function KnowledgeGraphView({
   const expansion = useGraphExpansion({ graph: loadedGraph, setGraph: replaceOverviewGraph, projectIdFor: neighborhoodProjectId });
   const resetExpansions = expansion.reset;
 
-  const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean, keepAnchor?: { node: GraphNode; edges: GraphEdge[] } | null) => {
+  const loadOverview = useCallback(async (force = false, includeIsolatedOverride?: boolean, keepAnchor?: { node: GraphNode; edges: GraphEdge[] } | null,
+    groups?: { expanded: string[]; collapsedKey?: string | null }) => {
     /** Loads all approved links of the repository from the backend. */
     const projectId = selectedProject?.id ?? null;
     const includeIsolated = includeIsolatedOverride ?? !onlyLinked;
+    const expanded = groups?.expanded ?? expandedGroupsRef.current;
     const cachedOverview = overviewCacheRef.current;
-    if (!force && cachedOverview?.projectId === projectId && cachedOverview?.includeIsolated === includeIsolated) {
+    if (!force && cachedOverview?.projectId === projectId && cachedOverview?.includeIsolated === includeIsolated
+      && cachedOverview.expanded === expanded.join(',')) {
       const restored = withKeptAnchor(cachedOverview.nodes, cachedOverview.edges, keepAnchor);
       setRawNodes(restored.nodes);
       setRawEdges(restored.edges);
@@ -347,21 +355,26 @@ export function KnowledgeGraphView({
       return;
     }
 
-    setIsLoading(true);
+    // Auf- und Zuklappen einer Gruppe lädt ohne Ladeansicht nach, damit Ausschnitt und Zoom bleiben.
+    if (!groups) setIsLoading(true);
     setNeighborhoodError(null);
     try {
       const params = new URLSearchParams({ status: 'approved' });
       if (projectId) params.set('project_id', String(projectId));
       if (includeIsolated) params.set('include_isolated', 'true');
+      if (expanded.length) params.set('expanded', expanded.join(','));
       addFocusParam(params);
       const res = await api.fetch(`${API_URL}/graph?${params}`);
-      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; edges_sampled?: boolean; total_nodes?: number; focus_id?: string } = await res.json();
-      const nodes = data.nodes ?? [];
+      const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; edges_sampled?: boolean; total_nodes?: number; focus_id?: string;
+        grouped?: boolean; expanded?: string[] } = await res.json();
+      const nodes = seedGroupPositions(data.nodes ?? [], sceneNodesRef.current, groups?.collapsedKey);
       const edges = data.edges ?? [];
       const truncation = data.truncated
         ? { shown: nodes.length, total: data.total_nodes ?? nodes.length, edgesSampled: Boolean(data.edges_sampled) }
         : null;
-      overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation };
+      expandedGroupsRef.current = data.grouped ? data.expanded ?? expanded : [];
+      setIsGrouped(Boolean(data.grouped));
+      overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation, expanded: expandedGroupsRef.current.join(',') };
       resetExpansions();
       const restored = withKeptAnchor(nodes, edges, keepAnchor);
       setRawNodes(restored.nodes);
@@ -394,6 +407,14 @@ export function KnowledgeGraphView({
       setIsLoading(false);
     }
   }, [selectedProject, selectedDoc, onlyLinked, addFocusParam, resetExpansions]);
+
+  const toggleGroup = useCallback((key: string, expand: boolean) => {
+    const current = expandedGroupsRef.current;
+    const next = expand ? [...new Set([...current, key])] : collapseGroupKeys(current, key);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    void loadOverview(true, undefined, undefined, { expanded: next, collapsedKey: expand ? null : key });
+  }, [loadOverview]);
 
   const loadNeighborhood = useCallback(async (node: GraphNode, focusOptions?: AgentGraphViewAction['target']) => {
     /**
@@ -672,6 +693,7 @@ export function KnowledgeGraphView({
   useEffect(() => {
     if (agentGraphFocus) return;
     resetFocus();
+    expandedGroupsRef.current = [];
     void loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.id]);
@@ -736,6 +758,7 @@ export function KnowledgeGraphView({
     onlyLinked,
   })), [rawNodes, rawEdges, hiddenNodeTypes, hiddenLinkTypes, hiddenEdgeDirections, onlyLinked]);
   const { ghostIds } = filteredData;
+  useEffect(() => { sceneNodesRef.current = filteredData.nodes; }, [filteredData.nodes]);
 
   const nodeDegrees = useMemo(() => {
     const degrees = new Map<string, number>();
@@ -1125,6 +1148,13 @@ export function KnowledgeGraphView({
 
           {/* Aktionen */}
           <div className="flex flex-col gap-2">
+            {viewMode === 'overview' && selectedNode.group_parent && (
+              <button onClick={() => toggleGroup(selectedNode.group_parent!, false)}
+                className="flex items-center gap-1.5 text-[0.6875rem] text-ds-indigo-400 hover:text-ds-indigo-300 transition-colors">
+                <Minus className="w-3 h-3" />
+                {t('knowledgeGraphView.collapseGroup', { label: selectedNode.group_parent_label ?? selectedNode.group_parent })}
+              </button>
+            )}
             {(selectedNode.type === 'entity' || selectedNode.type === 'code_file') && selectedNode.file_path && onFileSelect && (
               <button
                 onClick={() => {
@@ -1484,6 +1514,7 @@ export function KnowledgeGraphView({
         )}
         {(rawNodes.length > 0 || focusNodeId) && <div className={cn('flex min-w-0 items-center gap-2 px-2 pb-1 text-[0.625rem]', textMuted)}>
           <span className="min-w-0 truncate tabular-nums" title={t('knowledgeGraphView.graphCounts', { nodes: filteredData.nodes.length, links: filteredData.links.length })}>{t('knowledgeGraphView.graphCounts', { nodes: filteredData.nodes.length, links: filteredData.links.length })}</span>
+          {isGrouped && viewMode === 'overview' && <span className="min-w-0 truncate" title={t('knowledgeGraphView.groupedHint')}>· {t('knowledgeGraphView.groupedHint')}</span>}
           {agentGraphFocus && viewMode === 'neighborhood' && neighborhoodFocusNode?.id === agentGraphFocus.focus_id && <span className="min-w-0 flex-1 truncate" title={t('knowledgeGraphView.agentNeighborhoodScope', { focus: agentGraphFocus.focus_label, direction: agentDirectionLabel, relationships: agentRelationshipLabels ?? '', limit: neighborhoodLimit })}>
             {t('knowledgeGraphView.agentNeighborhoodScope', { focus: agentGraphFocus.focus_label, direction: agentDirectionLabel, relationships: agentRelationshipLabels ?? '', limit: neighborhoodLimit })}
           </span>}
@@ -1571,6 +1602,10 @@ export function KnowledgeGraphView({
               linkCurvature={renderer.curvature}
               autoPauseRedraw
               onNodeClick={(node: GraphNode) => {
+                if (node.type === 'group' && node.group_key) {
+                  toggleGroup(node.group_key, true);
+                  return;
+                }
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);
                 if (node.type === 'entity' || node.type === 'code_file') {

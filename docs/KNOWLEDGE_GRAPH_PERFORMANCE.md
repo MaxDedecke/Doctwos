@@ -205,6 +205,12 @@ Dateiart), bei Syncope 30–36 %; Label Propagation hinterließ bei Syncope eine
 Skalierung (synthetisch, nur Gruppenbildung): 200.000 Dateikanten 3,5 s / 244 MB,
 600.000 12,5 s / 651 MB, 1 Mio. 25,7 s / 1,06 GB. Darüber gruppiert Louvain Verzeichnisse.
 
+Übersicht mit Gruppen (ab 1.000 Dateikanten; der Browser schickt die aufgeklappten Gruppen
+mit, `GET /graph?expanded=…`): Syncope eingeklappt 42 Knoten (24 Gruppen, 21 Dokumente,
+1 Erkenntnis) und 271 Kanten statt 3.425 Knoten und 8.054 Kanten, Antwort 0,05 s.
+Aufklappen 0,03–0,28 s (Spring WS, Gruppe mit 117 Dateien: 0,28 s). CardDemo bleibt unter
+der Schwelle bei Dateien.
+
 Die Backend-Suite besteht mit zwei neuen Grenz-/Trunkierungsfällen 731 Tests
 (2 übersprungen). Der Browsermesslauf kann über `GRAPH_BENCH_GRAPH=<json>`
 zusätzlich einen lokalen `/graph`-Snapshot verwenden; dieser wird nicht ins

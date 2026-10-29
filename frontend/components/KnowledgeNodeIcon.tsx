@@ -1,5 +1,5 @@
 import {
-  AlignLeft, BookOpen, Braces, Cog, ExternalLink, File, FileCode2, FileText, Files, Globe, Hash, Lightbulb, Link2, Ticket,
+  AlignLeft, BookOpen, Braces, Cog, ExternalLink, File, FileCode2, FileText, Files, Globe, Hash, Layers, Lightbulb, Link2, Tag, Ticket,
   type LucideIcon,
 } from 'lucide-react';
 import type { ReactElement } from 'react';
@@ -26,6 +26,8 @@ const NODE_ICONS: Record<GraphNodeIconName, LucideIcon> = {
   txt: AlignLeft,
   md: Hash,
   document: Files,
+  group: Layers,
+  topic: Tag,
 };
 
 /**

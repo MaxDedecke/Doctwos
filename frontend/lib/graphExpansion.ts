@@ -66,3 +66,35 @@ export function collapseExpansion(graph: GraphData, expansions: Map<string, Grap
     || connected.has(node.id) || (node.id !== anchorId && expansions.has(node.id)));
   return { nodes, edges };
 }
+
+const insideGroup = (parent: string | null | undefined, key: string) => parent === key || !!parent?.startsWith(`${key}.`);
+
+/** Collapsing removes the group itself and every expanded subgroup below it. */
+export function collapseGroupKeys(expanded: string[], key: string): string[] {
+  return expanded.filter(k => k !== key && !k.startsWith(`${key}.`));
+}
+
+/**
+ * Start positions after expanding or collapsing a group: what the layout already placed keeps its
+ * position, the contents of an expanded group start around the spot where the group was, and a
+ * collapsed group returns to the centre of what it contained.
+ */
+export function seedGroupPositions(nodes: GraphNode[], previous: GraphNode[], collapsedKey?: string | null): GraphNode[] {
+  const placed = new Map(previous.filter(n => n.x != null && n.y != null).map(n => [n.id, n]));
+  const slots = new Map<string, number>();
+  return nodes.map(node => {
+    if (placed.has(node.id)) return node;
+    if (collapsedKey && node.type === 'group' && node.group_key === collapsedKey) {
+      const inside = previous.filter(n => n.x != null && n.y != null && insideGroup(n.group_parent, collapsedKey));
+      if (!inside.length) return node;
+      return { ...node, x: inside.reduce((sum, n) => sum + n.x!, 0) / inside.length,
+        y: inside.reduce((sum, n) => sum + n.y!, 0) / inside.length };
+    }
+    const parent = node.group_parent ? placed.get(`group:${node.group_parent}`) : undefined;
+    if (!parent) return node;
+    const slot = slots.get(parent.id) ?? 0;
+    slots.set(parent.id, slot + 1);
+    const angle = slot * 2.39996, distance = 220 + 60 * Math.sqrt(slot);
+    return { ...node, x: parent.x! + Math.cos(angle) * distance, y: parent.y! + Math.sin(angle) * distance };
+  });
+}

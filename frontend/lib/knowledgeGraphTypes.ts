@@ -1,6 +1,6 @@
 export interface GraphNode {
   id: string;
-  type: 'insight' | 'entity' | 'code_file' | 'document' | 'copybook' | 'external';
+  type: 'insight' | 'entity' | 'code_file' | 'document' | 'copybook' | 'external' | 'group';
   label: string;
   content?: string;
   status?: string;
@@ -21,6 +21,17 @@ export interface GraphNode {
   resource_id?: string | number | null;
   /** Total connections on the server; more than the loaded edges means some are not shown. */
   degree?: number;
+  /** Group nodes (type 'group'): files grouped by coupling or a topic, expandable in place. */
+  group_key?: string;
+  group_kind?: 'community' | 'topic';
+  file_count?: number;
+  doc_count?: number;
+  topic_color?: string | null;
+  path_prefix?: string;
+  central_file?: string;
+  /** Set on everything shown because its group is expanded; collapsing returns to the group. */
+  group_parent?: string | null;
+  group_parent_label?: string | null;
   x?: number;
   y?: number;
   fx?: number;

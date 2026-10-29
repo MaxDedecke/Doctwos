@@ -633,6 +633,43 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.queryByText('Weitere Verbindungen laden')).toBeNull();
   });
 
+  it('expands a group in place on click and collapses it again from one of its files', async () => {
+    const collapsed = {
+      grouped: true, expanded: [],
+      nodes: [
+        { id: 'group:c1', type: 'group', label: 'core · Billing', group_key: 'c1', group_kind: 'community', file_count: 2, project_id: 1 },
+        { id: 'group:c2', type: 'group', label: 'web · Shop', group_key: 'c2', group_kind: 'community', file_count: 3, project_id: 1 },
+      ],
+      edges: [{ id: 'bundle:code_dependency:group:c1->group:c2', source: 'group:c1', target: 'group:c2', link_type: 'code_dependency', direction: 'directed', score: null, context: '4 Beziehungen', meta: { bundled: true, edge_count: 4, file_edge_count: 2 } }],
+    };
+    const expanded = {
+      grouped: true, expanded: ['c1'],
+      nodes: [
+        { id: 'file:1:2:A.java', type: 'code_file', label: 'A.java', file_path: 'A.java', project_id: 1, group_parent: 'c1', group_parent_label: 'core · Billing' },
+        { id: 'file:1:2:B.java', type: 'code_file', label: 'B.java', file_path: 'B.java', project_id: 1, group_parent: 'c1', group_parent_label: 'core · Billing' },
+        collapsed.nodes[1],
+      ],
+      edges: [{ id: 'bundle:code_dependency:file:1:2:A.java->group:c2', source: 'file:1:2:A.java', target: 'group:c2', link_type: 'code_dependency', direction: 'directed', score: null, context: null, meta: { bundled: true, edge_count: 4, file_edge_count: 2 } }],
+    };
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => collapsed })
+      .mockResolvedValueOnce({ ok: true, json: async () => expanded })
+      .mockResolvedValueOnce({ ok: true, json: async () => collapsed });
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-group:c1'));
+    await waitFor(() => expect(screen.getByTestId('node-file:1:2:A.java')).toBeTruthy());
+    expect(String(fetchMock.mock.calls[1][0])).toContain('expanded=c1');
+    expect(screen.queryByTestId('node-group:c1')).toBeNull();
+    expect(screen.getByTestId('node-group:c2')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('node-file:1:2:A.java'));
+    fireEvent.click(await screen.findByText('Gruppe „core · Billing“ einklappen'));
+    await waitFor(() => expect(screen.getByTestId('node-group:c1')).toBeTruthy());
+    expect(String(fetchMock.mock.calls[2][0])).not.toContain('expanded=');
+  });
+
   it('returns from an edge opened in the details to the node it came from', async () => {
     const overviewResponse = {
       nodes: [

@@ -14,11 +14,15 @@ export function graphEdgeDirection(edge: GraphEdge) {
 export const isEdgeDirected = (edge: GraphEdge) => graphEdgeDirection(edge) !== 'undirected';
 
 export function nodeRadius(node: GraphNode, degree = 0): number {
+  if (node.type === 'group') {
+    return (10 + Math.min(18, Math.sqrt((node.file_count ?? 0) + (node.doc_count ?? 0)) * 1.6)) * NODE_RADIUS_SCALE;
+  }
   const base = node.type === 'entity' || node.type === 'code_file' ? 8 : 7;
   return (base + Math.min(9, Math.sqrt(degree) * 1.8)) * NODE_RADIUS_SCALE;
 }
 
 export function getNodeDisplayLabel(node: GraphNode): string {
+  if (node.type === 'group') return `${node.label} (${(node.file_count ?? 0) + (node.doc_count ?? 0)})`;
   return node.type === 'code_file' && node.file_path
     ? node.file_path.split(/[\\/]/).filter(Boolean).pop() || node.label : node.label;
 }
@@ -163,7 +167,9 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
   }
 
   function linkWidth(edge: GraphEdge) {
-    const width = edgeLineWidth(edge.id === selectedEdgeId, edge.score);
+    // Gebündelte Kanten zwischen Gruppen werden mit der Zahl ihrer Dateikanten kräftiger.
+    const bundled = edge.meta?.bundled ? Number(edge.meta.file_edge_count || edge.meta.edge_count || 1) : 0;
+    const width = Math.max(edgeLineWidth(edge.id === selectedEdgeId, edge.score), bundled ? Math.min(6, 1.2 + Math.log2(bundled) * 0.6) : 0);
     if (isHighlighted(edge)) return width;
     const zoomed = zoomedEdgeWidth(width, zoom());
     return passesThrough(edge) ? Math.min(zoomed, PASS_THROUGH_EDGE_WIDTH) : zoomed;
@@ -184,6 +190,16 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
       ctx.lineWidth = Math.min(1.6 / scale, r * 0.18);
       ctx.strokeStyle = primary ? accent : outline;
       ctx.stroke();
+    }
+    if (node.type === 'group') {
+      // Zweiter Ring: Gruppen sind aufklappbar; Topics (von Menschen gebildet) gestrichelt.
+      ctx.beginPath();
+      ctx.arc(x, y, r + 3 / scale, 0, Math.PI * 2);
+      ctx.strokeStyle = style.color;
+      ctx.lineWidth = 1.5 / scale;
+      if (node.group_kind === 'topic') ctx.setLineDash([4 / scale, 3 / scale]);
+      ctx.stroke();
+      ctx.setLineDash([]);
     }
     if (primary) {
       ctx.beginPath();

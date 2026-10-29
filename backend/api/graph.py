@@ -31,6 +31,7 @@ from sqlalchemy.orm import Session, load_only
 
 from services.graph_overview_backbone import load_code_file_graph
 from services.graph_overview_degree import overview_degrees
+from services.graph_overview_groups import GraphHelpers, grouped_overview, grouping_available
 from services.graph_overview_links import append_overview_knowledge_links
 from services.graph_overview_limits import (
     CODE_EDGES_PER_NODE_BUDGET as CODE_EDGES_PER_NODE_BUDGET,
@@ -517,6 +518,12 @@ def get_graph(
     cursor: Optional[str] = Query(None, description="Optional cursor for overview pagination"),
     focus_source_id: Optional[int] = None,
     min_per_kind: int = Query(3, ge=0, le=20),
+    group: bool = Query(
+        True, description="Gruppen-Knoten statt Dateien ab der Grundgerüst-Schwelle"
+    ),
+    expanded: Optional[str] = Query(
+        None, description="Kommagetrennte Schlüssel aufgeklappter Gruppen"
+    ),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -538,6 +545,10 @@ def get_graph(
         focus_source_id = None
     if not isinstance(min_per_kind, int):
         min_per_kind = 3
+    if not isinstance(group, bool):
+        group = True
+    if not isinstance(expanded, str):
+        expanded = None
 
     nodes: dict[str, dict] = {}
     edges: list[dict] = []
@@ -657,6 +668,31 @@ def get_graph(
         _doc_node,
     )
 
+    from services.insight_graph import append_insight_graph
+
+    if group and grouping_available(db, project_id):
+        append_insight_graph(db, [project_id], nodes, edges, _ensure_entity_file_node, _doc_node)
+        result = grouped_overview(
+            db,
+            project_id,
+            nodes,
+            edges,
+            [key for key in (expanded or "").split(",") if key],
+            GraphHelpers(
+                file_id=_code_file_id,
+                ensure_file=_ensure_entity_file_node,
+                doc_node_id=_document_node_id,
+                doc_node=_doc_node,
+                append_code_dependencies=_append_code_dependencies,
+            ),
+        )
+        result["focus_source_id"] = focus_source_id
+        result["graph_revision"] = f"proj:{project_id}:overview:groups"
+        result["has_more"] = False
+        result["next_cursor"] = None
+        _attach_graph_analysis_status(db, result["nodes"])
+        return result
+
     # ── Code dependencies: file graph, backbone above a size threshold ────────
     code_graph = load_code_file_graph(
         db, project_id, exposed_project_ids, _code_file_id, max_pairs=_code_edge_budget(limit)
@@ -692,8 +728,6 @@ def get_graph(
             for pair in code_graph.pairs
         },
     )
-
-    from services.insight_graph import append_insight_graph
 
     append_insight_graph(
         db,
