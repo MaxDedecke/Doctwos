@@ -49,6 +49,13 @@ export function zoomedEdgeAlpha(zoom: number): number {
   return Math.max(EDGE_MIN_ALPHA, Math.min(1, zoom / EDGE_FULL_ZOOM));
 }
 
+/**
+ * Kanten, deren beide Enden außerhalb des Ausschnitts liegen, laufen nur hindurch. Sie treten
+ * zurück, damit hereingezoomt vor allem sichtbar ist, was an den sichtbaren Knoten hängt.
+ */
+export const PASS_THROUGH_EDGE_ALPHA = 0.18;
+export const PASS_THROUGH_EDGE_WIDTH = 0.6;
+
 /** Gezeichneter Radius in Graph-Einheiten: nie kleiner als NODE_MIN_SCREEN_RADIUS Bildschirmpixel. */
 export function screenNodeRadius(radius: number, zoom: number): number {
   return Math.max(radius, NODE_MIN_SCREEN_RADIUS / Math.max(zoom, 0.01));

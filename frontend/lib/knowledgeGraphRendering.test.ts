@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { EDGE_MIN_SCREEN_WIDTH } from './graphLayout';
+import { EDGE_MIN_SCREEN_WIDTH, PASS_THROUGH_EDGE_WIDTH } from './graphLayout';
 import { createKnowledgeGraphRenderer, type GraphViewport } from './knowledgeGraphRendering';
 import type { GraphNode, GraphEdge } from './knowledgeGraphTypes';
 
@@ -50,6 +50,19 @@ describe('knowledge graph rendering', () => {
     expect(zoomedOut.linkColor(links[0])).toMatch(/\/ 0\.3\)$|var\(/);
     const selected = createKnowledgeGraphRenderer({ ...options, zoom: () => 0.05 });
     expect(selected.linkWidth(links[0])).toBeGreaterThanOrEqual(1.2);
+  });
+
+  it('fades edges that only pass through the view but keeps edges with a visible end', () => {
+    const { options, nodes, links, viewport } = fixture();
+    const renderer = createKnowledgeGraphRenderer({ ...options, selectedNodeId: null, focusNeighborIds: null });
+    viewport.current = { x: 0, y: 0, k: 1, width: 300, height: 200 };
+    nodes[0].x = -1000;
+    nodes[1].x = 1000;
+    expect(renderer.linkWidth(links[0])).toBe(PASS_THROUGH_EDGE_WIDTH);
+    expect(renderer.linkColor(links[0])).toMatch(/\/ 0\.18\)$|var\(/);
+    nodes[1].x = 100;
+    expect(renderer.linkWidth(links[0])).toBeGreaterThanOrEqual(1.2);
+    expect(renderer.linkColor(links[0])).not.toMatch(/\/ 0\.18\)$/);
   });
 
   it('keeps crossing edges when both endpoints are outside the viewport', () => {

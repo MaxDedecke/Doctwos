@@ -1,7 +1,7 @@
 import { canvasColor, resolveDsColor } from './designTokens';
 import { getGraphEdgeColor, getGraphNodeColor, normalizeGraphEdgeDirection } from './graphTaxonomy';
-import { arrowLength, BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO, edgeLineWidth, NODE_RADIUS_SCALE, screenNodeRadius, zoomedEdgeAlpha,
-  zoomedEdgeWidth } from './graphLayout';
+import { arrowLength, BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO, edgeLineWidth, NODE_RADIUS_SCALE, PASS_THROUGH_EDGE_ALPHA,
+  PASS_THROUGH_EDGE_WIDTH, screenNodeRadius, zoomedEdgeAlpha, zoomedEdgeWidth } from './graphLayout';
 import type { GraphEdge, GraphNode } from './knowledgeGraphTypes';
 import { drawKnowledgeNodeIcon } from '@/components/KnowledgeNodeIcon';
 
@@ -93,6 +93,18 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
       && Math.abs(node.y - view.y) <= view.height / (2 * view.k) + padding;
   }
 
+  function inView(node: GraphNode | undefined) {
+    const view = viewport();
+    if (!view || !node || node.x == null || node.y == null) return true;
+    const r = radius(node);
+    return Math.abs(node.x - view.x) <= view.width / (2 * view.k) + r
+      && Math.abs(node.y - view.y) <= view.height / (2 * view.k) + r;
+  }
+
+  function passesThrough(edge: GraphEdge) {
+    return !inView(resolveNode(edge.source)) && !inView(resolveNode(edge.target));
+  }
+
   function linkVisible(edge: GraphEdge) {
     const view = viewport();
     const source = resolveNode(edge.source), target = resolveNode(edge.target);
@@ -117,12 +129,16 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
     const touchesFocus = focus ? graphEndId(edge.source) === focus || graphEndId(edge.target) === focus
       : !selectedEdgeId || edge.id === selectedEdgeId;
     if (!touchesFocus) return dimLink;
-    return isHighlighted(edge) ? edgeColors.get(edge.id)! : withAlpha(edgeColors.get(edge.id)!, zoomedEdgeAlpha(zoom()));
+    if (isHighlighted(edge)) return edgeColors.get(edge.id)!;
+    const alpha = zoomedEdgeAlpha(zoom());
+    return withAlpha(edgeColors.get(edge.id)!, passesThrough(edge) ? Math.min(alpha, PASS_THROUGH_EDGE_ALPHA) : alpha);
   }
 
   function linkWidth(edge: GraphEdge) {
     const width = edgeLineWidth(edge.id === selectedEdgeId, edge.score);
-    return isHighlighted(edge) ? width : zoomedEdgeWidth(width, zoom());
+    if (isHighlighted(edge)) return width;
+    const zoomed = zoomedEdgeWidth(width, zoom());
+    return passesThrough(edge) ? Math.min(zoomed, PASS_THROUGH_EDGE_WIDTH) : zoomed;
   }
 
   function drawNode(node: GraphNode, ctx: CanvasRenderingContext2D, scale: number) {
