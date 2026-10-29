@@ -1454,6 +1454,8 @@
     "collapseGroup": "Collapse group “{{label}}”",
     "memberGroupLabel": "Group",
     "autoExpandGroups": "Expand groups when zooming in",
+    "undoGroupStep": "Undo the last expansion",
+    "resetGraph": "Reset the graph to its initial state",
     "groupedHint": "grouped by coupling – click a group to expand it",
     "backToOverview": "Back to overview",
     "backTo": "Back to {{label}}",

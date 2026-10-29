@@ -694,6 +694,37 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(String(fetchMock.mock.calls[2][0])).not.toContain('expanded=');
   });
 
+  it('undoes the last expansion step and resets the graph to its initial state', async () => {
+    const group = (key: string) => ({ id: `group:${key}`, type: 'group', label: key, group_key: key, group_kind: 'community', file_count: 2, project_id: 1 });
+    const file = (name: string, parent: string) => ({ id: `file:${name}`, type: 'code_file', label: name, file_path: name, project_id: 1, group_parent: parent, group_parent_label: parent });
+    const link = (a: string, b: string) => ({ id: `${a}->${b}`, source: a, target: b, link_type: 'code_dependency', direction: 'directed', score: null, context: null, meta: { bundled: true, edge_count: 1, file_edge_count: 1 } });
+    const collapsed = { grouped: true, expanded: [], nodes: [group('c1'), group('c2')], edges: [link('group:c1', 'group:c2')] };
+    const expanded = { grouped: true, expanded: ['c1'], nodes: [file('A.java', 'c1'), group('c2')], edges: [link('file:A.java', 'group:c2')] };
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true, json: async () => (String(url).includes('expanded=c1') ? expanded : collapsed),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    renderGraph();
+    const undo = await screen.findByRole('button', { name: 'Letztes Aufklappen zurücknehmen' });
+    expect((undo as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(await screen.findByTestId('node-group:c1'));
+    await waitFor(() => expect(screen.getByTestId('node-file:A.java')).toBeTruthy());
+    expect((undo as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(undo);
+    await waitFor(() => expect(screen.getByTestId('node-group:c1')).toBeTruthy());
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).not.toContain('expanded=');
+
+    fireEvent.click(screen.getByTestId('node-group:c1'));
+    await waitFor(() => expect(screen.getByTestId('node-file:A.java')).toBeTruthy());
+    zoomToFit.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Graph auf den Ausgangszustand zurücksetzen' }));
+    await waitFor(() => expect(screen.getByTestId('node-group:c1')).toBeTruthy());
+    expect(String(fetchMock.mock.calls.at(-1)?.[0])).not.toContain('expanded=');
+    await waitFor(() => expect(zoomToFit).toHaveBeenCalled());
+  });
+
   it('returns from an edge opened in the details to the node it came from', async () => {
     const overviewResponse = {
       nodes: [

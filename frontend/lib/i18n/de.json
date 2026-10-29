@@ -1454,6 +1454,8 @@
     "collapseGroup": "Gruppe „{{label}}“ einklappen",
     "memberGroupLabel": "Gruppe",
     "autoExpandGroups": "Gruppen beim Hereinzoomen aufklappen",
+    "undoGroupStep": "Letztes Aufklappen zurücknehmen",
+    "resetGraph": "Graph auf den Ausgangszustand zurücksetzen",
     "groupedHint": "gruppiert nach Kopplung – Klick auf eine Gruppe klappt sie auf",
     "backToOverview": "Zurück zur Übersicht",
     "backTo": "Zurück zu {{label}}",

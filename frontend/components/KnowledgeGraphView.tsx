@@ -26,10 +26,10 @@ import { cn } from '@/lib/utils';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
 import { useGraphExpansion } from '@/hooks/useGraphExpansion';
 import { canExpandInPlace, collapseGroupKeys, hiddenEdgeCounts, seedGroupPositions, type GraphData } from '@/lib/graphExpansion';
-import { AUTO_EXPAND_DELAY_MS, decideAutoGroups, type AutoGroupState } from '@/lib/autoGroupExpansion';
+import { AUTO_EXPAND_DELAY_MS, decideAutoGroups } from '@/lib/autoGroupExpansion';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
-import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RotateCcw, Undo2, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GraphSourceFocus } from './GraphSourceFocus';
@@ -206,7 +206,10 @@ export function KnowledgeGraphView({
   const [autoExpandGroups, setAutoExpandGroups] = useState(() => {
     try { return localStorage.getItem(AUTO_EXPAND_STORAGE_KEY) !== 'off'; } catch { return true; }
   });
-  const autoGroupsRef = useRef<AutoGroupState>({ auto: new Map(), suppressed: new Set() });
+  // Zugeklapptes, das sich nicht sofort wieder von selbst öffnen soll.
+  const suppressedGroupsRef = useRef<Set<string>>(new Set());
+  // Aufgeklappte Gruppen in der Reihenfolge des Aufklappens, für „Schritt zurück“.
+  const [groupHistory, setGroupHistory] = useState<string[]>([]);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const groupRequestRef = useRef(false);
 
@@ -385,6 +388,9 @@ export function KnowledgeGraphView({
         ? { shown: nodes.length, total: data.total_nodes ?? nodes.length, edgesSampled: Boolean(data.edges_sampled) }
         : null;
       expandedGroupsRef.current = data.grouped ? data.expanded ?? expanded : [];
+      // Der Verlauf kennt nur, was nach dem Laden tatsächlich aufgeklappt ist (Projektwechsel leert ihn).
+      const open = new Set(expandedGroupsRef.current);
+      setGroupHistory(history => history.filter(key => open.has(key)));
       setIsGrouped(Boolean(data.grouped));
       overviewCacheRef.current = { projectId, includeIsolated, nodes, edges, truncation, expanded: expandedGroupsRef.current.join(',') };
       resetExpansions();
@@ -429,38 +435,45 @@ export function KnowledgeGraphView({
   const toggleGroup = useCallback((key: string, expand: boolean) => {
     const current = expandedGroupsRef.current;
     const next = expand ? [...new Set([...current, key])] : collapseGroupKeys(current, key);
-    const { auto, suppressed } = autoGroupsRef.current;
-    for (const open of [...auto.keys()]) if (!next.includes(open)) auto.delete(open);
-    // Von Hand Zugeklapptes soll sich nicht sofort wieder von selbst öffnen.
-    if (!expand) suppressed.add(key);
+    if (expand) setGroupHistory(history => [...history.filter(k => k !== key), key]);
+    else {
+      suppressedGroupsRef.current.add(key);
+      setGroupHistory(history => history.filter(k => next.includes(k)));
+    }
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
     applyGroups(next, expand ? null : key);
   }, [applyGroups]);
+
+  const undoGroupStep = useCallback(() => {
+    const last = [...groupHistory].reverse().find(key => expandedGroupsRef.current.includes(key));
+    if (last) toggleGroup(last, false);
+  }, [groupHistory, toggleGroup]);
+
+  const resetGraph = useCallback(() => {
+    expandedGroupsRef.current = [];
+    suppressedGroupsRef.current = new Set();
+    setGroupHistory([]);
+    setSelectedNodeId(null);
+    setSelectedEdgeId(null);
+    setFocusNodeId(null);
+    cameraAfterLayoutRef.current = { fit: true };
+    if (viewMode === 'overview') applyGroups([], null);
+    else void loadOverview(true, undefined, undefined, { expanded: [], collapsedKey: null });
+  }, [applyGroups, loadOverview, viewMode]);
 
   const updateAutoGroups = useCallback(() => {
     const graph = graphRef.current;
     if (!autoExpandGroups || !isGrouped || viewMode !== 'overview' || !graph?.screen2GraphCoords || groupRequestRef.current) return;
     const center = graph.screen2GraphCoords(dimensions.width / 2, dimensions.height / 2);
     const view = { x: center.x, y: center.y, k: graph.zoom(), ...dimensions };
-    const state = autoGroupsRef.current;
     const groups = sceneNodesRef.current
       .filter(node => node.type === 'group' && node.group_key && node.x != null && node.y != null)
       .map(node => ({ key: node.group_key!, x: node.x!, y: node.y!, r: nodeRadius(node) }));
-    const { collapse, released, expand } = decideAutoGroups(groups, view, state);
-    released.forEach(key => state.suppressed.delete(key));
-    if (!collapse.length && !expand) return;
-    let next = expandedGroupsRef.current;
-    for (const key of collapse) {
-      next = collapseGroupKeys(next, key);
-      for (const open of [...state.auto.keys()]) if (open === key || open.startsWith(`${key}.`)) state.auto.delete(open);
-    }
-    if (expand) {
-      next = [...new Set([...next, expand.key])];
-      state.auto.set(expand.key, { x: expand.x, y: expand.y, r: expand.r });
-    }
-    applyGroups(next, collapse[0] ?? null);
-  }, [autoExpandGroups, isGrouped, viewMode, applyGroups, dimensions]);
+    const { released, expand } = decideAutoGroups(groups, view, suppressedGroupsRef.current);
+    released.forEach(key => suppressedGroupsRef.current.delete(key));
+    if (expand) toggleGroup(expand.key, true);
+  }, [autoExpandGroups, isGrouped, viewMode, dimensions, toggleGroup]);
 
   const scheduleAutoGroups = useCallback(() => {
     if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
@@ -753,7 +766,7 @@ export function KnowledgeGraphView({
     if (agentGraphFocus) return;
     resetFocus();
     expandedGroupsRef.current = [];
-    autoGroupsRef.current = { auto: new Map(), suppressed: new Set() };
+    suppressedGroupsRef.current = new Set();
     void loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.id]);
@@ -1567,6 +1580,13 @@ export function KnowledgeGraphView({
           </>}
           <button onClick={() => graphRef.current?.zoomToFit(400, 40)} title={t('knowledgeGraphView.fitAllTitle')} aria-label={t('knowledgeGraphView.fitAllTitle')}
             className={cn('shrink-0 rounded-md p-1.5', iconBtn)}><Maximize2 className="h-3.5 w-3.5" /></button>
+          {isGrouped && (
+            <button onClick={undoGroupStep} disabled={!groupHistory.length}
+              title={t('knowledgeGraphView.undoGroupStep')} aria-label={t('knowledgeGraphView.undoGroupStep')}
+              className={cn('shrink-0 rounded-md p-1.5 disabled:opacity-40', iconBtn)}><Undo2 className="h-3.5 w-3.5" /></button>
+          )}
+          <button onClick={resetGraph} title={t('knowledgeGraphView.resetGraph')} aria-label={t('knowledgeGraphView.resetGraph')}
+            className={cn('shrink-0 rounded-md p-1.5', iconBtn)}><RotateCcw className="h-3.5 w-3.5" /></button>
           <DropdownMenu modal={false} onOpenChange={open => { if (open) menuOpensPanelRef.current = false; }}>
             <DropdownMenuTrigger asChild>
               <button ref={viewTriggerRef} title={t('knowledgeGraphView.viewOptions')} aria-label={t('knowledgeGraphView.viewOptions')} className={cn('flex h-7 shrink-0 items-center gap-1 rounded-md border px-1.5 text-xs', chipBase)}>
