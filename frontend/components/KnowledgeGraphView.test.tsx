@@ -725,6 +725,33 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(zoomToFit).toHaveBeenCalled());
   });
 
+  it('opens the groups down to an object focused in another panel and selects it', async () => {
+    const group = (key: string) => ({ id: `group:${key}`, type: 'group', label: key, group_key: key, group_kind: 'community', file_count: 2, project_id: 1 });
+    const collapsed = { grouped: true, expanded: [], nodes: [group('c1'), group('c2')], edges: [] };
+    const expanded = { grouped: true, expanded: ['c1'], nodes: [
+      { id: 'file:A.java', type: 'code_file', label: 'A.java', file_path: 'A.java', project_id: 1, group_parent: 'c1', group_parent_label: 'c1' },
+      group('c2')], edges: [] };
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => ({
+      ok: true,
+      json: async () => (String(url).includes('/graph/locate') ? { node_id: 'file:A.java', group_path: ['c1'] }
+        : String(url).includes('expanded=c1') ? expanded : collapsed),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+    const view = (selectedFile: string | null) => (
+      <LanguageProvider>
+        <KnowledgeGraphView theme="dark" selectedProject={{ id: 1, name: 'Testprojekt' }} selectedFile={selectedFile} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(view(null));
+    await screen.findByTestId('node-group:c1');
+
+    rerender(view('A.java'));
+    await waitFor(() => expect(screen.getByTestId('node-file:A.java')).toBeTruthy(), { timeout: 6000 });
+    const urls = fetchMock.mock.calls.map(call => String(call[0]));
+    expect(urls.some(url => url.includes('/graph/locate') && url.includes('file_path=A.java'))).toBe(true);
+    await waitFor(() => expect(screen.getByTestId('graph-tool-panel').getAttribute('aria-label')).toBe('A.java'), { timeout: 3000 });
+  }, 10000);
+
   it('returns from an edge opened in the details to the node it came from', async () => {
     const overviewResponse = {
       nodes: [

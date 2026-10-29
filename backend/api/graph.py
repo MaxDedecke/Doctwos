@@ -26,7 +26,7 @@ from urllib.parse import quote, unquote
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, text
 from sqlalchemy.orm import Session, load_only
 
 from services.graph_overview_backbone import load_code_file_graph
@@ -34,6 +34,9 @@ from services.graph_overview_degree import overview_degrees
 from services.graph_overview_groups import (
     GraphHelpers,
     annotate_group_membership,
+    group_path,
+    locate_file,
+    locate_topic_document,
     grouped_overview,
     grouping_available,
 )
@@ -1601,6 +1604,67 @@ def get_graph_neighborhood(
     _attach_graph_analysis_status(db, response["nodes"])
     annotate_group_membership(db, proj_id, response["nodes"])
     return response
+
+
+@router.get("/locate")
+def locate_in_groups(
+    project_id: int = Query(..., ge=1),
+    entity_id: Optional[int] = Query(None),
+    file_path: Optional[str] = Query(None),
+    source_id: Optional[int] = Query(None),
+    chunk_id: Optional[int] = Query(None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Wo ein Fokusobjekt in der gruppierten Übersicht steckt: Knoten-ID und die Gruppen von oben
+    nach unten, die das Frontend nacheinander aufklappt, um es zu zeigen."""
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+    assert_project_visible(project_id, user, db)
+
+    if chunk_id is not None:
+        chunk = (
+            db.query(DocumentChunk)
+            .filter(DocumentChunk.id == chunk_id, DocumentChunk.project_id == project_id)
+            .first()
+        )
+        if not chunk:
+            raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+        meta = chunk.metadata_json or {}
+        node_id = _document_node_id(
+            meta.get("title") or chunk.file_path, meta.get("source_type"), meta.get("url"), chunk
+        )
+        return {
+            "node_id": node_id,
+            "group_path": group_path(db, project_id, locate_topic_document(db, project_id, chunk)),
+        }
+
+    if entity_id is not None:
+        entity = (
+            db.query(CodeEntity)
+            .filter(CodeEntity.id == entity_id, CodeEntity.project_id == project_id)
+            .first()
+        )
+        if not entity:
+            raise HTTPException(status_code=404, detail="Element nicht gefunden")
+        file_path, source_id = entity.file_path, entity.source_id
+    if not file_path:
+        raise HTTPException(status_code=422, detail="entity_id, file_path oder chunk_id angeben")
+    leaf = locate_file(db, project_id, file_path, source_id)
+    if leaf is not None and source_id is None:
+        source_id = db.execute(
+            text(
+                "SELECT file_source_id FROM code_file_group_members "
+                "WHERE project_id = :p AND file_path = :path AND group_key = :key LIMIT 1"
+            ),
+            {"p": project_id, "path": file_path, "key": leaf},
+        ).scalar()
+    return {
+        "node_id": _code_file_id(project_id, source_id, file_path),
+        "group_path": group_path(db, project_id, leaf),
+    }
 
 
 @router.get("/focus")

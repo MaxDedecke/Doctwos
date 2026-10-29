@@ -422,3 +422,66 @@ def annotate_group_membership(db: Session, project_id: Optional[int], nodes: lis
         if node is not None:
             node["member_group"] = row.group_key
             node["member_group_label"] = row.topic_name or row.label
+
+
+def group_path(db: Session, project_id: int, leaf_key: Optional[str]) -> list[str]:
+    """Gruppen von der obersten bis zur feinsten, die man aufklappen muss, um den Inhalt zu sehen."""
+    if not leaf_key:
+        return []
+    parents = dict(
+        db.query(CodeFileGroup.group_key, CodeFileGroup.parent_key)
+        .filter(CodeFileGroup.project_id == project_id)
+        .all()
+    )
+    path, key = [], leaf_key
+    while key is not None and key in parents:
+        path.append(key)
+        key = parents[key]
+    return path[::-1]
+
+
+def locate_file(
+    db: Session, project_id: int, file_path: str, source_id: Optional[int]
+) -> Optional[str]:
+    """Feinste Gruppe einer Datei (bei mehreren Quellen mit gleichem Pfad die angegebene)."""
+    rows = db.execute(
+        text(
+            "SELECT file_source_id, group_key FROM code_file_group_members "
+            "WHERE project_id = :p AND file_path = :path ORDER BY file_source_id"
+        ),
+        {"p": project_id, "path": file_path},
+    ).all()
+    match = next((r for r in rows if source_id is None or r.file_source_id == source_id), None)
+    return match.group_key if match else None
+
+
+def locate_topic_document(db: Session, project_id: int, chunk: DocumentChunk) -> Optional[str]:
+    """Topic-Gruppe, in der ein Dokument steckt (das kleinste Topic, wie bei Dateien)."""
+    topic_ids = [
+        row.topic_id
+        for row in db.query(TopicNode.topic_id)
+        .join(Topic, Topic.id == TopicNode.topic_id)
+        .filter(
+            Topic.project_id == project_id,
+            TopicNode.node_type == "document",
+            TopicNode.node_id == chunk.id,
+        )
+        .all()
+    ]
+    keys = {f"t{t}" for t in topic_ids}
+    existing = {
+        g.group_key
+        for g in db.query(CodeFileGroup.group_key).filter(
+            CodeFileGroup.project_id == project_id, CodeFileGroup.group_key.in_(keys)
+        )
+    }
+    if not existing:
+        return None
+    sizes = Counter(
+        row.topic_id
+        for row in db.query(TopicNode.topic_id).filter(
+            TopicNode.topic_id.in_([int(k[1:]) for k in existing]),
+            TopicNode.node_type.in_(["entity", "document"]),
+        )
+    )
+    return f"t{min(sizes, key=lambda t: (sizes[t], t))}"

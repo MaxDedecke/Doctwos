@@ -229,3 +229,36 @@ def test_neighborhood_names_the_group_of_files_shown_on_their_own(
     ).json()
     a1 = next(n for n in body["nodes"] if n.get("file_path") == "A/A1.java")
     assert a1["member_group"].startswith("c") and a1["member_group_label"]
+
+
+def test_locate_returns_node_and_group_path_for_focus_objects(
+    client, db_session, test_project, grouped_project
+):
+    source, topic = grouped_project
+    by_path = client.get(
+        "/graph/locate", params={"project_id": test_project, "file_path": "A/A0.java"}
+    ).json()
+    assert by_path["node_id"].endswith("A%2FA0.java")
+    assert len(by_path["group_path"]) >= 1 and by_path["group_path"][0].startswith("c")
+
+    b2 = (
+        db_session.query(CodeEntity)
+        .filter(CodeEntity.name == "B2", CodeEntity.source_id == source.id)
+        .one()
+    )
+    by_entity = client.get(
+        "/graph/locate", params={"project_id": test_project, "entity_id": b2.id}
+    ).json()
+    assert by_entity["group_path"] == [f"t{topic.id}"]
+
+    handbook = (
+        db_session.query(DocumentChunk)
+        .filter(DocumentChunk.file_path == "Handbuch.md", DocumentChunk.source_id == source.id)
+        .one()
+    )
+    by_doc = client.get(
+        "/graph/locate", params={"project_id": test_project, "chunk_id": handbook.id}
+    ).json()
+    assert by_doc["group_path"] == [f"t{topic.id}"] and by_doc["node_id"].startswith("doc:")
+    missing = client.get("/graph/locate", params={"project_id": test_project})
+    assert missing.status_code == 422

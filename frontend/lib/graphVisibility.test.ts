@@ -14,6 +14,12 @@ const edges = [
 const base = { isNodeHidden: (n: { type: string }) => n.type === 'code_file', isEdgeHidden: () => false };
 
 describe('filterVisibleGraph', () => {
+  it('keeps a group without edges, since it can still be expanded', () => {
+    const groups = [{ id: 'group:t4', type: 'group' }, { id: 'file:a', type: 'code_file' }];
+    expect(filterVisibleGraph(groups, [], { isNodeHidden: () => false, isEdgeHidden: () => false, onlyLinked: true }).nodes)
+      .toEqual([groups[0]]);
+  });
+
   it('keeps an insight without resolvable edges unless its type is hidden', () => {
     const insights = [{ id: 'insight:1', type: 'insight' }];
     expect(filterVisibleGraph(insights, [], { isNodeHidden: () => false, isEdgeHidden: () => false, onlyLinked: true }).nodes).toEqual(insights);
