@@ -65,6 +65,25 @@ describe('knowledge graph rendering', () => {
     expect(renderer.linkColor(links[0])).not.toMatch(/\/ 0\.18\)$/);
   });
 
+  it('draws an edge with one visible end as a short stub without arrowhead', () => {
+    const { options, nodes, links, viewport, ctx } = fixture();
+    links[0].direction = 'directed';
+    const renderer = createKnowledgeGraphRenderer({ ...options, selectedNodeId: null, focusNeighborIds: null });
+    viewport.current = { x: 0, y: 0, k: 1, width: 300, height: 200 };
+    nodes[0].x = 0;
+    nodes[1].x = 5000;
+    expect(renderer.linkCanvasObjectMode(links[0])).toBe('replace');
+    expect(renderer.arrowLength(links[0])).toBe(0);
+    renderer.drawLink(links[0], ctx, 1);
+    const [[endX]] = (ctx.lineTo as unknown as { mock: { calls: number[][] } }).mock.calls;
+    expect(endX).toBeLessThan(200);
+    nodes[1].x = 100;
+    expect(renderer.linkCanvasObjectMode(links[0])).toBe('after');
+    const selected = createKnowledgeGraphRenderer({ ...options, selectedNodeId: 'a' });
+    nodes[1].x = 5000;
+    expect(selected.linkCanvasObjectMode(links[0])).toBe('after');
+  });
+
   it('keeps crossing edges when both endpoints are outside the viewport', () => {
     const { options, nodes, links, viewport } = fixture();
     nodes[0].x = -1000;

@@ -1,6 +1,6 @@
 import { canvasColor, resolveDsColor } from './designTokens';
 import { getGraphEdgeColor, getGraphNodeColor, normalizeGraphEdgeDirection } from './graphTaxonomy';
-import { arrowLength, BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO, edgeLineWidth, NODE_RADIUS_SCALE, PASS_THROUGH_EDGE_ALPHA,
+import { arrowLength, BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO, EDGE_STUB_SCREEN_LENGTH, edgeLineWidth, NODE_RADIUS_SCALE, PASS_THROUGH_EDGE_ALPHA,
   PASS_THROUGH_EDGE_WIDTH, screenNodeRadius, zoomedEdgeAlpha, zoomedEdgeWidth } from './graphLayout';
 import type { GraphEdge, GraphNode } from './knowledgeGraphTypes';
 import { drawKnowledgeNodeIcon } from '@/components/KnowledgeNodeIcon';
@@ -103,6 +103,34 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
 
   function passesThrough(edge: GraphEdge) {
     return !inView(resolveNode(edge.source)) && !inView(resolveNode(edge.target));
+  }
+
+  /** Visible end and far end of an edge that leaves the view; null when it is drawn in full. */
+  function stubOf(edge: GraphEdge) {
+    if (isHighlighted(edge)) return null;
+    const source = resolveNode(edge.source), target = resolveNode(edge.target);
+    if (!source || !target || source.x == null || target.x == null || source.y == null || target.y == null) return null;
+    const sourceVisible = inView(source);
+    if (sourceVisible === inView(target)) return null;
+    return sourceVisible ? { near: source, far: target } : { near: target, far: source };
+  }
+
+  function strokeStub(stub: { near: GraphNode; far: GraphNode }, ctx: CanvasRenderingContext2D, color: string, width: number) {
+    const x = stub.near.x!, y = stub.near.y!;
+    const distance = Math.hypot(stub.far.x! - x, stub.far.y! - y);
+    if (!distance) return;
+    const ux = (stub.far.x! - x) / distance, uy = (stub.far.y! - y) / distance;
+    const start = radius(stub.near);
+    const end = Math.min(distance, start + EDGE_STUB_SCREEN_LENGTH / Math.max(zoom(), 0.01));
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x + ux * start, y + uy * start);
+    ctx.lineTo(x + ux * end, y + uy * end);
+    ctx.stroke();
+    ctx.restore();
   }
 
   function linkVisible(edge: GraphEdge) {
@@ -237,8 +265,20 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
     ctx.restore();
   }
 
-  return { drawNode, linkColor, linkWidth, nodeVisible, linkVisible, drawSourceArrow,
+  return { drawNode, linkColor, linkWidth, nodeVisible, linkVisible,
     hitRadius: (node: GraphNode) => radius(node) + 4,
-    arrowLength: (edge: GraphEdge) => isEdgeDirected(edge) ? edgeArrowLength(edge) : 0,
+    linkCanvasObjectMode: (edge: GraphEdge) => stubOf(edge) ? 'replace' : 'after',
+    // Stubs replace the line; full edges only get the source arrowhead of bidirectional links.
+    drawLink: (edge: GraphEdge, ctx: CanvasRenderingContext2D, scale: number) => {
+      const stub = stubOf(edge);
+      if (stub) strokeStub(stub, ctx, linkColor(edge), linkWidth(edge) / scale);
+      else drawSourceArrow(edge, ctx);
+    },
+    linkPointerArea: (edge: GraphEdge, color: string, ctx: CanvasRenderingContext2D, scale: number) => {
+      const stub = stubOf(edge);
+      if (stub) strokeStub(stub, ctx, color, Math.max(linkWidth(edge), 4) / scale);
+    },
+    drawSourceArrow,
+    arrowLength: (edge: GraphEdge) => isEdgeDirected(edge) && !stubOf(edge) ? edgeArrowLength(edge) : 0,
     arrowRelPos, curvature: (edge: GraphEdge) => curvatures.get(edge.id) ?? 0 };
 }

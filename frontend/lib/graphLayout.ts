@@ -55,6 +55,11 @@ export function zoomedEdgeAlpha(zoom: number): number {
  */
 export const PASS_THROUGH_EDGE_ALPHA = 0.18;
 export const PASS_THROUGH_EDGE_WIDTH = 0.6;
+/**
+ * Kanten mit genau einem Ende im Ausschnitt erscheinen nur als Stummel dieser Bildschirmlänge am
+ * sichtbaren Knoten: Man sieht, dass dort etwas hängt, ohne dass die Linie den Ausschnitt quert.
+ */
+export const EDGE_STUB_SCREEN_LENGTH = 40;
 
 /** Gezeichneter Radius in Graph-Einheiten: nie kleiner als NODE_MIN_SCREEN_RADIUS Bildschirmpixel. */
 export function screenNodeRadius(radius: number, zoom: number): number {

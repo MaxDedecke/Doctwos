@@ -1565,8 +1565,9 @@ export function KnowledgeGraphView({
               onZoom={(transform: { k: number }) => { zoomRef.current = transform.k; }}
               linkDirectionalArrowLength={renderer.arrowLength}
               linkDirectionalArrowRelPos={renderer.arrowRelPos}
-              linkCanvasObject={renderer.drawSourceArrow}
-              linkCanvasObjectMode={() => 'after'}
+              linkCanvasObject={renderer.drawLink}
+              linkCanvasObjectMode={renderer.linkCanvasObjectMode}
+              linkPointerAreaPaint={renderer.linkPointerArea}
               linkCurvature={renderer.curvature}
               autoPauseRedraw
               onNodeClick={(node: GraphNode) => {
