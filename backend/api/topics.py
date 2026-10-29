@@ -16,6 +16,7 @@ Endpoints:
     GET    /topics/search-nodes      — typenübergreifende Node-Suche
 """
 
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -27,12 +28,24 @@ from api.schemas import TopicCreate, TopicUpdate, TopicNodeAttach
 from api.serializers import serialize_topic, serialize_topic_node
 from services.search import search_nodes as _search_nodes, ALL_TYPES
 from core.auth_dependency import get_current_user
+from core.config import celery_app
 from core.teams import get_visible_team_ids
 from core.projects import get_visible_project_ids
 from services.link_project_scope import assert_link_project
 from services.topic_project_scope import get_scoped_topic, assert_topic_node_project
 
 router = APIRouter(prefix="/topics", tags=["topics"])
+logger = logging.getLogger(__name__)
+
+
+def _regroup(project_id: Optional[int]) -> None:
+    """Topics sind Gruppen-Knoten im Wissensgraphen; der Parser ordnet sie außerhalb des Requests neu."""
+    if project_id is None:
+        return
+    try:
+        celery_app.send_task("rebuild_code_file_groups", args=[project_id])
+    except Exception:
+        logger.exception("Neuberechnung der Graph-Gruppen für Projekt %s", project_id)
 
 
 # ── Search (before /{topic_id} routes to avoid param collision) ──────────────
@@ -145,8 +158,10 @@ def delete_topic(
     The actual entities/documents remain untouched.
     """
     t = get_scoped_topic(topic_id, project_id, user, db)
+    topic_project_id = t.project_id
     db.delete(t)
     db.commit()
+    _regroup(topic_project_id)
     return {"message": "Topic deleted"}
 
 
@@ -203,6 +218,7 @@ def attach_node(
     db.add(n)
     db.commit()
     db.refresh(n)
+    _regroup(t.project_id)
     return serialize_topic_node(n)
 
 
@@ -217,10 +233,11 @@ def detach_node(
     """
     Removes a node link from a topic.
     """
-    get_scoped_topic(topic_id, project_id, user, db)
+    t = get_scoped_topic(topic_id, project_id, user, db)
     n = db.query(TopicNode).filter(TopicNode.id == node_id, TopicNode.topic_id == topic_id).first()
     if not n:
         raise HTTPException(status_code=404, detail="Node link not found")
     db.delete(n)
     db.commit()
+    _regroup(t.project_id)
     return {"message": "Node removed"}

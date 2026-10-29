@@ -8,7 +8,8 @@ Aufgaben (Tasks):
     process_knowledge_source  — Wissensquelle synchronisieren (alle Typen via Registry)
     compute_entity_links      — Semantische Links zwischen Code-Entities und Docs berechnen
     generate_diagnostics_bundle — Diagnose-Bundle erzeugen (Settings > Logs Button)
-    rebuild_code_file_edges   — Dateikanten der Graph-Übersicht eines Projekts neu berechnen
+    rebuild_code_file_edges   — Grundgerüst und Gruppen der Graph-Übersicht eines Projekts neu berechnen
+    rebuild_code_file_groups  — nur die Gruppen-Knoten neu berechnen (nach Topic-Änderungen)
 
 Connector-Architektur:
     Alle Wissensquellen (Git, Confluence, Jira, ...) werden über die ConnectorRegistry
@@ -38,7 +39,7 @@ from tasks.sync import process_knowledge_source_async
 from tasks.link_builder import compute_entity_links_async
 from tasks.cross_link_builder import compute_knowledge_links_async
 from tasks.diagnostics import generate_diagnostics_bundle_async
-from tasks.file_edges import refresh_code_file_edges
+from tasks.file_edges import refresh_code_file_edges, refresh_code_file_groups
 
 # Celery installs its own root handler by default (no basicConfig call existed
 # here before), so log lines from this worker had a different format than
@@ -286,6 +287,18 @@ def rebuild_code_file_edges_task(project_id: int | None):
     finally:
         db.close()
     return {"status": "finished", "project_id": project_id, "file_edges": built}
+
+
+@app.task(name="rebuild_code_file_groups")
+def rebuild_code_file_groups_task(project_id: int | None):
+    """Celery-Task: Gruppen-Knoten der Graph-Übersicht neu berechnen (Topics wurden geändert)."""
+    db = SessionLocal()
+    try:
+        built = refresh_code_file_groups(db, project_id)
+        db.commit()
+    finally:
+        db.close()
+    return {"status": "finished", "project_id": project_id, "groups": built}
 
 
 @app.task(name="generate_diagnostics_bundle", bind=True)

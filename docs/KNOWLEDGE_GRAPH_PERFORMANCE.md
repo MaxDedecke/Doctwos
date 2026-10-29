@@ -187,6 +187,24 @@ mit allen Dateikanten war 1,36 GB groß und las sich langsamer (3,9–7,7 s).
 Offen: Die Neuberechnung läuft bei jedem Sync für das ganze Projekt; bei solchen
 Größen wäre eine Neuberechnung nur der betroffenen Dateien die nächste Stufe.
 
+### Gruppen-Knoten (29.10.2026)
+
+Louvain auf dem vollständigen Dateigraphen, Topics gehen vor, Gruppen über 150 Dateien
+unterteilt. „Innen“ = Anteil der Dateikanten innerhalb einer obersten Gruppe.
+
+| Projekt | Gruppen (oberste) | Innen | Zeit |
+|---|---|---|---|
+| CardDemo | 17 (17) | 58 % | 0,3 s |
+| Spring WS | 44 (44) | 59 % | 1,0 s |
+| Apache Syncope | 98 (24, zwei Unterstufen) | 63 % | 1,2 s |
+
+Zum Vergleich: Verzeichnisse als Gruppen erreichen bei CardDemo 2 % (Ablage nach
+Dateiart), bei Syncope 30–36 %; Label Propagation hinterließ bei Syncope eine Gruppe mit
+1.098 Dateien. Nur aus dem Grundgerüst gerechnet sinkt Syncope auf 23 %.
+
+Skalierung (synthetisch, nur Gruppenbildung): 200.000 Dateikanten 3,5 s / 244 MB,
+600.000 12,5 s / 651 MB, 1 Mio. 25,7 s / 1,06 GB. Darüber gruppiert Louvain Verzeichnisse.
+
 Die Backend-Suite besteht mit zwei neuen Grenz-/Trunkierungsfällen 731 Tests
 (2 übersprungen). Der Browsermesslauf kann über `GRAPH_BENCH_GRAPH=<json>`
 zusätzlich einen lokalen `/graph`-Snapshot verwenden; dieser wird nicht ins

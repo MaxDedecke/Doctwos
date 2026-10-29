@@ -732,6 +732,66 @@ class CodeFileEdge(Base):
     __table_args__ = (Index("ix_code_file_edges_project", "project_id"),)
 
 
+class CodeFileGroup(Base):
+    """
+    Gruppen-Knoten der Graph-Übersicht (doctus_models.code_file_groups).
+
+    Abgeleitete Daten wie code_file_edges, je Projekt neu berechnet. `group_key` ist nur innerhalb
+    einer Berechnung stabil ("t<topic>", "c3", "c3.1"); `parent_key` bildet die Stufen.
+    Topic-Gruppen tragen nur die topic_id, Name und Farbe kommen beim Lesen aus dem Topic.
+    """
+
+    __tablename__ = "code_file_groups"
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    group_key = Column(String, nullable=False)
+    parent_key = Column(String, nullable=True)
+    level = Column(Integer, nullable=False)
+    kind = Column(String(20), nullable=False)  # community | topic
+    topic_id = Column(Integer, ForeignKey("topics.id", ondelete="CASCADE"), nullable=True)
+    label = Column(String, nullable=False)
+    path_prefix = Column(String, nullable=False)
+    central_file = Column(String, nullable=False)
+    # Dateien der Gruppe einschließlich ihrer Untergruppen.
+    file_count = Column(Integer, nullable=False)
+
+    __table_args__ = (Index("ix_code_file_groups_project", "project_id"),)
+
+
+class CodeFileGroupMember(Base):
+    """Datei → feinste Gruppe (code_file_groups.group_key) eines Projekts."""
+
+    __tablename__ = "code_file_group_members"
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    group_key = Column(String, nullable=False)
+    file_project_id = Column(Integer, nullable=True)
+    file_source_id = Column(
+        Integer, ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True
+    )
+    file_path = Column(String, nullable=False)
+
+    __table_args__ = (
+        Index("ix_code_file_group_members_project_group", "project_id", "group_key"),
+        Index("ix_code_file_group_members_file", "file_source_id", "file_path"),
+    )
+
+
+class CodeGroupEdge(Base):
+    """Gebündelte Code-Beziehungen zwischen zwei feinsten Gruppen eines Projekts (gerichtet)."""
+
+    __tablename__ = "code_group_edges"
+    id = Column(Integer, primary_key=True)
+    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    src_group_key = Column(String, nullable=False)
+    dst_group_key = Column(String, nullable=False)
+    edge_count = Column(Integer, nullable=False)
+    file_edge_count = Column(Integer, nullable=False)
+    edge_types = Column(JSON, nullable=False)
+
+    __table_args__ = (Index("ix_code_group_edges_project", "project_id"),)
+
+
 class EntityDocLink(Base):
     __tablename__ = "entity_doc_links"
     id = Column(Integer, primary_key=True, index=True)

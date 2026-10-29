@@ -98,7 +98,7 @@ Regeln dafür:
 - **Expliziter Auftrag 29.10.2026:** Wissensgraph – nicht geladene Verbindungen je Knoten anzeigen („+N“)
   und an Ort und Stelle in die Übersicht nachladen; Kanten-Grundgerüst der Übersicht (ab 1.000
   Dateikanten je Datei die 3 gewichtigsten); vorberechnete Dateikanten (`code_file_edges`, am
-  Sync-Ende je Projekt neu berechnet). Gruppen-Knoten sind nicht beauftragt.
+  Sync-Ende je Projekt neu berechnet); Gruppen-Knoten nach Kopplung (Louvain), Topics gehen vor.
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
