@@ -285,11 +285,13 @@ def test_code_edge_budget_is_a_generous_multiple_of_the_node_cap():
 
 
 def test_graph_overview_flags_edge_sampling_separately_from_the_node_cap(client, test_project):
-    """Ist nur das Beziehungsbudget erschöpft, sind alle gelieferten Knoten die einzigen bekannten:
+    """Zeigt die Übersicht nur das Grundgerüst der Beziehungen, sind trotzdem alle Knoten da:
     das Frontend darf das nicht als 'n von n Knoten zu groß' melden, sondern als Beziehungsauswahl."""
-    with patch("api.graph._sample_representative_code_edges", return_value=([], True)):
+    from services.graph_overview_backbone import CodeFileGraph
+
+    with patch("api.graph.load_code_file_graph", return_value=CodeFileGraph([], backbone=True)):
         sampled = client.get(f"/graph?project_id={test_project}").json()
-    with patch("api.graph._sample_representative_code_edges", return_value=([], False)):
+    with patch("api.graph.load_code_file_graph", return_value=CodeFileGraph([])):
         complete = client.get(f"/graph?project_id={test_project}").json()
 
     assert sampled["edges_sampled"] is True

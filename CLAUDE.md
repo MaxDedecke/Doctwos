@@ -96,8 +96,8 @@ Regeln dafür:
   Buildprofil mit Preflight, Copybook-Suchfolge, Grammatik-Masken und BMS. Quellsystem-Flexibilität
   (Endevor, PDS u. ä.) bleibt zurückgestellt.
 - **Expliziter Auftrag 29.10.2026:** Wissensgraph – nicht geladene Verbindungen je Knoten anzeigen („+N“)
-  und an Ort und Stelle in die Übersicht nachladen. Kanten-Grundgerüst und Gruppen-Knoten sind nicht
-  beauftragt.
+  und an Ort und Stelle in die Übersicht nachladen; Kanten-Grundgerüst der Übersicht (ab 1.000
+  Dateikanten je Datei die 3 gewichtigsten). Gruppen-Knoten sind nicht beauftragt.
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im

@@ -56,6 +56,9 @@ DATA_EDGES = frozenset(
     {"READS", "WRITES", "USES", "USES_DATASET", "ASSIGNED_DATASET", "USES_TYPE", "INSTANTIATES"}
 )
 
+# A unit only names another one (import statements); the weakest sign of a dependency between files.
+NAMING_EDGES = frozenset({"IMPORTS", "IMPORTS_MODULE"})
+
 PROFILES: tuple[LanguageProfile, ...] = (COBOL, JAVA, JCL)
 
 CONTROL_EDGES = frozenset().union(*(profile.control_edges for profile in PROFILES))

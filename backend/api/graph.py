@@ -19,6 +19,8 @@ Endpoints:
 
 import csv
 import io
+from bisect import insort
+from functools import lru_cache
 from typing import Optional
 from urllib.parse import quote, unquote
 from xml.etree.ElementTree import Element, SubElement, tostring
@@ -27,6 +29,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session, load_only
 
+from services.graph_overview_backbone import load_code_file_graph
 from services.graph_overview_degree import overview_degrees
 from services.graph_overview_links import append_overview_knowledge_links
 from services.graph_overview_limits import (
@@ -60,6 +63,7 @@ from core.projects import (
 router = APIRouter(prefix="/graph", tags=["graph"])
 
 
+@lru_cache(maxsize=65536)
 def _code_file_id(project_id: Optional[int], source_id: Optional[int], file_path: str) -> str:
     """Stable knowledge-graph identity for a source file."""
     return f"file:{project_id or 'global'}:{source_id or 'none'}:{quote(file_path, safe='')}"
@@ -100,10 +104,13 @@ def _entity_file_node(entity: CodeEntity) -> dict:
 
 def _ensure_entity_file_node(nodes: dict[str, dict], entity: CodeEntity) -> str:
     node_id = _code_file_id(entity.project_id, entity.source_id, entity.file_path)
-    node = nodes.setdefault(node_id, _entity_file_node(entity))
-    ids = set(node.get("entity_ids", []))
-    ids.add(entity.id)
-    node["entity_ids"] = sorted(ids)
+    node = nodes.get(node_id)
+    if node is None:
+        nodes[node_id] = _entity_file_node(entity)
+        return node_id
+    ids = node.setdefault("entity_ids", [])
+    if entity.id not in ids:
+        insort(ids, entity.id)
     return node_id
 
 
@@ -257,8 +264,13 @@ def _append_code_dependencies(
     edges: list[dict],
     code_edges: list[CodeEdge],
     entities: dict[int, CodeEntity],
+    totals: Optional[dict[tuple[str, str], tuple[int, list[str]]]] = None,
 ) -> None:
-    """Project parser relationships onto files, keeping element names as evidence."""
+    """Project parser relationships onto files, keeping element names as evidence.
+
+    `totals` gives count and types of all relationships per file pair when `code_edges` are
+    only sample evidence for it (overview backbone).
+    """
     grouped: dict[tuple[str, str], dict] = {}
     for code_edge in code_edges:
         source_entity = entities.get(code_edge.src_entity_id)
@@ -303,7 +315,9 @@ def _append_code_dependencies(
             )
 
     for (source_id, target_id), bucket in grouped.items():
-        edge_types = sorted(bucket["types"])
+        edge_count, edge_types = (totals or {}).get(
+            (source_id, target_id), (len(bucket["edge_ids"]), sorted(bucket["types"]))
+        )
         examples = sorted(set(bucket["evidence"]))[:5]
         targets = sorted(set(bucket["target_evidence"]))[:5]
         reason = f"{', '.join(edge_types)}-Beziehung"
@@ -322,7 +336,7 @@ def _append_code_dependencies(
                 "score": None,
                 "context": reason,
                 "meta": {
-                    "edge_count": len(bucket["edge_ids"]),
+                    "edge_count": edge_count,
                     "edge_types": edge_types,
                     "evidence": examples,
                     "target_evidence": targets,
@@ -490,101 +504,6 @@ def _is_side_visible(
     return True
 
 
-def _sample_representative_code_edges(
-    db: Session,
-    project_id: Optional[int],
-    exposed_project_ids: list[int],
-    documented_entity_ids: set[int],
-    limit: int,
-) -> tuple[list[CodeEdge], bool]:
-    """O-298: Repräsentative Auswahl von Code-Beziehungen statt reinem ID-Scan.
-
-    Priorisiert:
-    1. Direkte Beziehungen dokumentierter Entities (damit Doku-Links angebunden sind).
-    2. Strukturelle und übergeordnete Architektur-Kanten (EXTENDS, IMPLEMENTS, CALLS,
-       COPY, CALL, PERFORM, INSTANTIATES, etc.) quer über Komponenten.
-    3. Allgemeine Beziehungen zur Auffüllung des verbleibenden Budgets.
-    """
-    base_query = db.query(CodeEdge)
-    if project_id:
-        base_query = base_query.filter(CodeEdge.project_id == project_id)
-    else:
-        if exposed_project_ids:
-            base_query = base_query.filter(
-                or_(CodeEdge.project_id.in_(exposed_project_ids), CodeEdge.project_id.is_(None))
-            )
-        else:
-            base_query = base_query.filter(CodeEdge.project_id.is_(None))
-
-    selected_edges: list[CodeEdge] = []
-    seen_edge_ids: set[int] = set()
-
-    # 1. Prioritize edges connected to documented entities
-    if documented_entity_ids:
-        doc_edges = (
-            base_query.filter(
-                or_(
-                    CodeEdge.src_entity_id.in_(documented_entity_ids),
-                    CodeEdge.dst_entity_id.in_(documented_entity_ids),
-                )
-            )
-            .order_by(CodeEdge.id)
-            .limit(min(limit, 500))
-            .all()
-        )
-        for edge in doc_edges:
-            if edge.id not in seen_edge_ids:
-                seen_edge_ids.add(edge.id)
-                selected_edges.append(edge)
-
-    # 2. Structural/architectural relationship types
-    structural_types = [
-        "EXTENDS",
-        "IMPLEMENTS",
-        "DEPENDS_ON",
-        "CONTAINS_MODULE",
-        "DECLARES_SOURCE_ROOT",
-        "CALLS",
-        "COPY",
-        "CALL",
-        "PERFORM",
-        "INSTANTIATES",
-        # Dokumentation: Abschnitte verweisen auf Code, Dokumente binden Dokumente ein.
-        "DOCUMENTS",
-        "INCLUDES",
-    ]
-    remaining = limit - len(selected_edges)
-    if remaining > 0:
-        struct_query = base_query.filter(CodeEdge.type.in_(structural_types))
-        if seen_edge_ids:
-            struct_query = struct_query.filter(~CodeEdge.id.in_(seen_edge_ids))
-        struct_edges = struct_query.order_by(CodeEdge.id).limit(remaining + 1).all()
-        for edge in struct_edges[:remaining]:
-            if edge.id not in seen_edge_ids:
-                seen_edge_ids.add(edge.id)
-                selected_edges.append(edge)
-
-    # 3. Fill with general edges if quota remains
-    remaining = limit - len(selected_edges)
-    has_more = False
-    if remaining > 0:
-        general_query = base_query
-        if seen_edge_ids:
-            general_query = general_query.filter(~CodeEdge.id.in_(seen_edge_ids))
-        general_edges = general_query.order_by(CodeEdge.id).limit(remaining + 1).all()
-        if len(general_edges) > remaining:
-            has_more = True
-        for edge in general_edges[:remaining]:
-            if edge.id not in seen_edge_ids:
-                seen_edge_ids.add(edge.id)
-                selected_edges.append(edge)
-    else:
-        check_more = base_query.filter(~CodeEdge.id.in_(seen_edge_ids)).first()
-        has_more = check_more is not None
-
-    return selected_edges, has_more
-
-
 @router.get("")
 def get_graph(
     project_id: Optional[int] = None,
@@ -661,10 +580,8 @@ def get_graph(
     entity_links = eq.all()
 
     preserved_node_ids: set[str] = set()
-    documented_entity_ids: set[int] = set()
 
     if entity_links:
-        documented_entity_ids = {lnk.entity_id for lnk in entity_links}
         entity_ids = {lnk.entity_id for lnk in entity_links}
         entities = {
             e.id: e for e in db.query(CodeEntity).filter(CodeEntity.id.in_(entity_ids)).all()
@@ -740,14 +657,13 @@ def get_graph(
         _doc_node,
     )
 
-    # ── Code dependencies (representative sampling across files & components) ─
-    code_edge_limit = _code_edge_budget(limit)
-    sampled_code_edges, code_edges_truncated = _sample_representative_code_edges(
-        db=db,
-        project_id=project_id,
-        exposed_project_ids=exposed_project_ids,
-        documented_entity_ids=documented_entity_ids,
-        limit=code_edge_limit,
+    # ── Code dependencies: file graph, backbone above a size threshold ────────
+    code_graph = load_code_file_graph(
+        db, project_id, exposed_project_ids, _code_file_id, max_pairs=_code_edge_budget(limit)
+    )
+    sample_ids = [edge_id for pair in code_graph.pairs for edge_id in pair.sample_edge_ids]
+    sampled_code_edges = (
+        db.query(CodeEdge).filter(CodeEdge.id.in_(sample_ids)).all() if sample_ids else []
     )
     code_entity_ids = {
         entity_id
@@ -763,7 +679,19 @@ def get_graph(
         if code_entity_ids
         else {}
     )
-    _append_code_dependencies(nodes, edges, sampled_code_edges, code_entities)
+    _append_code_dependencies(
+        nodes,
+        edges,
+        sampled_code_edges,
+        code_entities,
+        totals={
+            (_code_file_id(*pair.source), _code_file_id(*pair.target)): (
+                pair.edge_count,
+                pair.edge_types,
+            )
+            for pair in code_graph.pairs
+        },
+    )
 
     from services.insight_graph import append_insight_graph
 
@@ -776,15 +704,7 @@ def get_graph(
         _doc_node,
     )
     preserved_node_ids.update(nid for nid in nodes if nid.startswith("insight:"))
-    degree = overview_degrees(
-        db,
-        nodes,
-        edges,
-        code_edges_sampled=bool(code_edges_truncated),
-        project_id=project_id,
-        exposed_project_ids=exposed_project_ids,
-        file_id=_code_file_id,
-    )
+    degree = overview_degrees(nodes, edges, code_graph.degree)
     result = _capped_overview(
         nodes,
         edges,
@@ -798,12 +718,10 @@ def get_graph(
     for node in result["nodes"]:
         node["degree"] = degree.get(node["id"], 0)
     result["focus_source_id"] = focus_source_id
-    # `edges_sampled` trennt die Kürzung der Code-Beziehungen von der Knotenkappung: Die Knoten
-    # der Übersicht sind Dateien, die sich erst aus den ausgewählten Beziehungen ergeben. Ist nur
-    # das Beziehungsbudget erschöpft, stimmt "total_nodes" nicht mit dem echten Umfang des Projekts
-    # überein und die Übersicht zeigt eine Auswahl -- das darf nicht als "n von n Knoten" wirken.
-    result["edges_sampled"] = bool(code_edges_truncated)
-    if code_edges_truncated:
+    # `edges_sampled` trennt die Auswahl der Code-Beziehungen (Grundgerüst) von der Knotenkappung:
+    # Alle Knoten sind da, nur nicht alle ihre Kanten -- das darf nicht als "n von n Knoten" wirken.
+    result["edges_sampled"] = code_graph.backbone
+    if code_graph.backbone:
         result["truncated"] = True
     result["graph_revision"] = f"proj:{project_id or 'global'}:overview"
     result["has_more"] = result.get("truncated", False)

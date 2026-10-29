@@ -49,7 +49,7 @@ MCP_ALLOWED_ORIGINS: list[str] = [
 ]
 
 # Canvas/worker rendering and database work have independent budgets. Raising
-# the display cap must not multiply raw relationship loading without a bound.
+# the display cap must not multiply the delivered file edges without a bound.
 KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: int = _positive_int_env(
     "KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES", 10000
 )

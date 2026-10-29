@@ -145,10 +145,16 @@ eine Freigabe beliebiger 20.000-Knoten-Bestände folgt daraus nicht.
 `KNOWLEDGE_GRAPH_OVERVIEW_MAX_CODE_EDGES=100000` werden im Standard-Compose
 explizit ans Backend übergeben und sind in `.env.example` dokumentiert.
 Request-Parameter dürfen die konfigurierte Knotengrenze nur verkleinern.
-Eine höhere Knotengrenze vervielfacht die Roh-Codebeziehungen nicht unbegrenzt:
-Es gilt das kleinere Budget aus 20 Beziehungen je Knoten und dem separaten
-Roh-Codebeziehungsmaximum. Dokumentations-/manuelle Kanten haben weiterhin
-keinen separaten harten Kantendeckel.
+Eine höhere Knotengrenze vervielfacht die Dateikanten nicht unbegrenzt:
+Es gilt das kleinere Budget aus 20 Dateikanten je Knoten und dem separaten
+Maximum. Dokumentations-/manuelle Kanten haben weiterhin keinen separaten harten
+Kantendeckel.
+
+Seit dem 29.10.2026 bildet der Server die Dateikanten aus allen Parser-Beziehungen
+(`services/graph_overview_backbone.py`) statt aus einer Stichprobe von
+Roh-Beziehungen. Ab 1.000 Dateikanten zeigt die Übersicht nur das Grundgerüst; die
+übrigen Kanten sind über `degree` als nicht geladen erkennbar und im Frontend
+nachladbar. Die Abschnitte unten beschreiben den Stand davor.
 
 Die Backend-Suite besteht mit zwei neuen Grenz-/Trunkierungsfällen 731 Tests
 (2 übersprungen). Der Browsermesslauf kann über `GRAPH_BENCH_GRAPH=<json>`

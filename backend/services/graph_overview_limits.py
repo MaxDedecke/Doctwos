@@ -1,8 +1,8 @@
-"""Independent display and raw code-edge budgets for the overview."""
+"""Independent display and code file-edge budgets for the overview."""
 
 from core import config as cfg
 
-# Many entity-level relationships collapse into a single file dependency.
+# Upper bound for the backbone file edges per admitted node.
 CODE_EDGES_PER_NODE_BUDGET = 20
 
 
