@@ -1453,6 +1453,7 @@
     "collapseExpansion": "Hide added connections",
     "collapseGroup": "Collapse group “{{label}}”",
     "memberGroupLabel": "Group",
+    "autoExpandGroups": "Expand groups when zooming in",
     "groupedHint": "grouped by coupling – click a group to expand it",
     "backToOverview": "Back to overview",
     "backTo": "Back to {{label}}",

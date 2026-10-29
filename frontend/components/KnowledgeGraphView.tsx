@@ -5,7 +5,7 @@ import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/type
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import type { GraphNode, GraphEdge } from '@/lib/knowledgeGraphTypes';
-import { createKnowledgeGraphRenderer, getNodeDisplayLabel, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
+import { createKnowledgeGraphRenderer, nodeRadius, getNodeDisplayLabel, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
 import { api, API_URL } from '@/app/services/api';
 import {
   EDGE_TYPE_COLORS,
@@ -26,6 +26,7 @@ import { cn } from '@/lib/utils';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
 import { useGraphExpansion } from '@/hooks/useGraphExpansion';
 import { canExpandInPlace, collapseGroupKeys, hiddenEdgeCounts, seedGroupPositions, type GraphData } from '@/lib/graphExpansion';
+import { AUTO_EXPAND_DELAY_MS, decideAutoGroups, type AutoGroupState } from '@/lib/autoGroupExpansion';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
 import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
@@ -128,6 +129,7 @@ interface Props {
 // `projectEntities`. Every current caller happens to always pass it, so this was
 // latent until testing without every prop first exercised it (O-053 test work).
 const EMPTY_PROJECT_ENTITIES: CodeEntity[] = [];
+const AUTO_EXPAND_STORAGE_KEY = 'doctus-graph-auto-expand';
 
 /* ── Component ───────────────────────────────────────────────────────────────── */
 
@@ -200,6 +202,13 @@ export function KnowledgeGraphView({
   // Die Nachbarschaft wird an fester Stelle angeordnet, die Kamera bleibt dagegen, wo man in der
   // Übersicht hingeschaut hat. Nach dem Wechsel wird sie deshalb einmal nachgeführt.
   const cameraAfterLayoutRef = useRef<{ fit: true } | { centerOn: string } | null>(null);
+  // Automatisches Auf- und Zuklappen beim Zoomen (abschaltbar, Einstellung je Browser).
+  const [autoExpandGroups, setAutoExpandGroups] = useState(() => {
+    try { return localStorage.getItem(AUTO_EXPAND_STORAGE_KEY) !== 'off'; } catch { return true; }
+  });
+  const autoGroupsRef = useRef<AutoGroupState>({ auto: new Map(), suppressed: new Set() });
+  const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const groupRequestRef = useRef(false);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -411,13 +420,58 @@ export function KnowledgeGraphView({
     }
   }, [selectedProject, selectedDoc, onlyLinked, addFocusParam, resetExpansions]);
 
+  const applyGroups = useCallback((next: string[], collapsedKey: string | null) => {
+    groupRequestRef.current = true;
+    void loadOverview(true, undefined, undefined, { expanded: next, collapsedKey })
+      .finally(() => { groupRequestRef.current = false; });
+  }, [loadOverview]);
+
   const toggleGroup = useCallback((key: string, expand: boolean) => {
     const current = expandedGroupsRef.current;
     const next = expand ? [...new Set([...current, key])] : collapseGroupKeys(current, key);
+    const { auto, suppressed } = autoGroupsRef.current;
+    for (const open of [...auto.keys()]) if (!next.includes(open)) auto.delete(open);
+    // Von Hand Zugeklapptes soll sich nicht sofort wieder von selbst öffnen.
+    if (!expand) suppressed.add(key);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
-    void loadOverview(true, undefined, undefined, { expanded: next, collapsedKey: expand ? null : key });
-  }, [loadOverview]);
+    applyGroups(next, expand ? null : key);
+  }, [applyGroups]);
+
+  const updateAutoGroups = useCallback(() => {
+    const graph = graphRef.current;
+    if (!autoExpandGroups || !isGrouped || viewMode !== 'overview' || !graph?.screen2GraphCoords || groupRequestRef.current) return;
+    const center = graph.screen2GraphCoords(dimensions.width / 2, dimensions.height / 2);
+    const view = { x: center.x, y: center.y, k: graph.zoom(), ...dimensions };
+    const state = autoGroupsRef.current;
+    const groups = sceneNodesRef.current
+      .filter(node => node.type === 'group' && node.group_key && node.x != null && node.y != null)
+      .map(node => ({ key: node.group_key!, x: node.x!, y: node.y!, r: nodeRadius(node) }));
+    const { collapse, released, expand } = decideAutoGroups(groups, view, state);
+    released.forEach(key => state.suppressed.delete(key));
+    if (!collapse.length && !expand) return;
+    let next = expandedGroupsRef.current;
+    for (const key of collapse) {
+      next = collapseGroupKeys(next, key);
+      for (const open of [...state.auto.keys()]) if (open === key || open.startsWith(`${key}.`)) state.auto.delete(open);
+    }
+    if (expand) {
+      next = [...new Set([...next, expand.key])];
+      state.auto.set(expand.key, { x: expand.x, y: expand.y, r: expand.r });
+    }
+    applyGroups(next, collapse[0] ?? null);
+  }, [autoExpandGroups, isGrouped, viewMode, applyGroups, dimensions]);
+
+  const scheduleAutoGroups = useCallback(() => {
+    if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+    autoTimerRef.current = setTimeout(updateAutoGroups, AUTO_EXPAND_DELAY_MS);
+  }, [updateAutoGroups]);
+  useEffect(() => () => { if (autoTimerRef.current) clearTimeout(autoTimerRef.current); }, []);
+
+  const changeAutoExpandGroups = (enabled: boolean) => {
+    setAutoExpandGroups(enabled);
+    try { localStorage.setItem(AUTO_EXPAND_STORAGE_KEY, enabled ? 'on' : 'off'); } catch { /* nur Komfort */ }
+  };
 
   const loadNeighborhood = useCallback(async (node: GraphNode, focusOptions?: AgentGraphViewAction['target']) => {
     /**
@@ -699,6 +753,7 @@ export function KnowledgeGraphView({
     if (agentGraphFocus) return;
     resetFocus();
     expandedGroupsRef.current = [];
+    autoGroupsRef.current = { auto: new Map(), suppressed: new Set() };
     void loadOverview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedProject?.id]);
@@ -1522,6 +1577,11 @@ export function KnowledgeGraphView({
               <DropdownMenuItem onSelect={handleZoomIn}><ZoomIn className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.zoomIn')}</DropdownMenuItem>
               <DropdownMenuItem onSelect={handleZoomOut}><ZoomOut className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.zoomOut')}</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => loadOverview(true)} disabled={isLoading}><RefreshCw className={cn('mr-2 h-3.5 w-3.5', isLoading && 'animate-spin')} />{t('knowledgeGraphView.reloadTitle')}</DropdownMenuItem>
+              {isGrouped && (
+                <DropdownMenuItem onSelect={() => changeAutoExpandGroups(!autoExpandGroups)}>
+                  <Check className={cn('mr-2 h-3.5 w-3.5', !autoExpandGroups && 'invisible')} />{t('knowledgeGraphView.autoExpandGroups')}
+                </DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
               <DropdownMenuItem onSelect={() => { menuOpensPanelRef.current = toolSurface !== 'legend'; setToolSurface(current => current === 'legend' ? null : 'legend'); }}><Workflow className="mr-2 h-3.5 w-3.5" />{t('knowledgeGraphView.legendLabel')}</DropdownMenuItem>
               <DropdownMenuItem disabled={!panelOpen} onSelect={() => { menuOpensPanelRef.current = !showDetails; setToolSurface(null); setFocusDetails(!showDetails); setDetailsExpanded(!showDetails); }}><Info className="mr-2 h-3.5 w-3.5" />{t(showDetails ? 'knowledgeGraphView.hideDetails' : 'knowledgeGraphView.showDetails')}</DropdownMenuItem>
@@ -1623,7 +1683,11 @@ export function KnowledgeGraphView({
               }}
               linkColor={renderer.linkColor}
               linkWidth={renderer.linkWidth}
-              onZoom={(transform: { k: number }) => { zoomRef.current = transform.k; }}
+              onZoom={(transform: { k: number }) => {
+                zoomRef.current = transform.k;
+                if (autoTimerRef.current) clearTimeout(autoTimerRef.current);
+              }}
+              onZoomEnd={scheduleAutoGroups}
               linkDirectionalArrowLength={renderer.arrowLength}
               linkDirectionalArrowRelPos={renderer.arrowRelPos}
               linkCanvasObject={renderer.drawLink}
