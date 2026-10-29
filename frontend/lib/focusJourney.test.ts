@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { journeyUpSteps } from './focusJourney';
+import { contentFitZoom, JOURNEY_CONTENT_SPACING, journeyUpSteps } from './focusJourney';
 
 describe('journeyUpSteps', () => {
   it('closes the deepest level first, one level per step, until nothing is expanded', () => {
@@ -11,3 +11,13 @@ describe('journeyUpSteps', () => {
     expect(journeyUpSteps([])).toEqual([]);
   });
 });
+
+describe('contentFitZoom', () => {
+  it('stays far enough out that the expected contents fit into the view', () => {
+    const k = contentFitZoom(133, 600);
+    expect(2 * JOURNEY_CONTENT_SPACING * Math.sqrt(133) * k).toBeLessThanOrEqual(600);
+    expect(contentFitZoom(400, 600)).toBeLessThan(k);
+    expect(contentFitZoom(0, 600)).toBe(contentFitZoom(1, 600));
+  });
+});
+

@@ -27,7 +27,7 @@ import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
 import { useGraphExpansion } from '@/hooks/useGraphExpansion';
 import { canExpandInPlace, collapseGroupKeys, hiddenEdgeCounts, seedGroupPositions, type GraphData } from '@/lib/graphExpansion';
 import { AUTO_EXPAND_DELAY_MS, decideAutoGroups } from '@/lib/autoGroupExpansion';
-import { JOURNEY_CAMERA_MS, JOURNEY_PAUSE_MS, journeyUpSteps, type FocusRequest } from '@/lib/focusJourney';
+import { contentFitZoom, JOURNEY_ARRIVAL_RADIUS_PX, JOURNEY_CAMERA_MS, JOURNEY_PAUSE_MS, journeyUpSteps, type FocusRequest } from '@/lib/focusJourney';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
 import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RotateCcw, Undo2, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
@@ -515,7 +515,7 @@ export function KnowledgeGraphView({
       const node = find(id);
       if (!node) return;
       graphRef.current?.centerAt(node.x!, node.y!, JOURNEY_CAMERA_MS);
-      graphRef.current?.zoom(Math.min(2.5, Math.max(0.6, 30 / nodeRadius(node))), JOURNEY_CAMERA_MS);
+      graphRef.current?.zoom(Math.min(2, Math.max(0.4, JOURNEY_ARRIVAL_RADIUS_PX / nodeRadius(node))), JOURNEY_CAMERA_MS);
     };
     if (find(target.node_id)) {
       // Schon sichtbar (z. B. der Rückkanal eines Klicks im Graphen): nur auswählen.
@@ -541,7 +541,8 @@ export function KnowledgeGraphView({
         const group = find(`group:${key}`);
         if (group) {
           graphRef.current?.centerAt(group.x!, group.y!, JOURNEY_CAMERA_MS);
-          graphRef.current?.zoom((shortSide / 4) / (2 * nodeRadius(group)), JOURNEY_CAMERA_MS);
+          const contents = (group.file_count ?? 0) + (group.doc_count ?? 0);
+          graphRef.current?.zoom(Math.min((shortSide / 4) / (2 * nodeRadius(group)), contentFitZoom(contents, shortSide)), JOURNEY_CAMERA_MS);
           await pause(JOURNEY_CAMERA_MS + JOURNEY_PAUSE_MS);
           if (cancelled()) return;
         }
