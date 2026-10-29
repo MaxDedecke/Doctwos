@@ -239,6 +239,26 @@ describe('Pfad A — globale Navigation (Sidebar, globale Suche)', () => {
     expect(result.current.panelSelections).toHaveLength(1);
     expect(result.current.selectedFile).toBe('app/main.cbl');
   });
+  it('PS-31: der Projektwechsel leert die Auswahl in allen Panels, die Panels bleiben offen', () => {
+    const { result } = renderLayout();
+
+    act(() => { result.current.addPanel('code'); });
+    act(() => {
+      result.current.setSelectedFile('app/main.cbl');
+      result.current.setSelectedLine(12);
+      result.current.setPinnedCode({ filepath: 'app/main.cbl', line: 12 } as PinnedCode);
+    });
+    act(() => { result.current.clearSelection(); });
+
+    expect(result.current.panelConfigs).toEqual(['chat', 'code']);
+    expect(result.current.selectedFile).toBeNull();
+    expect(result.current.selectedLine).toBeNull();
+    expect(result.current.pinnedCode).toBeNull();
+    expect(result.current.panelSelections).toHaveLength(2);
+    expect(result.current.panelSelections.every(selection => Object.values(selection).every(value => value == null))).toBe(true);
+    expect(result.current.panelHistory).toEqual([{ past: [], future: [] }, { past: [], future: [] }]);
+  });
+
   it('PS-29: der Call-Graph behält seinen Objektfokus, wenn anderswo ein Dokument geöffnet wird (D-3)', () => {
     const { result } = renderLayout();
     const entity = { id: 5, name: 'CBACT01C', type: 'program', file_path: 'SRC/CBACT01C.cbl', start_line: 40 };

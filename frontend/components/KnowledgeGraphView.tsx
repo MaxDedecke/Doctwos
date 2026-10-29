@@ -25,6 +25,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
 import { useGraphExpansion } from '@/hooks/useGraphExpansion';
+import { useRequestGate } from '@/lib/requestGate';
 import { canExpandInPlace, collapseGroupKeys, hiddenEdgeCounts, seedGroupPositions, type GraphData } from '@/lib/graphExpansion';
 import { AUTO_EXPAND_DELAY_MS, decideAutoGroups } from '@/lib/autoGroupExpansion';
 import { contentFitZoom, JOURNEY_ARRIVAL_RADIUS_PX, JOURNEY_CAMERA_MS, JOURNEY_PAUSE_MS, journeyUpSteps, type FocusRequest } from '@/lib/focusJourney';
@@ -188,6 +189,8 @@ export function KnowledgeGraphView({
   // The neighborhood replaces the rendered data temporarily, but must not discard
   // the large overview which the user already waited for.
   const { focusSourceId, resetFocus, changeFocus, addFocusParam } = useGraphSourceFocus();
+  // Übersicht und Nachbarschaft ersetzen beide den geladenen Graphen: nur die zuletzt gestartete gilt.
+  const graphLoadGate = useRequestGate();
   const overviewCacheRef = useRef<{
     projectId: number | null;
     includeIsolated: boolean;
@@ -382,6 +385,7 @@ export function KnowledgeGraphView({
     // Auf- und Zuklappen einer Gruppe lädt ohne Ladeansicht nach, damit Ausschnitt und Zoom bleiben.
     if (!groups) setIsLoading(true);
     setNeighborhoodError(null);
+    const isCurrent = graphLoadGate.begin();
     try {
       const params = new URLSearchParams({ status: 'approved' });
       if (projectId) params.set('project_id', String(projectId));
@@ -391,6 +395,8 @@ export function KnowledgeGraphView({
       const res = await api.fetch(`${API_URL}/graph?${params}`);
       const data: { nodes?: GraphNode[]; edges?: GraphEdge[]; truncated?: boolean; edges_sampled?: boolean; total_nodes?: number; focus_id?: string;
         grouped?: boolean; expanded?: string[] } = await res.json();
+      // Inzwischen anderes Projekt, andere Gruppen oder eine Nachbarschaft: diese Antwort gilt nicht mehr.
+      if (!isCurrent()) return;
       const nodes = seedGroupPositions(data.nodes ?? [], sceneNodesRef.current, groups?.collapsedKey);
       const edges = data.edges ?? [];
       const truncation = data.truncated
@@ -431,9 +437,9 @@ export function KnowledgeGraphView({
     } catch (e) {
       console.error('[KnowledgeGraph] load failed', e);
     } finally {
-      setIsLoading(false);
+      if (isCurrent()) setIsLoading(false);
     }
-  }, [selectedProject, selectedDoc, onlyLinked, addFocusParam, resetExpansions]);
+  }, [selectedProject, selectedDoc, onlyLinked, addFocusParam, resetExpansions, graphLoadGate]);
 
   const applyGroups = useCallback((next: string[], collapsedKey: string | null) => {
     groupRequestRef.current = true;
@@ -615,6 +621,7 @@ export function KnowledgeGraphView({
     }
     setIsLoadingNeighborhood(true);
     setNeighborhoodError(null);
+    const isCurrent = graphLoadGate.begin();
     try {
       let res: Response;
       if (isDoc || isFile) {
@@ -644,6 +651,7 @@ export function KnowledgeGraphView({
         has_more?: boolean;
         next_cursor?: string | null;
       } = await res.json();
+      if (!isCurrent()) return;
       setRawNodes(data.nodes ?? []);
       setRawEdges(data.edges ?? []);
       setViewMode('neighborhood');
@@ -666,7 +674,7 @@ export function KnowledgeGraphView({
     } finally {
       setIsLoadingNeighborhood(false);
     }
-  }, [neighborhoodProjectId, t, traversalDirection, traversalHops]);
+  }, [graphLoadGate, neighborhoodProjectId, t, traversalDirection, traversalHops]);
 
   const handleBackToOverview = () => {
     const anchor = neighborhoodFocusNode;

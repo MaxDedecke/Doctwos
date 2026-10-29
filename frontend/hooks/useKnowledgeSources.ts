@@ -2,6 +2,7 @@ import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { FileReference, KnowledgeSource, Project } from '@/types/domain';
 import { useCallback, useEffect, useState } from 'react';
+import { useRequestGate } from '@/lib/requestGate';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 type Toast = ShowToast;
@@ -27,6 +28,7 @@ export function useKnowledgeSources({
   const [selectedSource, setSelectedSource] = useState<KnowledgeSource | null>(null);
   const [selectedSourceRepoId, setSelectedSourceRepoId] = useState('all');
   const [fileReferences, setFileReferences] = useState<FileReference[]>([]);
+  const referencesGate = useRequestGate();
   const [isLoadingReferences, setIsLoadingReferences] = useState(false);
   const [isReferencesDropdownOpen, setIsReferencesDropdownOpen] = useState(false);
   const [referencesTab, setReferencesTab] = useState<'code' | 'docs'>('code');
@@ -86,17 +88,25 @@ export function useKnowledgeSources({
   const loadFileReferences = useCallback(async (filePath: string, entityName: string | null = null, projectOverride: Project | null = null) => {
     const project = projectOverride || selectedProject;
     if (!project) return;
+    const isCurrent = referencesGate.begin();
     setIsLoadingReferences(true);
     try {
       const res = await api.getProjectReferences(project.id, filePath, entityName || undefined);
-      setFileReferences(res.data);
+      if (isCurrent()) setFileReferences(res.data);
     } catch (error) {
       console.error('Failed to load file references:', error);
-      setFileReferences([]);
+      if (isCurrent()) setFileReferences([]);
     } finally {
-      setIsLoadingReferences(false);
+      if (isCurrent()) setIsLoadingReferences(false);
     }
-  }, [selectedProject]);
+  }, [referencesGate, selectedProject]);
+
+  /** Projektwechsel: laufende Referenzanfragen verwerfen und die Liste leeren. */
+  const clearFileReferences = useCallback(() => {
+    referencesGate.invalidate();
+    setFileReferences([]);
+    setIsLoadingReferences(false);
+  }, [referencesGate]);
 
   return {
     selectedSource,
@@ -118,5 +128,6 @@ export function useKnowledgeSources({
     setPinnedSourceIds,
     togglePinSource,
     loadFileReferences,
+    clearFileReferences,
   };
 }

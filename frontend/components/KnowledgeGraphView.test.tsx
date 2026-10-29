@@ -754,6 +754,26 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   }, 10000);
 
+  it('keeps the graph of the newly chosen project when the previous project answers late', async () => {
+    let releaseFirst: (value: unknown) => void = () => {};
+    const graphOf = (projectId: number) => ({
+      nodes: [{ id: `file:${projectId}`, type: 'code_file', label: `P${projectId}.cbl`, project_id: projectId }, { id: `doc:${projectId}`, type: 'document', label: `Doc${projectId}` }],
+      edges: [{ id: `e${projectId}`, source: `doc:${projectId}`, target: `file:${projectId}`, link_type: 'semantic', score: 0.9, context: null }],
+    });
+    vi.stubGlobal('fetch', vi.fn().mockImplementation((url: string) => String(url).includes('project_id=1')
+      ? new Promise(resolve => { releaseFirst = resolve; })
+      : Promise.resolve({ ok: true, json: async () => graphOf(2) })));
+    const view = (id: number) => (
+      <LanguageProvider><KnowledgeGraphView theme="dark" selectedProject={{ id, name: `P${id}` }} /></LanguageProvider>
+    );
+    const { rerender } = render(view(1));
+    rerender(view(2));
+    await screen.findByTestId('node-file:2');
+    await act(async () => { releaseFirst({ ok: true, json: async () => graphOf(1) }); });
+    expect(screen.queryByTestId('node-file:1')).toBeNull();
+    expect(screen.getByTestId('node-file:2')).toBeTruthy();
+  });
+
   it('returns from an edge opened in the details to the node it came from', async () => {
     const overviewResponse = {
       nodes: [

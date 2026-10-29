@@ -2,6 +2,7 @@ import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { CodeEntity, Project, ProjectStats } from '@/types/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useRequestGate } from '@/lib/requestGate';
 
 type Translate = (key: string, values?: Record<string, string | number>) => string;
 type Toast = ShowToast;
@@ -29,6 +30,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
   const [branch, setBranch] = useState('main');
   const [projectEntities, setProjectEntities] = useState<CodeEntity[]>([]);
   const [projectStats, setProjectStats] = useState<Record<number, ProjectStats>>({});
+  const filesGate = useRequestGate();
   const [backendStatus, setBackendStatus] = useState('connecting');
 
   const projectsRef = useRef(projects);
@@ -133,10 +135,12 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
     if (!selectedProject) {
       return;
     }
-
+    // Nach einem schnellen Projektwechsel darf die Antwort des vorigen Projekts nicht mehr landen.
+    let cancelled = false;
     api.getProjectEntities(selectedProject.id)
-      .then((res) => setProjectEntities(res.data))
+      .then((res) => { if (!cancelled) setProjectEntities(res.data); })
       .catch((error) => console.error('Failed to load project entities:', error));
+    return () => { cancelled = true; };
   }, [selectedProject]);
 
   /**
@@ -144,6 +148,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
    * the page because they cross the project/chat/workspace domain boundary.
    */
   const selectProject = useCallback(async (project: Project | null) => {
+    const isCurrent = filesGate.begin();
     if (!project) {
       setSelectedProject(null);
       setFiles([]);
@@ -161,16 +166,20 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
 
     setSelectedProject(project);
     setBranch(project.branch || 'main');
+    setFiles([]);
+    setProjectEntities([]);
 
     try {
       const res = await api.getProjectFiles(project.id);
+      if (!isCurrent()) return;
       setFiles(res.data);
       showToast(t('page.toast.projectSelected', { name: project.name }), 'success');
     } catch (error) {
+      if (!isCurrent()) return;
       console.error('Failed to load project files:', error);
       showToast(t('page.toast.filesFetchFailed'), 'error', error);
     }
-  }, [showToast, t]);
+  }, [filesGate, showToast, t]);
 
   return {
     projects,

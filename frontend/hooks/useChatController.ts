@@ -92,6 +92,15 @@ export function useChatController({
   const activeSessionIdRef = useRef(activeSessionId);
   const chatMessagesRef = useRef(chatMessages);
   const activeSessionEpochRef = useRef(0);
+  const chatGenerationRef = useRef(0);
+  const streamAbortRef = useRef<AbortController | null>(null);
+  /** Entwertet und beendet einen laufenden Chat-Stream (neuer Chat, andere Sitzung, Projektwechsel). */
+  const invalidateChat = useCallback(() => {
+    chatGenerationRef.current += 1;
+    streamAbortRef.current?.abort();
+    streamAbortRef.current = null;
+    setIsLoading(false);
+  }, [setIsLoading]);
   useLayoutEffect(() => {
     if (activeSessionIdRef.current !== activeSessionId) {
       activeSessionIdRef.current = activeSessionId;
@@ -234,13 +243,24 @@ export function useChatController({
   const runChatStream = useCallback(async (requestBody: ChatRequest, targetIndex: number) => {
     let expectedSessionId = requestBody.session_id;
     let expectedSessionEpoch = activeSessionEpochRef.current;
+    // Gehört dieser Stream noch zum aktuellen Chat? Ein neuer Chat, eine andere Sitzung oder ein
+    // Projektwechsel entwertet ihn; danach schreibt er nichts mehr (die Antwortstelle `targetIndex`
+    // gibt es im neuen Chat womöglich wieder).
+    const generation = chatGenerationRef.current;
+    const isCurrent = () => generation === chatGenerationRef.current;
+    const writeMessages = (update: (previous: ChatMessage[]) => ChatMessage[]) => {
+      if (isCurrent()) setChatMessages(update);
+    };
+    const abort = new AbortController();
+    streamAbortRef.current = abort;
     try {
       const response = await api.fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: abort.signal,
       });
 
       if (!response.ok) {
@@ -287,7 +307,7 @@ export function useChatController({
                 const newSessionUuid = data.session_uuid;
 
                 if (requestBody.session_id == null && newSessionId) {
-                  const shouldActivateSession = activeSessionIdRef.current == null &&
+                  const shouldActivateSession = isCurrent() && activeSessionIdRef.current == null &&
                     activeSessionEpochRef.current === expectedSessionEpoch;
                   expectedSessionId = newSessionId;
                   if (shouldActivateSession) {
@@ -316,7 +336,7 @@ export function useChatController({
                   }
                 }
               } else if (data.type === 'sources') {
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -326,7 +346,7 @@ export function useChatController({
                 });
               } else if (data.type === 'content_chunk') {
                 currentThought += data.content;
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -348,7 +368,7 @@ export function useChatController({
                 });
                 accumulatedSteps = newSteps;
 
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -374,7 +394,7 @@ export function useChatController({
                 });
                 accumulatedSteps = newSteps;
 
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -498,7 +518,7 @@ export function useChatController({
                 viewActionOutcomesRef.current.set(data.action_id, status);
                 accumulatedSteps = [...accumulatedSteps, recordedAction];
                 if (activeSessionIdRef.current === data.session_id) {
-                  setChatMessages(prev => {
+                  writeMessages(prev => {
                     const next = [...prev];
                     const target = next[targetIndex];
                     if (target && target.role === 'assistant') {
@@ -522,7 +542,7 @@ export function useChatController({
                   else finalSteps[existingIndex] = action;
                 }
                 accumulatedSteps = finalSteps;
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -543,7 +563,7 @@ export function useChatController({
                     ...action,
                     status: viewActionOutcomesRef.current.get(action.action_id) ?? action.status,
                   }));
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -568,7 +588,7 @@ export function useChatController({
                 }
               } else if (data.type === 'telemetry' && data.event === 'completed' && data.metrics) {
                 const telemetryMetrics = data.metrics;
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -581,7 +601,7 @@ export function useChatController({
                 });
               } else if (data.type === 'error') {
                 const errMsgText = t('page.error.chatFetchFailedWithMessage', { message: data.error });
-                setChatMessages(prev => {
+                writeMessages(prev => {
                   const next = [...prev];
                   const target = next[targetIndex];
                   if (target && target.role === 'assistant') {
@@ -591,7 +611,7 @@ export function useChatController({
                 });
                 // Serverseitiger Fehler mitten im Stream: die Antwort selbst
                 // traegt die Trace-ID des Requests (O-073).
-                showToast(t('page.toast.aiQueryFailed'), 'error', response);
+                if (isCurrent()) showToast(t('page.toast.aiQueryFailed'), 'error', response);
                 return;
               }
             } catch (error) {
@@ -602,12 +622,14 @@ export function useChatController({
         }
       }
     } catch (error) {
+      // Abgebrochen, weil der Chat gewechselt hat: kein Fehler für den Nutzer.
+      if (!isCurrent()) return;
       console.error(error);
       let errMsgText = t('page.error.chatFetchFailed');
       if (error instanceof Error && error.message) {
         errMsgText = t('page.error.chatFetchFailedWithMessage', { message: error.message });
       }
-      setChatMessages(prev => {
+      writeMessages(prev => {
         const next = [...prev];
         const target = next[targetIndex];
         if (target && target.role === 'assistant') {
@@ -617,7 +639,8 @@ export function useChatController({
       });
       showToast(t('page.toast.aiQueryFailed'), 'error', error);
     } finally {
-      setIsLoading(false);
+      if (streamAbortRef.current === abort) streamAbortRef.current = null;
+      if (isCurrent()) setIsLoading(false);
     }
   }, [ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
@@ -722,6 +745,7 @@ export function useChatController({
   }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
 
   const handleSessionSelect = useCallback(async (session: ChatSession) => {
+    invalidateChat();
     ignoreUrlSyncRef.current = true;
     setActiveSessionId(session.id);
 
@@ -768,8 +792,11 @@ export function useChatController({
       restoreWorkspaceSnapshot(snap);
     }
 
+    const generation = chatGenerationRef.current;
     try {
       const res = await api.getChatMessages(session.id);
+      // Inzwischen eine andere Sitzung oder ein neuer Chat: diese Nachrichten nicht mehr zeigen.
+      if (generation !== chatGenerationRef.current) return;
       let hasUserMessage = false;
       const formatted = res.data.map((message) => {
         const isFirstUserMessage = message.role === 'user' && !hasUserMessage;
@@ -790,7 +817,7 @@ export function useChatController({
       console.error(error);
       showToast(t('page.toast.sessionLoadFailed'), 'error', error);
     }
-  }, [connectedSources, handleProjectSelect, ignoreUrlSyncRef, pathname, projects, restoreWorkspaceSnapshot, router, setActiveSessionId, setChatMessages, setSelectedSource, showToast, t]);
+  }, [connectedSources, handleProjectSelect, invalidateChat, ignoreUrlSyncRef, pathname, projects, restoreWorkspaceSnapshot, router, setActiveSessionId, setChatMessages, setSelectedSource, showToast, t]);
 
   const handleRemoveSession = useCallback(async (id: number, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -816,5 +843,6 @@ export function useChatController({
     handleSessionSelect,
     handleRemoveSession,
     recordAgentViewActionOutcome,
+    invalidateChat,
   };
 }

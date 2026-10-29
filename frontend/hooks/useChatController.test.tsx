@@ -74,7 +74,9 @@ function useControllerHarness(overrides: HarnessOverrides = {}) {
   return {
     controller,
     activeSessionId,
+    setActiveSessionId,
     chatMessages,
+    setChatMessages,
     currentMessage,
     isLoading,
     sessions,
@@ -100,6 +102,21 @@ function streamResponse(events: Array<Record<string, unknown>>) {
           : { value: undefined, done: true }),
       }),
     },
+  };
+}
+
+/** A stream whose events arrive only when the test pushes them. */
+function controllableStream() {
+  const encoder = new TextEncoder();
+  let deliver: (chunk: { value?: Uint8Array; done: boolean }) => void = () => {};
+  const response = {
+    ok: true,
+    body: { getReader: () => ({ read: vi.fn(() => new Promise(resolve => { deliver = resolve; })) }) },
+  };
+  return {
+    response,
+    push: (event: Record<string, unknown>) => deliver({ value: encoder.encode(`data: ${JSON.stringify(event)}\n\n`), done: false }),
+    end: () => deliver({ value: undefined, done: true }),
   };
 }
 
@@ -471,4 +488,50 @@ describe('useChatController', () => {
       expect(result.current.showToast).toHaveBeenCalledWith('page.toast.sessionSaveFailed', 'error', failure);
     });
   });
+
+  it('stops a running answer from writing into the chat that replaced it', async () => {
+    const stream = controllableStream();
+    const fetchMock = vi.fn().mockResolvedValue(stream.response);
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useControllerHarness({ currentMessage: 'Erste Frage' }));
+
+    let sending: Promise<void> = Promise.resolve();
+    await act(async () => { sending = result.current.controller.handleSendChat(); });
+    await act(async () => { stream.push({ type: 'content_chunk', content: 'alt-1' }); });
+    expect(result.current.chatMessages[1].content).toBe('alt-1');
+
+    // Neuer Chat (z. B. Projektwechsel): an derselben Stelle steht wieder eine Antwort.
+    act(() => {
+      result.current.controller.invalidateChat();
+      result.current.setChatMessages([
+        { role: 'user', content: 'Neue Frage' },
+        { role: 'assistant', content: '', sources: [], metadata: {} },
+      ]);
+    });
+    expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+    expect(result.current.isLoading).toBe(false);
+
+    await act(async () => { stream.push({ type: 'content_chunk', content: 'alt-2' }); });
+    await act(async () => { stream.push({ type: 'answer', content: 'alte Antwort', agent_steps: [] }); });
+    await act(async () => { stream.end(); await sending; });
+    expect(result.current.chatMessages[1].content).toBe('');
+    expect(result.current.showToast).not.toHaveBeenCalled();
+  });
+
+  it('shows the session chosen last when an earlier session loads late', async () => {
+    let releaseA: (value: unknown) => void = () => {};
+    vi.spyOn(api, 'getChatMessages')
+      .mockImplementationOnce(() => new Promise(resolve => { releaseA = resolve; }) as never)
+      .mockResolvedValueOnce(axiosResponse([{ role: 'user', content: 'aus B' }]) as never);
+    const { result } = renderHook(() => useControllerHarness());
+
+    let first: Promise<void> = Promise.resolve();
+    act(() => { first = result.current.controller.handleSessionSelect({ id: 1, uuid: 'a', title: 'A' } as ChatSession); });
+    await act(async () => { await result.current.controller.handleSessionSelect({ id: 2, uuid: 'b', title: 'B' } as ChatSession); });
+    await act(async () => { releaseA(axiosResponse([{ role: 'user', content: 'aus A' }])); await first; });
+
+    expect(result.current.activeSessionId).toBe(2);
+    expect(result.current.chatMessages.map(message => message.content)).toEqual(['aus B']);
+  });
 });
+

@@ -224,4 +224,30 @@ describe('useProjects', () => {
       await waitFor(() => expect(result.current.projectEntities).toEqual([{ id: 2, name: 'Entity-2', file_path: '2.cbl', start_line: 1 }]));
     });
   });
+
+  it('keeps the newest project when an earlier project\'s files and entities arrive late', async () => {
+    let releaseB: (value: unknown) => void = () => {};
+    let releaseEntitiesB: (value: unknown) => void = () => {};
+    mockedApi.getProjectFiles.mockImplementation((id: number) => id === 2
+      ? new Promise(resolve => { releaseB = resolve; }) as never
+      : Promise.resolve(axiosResponse([{ path: `p${id}.cbl` }])) as never);
+    mockedApi.getProjectEntities.mockImplementation((id: number) => id === 2
+      ? new Promise(resolve => { releaseEntitiesB = resolve; }) as never
+      : Promise.resolve(axiosResponse([{ name: `E${id}`, file_path: `p${id}.cbl`, start_line: 1 }])) as never);
+    const { result } = renderHook(() => useProjects({ isLoggedIn: false, isSettingsOpen: false, t, showToast }));
+
+    let switchToB: Promise<void> = Promise.resolve();
+    act(() => { switchToB = result.current.selectProject(project({ id: 2, name: 'B' })); });
+    await act(async () => { await result.current.selectProject(project({ id: 3, name: 'C' })); });
+    await waitFor(() => expect(result.current.projectEntities).toEqual([expect.objectContaining({ name: 'E3' })]));
+
+    await act(async () => {
+      releaseB(axiosResponse([{ path: 'p2.cbl' }]));
+      releaseEntitiesB(axiosResponse([{ name: 'E2', file_path: 'p2.cbl', start_line: 1 }]));
+      await switchToB;
+    });
+    expect(result.current.selectedProject?.id).toBe(3);
+    expect(result.current.files).toEqual([{ path: 'p3.cbl' }]);
+    expect(result.current.projectEntities).toEqual([expect.objectContaining({ name: 'E3' })]);
+  });
 });

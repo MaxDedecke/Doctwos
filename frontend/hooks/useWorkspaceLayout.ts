@@ -648,7 +648,26 @@ export function useWorkspaceLayout({
     setWorkspaceSplit('45/55');
   }, []);
 
+  /**
+   * Leert alles, was an einem Projekt hängt: globale und Panel-Auswahl, Objektfokus, Historie,
+   * Chat-Pin und geladenen Dateiinhalt. Panels bleiben offen. Teil des Projektwechsels
+   * (hooks/useProjectTransition.ts), damit keine Auswahl des alten Projekts stehen bleibt.
+   */
+  const clearSelection = useCallback(() => {
+    setSelectedFile(null);
+    setSelectedDoc(null);
+    setSelectedLine(null);
+    setSelectedEntity(null);
+    setPinnedCode(null);
+    setFileNavStack([]);
+    setFileContent('');
+    setPanelSelections(previous => previous.map(() => EMPTY_PANEL_SELECTION));
+    setPanelFocusObject(previous => previous.map(() => null));
+    setPanelHistory(previous => previous.map(() => ({ past: [], future: [] })));
+  }, []);
+
   return {
+    clearSelection,
     isSidebarOpen,
     setIsSidebarOpen,
     isMobile,

@@ -1,6 +1,6 @@
 # Doctwos — Panel-Synchronisation (Soll-Matrix)
 
-**Stand:** 06.09.2026 (D-1 bis D-4 entschieden, D-1 bis D-3 mit Codeänderung; offen ist nur D-5. PS-15/PS-16 mit [O-091] behoben — keine roten Zellen mehr)
+**Stand:** 29.10.2026 (Abschnitt 7 neu: wer welchen Zustand besitzt, Projektwechsel als ein Übergang, veraltete Antworten; PS-31. Davor 06.09.2026: D-1 bis D-4 entschieden, offen ist nur D-5)
 **Anlass:** O-092 (abgeschlossen; aktiver Backlog: [TODO.md](TODO.md)) — „Eine Aktion in einer Ansicht wird
 nicht in jeder Konstellation korrekt in die anderen Ansichten synchronisiert; das
 Verhalten wirkt fallabhängig."
@@ -195,7 +195,7 @@ bestätigt den Ist-Zustand); offen ist nur noch D-5.
 
 ## 6. Stand der Automatisierung
 
-`frontend/hooks/panelSyncMatrix.test.tsx` (31 Fälle) hält die Matrix fest:
+`frontend/hooks/panelSyncMatrix.test.tsx` (32 Fälle, PS-31 seit 29.10.2026) hält die Matrix fest:
 
 - **Alle 30 Zeilen** sind als Test abgesichert — Pfad A gegen `useWorkspaceLayout`
   (dessen Sync-Regel war bis dahin gar nicht getestet), Pfad B gegen
@@ -221,10 +221,75 @@ Zwei Korrekturen an der Matrix stammen aus dem Schreiben der Tests selbst:
 
 ---
 
-## 7. Verweise
+## 7. Zustandsbesitz und Übergänge
+
+Die Matrix regelt, welches Panel einer Auswahl folgt. Dieser Abschnitt regelt, **wer** den
+verbindlichen Zustand besitzt und wie zusammengehörige Änderungen gemeinsam ablaufen. Anlass:
+Architektur-Review (Punkt 6, 29.10.2026).
+
+### 7.1 Wer besitzt welchen Zustand
+
+| Zustand | Besitzer (einzige Quelle) | Andere lesen ihn über |
+|---|---|---|
+| Gewähltes Projekt, Dateiliste, Entities | `hooks/useProjects.ts` | Props aus `page.tsx` |
+| Quellen, Referenzen der geöffneten Datei | `hooks/useKnowledgeSources.ts` | Props |
+| Chat-Sitzung, Nachrichten, laufender Stream | `hooks/useChatSessions.ts` (Zustand), `hooks/useChatController.ts` (Ablauf, Stream) | Props; `invalidateChat()` zum Beenden |
+| Globale Auswahl, Panel-Auswahl, Objektfokus, Historie, Chat-Pin, Dateiinhalt | `hooks/useWorkspaceLayout.ts` | Props; Sync-Regel aus Abschnitt 4 |
+| Auswahl, Fokus, aufgeklappte Gruppen im Wissensgraphen | `components/KnowledgeGraphView.tsx` | lokal; folgt der Panel-Auswahl (Fokus-Fahrt) |
+| Übergänge über mehrere Besitzer | `hooks/useProjectTransition.ts` (Projektwechsel), `page.tsx` (neuer Chat) | — |
+
+Kein Besitzer schreibt in den Zustand eines anderen; ein Übergang ruft die Funktionen der Besitzer
+in fester Reihenfolge auf.
+
+### 7.2 Projektwechsel (`useProjectTransition`)
+
+Alle Auslöser gehen durch denselben Übergang; sie unterscheiden sich nur darin, was mit dem Chat
+geschieht:
+
+| Auslöser | Chat |
+|---|---|
+| Kopfzeile, Seitenleiste | neuer Chat, Ansichten schließen (`new`) |
+| Suche, Graph-Fokus | neuer Chat nur, wenn die aktive Sitzung zu einem anderen Projekt gehört (`reset-if-foreign`) |
+| Sitzung laden | Chat bleibt, die Sitzung bringt ihr Projekt mit (`keep`) |
+
+Reihenfolge: gleiches Projekt → nichts; noch in Analyse → Hinweis, nichts ändern. Sonst Chat
+behandeln (ein neuer Chat beendet den laufenden Stream), laufende projektbezogene Anfragen entwerten
+(Dateiinhalt, Referenzen), alles leeren, was am alten Projekt hängt (`useWorkspaceLayout.clearSelection`:
+Auswahl aller Panels, Objektfokus, Historie, Chat-Pin, Dateiinhalt; die Panels bleiben offen), dann
+das neue Projekt setzen und laden. Vorher leerte nur der Weg über die Kopfzeile die Auswahl; über
+Suche oder Sitzung blieben Auswahl und Pin des alten Projekts stehen.
+
+### 7.3 Veraltete Antworten
+
+Regel: **Eine Antwort, die zu einem überholten Stand gehört, wird verworfen.** Baustein ist
+`lib/requestGate.ts` („neueste Anfrage gewinnt“, plus `invalidate()` für Übergänge). Er sitzt an
+jeder Stelle, die nach einem Wechsel eine späte Antwort übernehmen könnte:
+
+| Stelle | Was vorher passieren konnte | Test |
+|---|---|---|
+| Chat-Stream (`useChatController.runChatStream`) | Antwort eines alten Chats lief nach einem neuen Chat/Projektwechsel weiter und schrieb an derselben Position in die neue Antwort; `isLoading` wurde vom alten Stream beendet. Jetzt: Generation je Stream, Abbruch per `AbortController`, keine Fehlermeldung beim Abbruch | `useChatController.test.tsx` |
+| Sitzung laden (`handleSessionSelect`) | Bei schnellem Wechsel A → B zeigten sich A's Nachrichten unter B | `useChatController.test.tsx` |
+| Dateiliste, Entities (`useProjects`) | Bei A → B → C landete B's Antwort nach C | `useProjects.test.tsx` |
+| Referenzen (`useKnowledgeSources`) | Referenzen einer zuvor geöffneten Datei überschrieben die aktuelle | `useKnowledgeSources.test.tsx` |
+| Dateiinhalt (`page.tsx::handleFileSelect`) | Der Editor zeigte den Inhalt einer zuvor geöffneten Datei unter dem neuen Namen | — (siehe unten) |
+| Wissensgraph (Übersicht, Nachbarschaft) | Der Graph des vorigen Projekts ersetzte den des neuen | `KnowledgeGraphView.test.tsx` |
+
+Die Tests für Chat, Sitzung, Projekte und Referenzen scheitern am Stand vor dieser Änderung und belegen
+damit die Fehler. Der Dateiinhalt hat noch keinen eigenen Test, weil `handleFileSelect` in `page.tsx`
+liegt; er nutzt denselben, gesondert getesteten Baustein.
+
+| ID | Auslöser | Soll | Status |
+|---|---|---|---|
+| PS-31 | Projektwechsel | Auswahl, Objektfokus, Historie und Chat-Pin aller Panels sind leer; die Panels bleiben offen | ✅ |
+
+---
+
+## 8. Verweise
 
 - [Priorisierte TODO-Liste](TODO.md) — aktiver Backlog; O-091/O-092 sind abgeschlossen
 - `frontend/hooks/panelSyncMatrix.test.tsx` — Regressionstests, nach `PS-nn` benannt
 - `frontend/lib/panelNavigation.ts` — Zielauflösung des Pfads B
 - `frontend/hooks/useWorkspaceLayout.ts` — Sync-Regel, Einfrieren, Panel-Historie
 - `frontend/hooks/usePanelNavigation.ts` — Pfad B
+- `frontend/hooks/useProjectTransition.ts` — Projektwechsel als ein Übergang (Abschnitt 7.2)
+- `frontend/lib/requestGate.ts` — veraltete Antworten verwerfen (Abschnitt 7.3)

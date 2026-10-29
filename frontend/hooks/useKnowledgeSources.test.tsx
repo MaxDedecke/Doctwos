@@ -147,4 +147,23 @@ describe('useKnowledgeSources', () => {
       expect(mockedApi.getProjectReferences).toHaveBeenCalledWith(42, 'OTHER.cbl', undefined);
     });
   });
+
+  it('shows only the references of the latest request and drops them on clear', async () => {
+    mockedApi.getKnowledgeSources.mockResolvedValue(axiosResponse([]));
+    let releaseFirst: (value: unknown) => void = () => {};
+    mockedApi.getProjectReferences
+      .mockImplementationOnce(() => new Promise(resolve => { releaseFirst = resolve; }) as never)
+      .mockResolvedValueOnce(axiosResponse([{ file_path: 'B.cbl' }]) as never);
+    const { result } = renderHook(() => useKnowledgeSources({ isLoggedIn: false, selectedProject: project(), t, showToast }));
+
+    let first: Promise<void> = Promise.resolve();
+    act(() => { first = result.current.loadFileReferences('A.cbl'); });
+    await act(async () => { await result.current.loadFileReferences('B.cbl'); });
+    await act(async () => { releaseFirst(axiosResponse([{ file_path: 'A.cbl' }])); await first; });
+    expect(result.current.fileReferences).toEqual([{ file_path: 'B.cbl' }]);
+
+    act(() => result.current.clearFileReferences());
+    expect(result.current.fileReferences).toEqual([]);
+  });
 });
+

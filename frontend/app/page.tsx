@@ -39,6 +39,8 @@ import { cn } from "@/lib/utils";
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { api } from './services/api';
+import { useRequestGate } from '@/lib/requestGate';
+import { useProjectTransition } from '@/hooks/useProjectTransition';
 
 const MemoSettingsModal = React.memo(SettingsModal);
 const MemoGlobalSearch = React.memo(GlobalSearch);
@@ -221,6 +223,11 @@ function AppContent() {
     handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot, buildWorkspaceSnapshot,
   } = workspaceState;
 
+  const fileContentGate = useRequestGate();
+  // Der Chat-Controller entsteht erst weiter unten; ein neuer Chat muss seinen laufenden Stream
+  // trotzdem beenden können (gleiches „latest ref“-Muster wie handleSessionSelectRef).
+  const invalidateChatRef = useRef<() => void>(() => {});
+
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -308,6 +315,7 @@ function AppContent() {
   // project/file mid-chat, removing the active session, opening the graph view),
   // where the caller deliberately keeps its own view/panel state around afterward.
   const resetChatSession = useCallback(() => {
+    invalidateChatRef.current();
     ignoreUrlSyncRef.current = true;
     setChatMessages([]);
     setSelectedFile(null);
@@ -349,40 +357,26 @@ function AppContent() {
     setIsSettingsOpen(false);
   }, [resetChatSession, setActiveRightTab, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
 
-  const handleProjectSelect = useCallback(async (project: { id: number; name: string; status?: string | null; url?: string | null } | null) => {
-    // Dasselbe Projekt noch einmal zu wählen (z. B. beim Wechsel zwischen Chats desselben Projekts) ändert
-    // nichts: keine Meldung, kein Neuladen der Dateien.
-    if (project ? selectedProject?.id === project.id : !selectedProject) return;
-    if (!project) {
-      const activeSession = sessions.find(s => s.id === activeSessionId);
-      if (activeSessionId && activeSession && activeSession.project_id !== null) {
-        resetChatSession();
-      }
-      await selectProject(null);
-      showToast(t('page.toast.projectSelectedGeneral') || "Allgemeiner Kontext ausgewählt", "success");
-      return;
-    }
-    // status/url are only populated when a git repo is attached (see serialize_project) —
-    // a git-free project has status=null and must stay selectable.
-    if (project.url && project.status !== 'completed') {
-      showToast(t('page.toast.projectStillAnalyzing', { name: project.name }), 'warning');
-      return;
-    }
-    const activeSession = sessions.find(s => s.id === activeSessionId);
-    if (activeSessionId && activeSession && activeSession.project_id !== project.id) {
-      resetChatSession();
-    }
-
-    await selectProject(project);
-  }, [activeSessionId, resetChatSession, selectProject, selectedProject, sessions, showToast, t]);
-
-  // Projektwechsel über die Auswahl in der Kopfzeile: Die geöffneten Ansichten gehören zum alten Projekt und
-  // werden geschlossen; im neuen Projekt beginnt ein neuer Chat.
-  const handleProjectSwitch = useCallback(async (project: { id: number; name: string; status?: string | null; url?: string | null } | null) => {
-    const changes = project ? selectedProject?.id !== project.id : Boolean(selectedProject);
-    if (changes && !(project?.url && project.status !== 'completed')) startNewChat();
-    await handleProjectSelect(project);
-  }, [handleProjectSelect, selectedProject, startNewChat]);
+  const changeProject = useProjectTransition({
+    selectedProject,
+    sessions,
+    activeSessionId,
+    selectProject,
+    startNewChat,
+    resetChatSession,
+    clearSelection: workspaceState.clearSelection,
+    clearFileReferences: sourceState.clearFileReferences,
+    invalidateFileContent: fileContentGate.invalidate,
+    onGeneralContext: () => showToast(t('page.toast.projectSelectedGeneral') || "Allgemeiner Kontext ausgewählt", "success"),
+    onStillAnalyzing: (project) => showToast(t('page.toast.projectStillAnalyzing', { name: project.name }), 'warning'),
+  });
+  type ProjectChoice = Parameters<typeof changeProject>[0];
+  // Suche, Graph-Fokus: neuer Chat nur, wenn die aktive Sitzung zu einem anderen Projekt gehört.
+  const handleProjectSelect = useCallback((project: ProjectChoice) => changeProject(project, { chat: 'reset-if-foreign' }), [changeProject]);
+  // Kopfzeile, Seitenleiste: die Ansichten gehören zum alten Projekt; im neuen beginnt ein neuer Chat.
+  const handleProjectSwitch = useCallback((project: ProjectChoice) => changeProject(project, { chat: 'new' }), [changeProject]);
+  // Eine geladene Sitzung bringt ihr Projekt mit; ihr Chat bleibt.
+  const selectSessionProject = useCallback((project: ProjectChoice) => changeProject(project, { chat: 'keep' }), [changeProject]);
 
   useEffect(() => {
     if (!isLoggedIn || !ideLink || !ideLinkKey || projects.length === 0 || openedIdeLinkRef.current === ideLinkKey) return;
@@ -577,6 +571,7 @@ function AppContent() {
     handleSessionSelect,
     handleRemoveSession,
     recordAgentViewActionOutcome,
+    invalidateChat,
   } = useChatController({
     t,
     showToast,
@@ -603,7 +598,7 @@ function AppContent() {
     llmProfiles,
     projects,
     connectedSources,
-    handleProjectSelect,
+    handleProjectSelect: selectSessionProject,
     restoreWorkspaceSnapshot,
     resetChatSession,
     buildWorkspaceSnapshot,
@@ -612,6 +607,9 @@ function AppContent() {
   useEffect(() => {
     handleSessionSelectRef.current = handleSessionSelect;
   }, [handleSessionSelect]);
+  useEffect(() => {
+    invalidateChatRef.current = invalidateChat;
+  }, [invalidateChat]);
 
   // File-reference loading lives in useKnowledgeSources.
 
@@ -669,6 +667,8 @@ function AppContent() {
       hasPanelForSelection = ensureLivePanelType('code');
     }
     if (!hasPanelForSelection) showToast(t('page.toast.noPanelSpace'), "error");
+    // Nur die zuletzt angeforderte Datei setzt ihren Inhalt; ein Projektwechsel entwertet alle.
+    const isCurrent = fileContentGate.begin();
     try {
       setIsLoadingFile(true);
       setFileContent("");
@@ -676,6 +676,7 @@ function AppContent() {
       if (resolvedSourceId) {
         if (isWebOrigin) {
           const res = await api.resolveWebOrigin(resolvedSourceId, cleanPath, theme);
+          if (!isCurrent()) return;
           content = res.data.content;
           setFileContentFormat("html");
           if (res.data.url) {
@@ -684,6 +685,7 @@ function AppContent() {
           showToast(t('page.toast.webpageLoaded', { name: cleanPath.split('/').pop() || t('page.fallbackContent') }), "success");
         } else {
           const res = await api.getKnowledgeSourceContent(resolvedSourceId, cleanPath);
+          if (!isCurrent()) return;
           content = res.data.content;
           setFileContentFormat(res.data.format || (cleanPath.endsWith(".md") ? "markdown" : "text"));
           showToast(t('page.toast.documentLoaded', { name: cleanPath.split('/').pop() || t('page.fallbackContent') }), "success");
@@ -696,6 +698,7 @@ function AppContent() {
         // get_knowledge_source_content in backend/api/knowledge_sources.py).
         if (!project?.repo_id) throw new Error('No source selected for file content');
         const res = await api.getKnowledgeSourceContent(project.repo_id, cleanPath);
+        if (!isCurrent()) return;
         content = res.data.content;
         setFileContentFormat(res.data.format || (cleanPath.endsWith(".md") ? "markdown" : "text"));
         showToast(t('page.toast.fileLoaded', { name: cleanPath.split('/').pop() || t('page.fallbackContent') }), "success");
@@ -738,11 +741,11 @@ function AppContent() {
         }, 150);
       }
     } catch (err) {
-      showToast(t('page.toast.fileLoadFailed'), "error", err);
+      if (isCurrent()) showToast(t('page.toast.fileLoadFailed'), "error", err);
     } finally {
-      setIsLoadingFile(false);
+      if (isCurrent()) setIsLoadingFile(false);
     }
-  }, [activeSessionId, connectedSources, ensureLivePanelType, loadFileReferences, resetChatSession, selectedProject, sessions, setActiveMobileTab, setActiveRightTab, setFileContent, setFileContentFormat, setFileNavStack, setIsEditorMaximized, setIsLoadingFile, setIsReferencesDropdownOpen, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, theme, t]);
+  }, [activeSessionId, connectedSources, ensureLivePanelType, fileContentGate, loadFileReferences, resetChatSession, selectedProject, sessions, setActiveMobileTab, setActiveRightTab, setFileContent, setFileContentFormat, setFileNavStack, setIsEditorMaximized, setIsLoadingFile, setIsReferencesDropdownOpen, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine, showToast, theme, t]);
 
   const {
     pinFileFocus,
