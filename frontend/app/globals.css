@@ -79,6 +79,9 @@
     --ds-graph-b-soft: 252 231 243;
     --ds-graph-b-base: 219 39 119;
     --ds-graph-b-strong: 157 23 77;
+    /* Semantische (inhaltlich errechnete) Beziehungen im Wissensgraphen: Mintgrün, damit sie sich
+       sichtbar von Beziehungen aus der Code-Analyse unterscheiden. */
+    --ds-graph-mint-base: 38 186 150;
 
     --radius: 0.625rem;
   }
@@ -114,6 +117,7 @@
     --ds-neutral-850: 38 43 55;
     --ds-neutral-900: 30 35 46;
     --ds-neutral-950: 22 26 35;
+    --ds-graph-mint-base: 110 231 190;
   }
 }
 

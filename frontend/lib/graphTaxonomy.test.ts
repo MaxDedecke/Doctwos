@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   EDGE_DIRECTION_TAXONOMY,
+  EDGE_TYPE_COLORS,
   getEntityTypeLabel,
   getGraphEdgeColor,
   getGraphEdgeLabelKey,
@@ -32,6 +33,12 @@ describe('graph taxonomy', () => {
     expect(getGraphNodeCategory({ type: 'document', file_path: 'scanned-handbook.pdf' })).toBe('file');
     expect(getGraphNodeIconKind({ type: 'entity', entity_type: 'record' })).toBe('code');
     expect(getGraphNodeIconKind({ type: 'document', url: 'https://example.test/page' })).toBe('web');
+  });
+
+  it('draws semantic relationships in their own mint color, apart from every other edge type', () => {
+    const others = Object.entries(EDGE_TYPE_COLORS).filter(([type]) => type !== 'semantic').map(([, color]) => color);
+    expect(getGraphEdgeColor('semantic')).toBe('rgb(var(--ds-graph-mint-base))');
+    expect(others).not.toContain(getGraphEdgeColor('semantic'));
   });
 
   it('keeps unknown node and edge types usable with deterministic fallbacks', () => {
