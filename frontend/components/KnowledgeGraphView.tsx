@@ -218,6 +218,7 @@ export function KnowledgeGraphView({
   // Laufende Fokus-Fahrt: jeder neue Fokus und jedes Auf-/Zuklappen von Hand bricht sie ab.
   const journeyRef = useRef(0);
   const journeyActiveRef = useRef<number | null>(null);
+  const [journeyLabel, setJourneyLabel] = useState<string | null>(null);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -497,7 +498,7 @@ export function KnowledgeGraphView({
     if (request.file_path) params.set('file_path', request.file_path);
     if (request.source_id != null && request.source_id !== '') params.set('source_id', String(request.source_id));
     if (request.chunk_id != null) params.set('chunk_id', String(request.chunk_id));
-    let target: { node_id: string; group_path: string[] };
+    let target: { node_id: string; label?: string; group_path: string[] };
     try {
       const res = await api.fetch(`${API_URL}/graph/locate?${params}`);
       if (!res.ok) return;
@@ -522,6 +523,7 @@ export function KnowledgeGraphView({
       return;
     }
     journeyActiveRef.current = token;
+    setJourneyLabel(target.label ?? '');
     try {
       for (const keep of journeyUpSteps(expandedGroupsRef.current)) {
         const closing = expandedGroupsRef.current.find(key => !keep.includes(key)) ?? null;
@@ -551,7 +553,10 @@ export function KnowledgeGraphView({
       setGroupHistory(target.group_path);
       arrive(target.node_id);
     } finally {
-      if (journeyActiveRef.current === token) journeyActiveRef.current = null;
+      if (journeyActiveRef.current === token) {
+        journeyActiveRef.current = null;
+        setJourneyLabel(null);
+      }
     }
   }, [selectedProject?.id, dimensions, loadOverview]);
 
@@ -1740,6 +1745,14 @@ export function KnowledgeGraphView({
             pointerRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
           }}
           onPointerLeave={() => { pointerRef.current = null; }}>
+          {journeyLabel !== null && (
+            <div role="status" aria-live="polite"
+              className={cn('pointer-events-none absolute left-1/2 top-3 z-20 flex max-w-[90%] -translate-x-1/2 items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-lg',
+                isDark ? 'border-ds-zinc-700 bg-ds-zinc-900/95 text-ds-zinc-100' : 'border-ds-zinc-200 bg-ds-white/95 text-ds-zinc-900')}>
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin text-ds-indigo-400" />
+              <span className="truncate">{journeyLabel ? t('knowledgeGraphView.journeyTo', { label: journeyLabel }) : t('knowledgeGraphView.journeyGeneric')}</span>
+            </div>
+          )}
           {isLoading && (
             <div className={cn('absolute inset-0 z-20 flex items-center justify-center', isDark ? 'bg-ds-zinc-950/60' : 'bg-ds-white/65')}>
               <div className="flex w-[min(90%,26rem)] flex-col items-center gap-3 px-6 py-7 text-center">
@@ -1798,12 +1811,7 @@ export function KnowledgeGraphView({
               linkVisibility={renderer.linkVisible}
               onRenderFramePre={updateViewport}
               nodeCanvasObjectMode={() => 'replace'}
-              nodePointerAreaPaint={(node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
-                ctx.fillStyle = color;
-                ctx.beginPath();
-                ctx.arc(node.x ?? 0, node.y ?? 0, renderer.hitRadius(node), 0, 2 * Math.PI);
-                ctx.fill();
-              }}
+              nodePointerAreaPaint={renderer.paintPointerArea}
               linkColor={renderer.linkColor}
               linkWidth={renderer.linkWidth}
               onZoom={(transform: { k: number }) => {
@@ -1818,10 +1826,20 @@ export function KnowledgeGraphView({
               linkPointerAreaPaint={renderer.linkPointerArea}
               linkCurvature={renderer.curvature}
               autoPauseRedraw
-              onNodeClick={(node: GraphNode) => {
+              onNodeClick={(node: GraphNode, event?: MouseEvent) => {
                 if (node.type === 'group' && node.group_key) {
                   toggleGroup(node.group_key, true);
                   return;
+                }
+                const graph = graphRef.current;
+                if (event && graph?.screen2GraphCoords && viewMode === 'overview' && canExpandInPlace(node) && hiddenCounts.get(node.id)) {
+                  const point = graph.screen2GraphCoords(event.offsetX, event.offsetY);
+                  if (renderer.badgeHit(node, point.x, point.y, graph.zoom())) {
+                    setSelectedNodeId(node.id);
+                    setSelectedEdgeId(null);
+                    void expansion.expand(node, { x: node.x, y: node.y });
+                    return;
+                  }
                 }
                 setSelectedNodeId(prev => prev === node.id ? null : node.id);
                 setSelectedEdgeId(null);

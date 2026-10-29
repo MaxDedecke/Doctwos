@@ -1456,6 +1456,8 @@
     "autoExpandGroups": "Gruppen beim Hereinzoomen aufklappen",
     "undoGroupStep": "Letztes Aufklappen zurücknehmen",
     "resetGraph": "Graph auf den Ausgangszustand zurücksetzen",
+    "journeyTo": "Wechsle zu {{label}} …",
+    "journeyGeneric": "Wechsle die Position im Graphen …",
     "groupedHint": "gruppiert nach Kopplung – Klick auf eine Gruppe klappt sie auf",
     "backToOverview": "Zurück zur Übersicht",
     "backTo": "Zurück zu {{label}}",

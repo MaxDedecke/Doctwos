@@ -1456,6 +1456,8 @@
     "autoExpandGroups": "Expand groups when zooming in",
     "undoGroupStep": "Undo the last expansion",
     "resetGraph": "Reset the graph to its initial state",
+    "journeyTo": "Moving to {{label}} …",
+    "journeyGeneric": "Moving to a new position in the graph …",
     "groupedHint": "grouped by coupling – click a group to expand it",
     "backToOverview": "Back to overview",
     "backTo": "Back to {{label}}",

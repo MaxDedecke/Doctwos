@@ -746,10 +746,12 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await screen.findByTestId('node-group:c1');
 
     rerender(view('A.java'));
+    expect((await screen.findByRole('status')).textContent).toContain('Wechsle');
     await waitFor(() => expect(screen.getByTestId('node-file:A.java')).toBeTruthy(), { timeout: 6000 });
     const urls = fetchMock.mock.calls.map(call => String(call[0]));
     expect(urls.some(url => url.includes('/graph/locate') && url.includes('file_path=A.java'))).toBe(true);
     await waitFor(() => expect(screen.getByTestId('graph-tool-panel').getAttribute('aria-label')).toBe('A.java'), { timeout: 3000 });
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   }, 10000);
 
   it('returns from an edge opened in the details to the node it came from', async () => {

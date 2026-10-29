@@ -238,7 +238,7 @@ def test_locate_returns_node_and_group_path_for_focus_objects(
     by_path = client.get(
         "/graph/locate", params={"project_id": test_project, "file_path": "A/A0.java"}
     ).json()
-    assert by_path["node_id"].endswith("A%2FA0.java")
+    assert by_path["node_id"].endswith("A%2FA0.java") and by_path["label"] == "A0.java"
     assert len(by_path["group_path"]) >= 1 and by_path["group_path"][0].startswith("c")
 
     b2 = (

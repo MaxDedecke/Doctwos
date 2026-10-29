@@ -94,6 +94,16 @@ describe('knowledge graph rendering', () => {
     expect(renderer.hitRadius(group)).toBeGreaterThan(renderer.hitRadius(options.nodes[0]));
   });
 
+  it('makes the "+N" badge clickable, also where it reaches past the node', () => {
+    const { options, nodes } = fixture();
+    const renderer = createKnowledgeGraphRenderer({ ...options, selectedNodeId: null, focusNeighborIds: null, hiddenCounts: new Map([['a', 4]]) });
+    const r = renderer.hitRadius(nodes[0]) - 4;
+    const [bx, by] = [nodes[0].x! + r * 0.72, nodes[0].y! - r * 0.72];
+    expect(renderer.badgeHit(nodes[0], bx + 3, by - 2, 1)).toBe(true);
+    expect(renderer.badgeHit(nodes[0], nodes[0].x!, nodes[0].y!, 1)).toBe(false);
+    expect(renderer.badgeHit(nodes[1], nodes[1].x!, nodes[1].y!, 1)).toBe(false);
+  });
+
   it('keeps crossing edges when both endpoints are outside the viewport', () => {
     const { options, nodes, links, viewport } = fixture();
     nodes[0].x = -1000;

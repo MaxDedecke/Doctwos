@@ -221,6 +221,17 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
     ctx.restore();
   }
 
+  /** Where the "+N" badge of a node sits (graph units), or null when it is not drawn. */
+  function badgeBox(node: GraphNode, scale: number) {
+    const hidden = hiddenCounts?.get(node.id);
+    const r = radius(node);
+    const primary = node.id === selectedNodeId || node.id === focusNodeId;
+    if (!hidden || node.x == null || node.y == null || (!primary && r * scale < 6)) return null;
+    const height = 15 / scale;
+    const width = Math.max(height, (`+${hidden > 999 ? '999+' : hidden}`.length * 6.2 + 9) / scale);
+    return { cx: node.x + r * 0.72, cy: node.y - r * 0.72, width, height };
+  }
+
   function drawHiddenBadge(ctx: CanvasRenderingContext2D, cx: number, cy: number, count: number, scale: number) {
     const text = `+${count > 999 ? '999+' : count}`;
     const fontSize = 10 / scale;
@@ -283,6 +294,20 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
 
   return { drawNode, linkColor, linkWidth, nodeVisible, linkVisible,
     hitRadius: (node: GraphNode) => radius(node) + 4,
+    /** Clicks on the "+N" badge show the hidden connections; it reaches past the node's edge. */
+    badgeHit: (node: GraphNode, x: number, y: number, scale: number) => {
+      const box = badgeBox(node, scale);
+      const margin = 3 / scale;
+      return !!box && Math.abs(x - box.cx) <= box.width / 2 + margin && Math.abs(y - box.cy) <= box.height / 2 + margin;
+    },
+    paintPointerArea: (node: GraphNode, color: string, ctx: CanvasRenderingContext2D, scale: number) => {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(node.x ?? 0, node.y ?? 0, radius(node) + 4, 0, 2 * Math.PI);
+      ctx.fill();
+      const box = badgeBox(node, scale);
+      if (box) ctx.fillRect(box.cx - box.width / 2, box.cy - box.height / 2, box.width, box.height);
+    },
     linkCanvasObjectMode: (edge: GraphEdge) => stubOf(edge) ? 'replace' : 'after',
     // Stubs replace the line; full edges only get the source arrowhead of bidirectional links.
     drawLink: (edge: GraphEdge, ctx: CanvasRenderingContext2D, scale: number) => {

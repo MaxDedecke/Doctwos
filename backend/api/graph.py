@@ -1638,6 +1638,7 @@ def locate_in_groups(
         )
         return {
             "node_id": node_id,
+            "label": meta.get("title") or chunk.file_path,
             "group_path": group_path(db, project_id, locate_topic_document(db, project_id, chunk)),
         }
 
@@ -1663,6 +1664,7 @@ def locate_in_groups(
         ).scalar()
     return {
         "node_id": _code_file_id(project_id, source_id, file_path),
+        "label": file_path.rsplit("/", 1)[-1],
         "group_path": group_path(db, project_id, leaf),
     }
 

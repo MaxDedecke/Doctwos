@@ -3,8 +3,8 @@
  * obersten Ebene, dann Gruppe für Gruppe hinein bis zum neuen Fokusobjekt, jeweils mit kurzem Halt,
  * damit man sieht, wo man herkommt und wo das Ziel liegt.
  */
-export const JOURNEY_CAMERA_MS = 450;
-export const JOURNEY_PAUSE_MS = 450;
+export const JOURNEY_CAMERA_MS = 400;
+export const JOURNEY_PAUSE_MS = 150;
 
 /** Aufgeklappte Gruppen nach jedem Schritt zurück: je Schritt die tiefste Ebene zu. */
 export function journeyUpSteps(expanded: string[]): string[][] {
