@@ -6,6 +6,8 @@ import {
   getGraphEdgeLabelKey,
   getGraphNodeCategory,
   getGraphNodeIconKind,
+  getGraphNodeIconName,
+  NODE_TYPE_TAXONOMY,
   normalizeGraphEdgeDirection,
 } from './graphTaxonomy';
 
@@ -52,5 +54,14 @@ describe('graph taxonomy', () => {
     expect(getEntityTypeLabel('xslt_template', 'de')).toBe('XSLT-Template');
     expect(getEntityTypeLabel('jsp_page', 'en')).toBe('JSP page');
     expect(getGraphNodeIconKind({ type: 'entity', entity_type: 'shell_script' })).toBe('code');
+  });
+
+  it('gives every node category its own icon and insights a light bulb', () => {
+    const icons = Object.values(NODE_TYPE_TAXONOMY).map(type => type.icon);
+    expect(new Set(icons).size).toBe(icons.length);
+    expect(getGraphNodeIconName({ type: 'insight' })).toBe('insight');
+    expect(getGraphNodeIconName({ type: 'entity', entity_type: 'copybook' })).toBe('copybook');
+    expect(getGraphNodeIconName({ type: 'document', url: 'https://example.test/page' })).toBe('web');
+    expect(getGraphNodeIconName({ type: 'document', file_path: 'notes.custom' })).toBe('file');
   });
 });

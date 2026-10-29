@@ -6,6 +6,10 @@
  */
 
 export type GraphIconKind = 'code' | 'document' | 'web';
+/** One distinct glyph per node category; `web`/`code` cover nodes that only fall back to `file`. */
+export type GraphNodeIconName =
+  | 'insight' | 'cobol' | 'jcl' | 'copybook' | 'git' | 'external' | 'confluence' | 'jira'
+  | 'pdf' | 'file' | 'txt' | 'md' | 'document' | 'web' | 'code';
 export type GraphLocale = 'de' | 'en';
 export type GraphEdgeDirection = 'directed' | 'undirected' | 'bidirectional';
 
@@ -66,22 +70,22 @@ export interface GraphNodeTypeDefinition {
   labelDe: string;
   labelEn: string;
   color: string;
-  icon: GraphIconKind;
+  icon: GraphNodeIconName;
 }
 
 export const NODE_TYPE_TAXONOMY: Record<string, GraphNodeTypeDefinition> = {
-  insight: { labelDe: 'Erkenntnisse', labelEn: 'Insights', color: 'rgb(var(--ds-warning-base))', icon: 'document' },
-  cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: 'rgb(var(--ds-info-base))', icon: 'code' },
-  pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: 'rgb(var(--ds-danger-base))', icon: 'document' },
-  jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))', icon: 'code' },
-  confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: 'rgb(var(--ds-info-base))', icon: 'web' },
-  jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: 'rgb(var(--ds-accent))', icon: 'web' },
-  git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: 'rgb(var(--ds-success-base))', icon: 'code' },
-  file:       { labelDe: 'Datei', labelEn: 'File', color: 'rgb(var(--ds-danger-base))', icon: 'document' },
-  txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: 'rgb(var(--ds-neutral-500))', icon: 'document' },
-  md:         { labelDe: 'Markdown-Dateien (.md)', labelEn: 'Markdown Files (.md)', color: 'rgb(var(--ds-neutral-500))', icon: 'document' },
-  copybook:   { labelDe: 'Copybook', labelEn: 'Copybook', color: 'rgb(var(--ds-graph-a-base))', icon: 'code' },
-  external:   { labelDe: 'Externe Referenzen', labelEn: 'External References', color: 'rgb(var(--ds-neutral-500))', icon: 'document' },
+  insight: { labelDe: 'Erkenntnisse', labelEn: 'Insights', color: 'rgb(var(--ds-warning-base))', icon: 'insight' },
+  cobol:      { labelDe: 'COBOL-Programme (.cbl/.cob)', labelEn: 'COBOL Programs (.cbl/.cob)', color: 'rgb(var(--ds-info-base))', icon: 'cobol' },
+  pdf:        { labelDe: 'PDF-Dokumente (.pdf)', labelEn: 'PDF Documents (.pdf)', color: 'rgb(var(--ds-danger-base))', icon: 'pdf' },
+  jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))', icon: 'jcl' },
+  confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: 'rgb(var(--ds-info-base))', icon: 'confluence' },
+  jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: 'rgb(var(--ds-accent))', icon: 'jira' },
+  git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: 'rgb(var(--ds-success-base))', icon: 'git' },
+  file:       { labelDe: 'Datei', labelEn: 'File', color: 'rgb(var(--ds-danger-base))', icon: 'file' },
+  txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: 'rgb(var(--ds-neutral-500))', icon: 'txt' },
+  md:         { labelDe: 'Markdown-Dateien (.md)', labelEn: 'Markdown Files (.md)', color: 'rgb(var(--ds-neutral-500))', icon: 'md' },
+  copybook:   { labelDe: 'Copybook', labelEn: 'Copybook', color: 'rgb(var(--ds-graph-a-base))', icon: 'copybook' },
+  external:   { labelDe: 'Externe Referenzen', labelEn: 'External References', color: 'rgb(var(--ds-neutral-500))', icon: 'external' },
   document:   { labelDe: 'Sonstige Dokumente', labelEn: 'Other Documents', color: 'rgb(var(--ds-neutral-300))', icon: 'document' },
 };
 
@@ -290,6 +294,15 @@ export function getGraphNodeCategory(node: GraphTaxonomyNode | null | undefined)
   // them in one filter group so a PDF is not hidden behind a format-specific
   // badge that users do not know to look for.
   return 'file';
+}
+
+/** Category glyph; uncategorized files keep the web/code distinction of the icon family. */
+export function getGraphNodeIconName(node: GraphTaxonomyNode | null | undefined, category = getGraphNodeCategory(node)): GraphNodeIconName {
+  if (category === 'file') {
+    const kind = getGraphNodeIconKind(node);
+    if (kind !== 'document') return kind;
+  }
+  return NODE_TYPE_TAXONOMY[category]?.icon ?? 'file';
 }
 
 export function getGraphNodeColor(node: GraphTaxonomyNode | null | undefined): string {

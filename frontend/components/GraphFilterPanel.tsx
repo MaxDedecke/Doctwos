@@ -53,7 +53,7 @@ export function GraphFilterPanel({ isDark, legend, nodes, links, directions, onT
             <legend className="mb-2 text-xs font-semibold">{t(`knowledgeGraphView.${group.key}`)}</legend>
             {options.map(option => {
               const content = <>
-                {group.key === 'nodesLabel' ? <KnowledgeNodeIcon node={{ type: option.id, source_type: option.id }} className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400" />
+                {group.key === 'nodesLabel' ? <KnowledgeNodeIcon node={null} category={option.id} className="h-3.5 w-3.5 shrink-0 text-ds-indigo-400" />
                   : option.color ? <span className="h-0.5 w-4 shrink-0" style={{ background: option.color }} /> : null}
                 <span className="min-w-0 flex-1 break-words text-left">{option.label}</span>
                 {!legend && <Check aria-hidden="true" className={cn('h-3.5 w-3.5 shrink-0', option.hidden ? 'invisible' : 'text-ds-indigo-400')} />}
