@@ -798,6 +798,46 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
   }, 10000);
 
+  it('does not bring back a focus the user cleared when another group is expanded afterwards', async () => {
+    const group = (key: string) => ({ id: `group:${key}`, type: 'group', label: key, group_key: key, group_kind: 'community', file_count: 2, project_id: 1 });
+    const file = (name: string, parent: string) => ({ id: `file:${name}`, type: 'code_file', label: name, file_path: name, project_id: 1, group_parent: parent, group_parent_label: parent });
+    const body = (expanded: string[]) => ({
+      grouped: true,
+      expanded,
+      nodes: [
+        ...(expanded.includes('c1') ? [file('A.java', 'c1')] : [group('c1')]),
+        ...(expanded.includes('c2') ? [file('B.java', 'c2')] : [group('c2')]),
+      ],
+      edges: [],
+    });
+    const fetchMock = vi.fn().mockImplementation(async (url: string) => {
+      const u = decodeURIComponent(String(url));
+      const expanded = ['c1', 'c2'].filter(key => new RegExp(`expanded=[^&]*\\b${key}\\b`).test(u));
+      return { ok: true, json: async () => (u.includes('/graph/locate') ? { node_id: 'file:A.java', group_path: ['c1'] } : body(expanded)) };
+    });
+    vi.stubGlobal('fetch', fetchMock);
+    const view = (selectedFile: string | null) => (
+      <LanguageProvider>
+        <KnowledgeGraphView theme="dark" selectedProject={{ id: 1, name: 'Testprojekt' }} selectedFile={selectedFile} />
+      </LanguageProvider>
+    );
+    const { rerender } = render(view(null));
+    await screen.findByTestId('node-group:c1');
+
+    rerender(view('A.java'));
+    await waitFor(() => expect(screen.getByTestId('graph-tool-panel').getAttribute('aria-label')).toBe('A.java'), { timeout: 8000 });
+    await waitFor(() => expect(screen.queryByRole('status')).toBeNull());
+
+    fireEvent.click(screen.getByText('Fokus aufheben'));
+    expect(screen.queryByText('Fokus aufheben')).toBeNull();
+
+    // Eine andere Gruppe aufklappen lädt die Knoten neu; die Props zeigen noch auf A.java.
+    fireEvent.click(screen.getByTestId('node-group:c2'));
+    await waitFor(() => expect(screen.getByTestId('node-file:B.java')).toBeTruthy());
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(screen.queryByText('Fokus aufheben')).toBeNull();
+  }, 15000);
+
   it('keeps the graph of the newly chosen project when the previous project answers late', async () => {
     let releaseFirst: (value: unknown) => void = () => {};
     const graphOf = (projectId: number) => ({

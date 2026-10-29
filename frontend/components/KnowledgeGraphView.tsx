@@ -177,6 +177,8 @@ export function KnowledgeGraphView({
   // fix for that case — a real GET /graph/focus fetch, independent of whatever
   // got cut from the overview.
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
+  // Eine von außen gesetzte Auswahl, deren Knoten noch nicht geladen ist (siehe Abgleich unten).
+  const [externalSelectionPending, setExternalSelectionPending] = useState(true);
 
   // O-053: whether the currently loaded overview was capped server-side, and
   // hard-focus state for "load this node's real neighborhood from the DB"
@@ -306,6 +308,7 @@ export function KnowledgeGraphView({
     setFocusNodeId(null);
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
+    setExternalSelectionPending(false);
   }, []);
 
   const handleZoomIn = () => {
@@ -941,32 +944,32 @@ export function KnowledgeGraphView({
 
   // Sync selectedNodeId based on external props changes (selectedDoc, selectedFile,
   // selectedEntity). During render, same reasoning as the focus sync above.
+  // Die Auswahl aus den Props gilt nur für die Props, die gerade neu gesetzt wurden. Ist ihr Knoten
+  // dann noch nicht geladen (Fokus-Fahrt), bleibt sie vorgemerkt, bis er kommt. Sonst holte jedes
+  // Nachladen (Gruppe aufklappen) eine längst aufgehobene Auswahl zurück, weil die Props weiter auf
+  // das alte Objekt zeigen.
   const [prevSelectedNodeIdDeps, setPrevSelectedNodeIdDeps] = useState({ selectedEntity, selectedDoc, selectedFile, rawNodes });
-  if (
-    prevSelectedNodeIdDeps.selectedEntity !== selectedEntity ||
+  const propSelectionChanged = prevSelectedNodeIdDeps.selectedEntity !== selectedEntity ||
     prevSelectedNodeIdDeps.selectedDoc !== selectedDoc ||
-    prevSelectedNodeIdDeps.selectedFile !== selectedFile ||
-    prevSelectedNodeIdDeps.rawNodes !== rawNodes
-  ) {
+    prevSelectedNodeIdDeps.selectedFile !== selectedFile;
+  if (propSelectionChanged || prevSelectedNodeIdDeps.rawNodes !== rawNodes) {
     setPrevSelectedNodeIdDeps({ selectedEntity, selectedDoc, selectedFile, rawNodes });
 
-    if (selectedEntity) {
-      const fileNode = rawNodes.find((n: GraphNode) =>
-        n.type === 'code_file' && n.file_path === selectedEntity.file_path &&
-        (selectedEntity.source_id == null || n.source_id === selectedEntity.source_id),
-      );
-      if (fileNode) setSelectedNodeId(fileNode.id);
-    } else if (selectedDoc) {
-      const docNode = rawNodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name);
-      if (docNode) setSelectedNodeId(docNode.id);
-    } else if (selectedFile) {
-      const fileNode = rawNodes.find((n: GraphNode) => n.id === `doc:${selectedFile}` || n.label === selectedFile || n.url === selectedFile);
-      if (fileNode) {
-        setSelectedNodeId(fileNode.id);
-      } else {
-        const entNode = rawNodes.find((n: GraphNode) => n.type === 'code_file' && n.file_path === selectedFile);
-        if (entNode) setSelectedNodeId(entNode.id);
+    if (propSelectionChanged || externalSelectionPending) {
+      let nodeId: string | null = null;
+      if (selectedEntity) {
+        nodeId = rawNodes.find((n: GraphNode) =>
+          n.type === 'code_file' && n.file_path === selectedEntity.file_path &&
+          (selectedEntity.source_id == null || n.source_id === selectedEntity.source_id),
+        )?.id ?? null;
+      } else if (selectedDoc) {
+        nodeId = rawNodes.find((n: GraphNode) => n.id === `doc:${selectedDoc.url}` || n.label === selectedDoc.name)?.id ?? null;
+      } else if (selectedFile) {
+        nodeId = (rawNodes.find((n: GraphNode) => n.id === `doc:${selectedFile}` || n.label === selectedFile || n.url === selectedFile)
+          ?? rawNodes.find((n: GraphNode) => n.type === 'code_file' && n.file_path === selectedFile))?.id ?? null;
       }
+      if (nodeId) setSelectedNodeId(nodeId);
+      setExternalSelectionPending(nodeId === null && Boolean(selectedEntity || selectedDoc || selectedFile));
     }
   }
 
