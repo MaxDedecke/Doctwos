@@ -15,6 +15,13 @@ import {
   collisionRadius,
   linkDistance,
   radialRadius,
+  EDGE_FULL_ZOOM,
+  EDGE_MIN_ALPHA,
+  EDGE_MIN_SCREEN_WIDTH,
+  NODE_MIN_SCREEN_RADIUS,
+  screenNodeRadius,
+  zoomedEdgeAlpha,
+  zoomedEdgeWidth,
 } from './graphLayout';
 
 describe('graph layout parameters', () => {
@@ -113,6 +120,22 @@ describe('node-relative arrow cap', () => {
   it('scales nodes up (2-3x) with NODE_RADIUS_SCALE', () => {
     expect(NODE_RADIUS_SCALE).toBeGreaterThanOrEqual(2);
     expect(NODE_RADIUS_SCALE).toBeLessThanOrEqual(3);
+  });
+});
+
+describe('zoomed-out balance of nodes and edges', () => {
+  it('thins and fades edges only below the full zoom and keeps a floor', () => {
+    expect(zoomedEdgeWidth(1.5, 1)).toBe(1.5);
+    expect(zoomedEdgeWidth(1.5, EDGE_FULL_ZOOM)).toBe(1.5);
+    expect(zoomedEdgeWidth(1.5, EDGE_FULL_ZOOM / 2)).toBeCloseTo(0.75);
+    expect(zoomedEdgeWidth(1.5, 0.01)).toBe(EDGE_MIN_SCREEN_WIDTH);
+    expect(zoomedEdgeAlpha(1)).toBe(1);
+    expect(zoomedEdgeAlpha(0.01)).toBe(EDGE_MIN_ALPHA);
+  });
+
+  it('keeps nodes at a minimum size on screen without growing them when zoomed in', () => {
+    expect(screenNodeRadius(20, 1)).toBe(20);
+    expect(screenNodeRadius(20, 0.05) * 0.05).toBeCloseTo(NODE_MIN_SCREEN_RADIUS);
   });
 });
 

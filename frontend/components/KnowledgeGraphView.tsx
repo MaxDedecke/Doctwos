@@ -5,7 +5,7 @@ import type { AgentGraphViewAction, CodeEntity, WorkspaceDocument } from '@/type
 import type { ForceGraphMethods, ForceGraphProps } from 'react-force-graph-2d';
 
 import type { GraphNode, GraphEdge } from '@/lib/knowledgeGraphTypes';
-import { createKnowledgeGraphRenderer, nodeRadius, getNodeDisplayLabel, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
+import { createKnowledgeGraphRenderer, getNodeDisplayLabel, graphEdgeDirection, graphEdgeType, type GraphViewport } from '@/lib/knowledgeGraphRendering';
 import { api, API_URL } from '@/app/services/api';
 import {
   EDGE_TYPE_COLORS,
@@ -23,7 +23,6 @@ import { useGraphSourceFocus } from '@/hooks/useGraphSourceFocus';
 import { filterVisibleGraph } from '@/lib/graphVisibility';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { edgeLineWidth } from '@/lib/graphLayout';
 import { useKnowledgeGraphLayout } from '@/hooks/useKnowledgeGraphLayout';
 import { useGraphExpansion } from '@/hooks/useGraphExpansion';
 import { canExpandInPlace, hiddenEdgeCounts, type GraphData } from '@/lib/graphExpansion';
@@ -1558,11 +1557,11 @@ export function KnowledgeGraphView({
               nodePointerAreaPaint={(node: GraphNode, color: string, ctx: CanvasRenderingContext2D) => {
                 ctx.fillStyle = color;
                 ctx.beginPath();
-                ctx.arc(node.x ?? 0, node.y ?? 0, nodeRadius(node, nodeDegrees.get(node.id) ?? 0) + 4, 0, 2 * Math.PI);
+                ctx.arc(node.x ?? 0, node.y ?? 0, renderer.hitRadius(node), 0, 2 * Math.PI);
                 ctx.fill();
               }}
               linkColor={renderer.linkColor}
-              linkWidth={(l: GraphEdge) => edgeLineWidth(l.id === selectedEdgeId, l.score)}
+              linkWidth={renderer.linkWidth}
               onZoom={(transform: { k: number }) => { zoomRef.current = transform.k; }}
               linkDirectionalArrowLength={renderer.arrowLength}
               linkDirectionalArrowRelPos={renderer.arrowRelPos}

@@ -30,6 +30,30 @@ export const ARROW_MAX_EDGE_FRACTION = 0.4;
 /** Halbe Breite des zusätzlichen Pfeils am Quellknoten bidirektionaler Kanten relativ zur Pfeillänge. */
 export const BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO = 0.4;
 
+/**
+ * Herausgezoomt: force-graph zeichnet Kanten in fester Bildschirmbreite, Knoten schrumpfen dagegen
+ * mit dem Zoom. Ohne Ausgleich bleibt in großen Graphen nur ein Kantenknäuel sichtbar. Unterhalb von
+ * EDGE_FULL_ZOOM werden Kanten daher dünner und blasser, und Knoten behalten eine Mindestgröße auf
+ * dem Bildschirm. Ab EDGE_FULL_ZOOM bleibt alles wie zuvor; das Layout ändert sich nicht.
+ */
+export const EDGE_FULL_ZOOM = 0.5;
+export const EDGE_MIN_SCREEN_WIDTH = 0.5;
+export const EDGE_MIN_ALPHA = 0.3;
+export const NODE_MIN_SCREEN_RADIUS = 3.5;
+
+export function zoomedEdgeWidth(width: number, zoom: number): number {
+  return Math.max(EDGE_MIN_SCREEN_WIDTH, width * Math.min(1, zoom / EDGE_FULL_ZOOM));
+}
+
+export function zoomedEdgeAlpha(zoom: number): number {
+  return Math.max(EDGE_MIN_ALPHA, Math.min(1, zoom / EDGE_FULL_ZOOM));
+}
+
+/** Gezeichneter Radius in Graph-Einheiten: nie kleiner als NODE_MIN_SCREEN_RADIUS Bildschirmpixel. */
+export function screenNodeRadius(radius: number, zoom: number): number {
+  return Math.max(radius, NODE_MIN_SCREEN_RADIUS / Math.max(zoom, 0.01));
+}
+
 /** Linienbreite einer Kante in Graph-Einheiten (Bewertung 0..1, ausgewählt am breitesten). */
 export function edgeLineWidth(selected: boolean, score: number | null | undefined): number {
   return selected ? 4.5 : Math.max(1.2, (score ?? 0.5) * 3);

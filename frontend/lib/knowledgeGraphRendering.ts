@@ -1,6 +1,7 @@
 import { canvasColor, resolveDsColor } from './designTokens';
 import { getGraphEdgeColor, getGraphNodeColor, normalizeGraphEdgeDirection } from './graphTaxonomy';
-import { arrowLength, BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO, edgeLineWidth, NODE_RADIUS_SCALE } from './graphLayout';
+import { arrowLength, BIDIRECTIONAL_ARROW_HALF_WIDTH_RATIO, edgeLineWidth, NODE_RADIUS_SCALE, screenNodeRadius, zoomedEdgeAlpha,
+  zoomedEdgeWidth } from './graphLayout';
 import type { GraphEdge, GraphNode } from './knowledgeGraphTypes';
 import { drawKnowledgeNodeIcon } from '@/components/KnowledgeNodeIcon';
 
@@ -58,7 +59,9 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
   }]));
   const edgeColors = new Map(links.map(edge => [edge.id, resolve(getGraphEdgeColor(graphEdgeType(edge)))]));
   const resolveNode = (end: GraphEdge['source']) => typeof end === 'object' ? end : byId.get(end);
-  const radius = (node: GraphNode) => nodeStyles.get(node.id)?.radius ?? nodeRadius(node);
+  // Zoom-abhängig, damit Pfeile, Trefferfläche und Zeichnung denselben Knotenrand nutzen.
+  const radius = (node: GraphNode) => screenNodeRadius(nodeStyles.get(node.id)?.radius ?? nodeRadius(node), zoom());
+  const withAlpha = (color: string, alpha: number) => alpha >= 1 ? color : color.replace(/^rgb\((.*)\)$/, `rgb($1 / ${alpha})`);
 
   const pairs = new Map<string, GraphEdge[]>();
   const pairKey = (edge: GraphEdge) => {
@@ -102,20 +105,31 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
       && Math.max(source.y, target.y) >= view.y - halfH && Math.min(source.y, target.y) <= view.y + halfH;
   }
 
+  function isHighlighted(edge: GraphEdge) {
+    const focus = selectedNodeId ?? focusNodeId;
+    return edge.id === selectedEdgeId || (focus != null && (graphEndId(edge.source) === focus || graphEndId(edge.target) === focus));
+  }
+
   function linkColor(edge: GraphEdge) {
     if (edge.id === selectedEdgeId) return accent;
     if (ghostIds.has(graphEndId(edge.source)) || ghostIds.has(graphEndId(edge.target))) return ghostLink;
     const focus = selectedNodeId ?? focusNodeId;
     const touchesFocus = focus ? graphEndId(edge.source) === focus || graphEndId(edge.target) === focus
       : !selectedEdgeId || edge.id === selectedEdgeId;
-    return touchesFocus ? edgeColors.get(edge.id)! : dimLink;
+    if (!touchesFocus) return dimLink;
+    return isHighlighted(edge) ? edgeColors.get(edge.id)! : withAlpha(edgeColors.get(edge.id)!, zoomedEdgeAlpha(zoom()));
+  }
+
+  function linkWidth(edge: GraphEdge) {
+    const width = edgeLineWidth(edge.id === selectedEdgeId, edge.score);
+    return isHighlighted(edge) ? width : zoomedEdgeWidth(width, zoom());
   }
 
   function drawNode(node: GraphNode, ctx: CanvasRenderingContext2D, scale: number) {
     const style = nodeStyles.get(node.id)!;
     const primary = node.id === selectedNodeId || node.id === focusNodeId;
     const dimmed = focusNeighborIds != null && !focusNeighborIds.has(node.id);
-    const x = node.x ?? 0, y = node.y ?? 0, r = style.radius;
+    const x = node.x ?? 0, y = node.y ?? 0, r = screenNodeRadius(style.radius, scale);
     ctx.save();
     ctx.globalAlpha = dimmed ? 0.15 : ghostIds.has(node.id) ? 0.4 : 1;
     ctx.beginPath();
@@ -207,7 +221,8 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
     ctx.restore();
   }
 
-  return { drawNode, linkColor, nodeVisible, linkVisible, drawSourceArrow,
+  return { drawNode, linkColor, linkWidth, nodeVisible, linkVisible, drawSourceArrow,
+    hitRadius: (node: GraphNode) => radius(node) + 4,
     arrowLength: (edge: GraphEdge) => isEdgeDirected(edge) ? edgeArrowLength(edge) : 0,
     arrowRelPos, curvature: (edge: GraphEdge) => curvatures.get(edge.id) ?? 0 };
 }

@@ -42,6 +42,15 @@ describe('knowledge graph rendering', () => {
     expect(ctx.fillText).toHaveBeenCalledExactlyOnceWith('A.java', expect.any(Number), expect.any(Number));
   });
 
+  it('lets unselected edges recede when zoomed out while the selected node keeps its edges strong', () => {
+    const { options, links } = fixture();
+    const zoomedOut = createKnowledgeGraphRenderer({ ...options, selectedNodeId: null, focusNeighborIds: null, zoom: () => 0.05 });
+    expect(zoomedOut.linkWidth(links[0])).toBeLessThan(0.5);
+    expect(zoomedOut.linkColor(links[0])).toMatch(/\/ 0\.3\)$|var\(/);
+    const selected = createKnowledgeGraphRenderer({ ...options, zoom: () => 0.05 });
+    expect(selected.linkWidth(links[0])).toBeGreaterThanOrEqual(1.2);
+  });
+
   it('keeps crossing edges when both endpoints are outside the viewport', () => {
     const { options, nodes, links, viewport } = fixture();
     nodes[0].x = -1000;
