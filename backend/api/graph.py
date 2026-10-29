@@ -1624,6 +1624,7 @@ def locate_in_groups(
     assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
     assert_project_visible(project_id, user, db)
 
+    chunk = None
     if chunk_id is not None:
         chunk = (
             db.query(DocumentChunk)
@@ -1632,6 +1633,31 @@ def locate_in_groups(
         )
         if not chunk:
             raise HTTPException(status_code=404, detail="Dokument nicht gefunden")
+    elif file_path and entity_id is None:
+        has_code = (
+            db.query(CodeEntity.id)
+            .filter(CodeEntity.project_id == project_id, CodeEntity.file_path == file_path)
+            .first()
+        )
+        if has_code is None:
+            # Dokumente kommen aus anderen Ansichten oft nur mit Pfad oder Schlüssel an
+            # (Jira: Ticketschlüssel, Confluence: Seiten-ID, Dateien: Pfad).
+            chunk = (
+                db.query(DocumentChunk)
+                .filter(
+                    DocumentChunk.project_id == project_id,
+                    or_(
+                        DocumentChunk.file_path == file_path,
+                        DocumentChunk.metadata_json["issue_key"].as_string() == file_path,
+                        DocumentChunk.metadata_json["page_id"].as_string() == file_path,
+                        DocumentChunk.metadata_json["url"].as_string() == file_path,
+                        DocumentChunk.metadata_json["title"].as_string() == file_path,
+                    ),
+                )
+                .order_by(DocumentChunk.id)
+                .first()
+            )
+    if chunk is not None:
         meta = chunk.metadata_json or {}
         node_id = _document_node_id(
             meta.get("title") or chunk.file_path, meta.get("source_type"), meta.get("url"), chunk

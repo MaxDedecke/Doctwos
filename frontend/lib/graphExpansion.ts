@@ -5,6 +5,14 @@ import { graphEndId } from './knowledgeGraphRendering';
 export type GraphExpansion = { nodeIds: Set<string>; edgeIds: Set<string>; cursor: string | null; hasMore: boolean };
 export type GraphData = { nodes: GraphNode[]; edges: GraphEdge[] };
 
+// Abstand der Startplätze nachgelegter Knoten (Sonnenblumen-Spirale, aufgeklappte Gruppen und
+// „+N“): so dicht, wie die Kollisionsabstände des Layouts es ohnehin zulassen.
+const SEED_GAP = 90;
+const spiralOffset = (slot: number) => {
+  const angle = slot * 2.39996, distance = SEED_GAP * Math.sqrt(slot + 1);
+  return { dx: Math.cos(angle) * distance, dy: Math.sin(angle) * distance };
+};
+
 /** In-place expansion uses GET /graph/neighborhood, which resolves files and documents. */
 export function canExpandInPlace(node: GraphNode): boolean {
   return node.type === 'code_file' || node.type === 'document' || node.id.startsWith('doc:');
@@ -47,10 +55,8 @@ export function mergeExpansion(graph: GraphData, page: GraphData, anchor: { id: 
   const offset = added.nodeIds.size;
   const newNodes = page.nodes.filter(node => !knownNodes.has(node.id)).map((node, index) => {
     added.nodeIds.add(node.id);
-    const slot = offset + index;
-    const angle = slot * 2.39996;
-    const distance = 260 + 70 * Math.sqrt(slot);
-    return { ...node, x: ax + Math.cos(angle) * distance, y: ay + Math.sin(angle) * distance };
+    const { dx, dy } = spiralOffset(offset + index);
+    return { ...node, x: ax + dx, y: ay + dy };
   });
   const present = new Set([...knownNodes, ...newNodes.map(node => node.id)]);
   const newEdges = page.edges.filter(edge => !knownEdges.has(edge.id)
@@ -77,9 +83,6 @@ export function collapseExpansion(graph: GraphData, expansions: Map<string, Grap
   return { nodes, edges };
 }
 
-// Abstand der Startplätze aufgeklappter Inhalte (Sonnenblumen-Spirale): so dicht, wie die
-// Kollisionsabstände des Layouts es ohnehin zulassen.
-const GROUP_SEED_GAP = 90;
 
 const insideGroup = (parent: string | null | undefined, key: string) => parent === key || !!parent?.startsWith(`${key}.`);
 
@@ -108,7 +111,7 @@ export function seedGroupPositions(nodes: GraphNode[], previous: GraphNode[], co
     if (!parent) return node;
     const slot = slots.get(parent.id) ?? 0;
     slots.set(parent.id, slot + 1);
-    const angle = slot * 2.39996, distance = GROUP_SEED_GAP * Math.sqrt(slot + 1);
-    return { ...node, x: parent.x! + Math.cos(angle) * distance, y: parent.y! + Math.sin(angle) * distance };
+    const { dx, dy } = spiralOffset(slot);
+    return { ...node, x: parent.x! + dx, y: parent.y! + dy };
   });
 }

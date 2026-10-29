@@ -219,6 +219,8 @@ export function KnowledgeGraphView({
   const journeyRef = useRef(0);
   const journeyActiveRef = useRef<number | null>(null);
   const [journeyLabel, setJourneyLabel] = useState<string | null>(null);
+  const selectedNodeIdRef = useRef<string | null>(null);
+  useEffect(() => { selectedNodeIdRef.current = selectedNodeId; }, [selectedNodeId]);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -518,8 +520,9 @@ export function KnowledgeGraphView({
       graphRef.current?.zoom(Math.min(2, Math.max(0.4, JOURNEY_ARRIVAL_RADIUS_PX / nodeRadius(node))), JOURNEY_CAMERA_MS);
     };
     if (find(target.node_id)) {
-      // Schon sichtbar (z. B. der Rückkanal eines Klicks im Graphen): nur auswählen.
-      setSelectedNodeId(target.node_id);
+      // Schon sichtbar: hinfahren. Ist es schon ausgewählt, ist das der Rückkanal eines Klicks im
+      // Graphen selbst, und die Kamera bleibt.
+      if (selectedNodeIdRef.current !== target.node_id) arrive(target.node_id);
       return;
     }
     journeyActiveRef.current = token;
@@ -568,6 +571,9 @@ export function KnowledgeGraphView({
     if (entityId != null) return { key: `entity:${entityId}`, entity_id: entityId };
     if (selectedFile) return { key: `file:${selectedFile}`, file_path: selectedFile };
     if (selectedDoc?.chunkId != null) return { key: `doc:${selectedDoc.chunkId}`, chunk_id: selectedDoc.chunkId };
+    // Ohne Kennung (z. B. aus der Suche): Pfad oder Schlüssel, das Backend sucht auch Dokumente.
+    const docPath = selectedDoc?.url || selectedDoc?.name;
+    if (docPath) return { key: `docpath:${docPath}`, file_path: docPath };
     return null;
   }, [selectedEntity, selectedFile, selectedDoc]);
   useEffect(() => {

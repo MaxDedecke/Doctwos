@@ -260,5 +260,9 @@ def test_locate_returns_node_and_group_path_for_focus_objects(
         "/graph/locate", params={"project_id": test_project, "chunk_id": handbook.id}
     ).json()
     assert by_doc["group_path"] == [f"t{topic.id}"] and by_doc["node_id"].startswith("doc:")
+    by_doc_path = client.get(
+        "/graph/locate", params={"project_id": test_project, "file_path": "Runbook.md"}
+    ).json()
+    assert by_doc_path["node_id"].startswith("doc:") and by_doc_path["label"] == "Runbook"
     missing = client.get("/graph/locate", params={"project_id": test_project})
     assert missing.status_code == 422
