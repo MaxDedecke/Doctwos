@@ -153,7 +153,8 @@ export const EDGE_TYPE_COLORS: Record<string, string> = {
   documented: 'rgb(var(--ds-danger-base))',
   syntactic: 'rgb(var(--ds-success-base))',
   coref: 'rgb(var(--ds-graph-b-base))',
-  manual: 'rgb(var(--ds-warning-base))',
+  // Von Menschen gesetzt: eigene Farbe, nicht die der Stichwort-Vorschläge.
+  manual: 'rgb(var(--ds-graph-a-base))',
   chat: 'rgb(var(--ds-info-base))',
   call: 'rgb(var(--ds-danger-base))',
   perform: 'rgb(var(--ds-success-base))',

@@ -633,6 +633,40 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(screen.queryByText('Weitere Verbindungen laden')).toBeNull();
   });
 
+  it('returns from an edge opened in the details to the node it came from', async () => {
+    const overviewResponse = {
+      nodes: [
+        { id: 'file:1:2:A.cbl', type: 'code_file', label: 'A.cbl', project_id: 1 },
+        { id: 'doc:Runbook', type: 'document', label: 'Runbook', project_id: 1 },
+      ],
+      edges: [{ id: 'kl:7', source: 'doc:Runbook', target: 'file:1:2:A.cbl', link_type: 'manual', direction: 'undirected', score: null, context: 'Fachlicher Bezug' }],
+    };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => overviewResponse }));
+
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-file:1:2:A.cbl'));
+    const connections = await screen.findByTestId('node-connections');
+    expect(screen.queryByTestId('graph-tool-panel-back')).toBeNull();
+
+    fireEvent.click(within(connections).getByText('Runbook'));
+    expect(await screen.findByText('Fachlicher Bezug')).toBeTruthy();
+    expect(screen.getByTestId('graph-tool-panel-back').getAttribute('aria-label')).toBe('Zurück zu A.cbl');
+
+    fireEvent.click(within(screen.getByTestId('graph-tool-panel')).getByRole('button', { name: /Runbook/ }));
+    await waitFor(() => expect(screen.getByTestId('graph-tool-panel').getAttribute('aria-label')).toBe('Runbook'));
+    fireEvent.click(screen.getByTestId('graph-tool-panel-back'));
+    expect(await screen.findByText('Fachlicher Bezug')).toBeTruthy();
+
+    fireEvent.click(screen.getByTestId('graph-tool-panel-back'));
+    await waitFor(() => expect(screen.getByTestId('graph-tool-panel').getAttribute('aria-label')).toBe('A.cbl'));
+    expect(screen.getByTestId('node-connections')).toBeTruthy();
+    expect(screen.queryByTestId('graph-tool-panel-back')).toBeNull();
+
+    fireEvent.click(within(screen.getByTestId('node-connections')).getByText('Runbook'));
+    fireEvent.click(await screen.findByTestId('node-doc:Runbook'));
+    await waitFor(() => expect(screen.queryByTestId('graph-tool-panel-back')).toBeNull());
+  });
+
   it('shows hidden connections and expands and collapses them in place without leaving the overview', async () => {
     const overviewResponse = {
       nodes: [

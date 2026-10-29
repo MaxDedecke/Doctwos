@@ -41,6 +41,11 @@ describe('graph taxonomy', () => {
     expect(others).not.toContain(getGraphEdgeColor('semantic'));
   });
 
+  it('keeps manual links apart from the suggested keyword and semantic links', () => {
+    expect(getGraphEdgeColor('manual')).not.toBe(getGraphEdgeColor('keyword'));
+    expect(getGraphEdgeColor('manual')).not.toBe(getGraphEdgeColor('semantic'));
+  });
+
   it('keeps unknown node and edge types usable with deterministic fallbacks', () => {
     expect(getGraphNodeCategory({ type: 'document', file_path: 'notes.custom' })).toBe('file');
     expect(getGraphNodeIconKind({ type: 'future-parser-node' })).toBe('document');

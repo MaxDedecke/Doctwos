@@ -1452,6 +1452,7 @@
     "expandInPlaceTitle": "Loads this node's remaining connections into the overview; all other nodes stay where they are",
     "collapseExpansion": "Hide added connections",
     "backToOverview": "Back to overview",
+    "backTo": "Back to {{label}}",
     "createLink": "Create link",
     "createLinkDescriptionLabel": "Description (optional)",
     "createLinkDescriptionPlaceholder": "How are the objects related? e.g. business relation, caller → function, source of the requirement …",

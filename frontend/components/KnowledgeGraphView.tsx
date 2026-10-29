@@ -234,6 +234,28 @@ export function KnowledgeGraphView({
     requestAnimationFrame(() => { if (trigger?.isConnected) trigger.focus(); });
   };
 
+  // Moves within the detail panel (node -> one of its edges -> an endpoint) are remembered so the
+  // back arrow returns along the same path. Each step records where it led; once the selection
+  // changes any other way, the top step no longer matches and the arrow disappears.
+  type InspectorSelection = { nodeId: string | null; edgeId: string | null };
+  const [inspectorHistory, setInspectorHistory] = useState<Array<{ from: InspectorSelection; to: InspectorSelection }>>([]);
+  const sameSelection = (a: InspectorSelection, b: InspectorSelection) => a.nodeId === b.nodeId && a.edgeId === b.edgeId;
+  const currentSelection: InspectorSelection = { nodeId: selectedNodeId, edgeId: selectedEdgeId };
+  const inspectorBack = inspectorHistory.length > 0 && sameSelection(inspectorHistory[inspectorHistory.length - 1].to, currentSelection)
+    ? inspectorHistory[inspectorHistory.length - 1] : null;
+  const navigateInspector = (to: InspectorSelection) => {
+    const step = { from: currentSelection, to };
+    setInspectorHistory(history => inspectorBack ? [...history, step] : [step]);
+    setSelectedNodeId(to.nodeId);
+    setSelectedEdgeId(to.edgeId);
+  };
+  const goInspectorBack = () => {
+    if (!inspectorBack) return;
+    setInspectorHistory(history => history.slice(0, -1));
+    setSelectedNodeId(inspectorBack.from.nodeId);
+    setSelectedEdgeId(inspectorBack.from.edgeId);
+  };
+
   // Both a selection and an explicit focus dim the graph. Reset them together
   // so clearing one cannot leave the other highlighting the same neighborhood.
   const clearGraphHighlight = useCallback(() => {
@@ -937,6 +959,10 @@ export function KnowledgeGraphView({
     + edgeDirections.filter(direction => hiddenEdgeDirections.has(direction)).length;
   const selectionLabel = selectedNode ? getNodeDisplayLabel(selectedNode)
     : selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '';
+  const backNode = inspectorBack?.from.nodeId ? rawNodes.find(n => n.id === inspectorBack.from.nodeId) : undefined;
+  const backEdge = inspectorBack?.from.edgeId ? rawEdges.find(e => e.id === inspectorBack.from.edgeId) : undefined;
+  const inspectorBackLabel = backNode ? getNodeDisplayLabel(backNode)
+    : backEdge ? (getLinkLabel(t, graphEdgeType(backEdge)) ?? graphEdgeType(backEdge)) : '';
 
   /* ── Theme tokens ───────────────────────────────────────────────────────────── */
   const border     = isDark ? 'border-ds-zinc-800'             : 'border-ds-zinc-200';
@@ -1078,9 +1104,8 @@ export function KnowledgeGraphView({
                         <button key={l.id}
                           onClick={() => {
                             // Die Verbindung wird im Graph ausgewählt (Kante hervorgehoben, übrige ausgegraut) und
-                            // in den Ausschnitt gerückt; der Zoom bleibt.
-                            setSelectedNodeId(null);
-                            setSelectedEdgeId(l.id);
+                            // in den Ausschnitt gerückt; der Zoom bleibt. Der Zurück-Pfeil führt zum Knoten.
+                            navigateInspector({ nodeId: null, edgeId: l.id });
                             if (src && tgt && src.x != null && src.y != null && tgt.x != null && tgt.y != null) {
                               graphRef.current?.centerAt((src.x + tgt.x) / 2, (src.y + tgt.y) / 2, 500);
                             }
@@ -1333,7 +1358,7 @@ export function KnowledgeGraphView({
           {edgeSrc && (
             <div>
               <p className={cn('text-[0.625rem] mb-1', textMuted)}>{t('knowledgeGraphView.fromLabel')}</p>
-              <button onClick={() => { setSelectedNodeId(edgeSrc.id); setSelectedEdgeId(null); }}
+              <button onClick={() => navigateInspector({ nodeId: edgeSrc.id, edgeId: null })}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
                 <KnowledgeNodeIcon node={edgeSrc} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                 <span className={cn('min-w-0 font-medium truncate', textMain)}>{getNodeDisplayLabel(edgeSrc)}</span>
@@ -1344,7 +1369,7 @@ export function KnowledgeGraphView({
           {edgeTgt && (
             <div>
               <p className={cn('text-[0.625rem] mb-1', textMuted)}>{t('knowledgeGraphView.toLabel')}</p>
-              <button onClick={() => { setSelectedNodeId(edgeTgt.id); setSelectedEdgeId(null); }}
+              <button onClick={() => navigateInspector({ nodeId: edgeTgt.id, edgeId: null })}
                 className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-xs transition-colors', connRow)}>
                 <KnowledgeNodeIcon node={edgeTgt} className="w-3 h-3 shrink-0 text-ds-indigo-400" />
                 <span className={cn('min-w-0 font-medium truncate', textMain)}>{getNodeDisplayLabel(edgeTgt)}</span>
@@ -1602,6 +1627,7 @@ export function KnowledgeGraphView({
         </div>
 
         {showDetails && <GraphToolPanel title={selectionLabel} isDark={isDark} mode={detailMode} autoFocus={focusDetails}
+          back={inspectorBack ? { label: t('knowledgeGraphView.backTo', { label: inspectorBackLabel }), onBack: goInspectorBack } : undefined}
           height={Math.min(320, Math.floor(panelSize.height * 0.42))} returnFocusRef={viewTriggerRef}
           onClose={() => {
             setDetailsExpanded(false);

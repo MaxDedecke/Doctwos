@@ -1452,6 +1452,7 @@
     "expandInPlaceTitle": "Lädt die übrigen Verbindungen dieses Knotens in die Übersicht; die übrigen Knoten bleiben, wo sie sind",
     "collapseExpansion": "Eingeblendete Verbindungen ausblenden",
     "backToOverview": "Zurück zur Übersicht",
+    "backTo": "Zurück zu {{label}}",
     "createLink": "Verknüpfung erstellen",
     "createLinkDescriptionLabel": "Beschreibung (optional)",
     "createLinkDescriptionPlaceholder": "Wie hängen die Objekte zusammen? z. B. fachlicher Bezug, Aufrufer → Funktion, Quelle der Anforderung …",
