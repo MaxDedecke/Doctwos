@@ -116,6 +116,16 @@ export function chargeStrength(nodeCount: number, degree: number): number {
   return -Math.min(2800, (120 + nodeCount * 1.8) * 2.7) - Math.min(1300, degree * 45);
 }
 
+/**
+ * Nachlegen in ein bestehendes Layout (Aufklappen): Zug neuer Knoten zu ihrer Startposition und
+ * Stärke von Kanten zu fest stehenden Knoten. Gemessen an Syncope (Gruppe mit 133 Dateien).
+ */
+export const INCREMENTAL_ANCHOR_STRENGTH = 0.15;
+export const INCREMENTAL_PINNED_LINK_STRENGTH = 0.01;
+/** Neue Knoten stoßen schwächer ab und halten nur einen schmalen Rand: Aufgeklapptes bleibt kompakt. */
+export const INCREMENTAL_CHARGE_FACTOR = 0.3;
+export const INCREMENTAL_COLLIDE_PADDING = 30;
+
 /** Reichweite der Abstoßung. */
 export const CHARGE_DISTANCE_MAX = 4500;
 

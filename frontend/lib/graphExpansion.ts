@@ -77,6 +77,10 @@ export function collapseExpansion(graph: GraphData, expansions: Map<string, Grap
   return { nodes, edges };
 }
 
+// Abstand der Startplätze aufgeklappter Inhalte (Sonnenblumen-Spirale): so dicht, wie die
+// Kollisionsabstände des Layouts es ohnehin zulassen.
+const GROUP_SEED_GAP = 90;
+
 const insideGroup = (parent: string | null | undefined, key: string) => parent === key || !!parent?.startsWith(`${key}.`);
 
 /** Collapsing removes the group itself and every expanded subgroup below it. */
@@ -104,7 +108,7 @@ export function seedGroupPositions(nodes: GraphNode[], previous: GraphNode[], co
     if (!parent) return node;
     const slot = slots.get(parent.id) ?? 0;
     slots.set(parent.id, slot + 1);
-    const angle = slot * 2.39996, distance = 220 + 60 * Math.sqrt(slot);
+    const angle = slot * 2.39996, distance = GROUP_SEED_GAP * Math.sqrt(slot + 1);
     return { ...node, x: parent.x! + Math.cos(angle) * distance, y: parent.y! + Math.sin(angle) * distance };
   });
 }
