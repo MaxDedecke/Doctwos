@@ -212,6 +212,8 @@ export function KnowledgeGraphView({
   const [groupHistory, setGroupHistory] = useState<string[]>([]);
   const autoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const groupRequestRef = useRef(false);
+  // Zeigerposition über der Zeichenfläche: Ziel des Zoomens für das automatische Aufklappen.
+  const pointerRef = useRef<{ x: number; y: number } | null>(null);
 
   // Manual link creation (connect the selected node to any other loaded node)
   const [isLinkPickerOpen, setIsLinkPickerOpen] = useState(false);
@@ -470,7 +472,9 @@ export function KnowledgeGraphView({
     const groups = sceneNodesRef.current
       .filter(node => node.type === 'group' && node.group_key && node.x != null && node.y != null)
       .map(node => ({ key: node.group_key!, x: node.x!, y: node.y!, r: nodeRadius(node) }));
-    const { released, expand } = decideAutoGroups(groups, view, suppressedGroupsRef.current);
+    const pointer = pointerRef.current;
+    const focus = pointer ? graph.screen2GraphCoords(pointer.x, pointer.y) : null;
+    const { released, expand } = decideAutoGroups(groups, view, suppressedGroupsRef.current, focus);
     released.forEach(key => suppressedGroupsRef.current.delete(key));
     if (expand) toggleGroup(expand.key, true);
   }, [autoExpandGroups, isGrouped, viewMode, dimensions, toggleGroup]);
@@ -1636,7 +1640,12 @@ export function KnowledgeGraphView({
       <div className={cn('relative flex flex-1 min-w-0 min-h-0', showDetails && detailMode === 'bottom' && 'flex-col')}>
 
         {/* Canvas */}
-        <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative">
+        <div ref={containerRef} className="flex-1 min-w-0 min-h-0 relative"
+          onPointerMove={event => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            pointerRef.current = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+          }}
+          onPointerLeave={() => { pointerRef.current = null; }}>
           {isLoading && (
             <div className={cn('absolute inset-0 z-20 flex items-center justify-center', isDark ? 'bg-ds-zinc-950/60' : 'bg-ds-white/65')}>
               <div className="flex w-[min(90%,26rem)] flex-col items-center gap-3 px-6 py-7 text-center">
