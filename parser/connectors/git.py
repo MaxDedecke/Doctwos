@@ -729,6 +729,7 @@ class GitConnector(BaseConnector):
         self._parse_workers = 0
         self._parse_pool = None
         self._parse_pool_lock = asyncio.Lock()
+        self._parse_isolation_lock = asyncio.Lock()
 
     async def _get_parse_pool(self):
         if self._parse_pool is None and self._parse_workers > 1:
@@ -753,24 +754,45 @@ class GitConnector(BaseConnector):
 
     async def _parse_structure(self, entry, lang: str, doc, parse_kwargs: dict[str, Any]):
         pool = await self._get_parse_pool()
-        if pool is not None:
-            try:
-                return await asyncio.get_running_loop().run_in_executor(
-                    pool,
-                    parse_pool._parse_in_worker,
-                    lang,
-                    doc["content"],
-                    doc["storage_key"],
-                    parse_kwargs.get("profile"),
-                )
-            except BrokenProcessPool:
-                self._log("Parse-Prozess-Pool defekt — wechsle auf Thread-Parsing.")
-                self._parse_workers = 0
+        if pool is None:
+            return await asyncio.to_thread(
+                entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
+            )
+        try:
+            return await self._parse_in_pool(pool, lang, doc, parse_kwargs)
+        except BrokenProcessPool:
+            # Stirbt ein Prozess (Speicher-Kill), scheitern alle laufenden Dateien des Pools, ohne
+            # dass erkennbar wäre, welche es war. Nie im Hauptprozess nachparsen: Die Giftdatei
+            # nähme sonst den ganzen Worker mit. Der nächste Aufruf legt einen neuen Pool an.
+            if self._parse_pool is pool:
                 self._parse_pool = None
-                pool.shutdown(wait=False, cancel_futures=True)
-        return await asyncio.to_thread(
-            entry.parse, doc["content"], doc["storage_key"], **parse_kwargs
+            pool.shutdown(wait=False)
+            return await self._parse_isolated(lang, doc, parse_kwargs)
+
+    @staticmethod
+    async def _parse_in_pool(pool, lang: str, doc, parse_kwargs: dict[str, Any]):
+        return await asyncio.get_running_loop().run_in_executor(
+            pool,
+            parse_pool._parse_in_worker,
+            lang,
+            doc["content"],
+            doc["storage_key"],
+            parse_kwargs.get("profile"),
         )
+
+    async def _parse_isolated(self, lang: str, doc, parse_kwargs: dict[str, Any]):
+        """Parst eine Datei allein in einem eigenen Prozess, damit nur die Schuldige scheitert."""
+        async with self._parse_isolation_lock:
+            self._log(f"Parse-Prozess abgestürzt — prüfe '{doc['title']}' einzeln.")
+            pool = parse_pool.create_pool(1, self._prepared_by_lang)
+            try:
+                return await self._parse_in_pool(pool, lang, doc, parse_kwargs)
+            except BrokenProcessPool as exc:
+                raise RuntimeError(
+                    "Parser-Prozess beim Parsen dieser Datei beendet, vermutlich Speicherlimit"
+                ) from exc
+            finally:
+                pool.shutdown(wait=False)
 
     async def _embed_document(self, doc: Document, semaphore: asyncio.Semaphore):
         async with semaphore:
