@@ -839,10 +839,11 @@ class GitConnector(BaseConnector):
                     parser.chunk_file, doc["content"], chunk_size=config.CHUNK_SIZE
                 )
 
-            if lang in {"html", "jsp"}:
-                chunks = fit_chunks_to_utf8_budget(
-                    chunks, get_embedding_input_budget(self.embedding_model)
-                )
+            # Auch Strukturparser liefern überlange Abschnitte (generierter Code, Base64 in einer
+            # Zeile). Über dem Budget schlüge die Einbettung fehl, die Datei fiele aus dem Index.
+            chunks = fit_chunks_to_utf8_budget(
+                chunks, get_embedding_input_budget(self.embedding_model)
+            )
 
             parse_duration_ms = int((time.monotonic() - parse_start) * 1000)
             chunk_count = len(chunks)

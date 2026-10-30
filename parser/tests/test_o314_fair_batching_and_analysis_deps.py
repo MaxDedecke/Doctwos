@@ -129,6 +129,61 @@ async def test_embed_document_fair_batching_and_metrics():
     assert metrics["admission_wait_ms"] == 15 * len(batch_calls)
 
 
+_LONG_LINE = "x" * 20000
+_LONG_LINE_SOURCES = {
+    "java": (
+        "Generated.java",
+        "package demo;\n\npublic class Generated {\n"
+        f'    String blob = "{_LONG_LINE}";\n'
+        "    void run() {}\n}\n",
+        4,
+    ),
+    "cobol": (
+        "GENERATED.cbl",
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. GENERATED.\n"
+        f"      *{_LONG_LINE}\n"
+        "       PROCEDURE DIVISION.\n"
+        "           STOP RUN.\n",
+        3,
+    ),
+    "text": ("notes.txt", f"erste Zeile\n{_LONG_LINE}\nletzte Zeile\n", 2),
+}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("lang", sorted(_LONG_LINE_SOURCES))
+async def test_embed_document_splits_a_line_longer_than_the_embedding_budget(lang):
+    """Eine überlange Zeile (generierter Code, Base64) ließ die ganze Datei aus dem Index fallen."""
+    name, source, long_line = _LONG_LINE_SOURCES[lang]
+    connector = GitConnector(source_id=-1)
+    doc = {
+        "title": name,
+        "content": source,
+        "url": f"file:///{name}",
+        "source_type": "Git",
+        "storage_key": name,
+        "extra_meta": {"language": lang},
+    }
+
+    async def embeddings(texts, model=None):
+        return [[0.1] * 1024 for _ in texts]
+
+    with (
+        patch("connectors.git.get_embeddings_batch", side_effect=embeddings),
+        patch("connectors.git.get_embedding_input_budget", return_value=8100),
+    ):
+        _, chunks, _ = await connector._embed_document(doc, asyncio.Semaphore(1))
+
+    assert all(len(chunk["content"].encode("utf-8")) <= 8100 for chunk in chunks)
+    assert all("embedding" in chunk for chunk in chunks)
+    pieces = [chunk for chunk in chunks if "xxxx" in chunk["content"]]
+    assert len(pieces) >= 3
+    assert sum(chunk["content"].count("x") for chunk in pieces) >= len(_LONG_LINE)
+    # Zeilennummern bleiben physisch: Reine Stücke der langen Zeile zeigen genau auf sie.
+    assert all(chunk["start_line"] <= long_line <= chunk["end_line"] for chunk in pieces)
+
+
 def test_embed_concurrency_clamps_to_admission_batch_reserve(monkeypatch):
     """Embedding concurrency never exceeds the admission slots left after the chat reserve.
 
