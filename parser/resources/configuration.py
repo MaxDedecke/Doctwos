@@ -2,6 +2,7 @@
 
 import configparser
 import re
+from itertools import islice
 from pathlib import PurePosixPath
 
 import yaml
@@ -10,19 +11,27 @@ from code_parser import CodeParser
 from core.model import Chunk, Entity, ParseDiagnostic, ParseResult
 
 
-def _yaml_entries(node, prefix="", seen=None):
+# Aliase verweisen auf denselben Knoten: Ein Kilobyte YAML kann so Milliarden Pfade ergeben
+# ("Billion Laughs"), auch ganz ohne Werte. `seen` fängt nur Zyklen ab.
+_YAML_MAX_NODE_VISITS = 100_000
+_MAX_PROPERTIES = 10000
+
+
+def _yaml_entries(node, prefix="", seen=None, budget=None):
     seen = set() if seen is None else seen
-    if node is None or id(node) in seen:
+    budget = [_YAML_MAX_NODE_VISITS] if budget is None else budget
+    if node is None or id(node) in seen or budget[0] <= 0:
         return
+    budget[0] -= 1
     seen = seen | {id(node)}
     if isinstance(node, yaml.MappingNode):
         for key, value in node.value:
             if isinstance(key, yaml.ScalarNode):
                 name = prefix + "." + key.value if prefix else key.value
-                yield from _yaml_entries(value, name, seen)
+                yield from _yaml_entries(value, name, seen, budget)
     elif isinstance(node, yaml.SequenceNode):
         for index, value in enumerate(node.value):
-            yield from _yaml_entries(value, f"{prefix}[{index}]", seen)
+            yield from _yaml_entries(value, f"{prefix}[{index}]", seen, budget)
     else:
         yield prefix, node.value, node.start_mark.line + 1, node.end_mark.line + 1
 
@@ -70,8 +79,8 @@ def parse_configuration(source, path, **kwargs):
             ]
         seen = {}
         for document_index, document in enumerate(documents):
-            entries = list(document)
-            if len(entries) > 10000:
+            entries = list(islice(document, _MAX_PROPERTIES + 1))
+            if len(entries) > _MAX_PROPERTIES:
                 result.diagnostics.append(
                     ParseDiagnostic(
                         "CONFIGURATION_PROPERTY_LIMIT",
@@ -90,7 +99,7 @@ def parse_configuration(source, path, **kwargs):
                 ),
                 "",
             )
-            for key, value, start, end in entries[:10000]:
+            for key, value, start, end in entries[:_MAX_PROPERTIES]:
                 occurrence = seen.get(key, 0) + 1
                 seen[key] = occurrence
                 meta = {

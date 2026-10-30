@@ -44,3 +44,23 @@ service:
 def test_malformed_configuration_has_diagnostics_and_text_fallback_content():
     result = parse_configuration("x: [broken", "application.yaml")
     assert result.diagnostics and result.chunks
+
+
+def test_yaml_alias_bomb_stays_within_the_property_limit():
+    """Billion Laughs: ein Kilobyte YAML, das über Aliase auf 9^9 Einträge wächst (camel-snakeyaml)."""
+    levels = ["a: &a [" + ",".join(['"lol"'] * 9) + "]"]
+    for previous, name in zip("abcdefgh", "bcdefghi"):
+        levels.append(f"{name}: &{name} [" + ",".join([f"*{previous}"] * 9) + "]")
+    result = parse_configuration("\n".join(levels) + "\nname: *i\n", "data-dos.yaml")
+    assert len(result.entities) <= 10001
+    assert any(d.code == "CONFIGURATION_PROPERTY_LIMIT" for d in result.diagnostics)
+
+
+def test_yaml_alias_bomb_without_values_ends_quickly():
+    """Dieselbe Bombe aus leeren Listen liefert keine Einträge, ein Limit darauf griffe nie."""
+    levels = ["a: &a [" + ",".join(["[]"] * 9) + "]"]
+    for previous, name in zip("abcdefgh", "bcdefghi"):
+        levels.append(f"{name}: &{name} [" + ",".join([f"*{previous}"] * 9) + "]")
+    result = parse_configuration("\n".join(levels) + "\n", "empty-dos.yaml")
+    assert len(result.entities) == 1
+
