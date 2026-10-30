@@ -129,6 +129,25 @@ def test_java_build_directory_excludes_are_scoped_to_java_sources(monkeypatch):
     assert not _is_java_build_excluded("target/MAIN.cbl", opted_in)
 
 
+def test_java_packages_named_like_build_directories_stay_source(monkeypatch):
+    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    extensions = _resolve_extension_config({"language_extensions": {"java": [".java"]}})
+    for path in (
+        "core/camel-xml-io/src/main/java/org/apache/camel/xml/out/BaseWriter.java",
+        "core/camel-xml-io/src/generated/java/org/apache/camel/xml/out/ModelWriter.java",
+        "module/src/test/java/org/acme/build/BuildTest.java",
+        "src/main/java/org/acme/bin/Tool.java",
+    ):
+        assert not _is_java_build_excluded(path, extensions), path
+    for path in (
+        "module/target/generated/src/main/java/App.java",
+        "module/out/production/org/acme/App.java",
+        "build/org/acme/App.java",
+    ):
+        assert _is_java_build_excluded(path, extensions), path
+
+
 def test_resolve_document_profile_uses_the_most_specific_path_override():
     profile = _resolve_document_profile(
         {

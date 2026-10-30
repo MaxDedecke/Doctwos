@@ -90,4 +90,10 @@ def is_build_excluded(path, extensions):
     )
     if enabled and generated:
         return False
-    return any(p.lower() in _BUILD_EXCLUDED_DIRS for p in parts[:-1])
+    # Hinter einem Quellverzeichnis stehen Paketnamen: org.acme.out ist kein Build-Ausgang.
+    scanned = parts[:-1]
+    for index, part in enumerate(scanned):
+        if part == "src" and scanned[index + 2 : index + 3] == ["java"]:
+            scanned = scanned[:index]
+            break
+    return any(p.lower() in _BUILD_EXCLUDED_DIRS for p in scanned)
