@@ -122,6 +122,27 @@ describe('buildFlowRows', () => {
     expect(rows[2].expandable).toBe(false);
   });
 
+  it('blendet Hilfsaufrufe auf Wunsch aus, nennt ihre Zahl und trennt damit keine Datenläufe', () => {
+    const flow: FlowProjection = {
+      nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'getName'), node('entity:3', 'save'), node('entity:9', 'FELD')],
+      transitions: [
+        tr('d1', 'entity:1', 'entity:9', 'data_access', 10, ['READS']),
+        tr('g', 'entity:1', 'entity:2', 'call', 11, ['CALLS'], { meta: { helper: 'accessor' } }),
+        tr('d2', 'entity:1', 'entity:9', 'data_access', 12, ['READS']),
+        tr('s', 'entity:1', 'entity:3', 'call', 13, ['CALLS']),
+      ],
+    };
+    const projections = new Map([['entity:1', flow]]);
+
+    const hidden = buildFlowRows('entity:1', projections, new Set(), { hideHelpers: true });
+    expect(hidden.hiddenHelpers).toBe(1);
+    expect(hidden.rows.map(row => (row.lane === 'data' ? `daten:${row.accesses!.length}` : row.label))).toEqual(['MAIN', 'daten:2', 'save']);
+
+    const shown = buildFlowRows('entity:1', projections, new Set());
+    expect(shown.hiddenHelpers).toBe(0);
+    expect(shown.rows.map(row => row.label)).toContain('getName');
+  });
+
   it('setzt Wächterzeilen für Bedingungen und Schleifen und rückt darunterliegende Schritte ein', () => {
     const ifThen = { type: 'IF', branch: 'THEN', condition: "WS-A = 'Y'" };
     const ifElse = { ...ifThen, branch: 'ELSE' };

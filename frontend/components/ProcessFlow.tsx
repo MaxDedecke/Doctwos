@@ -20,7 +20,7 @@ const VERB_ORDER: DataVerb[] = ['read', 'write', 'use'];
 
 async function fetchProjection(entityId: number, projectId: number | null | undefined): Promise<{ projection: FlowProjection; truncated: boolean }> {
   const projectParam = projectId ? `&project_id=${projectId}` : '';
-  const response = await api.fetch(`${API_URL}/process/focus?entity_id=${entityId}&hops=1&direction=outgoing&node_limit=500&edge_limit=1000${projectParam}`);
+  const response = await api.fetch(`${API_URL}/process/focus?entity_id=${entityId}&hops=1&direction=outgoing&node_limit=500&edge_limit=1000&entry_routines=true${projectParam}`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data: FlowProjection & { root_node_id?: string; truncation?: { truncated: boolean } } = await response.json();
   return {
@@ -85,9 +85,10 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rootEntityId, projectId]);
 
-  const { rows, capped } = useMemo(
-    () => (rootId ? buildFlowRows(rootId, projections, expanded) : { rows: [], capped: false }),
-    [rootId, projections, expanded],
+  const [hideHelpers, setHideHelpers] = useState(true);
+  const { rows, capped, hiddenHelpers } = useMemo(
+    () => (rootId ? buildFlowRows(rootId, projections, expanded, { hideHelpers }) : { rows: [], capped: false, hiddenHelpers: 0 }),
+    [rootId, projections, expanded, hideHelpers],
   );
 
   const toggleStep = (row: FlowRow) => {
@@ -128,6 +129,17 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
           <div className="text-xs font-bold truncate">{focusedEntity.name}</div>
           <div className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500">{t('processFlow.subtitle')}</div>
         </div>
+        {(hiddenHelpers > 0 || !hideHelpers) && (
+          <button
+            type="button"
+            aria-pressed={hideHelpers}
+            title={t('processFlow.helpersTitle')}
+            onClick={() => setHideHelpers(value => !value)}
+            className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors"
+          >
+            {hideHelpers ? t('processFlow.helpersHidden', { count: hiddenHelpers }) : t('processFlow.helpersShown')}
+          </button>
+        )}
         <button
           type="button"
           onClick={() => setExpanded(new Set())}

@@ -902,3 +902,124 @@ def test_process_focus_on_a_program_starts_at_the_first_procedure_paragraph(
     assert [item["target"] for item in payload["transitions"]] == [f"entity:{other.id}"]
     remove_source()
 
+
+def _java_unit(db_session, project, team):
+    source = KnowledgeSource(
+        name="process-java", type="Git", project_id=project, team_id=team, branch="main", spaces={}
+    )
+    db_session.add(source)
+    db_session.flush()
+
+    def entity(name, type_, start, end, parent=None, meta=None):
+        row = CodeEntity(
+            project_id=project,
+            source_id=source.id,
+            file_path="Flow.java",
+            name=name,
+            qualified_name=f"Flow#{name}",
+            type=type_,
+            start_line=start,
+            end_line=end,
+            parent_id=parent.id if parent else None,
+            meta_json={"language": "java", **(meta or {})},
+        )
+        db_session.add(row)
+        db_session.flush()
+        return row
+
+    def remove():
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+    return source, entity, remove
+
+
+def test_entry_routines_show_the_methods_of_a_java_file_and_mark_getters(
+    client, db_session, test_project, test_team
+):
+    _, entity, remove = _java_unit(db_session, test_project, test_team)
+    unit = entity("Flow.java", "compilation_unit", 1, 40)
+    cls = entity("Flow", "class", 3, 40)
+    run = entity("run", "method", 5, 20, cls, {"parameter_types": []})
+    getter = entity(
+        "getName",
+        "method",
+        22,
+        26,
+        cls,
+        {"parameter_types": [], "return_expressions": [{"expression": "this.name"}]},
+    )
+    heavy = entity(
+        "getReport",
+        "method",
+        28,
+        30,
+        cls,
+        {"parameter_types": [], "return_expressions": [{"expression": "build(name)"}]},
+    )
+    db_session.commit()
+
+    def focus(entity_id, **params):
+        return client.get(
+            "/process/focus",
+            params={"entity_id": entity_id, "project_id": test_project, **params},
+        ).json()
+
+    for root in (unit, cls):
+        body = focus(root.id, entry_routines=True)
+        steps = {item["target"]: item for item in body["transitions"]}
+        assert set(steps) == {f"entity:{run.id}", f"entity:{getter.id}", f"entity:{heavy.id}"}
+        assert all(item["origin_kind"] == "synthetic" for item in steps.values())
+        assert steps[f"entity:{getter.id}"]["meta"]["helper"] == "accessor"
+        assert "helper" not in steps[f"entity:{heavy.id}"]["meta"]
+
+    assert focus(cls.id)["transitions"] == []
+    assert focus(run.id, entry_routines=True)["transitions"] == []
+    remove()
+
+
+def test_logging_and_simple_getter_calls_are_marked_as_helpers(
+    client, db_session, test_project, test_team
+):
+    source, entity, remove = _java_unit(db_session, test_project, test_team)
+    run = entity("run", "method", 5, 20)
+    short = entity("getName", "method", 22, 24)
+    long = entity("getReport", "method", 26, 38)
+
+    def call(name, dst=None, **meta):
+        db_session.add(
+            CodeEdge(
+                project_id=test_project,
+                source_id=source.id,
+                src_entity_id=run.id,
+                dst_entity_id=dst.id if dst else None,
+                dst_name=name,
+                type="CALLS",
+                resolution="resolved" if dst else "unresolved",
+                src_start_line=6,
+                src_end_line=6,
+                meta_json=meta,
+            )
+        )
+
+    call("LOG.info", receiver="LOG", method_name="info", argument_count=1)
+    call("Objects.requireNonNull", receiver="Objects", method_name="requireNonNull", argument_count=1)
+    call("getName", short, method_name="getName", argument_count=0)
+    call("getReport", long, method_name="getReport", argument_count=0)
+    call("store", method_name="store", argument_count=2)
+    db_session.commit()
+
+    body = client.get(
+        "/process/focus", params={"entity_id": run.id, "project_id": test_project}
+    ).json()
+    labels = {node["id"]: node["label"] for node in body["nodes"]}
+    helpers = {labels[item["target"]]: item["meta"].get("helper") for item in body["transitions"]}
+    assert helpers == {
+        "LOG.info": "logging",
+        "Objects.requireNonNull": "precondition",
+        "getName": "accessor",
+        "getReport": None,
+        "store": None,
+    }
+    remove()
+

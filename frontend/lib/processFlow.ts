@@ -28,6 +28,8 @@ export interface FlowTransition {
     multiple_targets?: boolean;
     invocation_kind?: string;
     candidate_targets?: string[];
+    /** Begleitet den Ablauf nur (Logging, einfache Getter, Vorprüfungen). */
+    helper?: string;
   } & Record<string, unknown>;
   locator: { file_path: string; start_line: number; source_id?: number | null };
 }
@@ -128,13 +130,15 @@ export function buildFlowRows(
   rootId: string,
   projections: ReadonlyMap<string, FlowProjection>,
   expanded: ReadonlySet<string>,
-): { rows: FlowRow[]; capped: boolean } {
+  { hideHelpers = false }: { hideHelpers?: boolean } = {},
+): { rows: FlowRow[]; capped: boolean; hiddenHelpers: number } {
   const nodeIndex = new Map<string, FlowNode>();
   projections.forEach(projection => projection.nodes.forEach(node => nodeIndex.set(node.id, node)));
   const root = nodeIndex.get(projections.get(rootId)?.rootNodeId ?? rootId);
   const rows: FlowRow[] = [];
   let capped = false;
-  if (!root) return { rows, capped };
+  let hiddenHelpers = 0;
+  if (!root) return { rows, capped, hiddenHelpers };
 
   const push = (row: FlowRow) => {
     if (rows.length >= MAX_ROWS) { capped = true; return; }
@@ -203,6 +207,11 @@ export function buildFlowRows(
         run.push(transition);
         continue;
       }
+      // Der nächste Datenlauf schließt an: Ein ausgeblendeter Aufruf trennt keine Zeilen.
+      if (hideHelpers && transition.meta?.helper) {
+        hiddenHelpers += 1;
+        continue;
+      }
       flushRun();
       const target = nodeIndex.get(transition.target);
       if (!target) continue;
@@ -241,5 +250,5 @@ export function buildFlowRows(
     expandable: false, expanded: true, needsLoad: !projections.has(rootId),
   });
   walk(rootId, 1, 1, new Set([rootId, root.id]), 'root');
-  return { rows, capped };
+  return { rows, capped, hiddenHelpers };
 }

@@ -1,5 +1,6 @@
 """Bounded, evidence-backed Process View projection (O-292)."""
 
+import re
 from hashlib import sha256
 from collections import defaultdict, deque
 
@@ -18,6 +19,7 @@ from api.process_schemas import (
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
+from doctus_models.language_profile import JAVA
 from services.call_flow import cobol_entry_paragraph
 from services.provenance import build_provenance
 
@@ -52,6 +54,19 @@ KNOWN_PROCESS_KINDS = frozenset(set(EDGE_KIND.values()) | {"external_call", "ite
 EMBEDDED_BLOCK_TYPES = frozenset({"exec_block", "sql_block"})
 EXIT_OPERATIONS = frozenset({"RETURN", "ABEND"})
 _MAX_LABEL_RESOURCES = 2
+# Woran man einen Aufruf erkennt, der den Ablauf nur begleitet. Die Ansicht blendet ihn auf Wunsch aus
+# und nennt die Zahl; es ist eine Lesehilfe, keine Aussage über den Code.
+_LOGGER_RECEIVERS = frozenset({"log", "logger"})
+_PRECONDITION_RECEIVERS = frozenset({"Objects"})
+_GETTER_NAME = re.compile(r"(?:get|is)[A-Z]\w*")
+_FIELD_EXPRESSION = re.compile(r"(?:this\.)?\w+")
+# Mit Annotation und geschweiften Klammern auf eigenen Zeilen.
+_ACCESSOR_MAX_LINES = 6
+# Ohne Rückgabeausdruck: abstrakte Methode oder unbekannter Rumpf.
+_ABSTRACT_MAX_LINES = 3
+# Eine Datei oder Klasse hat keinen eigenen Ablauf: Einstieg sind ihre Methoden.
+_ENTRY_LIST_ROOTS = JAVA.containers | {"compilation_unit"}
+_MEMBER_TYPES = JAVA.containers | JAVA.routines
 
 
 def _language(entity: CodeEntity) -> str:
@@ -126,6 +141,120 @@ def _node_kind(entity: CodeEntity, root: CodeEntity) -> str:
     if _language(entity).lower() == "jcl" and entity.type == "jcl_dataset":
         return "data_access"
     return "step"
+
+
+def _is_simple_getter(entity: CodeEntity | None) -> bool:
+    """Gibt nur ein Feld zurück. Ohne bekanntes Ziel zählt der Name; eine `getX()` mit Logik bleibt ein Schritt."""
+    if entity is None:
+        return True
+    if entity.start_line is None or entity.end_line is None:
+        return True
+    returns = (entity.meta_json or {}).get("return_expressions")
+    if returns:
+        if len(returns) != 1 or not _FIELD_EXPRESSION.fullmatch(returns[0].get("expression") or ""):
+            return False
+        return entity.end_line - entity.start_line < _ACCESSOR_MAX_LINES
+    return entity.end_line - entity.start_line < _ABSTRACT_MAX_LINES
+
+
+def _helper_role(edge: CodeEdge, target: CodeEntity | None) -> str | None:
+    if edge.type != "CALLS":
+        return None
+    meta = edge.meta_json or {}
+    receiver = meta.get("receiver") or ""
+    if receiver.casefold() in _LOGGER_RECEIVERS:
+        return "logging"
+    if receiver in _PRECONDITION_RECEIVERS:
+        return "precondition"
+    if (
+        meta.get("argument_count") == 0
+        and _GETTER_NAME.fullmatch(meta.get("method_name") or "")
+        and _is_simple_getter(target)
+    ):
+        return "accessor"
+    return None
+
+
+def _member_role(entity: CodeEntity) -> str | None:
+    meta = entity.meta_json or {}
+    if (
+        entity.type == "method"
+        and not meta.get("parameter_types")
+        and _GETTER_NAME.fullmatch(entity.name or "")
+        and _is_simple_getter(entity)
+    ):
+        return "accessor"
+    return None
+
+
+def _add_entry_routines(db: Session, root: CodeEntity, projection: ProcessProjection, limit: int) -> None:
+    """Zeigt die Methoden und inneren Typen als Einstiege; hat eine Datei nur einen Typ, gleich dessen."""
+    if root.type not in _ENTRY_LIST_ROOTS:
+        return
+    same_unit = (
+        CodeEntity.project_id == root.project_id,
+        CodeEntity.source_id == root.source_id,
+        CodeEntity.variant_key == root.variant_key,
+        CodeEntity.file_path == root.file_path,
+    )
+    parent_id = root.id
+    members: list[CodeEntity] | None = None
+    if root.type == "compilation_unit":
+        types = (
+            db.query(CodeEntity)
+            .filter(*same_unit, CodeEntity.type.in_(JAVA.containers))
+            .order_by(CodeEntity.start_line, CodeEntity.id)
+            .all()
+        )
+        known = {item.id for item in types}
+        outer = [item for item in types if item.parent_id not in known]
+        if len(outer) == 1:
+            parent_id = outer[0].id
+        else:
+            members = outer
+    if members is None:
+        members = (
+            db.query(CodeEntity)
+            .filter(*same_unit, CodeEntity.parent_id == parent_id, CodeEntity.type.in_(_MEMBER_TYPES))
+            .order_by(CodeEntity.start_line, CodeEntity.id)
+            .limit(limit + 1)
+            .all()
+        )
+    if len(members) > limit:
+        projection.truncation.truncated = True
+        projection.truncation.reasons = sorted({*projection.truncation.reasons, "node_limit"})
+        projection.truncation.omitted_node_count += len(members) - limit
+        members = members[:limit]
+
+    known_nodes = {node.id for node in projection.nodes}
+    for member in members:
+        node_id = _node_id(member.id)
+        locator = _entity_locator(member)
+        if node_id not in known_nodes:
+            projection.nodes.append(
+                ProcessNode(
+                    id=node_id,
+                    kind=_node_kind(member, root),
+                    label=_node_label(member),
+                    language=_language(member),
+                    locator=locator,
+                    entity_id=member.id,
+                )
+            )
+        role = _member_role(member)
+        projection.transitions.append(
+            ProcessTransition(
+                id=f"member:{member.id}",
+                source=projection.root_node_id,
+                target=node_id,
+                kind="step",
+                certainty="certain",
+                resolution="resolved",
+                locator=locator,
+                origin_kind="synthetic",
+                meta={"helper": role} if role else {},
+            )
+        )
 
 
 def _node_label(entity: CodeEntity) -> str:
@@ -359,6 +488,7 @@ def _projection(
                     continue
                 entities[source.id] = source
 
+            target = None
             if edge.dst_entity_id is None:
                 if (
                     len(entities)
@@ -449,6 +579,9 @@ def _projection(
                     },
                 )
             )
+            helper = _helper_role(edge, target)
+            if helper:
+                transitions[-1].meta["helper"] = helper
             seen_edge_ids.add(edge.id)
         frontier = next_frontier
 
@@ -521,6 +654,7 @@ def focus_process(
     node_limit: int = Query(default=200, ge=1, le=MAX_NODE_LIMIT),
     edge_limit: int = Query(default=400, ge=1, le=MAX_EDGE_LIMIT),
     kinds: list[str] | None = Query(default=None),
+    entry_routines: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -530,4 +664,9 @@ def focus_process(
     _assert_entity_visible(root, user, db, project_id)
     if direction == "outgoing" and root.type in {"program", "cobol_program"}:
         root = cobol_entry_paragraph(db, root) or root
-    return _projection(db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds))
+    projection = _projection(
+        db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds)
+    )
+    if entry_routines:
+        _add_entry_routines(db, root, projection, node_limit)
+    return projection
