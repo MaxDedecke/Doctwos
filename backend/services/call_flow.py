@@ -120,6 +120,25 @@ def _to_mermaid(nodes: list[dict], edges: list[dict]) -> str:
     return "\n".join(lines)
 
 
+def cobol_entry_paragraph(db: Session, program: CodeEntity) -> CodeEntity | None:
+    """Wo ein COBOL-Programm beginnt: beim ersten Paragraphen der PROCEDURE DIVISION.
+
+    Die Kanten hängen an Paragraphen, nicht am Programm. Sections zählen nicht: Auch die der DATA
+    DIVISION tragen diesen Typ."""
+    return (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.project_id == program.project_id,
+            CodeEntity.source_id == program.source_id,
+            CodeEntity.variant_key == program.variant_key,
+            CodeEntity.parent_id == program.id,
+            CodeEntity.type == "paragraph",
+        )
+        .order_by(CodeEntity.start_line, CodeEntity.id)
+        .first()
+    )
+
+
 def trace_call_flow(
     db: Session,
     *,
@@ -164,53 +183,10 @@ def trace_call_flow(
     requested_root = root
     entry_resolution = "requested_entity"
     # COBOL callers often select a program (or its source file) while the
-    # executable call edges are attached to internal paragraphs. Resolve only
-    # a single conventional entry paragraph; otherwise return candidates and
-    # let the caller choose explicitly.
+    # executable call edges are attached to internal paragraphs.
     if direction in {"outgoing", "both"} and root.type in {"program", "cobol_program"}:
-        paragraphs = (
-            db.query(CodeEntity)
-            .filter(
-                CodeEntity.project_id == project_id,
-                CodeEntity.source_id == root.source_id,
-                CodeEntity.variant_key == root.variant_key,
-                CodeEntity.parent_id == root.id,
-                CodeEntity.type.in_(["paragraph", "section"]),
-            )
-            .order_by(CodeEntity.start_line, CodeEntity.id)
-            .limit(node_limit + 1)
-            .all()
-        )
-        candidates_truncated = len(paragraphs) > node_limit
-        named_entries = [
-            item
-            for item in paragraphs
-            if item.name.casefold()
-            in {"main-para", "main", "procedure-division", "procedure-start"}
-            or (item.qualified_name or "")
-            .casefold()
-            .endswith((".main-para", ".main", ".procedure-division", ".procedure-start"))
-        ]
-        if not candidates_truncated and len(named_entries) == 1:
-            root = named_entries[0]
-            entry_resolution = "unique_cobol_entry"
-        elif len(paragraphs) == 1:
-            root = paragraphs[0]
-            entry_resolution = "only_cobol_paragraph"
-        elif paragraphs:
-            return {
-                "status": "entry_point_selection_required",
-                "root": _node_json(root),
-                "requested_root": _node_json(requested_root),
-                "entry_resolution": "ambiguous_cobol_entry",
-                "entry_candidates": [_node_json(item) for item in paragraphs[:node_limit]],
-                "truncated": candidates_truncated,
-                "nodes": [_node_json(root)],
-                "edges": [],
-                "mermaid": "",
-                "notice": "Mehrere COBOL-Einstiegspunkte vorhanden. Wähle einen Absatz anhand der Quelle; es wurde keiner automatisch ausgewählt.",
-            }
-        else:
+        entry = cobol_entry_paragraph(db, root)
+        if entry is None:
             return {
                 "status": "entry_point_not_found",
                 "root": _node_json(root),
@@ -223,6 +199,8 @@ def trace_call_flow(
                 "mermaid": "",
                 "notice": "Unter diesem COBOL-Programm ist kein Einstieg-Paragraph indexiert.",
             }
+        root = entry
+        entry_resolution = "first_cobol_paragraph"
     if direction in {"outgoing", "both"} and root.type in {"class", "interface", "enum", "record"}:
         methods = (
             db.query(CodeEntity)

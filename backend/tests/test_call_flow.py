@@ -449,7 +449,7 @@ def test_direction_both_resolves_the_entry_and_keeps_callers_of_the_program(
         both = trace_call_flow(
             db_session, project_id=test_project, entity_id=program.id, direction="both", hops=1
         )
-        assert both["entry_resolution"] == "unique_cobol_entry"
+        assert both["entry_resolution"] == "first_cobol_paragraph"
         assert both["root"]["id"] == entry.id and both["requested_root"]["id"] == program.id
         pairs = {(edge["source"], edge["target"]) for edge in both["edges"]}
         assert pairs == {(entry.id, step.id), (caller_para.id, program.id)}

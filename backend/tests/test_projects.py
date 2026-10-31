@@ -619,15 +619,15 @@ def test_sync_project_repository_enqueues_task_and_resets_source_status(
 
     sent_tasks = []
     monkeypatch.setattr(
-        projects_api.celery_app,
-        "send_task",
-        lambda *args, **kwargs: sent_tasks.append((args, kwargs)),
+        projects_api,
+        "send_tracked_task",
+        lambda db, record, task, args, kwargs: sent_tasks.append((record.id, task, args)),
     )
 
     res = client.post(f"/projects/{test_project}/sync")
     assert res.status_code == 200
     assert res.json() == {"message": "Synchronisierung gestartet", "repo_id": source.id}
-    assert sent_tasks == [(("sync_source",), {"args": [source.id]})]
+    assert sent_tasks == [(source.id, "process_knowledge_source", [source.id])]
 
     db_session.refresh(source)
     assert source.sync_status == "pending"

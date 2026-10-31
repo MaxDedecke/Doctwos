@@ -18,6 +18,7 @@ from api.process_schemas import (
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
+from services.call_flow import cobol_entry_paragraph
 from services.provenance import build_provenance
 
 router = APIRouter(prefix="/process", tags=["process"])
@@ -511,25 +512,6 @@ def _projection(
     )
 
 
-def _program_entry(db: Session, program: CodeEntity) -> CodeEntity | None:
-    """Wo ein COBOL-Programm beginnt: beim ersten Paragraphen der PROCEDURE DIVISION.
-
-    Die Kanten hängen an Paragraphen, nicht am Programm. Sections zählen nicht: Auch die der DATA
-    DIVISION tragen diesen Typ. Ohne Paragraph bleibt das Programm die Wurzel."""
-    return (
-        db.query(CodeEntity)
-        .filter(
-            CodeEntity.project_id == program.project_id,
-            CodeEntity.source_id == program.source_id,
-            CodeEntity.variant_key == program.variant_key,
-            CodeEntity.parent_id == program.id,
-            CodeEntity.type == "paragraph",
-        )
-        .order_by(CodeEntity.start_line, CodeEntity.id)
-        .first()
-    )
-
-
 @router.get("/focus", response_model=ProcessProjection)
 def focus_process(
     entity_id: int,
@@ -547,5 +529,5 @@ def focus_process(
         raise HTTPException(status_code=404, detail="Entity nicht gefunden")
     _assert_entity_visible(root, user, db, project_id)
     if direction == "outgoing" and root.type in {"program", "cobol_program"}:
-        root = _program_entry(db, root) or root
+        root = cobol_entry_paragraph(db, root) or root
     return _projection(db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds))

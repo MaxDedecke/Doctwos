@@ -43,7 +43,8 @@ from api.schemas import (
 )
 from api.serializers import serialize_project, serialize_source
 from doctus_models.repo_stats import compute_worktree_stats
-from core.config import celery_app
+from core.tracing import get_trace_id
+from services.job_control import send_tracked_task
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/projects", tags=["projects"])
@@ -571,7 +572,9 @@ def sync_project_repository(
     git_source.progress = 0
     git_source.progress_message = "In Warteschlange…"
     db.commit()
-    celery_app.send_task("sync_source", args=[git_source.id])
+    send_tracked_task(
+        db, git_source, "process_knowledge_source", [git_source.id], {"trace_id": get_trace_id()}
+    )
     return {"message": "Synchronisierung gestartet", "repo_id": git_source.id}
 
 
