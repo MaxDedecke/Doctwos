@@ -3,7 +3,7 @@ import type { CodeEntity } from '@/types/domain';
 
 import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { buildFlowRows, type DataVerb, type FlowProjection, type FlowRow, type PathEntry } from '@/lib/processFlow';
+import { buildFlowRows, nextExpansion, type DataVerb, type FlowProjection, type FlowRow, type PathEntry } from '@/lib/processFlow';
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ChevronRight, Database, ExternalLink, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Route, Split, Square, Workflow } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -16,6 +16,10 @@ interface Props {
 }
 
 type Gate = { truncated: boolean };
+// Grenzen von „Alles aufklappen“: Java-Aufrufe können über den halben Bestand führen.
+const EXPAND_ALL_MAX_DEPTH = 6;
+const EXPAND_ALL_MAX_REQUESTS = 150;
+const EXPAND_ALL_PARALLEL = 6;
 const VERB_ORDER: DataVerb[] = ['read', 'write', 'use'];
 
 async function fetchProjection(entityId: number, projectId: number | null | undefined): Promise<{ projection: FlowProjection; truncated: boolean }> {
@@ -42,6 +46,8 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<Gate>({ truncated: false });
+  const [expandingAll, setExpandingAll] = useState(false);
+  const [expandLimited, setExpandLimited] = useState(false);
   const requested = useRef<Set<string>>(new Set());
   const generation = useRef(0);
 
@@ -79,6 +85,8 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       setLoadingIds(new Set());
       setGate({ truncated: false });
       setError(null);
+      setExpandingAll(false);
+      setExpandLimited(false);
       if (rootEntityId != null) load(`entity:${rootEntityId}`, rootEntityId);
     });
     // load hängt nur an projectId/t; ein Sprachwechsel soll nicht neu laden.
@@ -99,6 +107,47 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       return next;
     });
     if (!row.expanded && row.nodeId && row.entityId != null) load(row.nodeId, row.entityId);
+  };
+
+  const expandAll = async () => {
+    if (!rootId || expandingAll) return;
+    const current = generation.current;
+    setExpandingAll(true);
+    setExpandLimited(false);
+    const openKeys = new Set(expanded);
+    const loaded = new Map(projections);
+    let requests = 0;
+    let limited = false;
+    try {
+      for (let depth = 0; depth < EXPAND_ALL_MAX_DEPTH; depth += 1) {
+        const built = buildFlowRows(rootId, loaded, openKeys, { hideHelpers });
+        const next = nextExpansion(built.rows);
+        if (next.length === 0) break;
+        if (built.capped) { limited = true; break; }
+        const missing = next.filter(row => !loaded.has(row.nodeId!));
+        if (requests + missing.length > EXPAND_ALL_MAX_REQUESTS) { limited = true; break; }
+        requests += missing.length;
+        for (let start = 0; start < missing.length; start += EXPAND_ALL_PARALLEL) {
+          const batch = missing.slice(start, start + EXPAND_ALL_PARALLEL);
+          const results = await Promise.all(batch.map(row => fetchProjection(row.entityId!, projectId)));
+          if (generation.current !== current) return;
+          results.forEach(({ projection, truncated }, index) => {
+            loaded.set(batch[index].nodeId!, projection);
+            requested.current.add(batch[index].nodeId!);
+            if (truncated) setGate({ truncated: true });
+          });
+        }
+        next.forEach(row => openKeys.add(row.key));
+        setProjections(new Map(loaded));
+        setExpanded(new Set(openKeys));
+        if (depth === EXPAND_ALL_MAX_DEPTH - 1 && nextExpansion(buildFlowRows(rootId, loaded, openKeys, { hideHelpers }).rows).length > 0) limited = true;
+      }
+      setExpandLimited(limited);
+    } catch (err) {
+      if (generation.current === current) setError((err instanceof Error ? err.message : undefined) || t('processFlow.loadError'));
+    } finally {
+      if (generation.current === current) setExpandingAll(false);
+    }
   };
 
   const toggleData = (key: string) => setOpenData(previous => {
@@ -142,7 +191,17 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
         )}
         <button
           type="button"
-          onClick={() => setExpanded(new Set())}
+          onClick={() => void expandAll()}
+          disabled={expandingAll}
+          title={t('processFlow.expandAllTitle')}
+          className="flex h-7 items-center gap-1 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors disabled:opacity-60"
+        >
+          {expandingAll && <Loader2 className="h-3 w-3 animate-spin" />}
+          {t('processFlow.expandAll')}
+        </button>
+        <button
+          type="button"
+          onClick={() => { setExpanded(new Set()); setExpandLimited(false); }}
           className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors"
         >
           {t('processFlow.collapseAll')}
@@ -164,12 +223,17 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
         </button>
       </div>
 
-      {(gate.truncated || capped || error) && (
+      {(gate.truncated || capped || error || expandLimited) && (
         <div className="px-3 py-1.5 flex flex-wrap gap-2 text-[0.625rem]">
           {error && <span className="rounded border border-ds-red-500/30 bg-ds-red-500/10 px-2 py-1 text-ds-red-400">{error}</span>}
           {(gate.truncated || capped) && (
             <span className="flex items-center gap-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 px-2 py-1 text-ds-amber-400">
               <AlertTriangle className="w-3 h-3" />{capped ? t('processFlow.capped') : t('processFlow.truncated')}
+            </span>
+          )}
+          {expandLimited && !capped && (
+            <span className="flex items-center gap-1 rounded border border-ds-amber-500/30 bg-ds-amber-500/10 px-2 py-1 text-ds-amber-400">
+              <AlertTriangle className="w-3 h-3" />{t('processFlow.expandLimited')}
             </span>
           )}
         </div>
@@ -315,6 +379,7 @@ function StepPill({ row, isDark, selected, onToggle, onSelect, onOpen, loading, 
           {row.loop && (
             <Badge tone="indigo"><Repeat className="h-2.5 w-2.5" />{guardLabel({ type: 'LOOP', kind: row.loop.kind, text: row.loop.text }, t)}</Badge>
           )}
+          {row.openElsewhere && <Badge tone="slate">{t('processFlow.openElsewhere')}</Badge>}
           {row.transitionKind === 'jump' && <Badge tone="slate">GOTO</Badge>}
           {row.transitionKind === 'exit' && <Badge tone="slate"><Square className="h-2.5 w-2.5" />{t('processFlow.exit')}</Badge>}
           {row.invocationKind === 'cics_xctl' && <Badge tone="indigo">{t('processFlow.transferNoReturn')}</Badge>}

@@ -89,6 +89,10 @@ export interface FlowRow {
   invocationKind?: string;
   /** Bei einem Variablen-Ziel: Programmnamen, die der Variablen zugewiesen werden. */
   candidateTargets?: string[];
+  /** Enthält nur Details zur Anweisung (EXEC-Block), keinen weiteren Ablauf. */
+  detailOnly?: boolean;
+  /** Derselbe Schritt ist an anderer Stelle der Ansicht aufgeklappt. */
+  openElsewhere?: boolean;
   expandable: boolean;
   expanded: boolean;
   /** Aufgeklappt, aber die Unterschritte sind noch nicht geladen. */
@@ -235,6 +239,7 @@ export function buildFlowRows(
         cycle, multiTarget: transition.meta?.multiple_targets === true,
         invocationKind: transition.meta?.invocation_kind,
         candidateTargets: transition.meta?.candidate_targets,
+        detailOnly: transition.kind === 'step' && transition.code_edge_types.includes('CONTAINS'),
         expandable, expanded: isExpanded, needsLoad: isExpanded && !projections.has(target.id),
         unresolved: external,
       });
@@ -250,5 +255,20 @@ export function buildFlowRows(
     expandable: false, expanded: true, needsLoad: !projections.has(rootId),
   });
   walk(rootId, 1, 1, new Set([rootId, root.id]), 'root');
+  const open = new Set(rows.filter(row => row.expanded).map(row => row.nodeId));
+  rows.forEach(row => { if (row.expandable && !row.expanded && open.has(row.nodeId)) row.openElsewhere = true; });
   return { rows, capped, hiddenHelpers };
+}
+
+/**
+ * Was „Alles aufklappen“ als Nächstes öffnet: jeden Schritt nur beim ersten Vorkommen. Sonst stünde ein
+ * mehrfach aufgerufener Unterablauf vielfach da und die Zeilengrenze wäre schnell erreicht.
+ */
+export function nextExpansion(rows: readonly FlowRow[]): FlowRow[] {
+  const seen = new Set(rows.filter(row => row.expanded).map(row => row.nodeId));
+  return rows.filter(row => {
+    if (!row.expandable || row.expanded || row.detailOnly || row.lane === 'data' || !row.nodeId || seen.has(row.nodeId)) return false;
+    seen.add(row.nodeId);
+    return true;
+  });
 }

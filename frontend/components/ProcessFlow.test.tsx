@@ -51,6 +51,18 @@ describe('ProcessView – Ablauf', () => {
     expect(screen.getByText('offen')).toBeTruthy();
   });
 
+  it('klappt auf Wunsch alles auf und lädt dafür die fehlenden Schritte', async () => {
+    setup();
+    await screen.findByText('INIT');
+    expect(screen.queryByText('OPEN-FILES')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alles aufklappen' }));
+    await screen.findByText('OPEN-FILES');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Alles einklappen' }));
+    expect(screen.queryByText('OPEN-FILES')).toBeNull();
+  });
+
   it('lädt Unterschritte erst beim Aufklappen nach und öffnet Quellstellen', async () => {
     const { fetchMock, onFileSelect } = setup();
     await screen.findByText('INIT');

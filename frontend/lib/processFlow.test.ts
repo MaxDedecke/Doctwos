@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildFlowRows, dataVerb, type FlowNode, type FlowProjection, type FlowTransition } from './processFlow';
+import { buildFlowRows, dataVerb, nextExpansion, type FlowNode, type FlowProjection, type FlowTransition } from './processFlow';
 
 const loc = (line: number) => ({ file_path: 'A.CBL', start_line: line, source_id: 1 });
 const node = (id: string, label: string, kind = 'step', entity = true): FlowNode =>
@@ -141,6 +141,26 @@ describe('buildFlowRows', () => {
     const shown = buildFlowRows('entity:1', projections, new Set());
     expect(shown.hiddenHelpers).toBe(0);
     expect(shown.rows.map(row => row.label)).toContain('getName');
+  });
+
+  it('klappt einen Unterablauf nur beim ersten Vorkommen auf und markiert die übrigen', () => {
+    const flow: FlowProjection = {
+      nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'SEND'), node('entity:3', 'CICS READ')],
+      transitions: [
+        tr('a', 'entity:1', 'entity:2', 'call', 10, ['PERFORM']),
+        tr('b', 'entity:1', 'entity:2', 'call', 20, ['PERFORM']),
+        tr('c', 'entity:1', 'entity:3', 'step', 30, ['CONTAINS']),
+      ],
+    };
+    const projections = new Map([['entity:1', flow], ['entity:2', { nodes: [node('entity:2', 'SEND')], transitions: [] }]]);
+
+    const first = buildFlowRows('entity:1', projections, new Set()).rows;
+    expect(nextExpansion(first).map(row => row.key)).toEqual(['root/a']);
+
+    const opened = buildFlowRows('entity:1', projections, new Set(['root/a'])).rows;
+    expect(nextExpansion(opened)).toEqual([]);
+    expect(opened.find(row => row.key === 'root/b')!.openElsewhere).toBe(true);
+    expect(opened.find(row => row.key === 'root/a')!.openElsewhere).toBeUndefined();
   });
 
   it('setzt Wächterzeilen für Bedingungen und Schleifen und rückt darunterliegende Schritte ein', () => {
