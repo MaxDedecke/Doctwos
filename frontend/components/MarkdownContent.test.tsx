@@ -364,10 +364,10 @@ describe('MarkdownContent — gekürzte Dateizitate im Chat', () => {
     fireEvent.mouseEnter(screen.getByRole('button', { name: 'src/main/java/Foo.java:12' }));
     expect(await screen.findByText('src/main/java/Foo.java')).toBeTruthy();
 
-    fireEvent.click(screen.getByRole('button', { name: 'chatView.citationCopyPath' }));
+    fireEvent.click(screen.getByRole('button', { name: 'pathCard.copy' }));
     await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('src/main/java/Foo.java'));
 
-    fireEvent.click(screen.getByRole('button', { name: 'chatView.citationOpenCode' }));
+    fireEvent.click(screen.getByRole('button', { name: 'pathCard.view' }));
     expect(onFileClick).toHaveBeenCalledWith('src/main/java/Foo.java', 12, undefined);
     expect(screen.queryByText('src/main/java/Foo.java')).toBeNull();
   });

@@ -1123,9 +1123,6 @@
     "sendMessageLabel": "Send message",
     "moreOptionsTitle": "Project & source focus",
     "shareChatTitle": "Share chat (copy link)",
-    "citationCopyPath": "Copy path",
-    "citationOpenCode": "Open in code view",
-    "citationOpenDocument": "Open document",
     "showOriginalAnswer": "Show original text with full paths",
     "showCompactCitations": "Show shortened file citations",
     "copyMessageTitle": "Copy message",
@@ -1377,6 +1374,10 @@
       "ifc_column": "Column (BIM)",
       "ifc_slab": "Slab (BIM)"
     }
+  },
+  "pathCard": {
+    "copy": "Copy path",
+    "view": "View"
   },
   "knowledgeGraphView": {
     "filters": "Filters",

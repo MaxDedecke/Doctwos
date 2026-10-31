@@ -34,6 +34,7 @@ import { EntityAnalysisDetails } from './EntityAnalysisDetails';
 import { api, API_URL } from '@/app/services/api';
 import { REFERENCE_PAGE_SIZE, usePagedReferenceList } from '@/hooks/usePagedReferenceList';
 import { MarkdownContent } from "@/components/MarkdownContent";
+import { PathHoverCard } from "@/components/PathHoverCard";
 import { useDocumentLocator } from '@/hooks/useDocumentLocator';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -1237,36 +1238,44 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 <BookOpen className="w-4 h-4 text-ds-orange-500 shrink-0" />
               )}
               {activeRightTab === 'code' ? (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const targetEntity = fileLevelEntity || projectEntities?.find((ent: CodeEntity) => ent.file_path === selectedFile);
-                    if (targetEntity) {
-                      handleEntitySelectRef.current?.(targetEntity);
-                    }
-                  }}
-                  onContextMenu={(event) => {
-                    if (fileLevelEntity) {
-                      event.preventDefault();
-                      const rect = event.currentTarget.getBoundingClientRect();
-                      setEntityMenu({ x: rect.left, y: rect.bottom + 8, entity: fileLevelEntity });
-                    }
-                  }}
-                  title={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : (selectedFile || '')}
-                  aria-label={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : (selectedFile || '')}
-                  className={cn(
-                    "truncate font-semibold text-left transition-colors cursor-pointer rounded px-1.5 py-0.5 -mx-1.5",
-                    isFileFocused
-                      ? (theme === 'dark'
-                          ? "text-ds-indigo-400 bg-ds-indigo-500/15"
-                          : "text-ds-indigo-600 bg-ds-indigo-50")
-                      : (theme === 'dark'
-                          ? "text-ds-zinc-300 hover:text-ds-zinc-100 hover:bg-ds-zinc-800/60"
-                          : "text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100")
-                  )}
+                <PathHoverCard
+                  path={selectedFile || ''}
+                  theme={theme}
+                  note={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : undefined}
                 >
-                  {fileNavStack.length > 0 ? selectedFile?.split('/').pop() : selectedFile}
-                </button>
+                  {(trigger) => (
+                    <button
+                      {...trigger}
+                      type="button"
+                      onClick={() => {
+                        const targetEntity = fileLevelEntity || projectEntities?.find((ent: CodeEntity) => ent.file_path === selectedFile);
+                        if (targetEntity) {
+                          handleEntitySelectRef.current?.(targetEntity);
+                        }
+                      }}
+                      onContextMenu={(event) => {
+                        if (fileLevelEntity) {
+                          event.preventDefault();
+                          const rect = event.currentTarget.getBoundingClientRect();
+                          setEntityMenu({ x: rect.left, y: rect.bottom + 8, entity: fileLevelEntity });
+                        }
+                      }}
+                      aria-label={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : (selectedFile || '')}
+                      className={cn(
+                        "truncate font-semibold text-left transition-colors cursor-pointer rounded px-1.5 py-0.5 -mx-1.5",
+                        isFileFocused
+                          ? (theme === 'dark'
+                              ? "text-ds-indigo-400 bg-ds-indigo-500/15"
+                              : "text-ds-indigo-600 bg-ds-indigo-50")
+                          : (theme === 'dark'
+                              ? "text-ds-zinc-300 hover:text-ds-zinc-100 hover:bg-ds-zinc-800/60"
+                              : "text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100")
+                      )}
+                    >
+                      {selectedFile?.split('/').pop()}
+                    </button>
+                  )}
+                </PathHoverCard>
               ) : (
                 <span
                   className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}

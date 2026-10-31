@@ -1123,9 +1123,6 @@
     "sendMessageLabel": "Nachricht senden",
     "moreOptionsTitle": "Projekt- und Quellenfokus",
     "shareChatTitle": "Chat teilen (Link kopieren)",
-    "citationCopyPath": "Pfad kopieren",
-    "citationOpenCode": "In Code-Ansicht öffnen",
-    "citationOpenDocument": "Dokument öffnen",
     "showOriginalAnswer": "Originaltext mit vollen Pfaden anzeigen",
     "showCompactCitations": "Dateizitate gekürzt anzeigen",
     "copyMessageTitle": "Nachricht kopieren",
@@ -1377,6 +1374,10 @@
       "ifc_column": "Säule (BIM)",
       "ifc_slab": "Decke (BIM)"
     }
+  },
+  "pathCard": {
+    "copy": "Pfad kopieren",
+    "view": "Ansehen"
   },
   "knowledgeGraphView": {
     "filters": "Filter",

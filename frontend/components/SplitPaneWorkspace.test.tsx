@@ -536,6 +536,18 @@ describe('SplitPaneWorkspace', () => {
   });
 
   describe('Sprung zur Zielzeile', () => {
+    it('shows only the file name in the header and offers the full path on hover, without a view action', async () => {
+      renderWorkspace({ activeRightTab: 'code', selectedFile: 'src/app/ZAHLUNG.cbl', fileContent: 'A' });
+
+      const name = screen.getByRole('button', { name: 'src/app/ZAHLUNG.cbl' });
+      expect(name.textContent).toBe('ZAHLUNG.cbl');
+
+      fireEvent.mouseEnter(name);
+      expect(await screen.findByText('src/app/ZAHLUNG.cbl')).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Pfad kopieren' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Ansehen' })).toBeNull();
+    });
+
     it('springt zur Zielzeile, auch wenn der Editor erst nach dem ersten Render bereitsteht', async () => {
       // Beim erstmaligen Oeffnen einer Datei (Suchtreffer, Quellenverweis aus
       // dem Chat) ist Monaco beim ersten Lauf des Effekts noch nicht montiert.
