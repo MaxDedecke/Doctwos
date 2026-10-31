@@ -37,7 +37,7 @@ function renderParsed(
   knownSources?: KnownSource[],
   theme = 'dark'
 ) {
-  return render(<>{parseText(text, onFileClick, theme, fakeT, knownSources)}</>);
+  return render(<>{parseText(text, onFileClick, theme, knownSources)}</>);
 }
 
 describe('splitTableRow (reine Funktion)', () => {
@@ -338,4 +338,57 @@ describe('CodeBlock — Kopieren', () => {
 
     expect(await screen.findByText('common.copy', {}, { timeout: 2500 })).toBeTruthy();
   }, 4000);
+});
+
+describe('MarkdownContent — gekürzte Dateizitate im Chat', () => {
+  beforeEach(() => {
+    Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText: vi.fn().mockResolvedValue(undefined) } });
+  });
+  afterEach(() => { Reflect.deleteProperty(navigator, 'clipboard'); });
+
+  const renderChat = (content: string, onFileClick = vi.fn(), knownSources?: KnownSource[]) => {
+    render(<MarkdownContent content={content} onFileClick={onFileClick} theme="dark" knownSources={knownSources} compactCitations />);
+    return onFileClick;
+  };
+
+  it('shows only the file name and opens the full path', () => {
+    const onFileClick = renderChat('Siehe `src/main/java/Foo.java:12`.');
+    fireEvent.click(screen.getByRole('button', { name: 'src/main/java/Foo.java:12' }));
+    expect(screen.getByText('Foo.java:12')).toBeTruthy();
+    expect(screen.queryByText('src/main/java/Foo.java:12')).toBeNull();
+    expect(onFileClick).toHaveBeenCalledWith('src/main/java/Foo.java', 12, undefined);
+  });
+
+  it('offers the full path to copy and the code view on hover', async () => {
+    const onFileClick = renderChat('Siehe `src/main/java/Foo.java:12`.');
+    fireEvent.mouseEnter(screen.getByRole('button', { name: 'src/main/java/Foo.java:12' }));
+    expect(await screen.findByText('src/main/java/Foo.java')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'chatView.citationCopyPath' }));
+    await waitFor(() => expect(navigator.clipboard.writeText).toHaveBeenCalledWith('src/main/java/Foo.java'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'chatView.citationOpenCode' }));
+    expect(onFileClick).toHaveBeenCalledWith('src/main/java/Foo.java', 12, undefined);
+    expect(screen.queryByText('src/main/java/Foo.java')).toBeNull();
+  });
+
+  it('shortens a path written without backticks and links it to its known source', () => {
+    const onFileClick = renderChat('Siehe src/A.cbl:3 und https://x.org/docs/B.html.', vi.fn(), [{ file: 'repo/src/A.cbl', source_id: 7 }]);
+    fireEvent.click(screen.getByRole('button', { name: 'src/A.cbl:3' }));
+    expect(onFileClick).toHaveBeenCalledWith('repo/src/A.cbl', 3, '7');
+    expect(screen.getByText(/https:\/\/x\.org\/docs\/B\.html/)).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
+
+  it('keeps titles and inline code that are no files as written', () => {
+    renderChat('`Release 1/2` und `a/b`', vi.fn(), [{ file: 'Release 1/2' }]);
+    expect(screen.getByText('Release 1/2')).toBeTruthy();
+    expect(screen.getByText('a/b')).toBeTruthy();
+  });
+
+  it('writes citations out in full without the option', () => {
+    render(<MarkdownContent content="Siehe `src/main/java/Foo.java` und src/B.java." onFileClick={vi.fn()} theme="dark" />);
+    expect(screen.getByText('src/main/java/Foo.java')).toBeTruthy();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
+  });
 });

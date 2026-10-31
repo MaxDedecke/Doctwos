@@ -30,6 +30,7 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getGraphEdgeLabelKey } from '@/lib/graphTaxonomy';
+import { hasCompactableCitation } from "@/lib/citationLabel";
 import { cn, copyToClipboard } from "@/lib/utils";
 import {
   ArrowRight,
@@ -39,6 +40,7 @@ import {
   ChevronRight,
   Code,
   Copy,
+  FolderTree,
   Cpu,
   Database,
   Folder,
@@ -157,6 +159,7 @@ export function ChatView({
   }
   const liveIndex = liveTurn && liveTurn.first === chatMessages[0] ? liveTurn.index : -1;
 
+  const [originalAnswers, setOriginalAnswers] = React.useState<Set<number | string>>(() => new Set());
   const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
   const handleOpenFlow = (flow: CallFlowData, key: string | number, action?: AgentViewAction) => {
     const outcome = action
@@ -372,7 +375,7 @@ export function ChatView({
                           )}
 
                           {m.content ? (
-                            <RevealedMarkdown live={i === liveIndex} content={m.content} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => source.kind !== 'insight')} />
+                            <RevealedMarkdown live={i === liveIndex} content={m.content} compactCitations={!originalAnswers.has(m.id ?? `index:${i}`)} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => source.kind !== 'insight')} />
                           ) : (
                             isLoading && i === chatMessages.length - 1 && (!m.metadata?.agent_steps || m.metadata.agent_steps.length === 0) && (
                               <div className="flex items-center gap-2.5 text-ds-zinc-500/80 py-1.5 animate-pulse">
@@ -938,6 +941,24 @@ export function ChatView({
                                 >
                                   <Copy className="w-3.5 h-3.5" />
                                 </Button>
+                                {hasCompactableCitation(m.content) && (
+                                  <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    aria-pressed={originalAnswers.has(m.id ?? `index:${i}`)}
+                                    title={t(originalAnswers.has(m.id ?? `index:${i}`) ? 'chatView.showCompactCitations' : 'chatView.showOriginalAnswer')}
+                                    aria-label={t(originalAnswers.has(m.id ?? `index:${i}`) ? 'chatView.showCompactCitations' : 'chatView.showOriginalAnswer')}
+                                    className={cn("h-7 w-7 rounded-full", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
+                                    onClick={() => setOriginalAnswers((current) => {
+                                      const next = new Set(current);
+                                      const key = m.id ?? `index:${i}`;
+                                      if (!next.delete(key)) next.add(key);
+                                      return next;
+                                    })}
+                                  >
+                                    <FolderTree className="w-3.5 h-3.5" />
+                                  </Button>
+                                )}
                                 <Button
                                   variant="ghost"
                                   size="icon"

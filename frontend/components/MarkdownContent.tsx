@@ -1,8 +1,9 @@
-import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip } from '@/lib/analysisStatus';
+import { CitationChip, CompactCitationsContext, TextWithPaths } from '@/components/CitationChip';
+import { FILE_LIKE_RE } from '@/lib/citationLabel';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
 import { MermaidDiagram } from '@/components/MermaidDiagram';
-import { BookOpen, Check, Code, Layers } from 'lucide-react';
+import { Check, Layers } from 'lucide-react';
 import React, { useState } from 'react';
 
 interface CodeBlockProps {
@@ -99,18 +100,6 @@ export interface KnownSource {
   analysis_reasons?: string[];
 }
 
-/** Kleiner Warn-Punkt an einem Zitat-Badge, dessen Datei nicht uneingeschränkt
- * analysiert ist (O-120) -- dieselbe Farbcodierung wie im Editor-Dateibaum
- * (FileTreeList) und im Call-Graph (CallGraphView). */
-const AnalysisStatusDot: React.FC<{ source: KnownSource }> = ({ source }) =>
-  source.analysis_status ? (
-    <span
-      data-testid="analysis-status-dot"
-      className="w-1.5 h-1.5 rounded-full shrink-0"
-      style={{ backgroundColor: ANALYSIS_STATUS_COLOR_TOKEN[source.analysis_status] }}
-    />
-  ) : null;
-
 const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 const BR_TAG_SPLIT_RE = /(<br\s*\/?>)/gi;
@@ -128,43 +117,39 @@ const renderPlainKnownSources = (
   keyPrefix: string,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
-  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources: KnownSource[]
 ): React.ReactNode[] => {
   const candidates = [...knownSources].filter(s => s.file).sort((a, b) => b.file.length - a.file.length);
-  if (candidates.length === 0) return [segment];
-  const pattern = new RegExp(`(${candidates.map(s => escapeRegExp(s.file)).join('|')})(?::(\\d+)(?:-\\d+)?)?`, 'gi');
+  const plainText = (text: string, key: string) => (
+    <TextWithPaths key={key} text={text} knownSources={knownSources} theme={theme} onFileClick={onFileClick} />
+  );
+  if (candidates.length === 0) return [plainText(segment, keyPrefix)];
+  // Nicht mitten in einem längeren Pfad oder Namen: `src/A.cbl` ist keine Nennung von `A.cbl`.
+  const pattern = new RegExp(`(?<![\\w/\\\\.-])(${candidates.map(s => escapeRegExp(s.file)).join('|')})(?::(\\d+)(?:-\\d+)?)?`, 'gi');
 
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
   let match: RegExpExecArray | null;
   let idx = 0;
   while ((match = pattern.exec(segment)) !== null) {
-    if (match.index > lastIndex) nodes.push(segment.slice(lastIndex, match.index));
+    if (match.index > lastIndex) nodes.push(plainText(segment.slice(lastIndex, match.index), `${keyPrefix}-text-${idx}`));
     const title = match[1];
     const knownSource = candidates.find(s => s.file.toLowerCase() === title.toLowerCase());
-    const line = match[2] ? parseInt(match[2], 10) : undefined;
     nodes.push(
-      <button
-        type="button"
+      <CitationChip
         key={`${keyPrefix}-plain-${idx++}`}
-        onClick={() => onFileClick(title, line, knownSource?.source_id != null ? String(knownSource.source_id) : undefined)}
-        title={knownSource?.analysis_status ? formatAnalysisStatusTooltip({ status: knownSource.analysis_status, reasons: knownSource.analysis_reasons || [] }, t) : undefined}
-        className={cn(
-          "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
-          theme === 'dark'
-            ? "bg-ds-indigo-500/10 text-ds-indigo-400 hover:bg-ds-indigo-500/20 border-ds-indigo-500/20"
-            : "bg-ds-indigo-50 text-ds-indigo-650 hover:bg-ds-indigo-100 border-ds-indigo-200"
-        )}
-      >
-        <BookOpen className="w-3 h-3 text-ds-emerald-400 shrink-0" />
-        <span className="truncate">{match[0]}</span>
-        {knownSource && <AnalysisStatusDot source={knownSource} />}
-      </button>
+        cited={match[0]}
+        path={title}
+        line={match[2] ? parseInt(match[2], 10) : undefined}
+        isDoc
+        source={knownSource}
+        theme={theme}
+        onFileClick={onFileClick}
+      />
     );
     lastIndex = pattern.lastIndex;
   }
-  if (lastIndex < segment.length) nodes.push(segment.slice(lastIndex));
+  if (lastIndex < segment.length) nodes.push(plainText(segment.slice(lastIndex), `${keyPrefix}-text-end`));
   return nodes.length > 0 ? nodes : [segment];
 };
 
@@ -173,7 +158,6 @@ const parseTextSegment = (
   keyPrefix: string,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
-  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources?: KnownSource[]
 ) => {
   if (!text) return "";
@@ -227,27 +211,20 @@ const parseTextSegment = (
         if (knownSource) filePath = knownSource.file;
       }
 
-      const isFile = knownSource !== undefined || /\b[\w\-\.\/]+\.(py|cob|cbl|cpy|java|js|ts|json|md|txt|yml|yaml|css|html|pdf|docx|doc|jcl|proc)\b/i.test(filePath);
+      const isFile = knownSource !== undefined || FILE_LIKE_RE.test(filePath);
       if (isFile) {
-        const isDoc = knownSource !== undefined || /\.(pdf|docx|doc|md|txt)$/i.test(filePath);
         return (
-          <button
+          <CitationChip
             key={`${keyPrefix}-${i}`}
-            type="button"
             id={`file-link-${codeVal.replace(/[^a-zA-Z0-9]/g, "-")}`}
-            onClick={() => onFileClick(filePath, line, knownSource?.source_id != null ? String(knownSource.source_id) : undefined)}
-            title={knownSource?.analysis_status ? formatAnalysisStatusTooltip({ status: knownSource.analysis_status, reasons: knownSource.analysis_reasons || [] }, t) : undefined}
-            className={cn(
-              "px-1.5 py-0.5 mx-0.5 rounded font-mono text-xs inline-flex items-center gap-1 border transition-all cursor-pointer align-middle max-w-full truncate",
-              theme === 'dark'
-                ? "bg-ds-indigo-500/10 text-ds-indigo-400 hover:bg-ds-indigo-500/20 border-ds-indigo-500/20"
-                : "bg-ds-indigo-50 text-ds-indigo-650 hover:bg-ds-indigo-100 border-ds-indigo-200"
-            )}
-          >
-            {isDoc ? <BookOpen className="w-3 h-3 text-ds-emerald-400 shrink-0" /> : <Code className="w-3 h-3 shrink-0" />}
-            <span className="truncate">{codeVal}</span>
-            {knownSource && <AnalysisStatusDot source={knownSource} />}
-          </button>
+            cited={codeVal}
+            path={filePath}
+            line={line}
+            isDoc={knownSource !== undefined || /\.(pdf|docx|doc|md|txt)$/i.test(filePath)}
+            source={knownSource}
+            theme={theme}
+            onFileClick={onFileClick}
+          />
         );
       }
       return (
@@ -275,9 +252,7 @@ const parseTextSegment = (
       // Citations that lack backticks altogether (a common gap for local models,
       // especially inside table cells) still get a chance to resolve against
       // knownSources here, instead of only ever rendering as inert plain text.
-      return knownSources && knownSources.length > 0
-        ? renderPlainKnownSources(bp2, partKey, onFileClick, theme, t, knownSources)
-        : bp2;
+      return renderPlainKnownSources(bp2, partKey, onFileClick, theme, knownSources ?? []);
     });
   });
 };
@@ -292,18 +267,17 @@ export const parseText = (
   text: string,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
-  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources?: KnownSource[]
 ) => {
   if (!text) return "";
   const lineParts = text.split(BR_TAG_SPLIT_RE);
   if (lineParts.length === 1) {
-    return parseTextSegment(text, "s0", onFileClick, theme, t, knownSources);
+    return parseTextSegment(text, "s0", onFileClick, theme, knownSources);
   }
   return lineParts.map((part, li) =>
     BR_TAG_TEST_RE.test(part)
       ? <br key={`br-${li}`} />
-      : parseTextSegment(part, `s${li}`, onFileClick, theme, t, knownSources)
+      : parseTextSegment(part, `s${li}`, onFileClick, theme, knownSources)
   );
 };
 
@@ -313,6 +287,8 @@ interface MarkdownContentProps {
   theme: string;
   knownSources?: KnownSource[];
   showLineNumbers?: boolean;
+  /** Dateizitate im Text als Dateiname, voller Pfad beim Überfahren (Chat). */
+  compactCitations?: boolean;
 }
 
 const HEADING_SIZE_CLASSES: Record<number, string> = {
@@ -388,7 +364,6 @@ interface MarkdownTableProps {
 }
 
 const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, theme, onFileClick, knownSources }) => {
-  const { t } = useLanguage();
   return (
     <div className={cn(
       "overflow-x-auto rounded-lg border my-4 no-scrollbar",
@@ -406,7 +381,7 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, them
                   theme === 'dark' ? "text-ds-white border-ds-zinc-800" : "text-ds-zinc-950 border-ds-zinc-200"
                 )}
               >
-                {parseText(cell, onFileClick, theme, t, knownSources)}
+                {parseText(cell, onFileClick, theme, knownSources)}
               </th>
             ))}
           </tr>
@@ -426,7 +401,7 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, them
                   style={{ textAlign: align[ci] || 'left' }}
                   className="px-3 py-2 align-top whitespace-normal"
                 >
-                  {row[ci] !== undefined ? parseText(row[ci], onFileClick, theme, t, knownSources) : null}
+                  {row[ci] !== undefined ? parseText(row[ci], onFileClick, theme, knownSources) : null}
                 </td>
               ))}
             </tr>
@@ -448,7 +423,6 @@ const renderTextBlock = (
   blockKey: number,
   onFileClick: (filePath: string, line?: number, sourceId?: string) => void,
   theme: string,
-  t: (key: string, vars?: Record<string, string | number>) => string,
   knownSources: KnownSource[] | undefined,
   baseLine: number,
   showLineNumbers: boolean,
@@ -472,9 +446,9 @@ const renderTextBlock = (
         {showLineNumbers ? lines.slice(paragraphStartLine - baseLine, paragraphEndLine - baseLine + 1).map((lineText, lineIndex) => (
           <span key={lineIndex} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3">
             <span aria-hidden="true" className="select-none text-right text-ds-zinc-500/70">{paragraphStartLine + lineIndex}</span>
-            <span>{parseText(lineText || ' ', onFileClick, theme, t, knownSources)}</span>
+            <span>{parseText(lineText || ' ', onFileClick, theme, knownSources)}</span>
           </span>
-        )) : parseText(text, onFileClick, theme, t, knownSources)}
+        )) : parseText(text, onFileClick, theme, knownSources)}
       </p>
     );
     paragraphBuffer = [];
@@ -497,7 +471,7 @@ const renderTextBlock = (
           className={cn(HEADING_SIZE_CLASSES[level], theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950", "scroll-mt-4")}
         >
           {showLineNumbers && <span aria-hidden="true" className="mr-3 inline-block w-7 select-none text-right text-xs font-normal text-ds-zinc-500/70">{baseLine + i}</span>}
-          {parseText(headingMatch[2], onFileClick, theme, t, knownSources)}
+          {parseText(headingMatch[2], onFileClick, theme, knownSources)}
         </HeadingTag>
       );
       i++;
@@ -539,7 +513,7 @@ const renderTextBlock = (
             theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-900/30 text-ds-zinc-400" : "border-ds-zinc-300 bg-ds-zinc-100/60 text-ds-zinc-600"
           )}
         >
-          {parseText(quoteLines.join("\n"), onFileClick, theme, t, knownSources)}
+          {parseText(quoteLines.join("\n"), onFileClick, theme, knownSources)}
         </blockquote>
       );
       i = k;
@@ -600,11 +574,11 @@ function slugifyDocumentHeading(heading: string) {
  * Main MarkdownContent component that parses blocks of code and normal paragraphs,
  * transforming them into HTML elements with syntax highlights and link badges.
  */
-export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources, showLineNumbers = false }) => {
-  const { t } = useLanguage();
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources, showLineNumbers = false, compactCitations = false }) => {
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
   return (
+    <CompactCitationsContext.Provider value={compactCitations}>
     <div className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
       {parts.map((part, index) => {
         // Compute offsets from immutable preceding parts. Mutating a render-
@@ -628,9 +602,10 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
             </div>
           );
         } else {
-          return renderTextBlock(part, index, onFileClick, theme, t, knownSources, startLine, showLineNumbers);
+          return renderTextBlock(part, index, onFileClick, theme, knownSources, startLine, showLineNumbers);
         }
       })}
     </div>
+    </CompactCitationsContext.Provider>
   );
 };

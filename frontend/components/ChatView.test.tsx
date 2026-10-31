@@ -181,6 +181,20 @@ describe('ChatView', () => {
       expect(screen.getByText('MOVE 1 TO WS-FLAG.')).toBeTruthy();
     });
 
+    it('kürzt Dateizitate im Antworttext und zeigt auf Wunsch den Originaltext', () => {
+      const chatMessages = [{ id: 2, role: 'assistant' as const, content: 'Siehe `src/app/DISPATCHER.cbl:42`.' }];
+      renderChat({ chatMessages });
+
+      expect(screen.getByText('DISPATCHER.cbl:42')).toBeTruthy();
+      expect(screen.queryByText('src/app/DISPATCHER.cbl:42')).toBeNull();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Originaltext mit vollen Pfaden anzeigen' }));
+      expect(screen.getByText('src/app/DISPATCHER.cbl:42')).toBeTruthy();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Dateizitate gekürzt anzeigen' }));
+      expect(screen.getByText('DISPATCHER.cbl:42')).toBeTruthy();
+    });
+
     it('zeigt Referenzen einer Nutzernachricht als klickbare Badges, die handleFileSelect auslösen', () => {
       const handleFileSelect = vi.fn();
       const chatMessages = [
