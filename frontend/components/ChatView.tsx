@@ -29,7 +29,7 @@ import {
   SelectTrigger
 } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { getGraphEdgeLabelKey } from '@/lib/graphTaxonomy';
+import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
 import { hasCompactableCitation } from "@/lib/citationLabel";
 import { cn, copyToClipboard } from "@/lib/utils";
 import {
@@ -636,10 +636,7 @@ export function ChatView({
                                   </p>
                                   <p className="text-[0.625rem] text-ds-zinc-500 truncate" title={action.target.focus_label}>
                                     {action.target.focus_label} · {direction} · {action.target.relationships
-                                      .map(type => {
-                                        const labelKey = getGraphEdgeLabelKey(type);
-                                        return labelKey ? t(labelKey) : type;
-                                      })
+                                      .map(type => getEdgeTypeLabel(type, t))
                                       .join(', ')}
                                   </p>
                                   {action.status === 'no_space' && <p className="text-[0.625rem] text-ds-amber-500 mt-1">{t('chatView.callGraphNoSpace')}</p>}

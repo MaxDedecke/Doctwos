@@ -7,6 +7,7 @@
  */
 import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { PanelRenderer } from './PanelRenderer';
 import type { PanelSelection } from '@/lib/panelHistory';
 
@@ -19,6 +20,7 @@ const EMPTY_SELECTION: PanelSelection = {
 
 function renderChatPanel(overrides: Partial<React.ComponentProps<typeof PanelRenderer>> = {}) {
   return render(
+    <LanguageProvider>
     <PanelRenderer
       index={0}
       contentType="chat"
@@ -40,6 +42,7 @@ function renderChatPanel(overrides: Partial<React.ComponentProps<typeof PanelRen
       onClose={vi.fn()}
       {...overrides}
     />
+    </LanguageProvider>
   );
 }
 

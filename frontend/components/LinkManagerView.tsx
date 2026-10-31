@@ -4,7 +4,7 @@ import { DEFAULT_EMBEDDING_MODEL, type LlmProfile } from '@/hooks/useAiSettings'
 import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { formatDocLocation, type DocLocation } from '@/lib/docLocation';
-import { DOCUMENTATION_ENTITY_TYPES } from '@/lib/graphTaxonomy';
+import { DOCUMENTATION_ENTITY_TYPES, getEntityTypeLabel } from '@/lib/graphTaxonomy';
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { AnimatePresence, motion } from 'framer-motion';
@@ -134,7 +134,7 @@ function ProjectLinkManagerView({
   llmProfiles = [], activeProfileId, activeEmbeddingModel, setActiveProfileId, showToast,
   onOpenCode, onOpenDoc,
 }: LinkManagerViewProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isDark = theme === 'dark';
   const isAdmin = !!currentUser?.is_admin;
   const activeProfile = llmProfiles.find(p => p.id === activeProfileId) || null;
@@ -681,7 +681,7 @@ function ProjectLinkManagerView({
       rawId: l.id,
       left: {
         label: l.entity?.name ?? t('linkManagerView.entityFallbackName', { id: l.entity_id }),
-        caption: `${l.entity?.type ?? ''}${l.entity?.file_path ? ' · ' + l.entity.file_path : ''}${l.entity?.start_line ? ':' + l.entity.start_line : ''}`,
+        caption: `${getEntityTypeLabel(l.entity?.type, language)}${l.entity?.file_path ? ' · ' + l.entity.file_path : ''}${l.entity?.start_line ? ':' + l.entity.start_line : ''}`,
         icon: 'code',
         codeRef: l.entity
           ? { file_path: l.entity.file_path, line: l.entity.start_line ?? null, source_id: l.entity.source_id ?? null }

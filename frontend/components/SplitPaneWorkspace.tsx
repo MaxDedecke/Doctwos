@@ -37,6 +37,7 @@ import { MarkdownContent } from "@/components/MarkdownContent";
 import { PathHoverCard } from "@/components/PathHoverCard";
 import { useDocumentLocator } from '@/hooks/useDocumentLocator';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
+import { getEdgeTypeLabel, getEntityTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
@@ -202,7 +203,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   layoutMode,
   agentGraphFocus
 }) => {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const [cursorColumn, setCursorColumn] = useState<number>(1);
   const [editorContentLeft, setEditorContentLeft] = useState<number>(53);
   const [isReferencesModalMode, setIsReferencesModalMode] = useState<boolean>(false);
@@ -795,7 +796,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           options: {
             inlineClassName: isSelected ? 'doctus-selected-entity' : 'doctus-clickable-entity',
             hoverMessage: {
-              value: `**${ent.name}** (${ent.type})\n\n${t('splitPane.clickToSelectReferences')}`
+              value: `**${ent.name}** (${getEntityTypeLabel(ent.type, language)})\n\n${t('splitPane.clickToSelectReferences')}`
             },
             ...glyph
           }
@@ -823,7 +824,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           options: {
             inlineClassName: 'doctus-usage-reference',
             hoverMessage: {
-              value: `**${reference.target.name}** (${reference.target.type}) · ${reference.type}\n\n${t('splitPane.clickToSelectReferences')}`
+              value: `**${reference.target.name}** (${getEntityTypeLabel(reference.target.type, language)}) · ${getEdgeTypeLabel(reference.type, t)}\n\n${t('splitPane.clickToSelectReferences')}`
             },
           },
         });
@@ -1241,7 +1242,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                 <PathHoverCard
                   path={selectedFile || ''}
                   theme={theme}
-                  note={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : undefined}
+                  note={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: getEntityTypeLabel(fileLevelEntity.type, language) || t('splitPane.fileFallbackType') }) : undefined}
                 >
                   {(trigger) => (
                     <button
@@ -1260,7 +1261,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                           setEntityMenu({ x: rect.left, y: rect.bottom + 8, entity: fileLevelEntity });
                         }
                       }}
-                      aria-label={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: fileLevelEntity.type || 'file' }) : (selectedFile || '')}
+                      aria-label={fileLevelEntity ? t('splitPane.fileObjectTitle', { name: fileLevelEntity.name, type: getEntityTypeLabel(fileLevelEntity.type, language) || t('splitPane.fileFallbackType') }) : (selectedFile || '')}
                       className={cn(
                         "truncate font-semibold text-left transition-colors cursor-pointer rounded px-1.5 py-0.5 -mx-1.5",
                         isFileFocused

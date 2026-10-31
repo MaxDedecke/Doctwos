@@ -10,6 +10,7 @@ import { canvasColor, resolveDsColor } from '@/lib/designTokens';
 import { layoutZones, type Zone } from '@/lib/processZones';
 import { buildFlowPaths } from '@/lib/processFlowPaths';
 import { useFlowAnimation } from '@/hooks/useFlowAnimation';
+import { getEdgeTypeLabel, getEntityTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { ChangePackageAction } from './ChangePackageAction';
@@ -117,12 +118,12 @@ function traceProcessNodeShape(ctx: CanvasRenderingContext2D, node: CallNode, ra
 }
 
 export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, projectId, customFlow, onClearCustomFlow, onInvestigateFromHere, onOpenDoc }: Props) {
-  const { t } = useLanguage();
+  const { t, language: uiLanguage } = useLanguage();
   // Kantentypen aus dem Index (CALLS, READS, ...) haben keinen Übersetzungseintrag; dann gilt der Typname selbst.
   const kindLabel = (type: string) => {
     const key = `callGraphView.processKinds.${type}`;
     const translated = t(key);
-    return translated === key ? type : translated;
+    return translated === key ? getEdgeTypeLabel(type, t) : translated;
   };
   const isDark = theme === 'dark';
   const containerRef = useRef<HTMLDivElement>(null);
@@ -745,7 +746,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             });
           }}
           nodeLabel={(node: CallNode) => {
-            const base = `${node.name} (${node.type})`;
+            const base = `${node.name} (${getEntityTypeLabel(node.type, uiLanguage)})`;
             return node.analysis_status
               ? `${base} — ${formatAnalysisStatusTooltip({ status: node.analysis_status, reasons: node.analysis_reasons || [] }, t)}`
               : base;
@@ -986,7 +987,7 @@ export function ProcessNetworkView({ theme, focusedEntity, onFileSelect, project
             ctx.restore();
           }}
           autoPauseRedraw={false}
-          linkLabel={(edge: CallEdge) => `${edge.type} · ${edge.certainty ?? edge.resolution}${edge.originalTypes?.length ? ` · ${edge.originalTypes.join(', ')}` : ''}${edge.meta?.resolution_reason ? ` · ${edge.meta.resolution_reason}` : ''}`}
+          linkLabel={(edge: CallEdge) => `${kindLabel(edge.type)} · ${edge.certainty ?? edge.resolution}${edge.originalTypes?.length ? ` · ${edge.originalTypes.join(', ')}` : ''}${edge.meta?.resolution_reason ? ` · ${edge.meta.resolution_reason}` : ''}`}
           onLinkClick={(edge: CallEdge) => {
             if (isImpactMode) return;
             setSelectedEdgeId(edge.id);

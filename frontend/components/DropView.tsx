@@ -6,6 +6,7 @@ import {
   DROP_DEFAULT_LAYERS, DROP_KINDS, DROP_MAX_LAYERS, layerWidthPercent, toggleExpanded, toggleKind,
   type DropDirection, type DropEdge, type DropKind, type DropNode, type DropResult,
 } from '@/lib/dropView';
+import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { dsColor } from '@/lib/designTokens';
 import { cn } from '@/lib/utils';
@@ -225,7 +226,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
                 markerEnd={connector.reversed ? undefined : `url(#drop-arrow-${connector.color})`}
                 markerStart={connector.reversed ? `url(#drop-arrow-${connector.color})` : undefined}
                 data-edge={connector.key}>
-                <title>{connector.type}</title>
+                <title>{getEdgeTypeLabel(connector.type, t)}</title>
               </path>
             );
           })}

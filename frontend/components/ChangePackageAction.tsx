@@ -2,6 +2,7 @@
 
 import { API_URL, api } from '@/app/services/api';
 import type { WorkspaceDocument } from '@/types/domain';
+import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { HoverExpandButton } from '@/components/HoverExpandButton';
 import { ProvenanceDisclosure } from '@/components/ProvenanceDisclosure';
@@ -211,7 +212,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
         }
       : null;
     return <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[0.6875rem] ${border}`}>
-      <span>{text(sourceNode?.qualified_name, text(sourceNode?.name, String(edge.source)))} — <strong>{text(edge.type)}</strong> ({text(edge.resolution)}) → {text(targetNode?.qualified_name, text(targetNode?.name, text(edge.target_name)))}</span>
+      <span>{text(sourceNode?.qualified_name, text(sourceNode?.name, String(edge.source)))} — <strong>{getEdgeTypeLabel(text(edge.type), t)}</strong> ({text(edge.resolution)}) → {text(targetNode?.qualified_name, text(targetNode?.name, text(edge.target_name)))}</span>
       <ProvenanceDisclosure provenance={relationshipProvenance} theme={theme} />
       <OpenCode path={edgePath} line={edge.start_line} sourceId={sourceNode?.source_id} label={t('changePackage.openRelationshipEvidence', { location: `${edgePath}${lineLabel(edge.start_line, edge.end_line)}` })} />
     </div>;
@@ -347,7 +348,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                                   const sourceEntity = nodes.find(node => node.file_path === edgePath);
                                   return (
                                     <li key={`${String(edge.edge_id)}-${edgeIndex}`} className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                      <span>{text(edge.relationship)} · {text(edge.resolution)} · {edge.traversed_against_relationship ? t('changePackage.reverseTraversal') : t('changePackage.forwardTraversal')} · {t('changePackage.hopCount', { count: number(edge.hops) ?? edgeIndex + 1 })}</span>
+                                      <span>{getEdgeTypeLabel(text(edge.relationship), t)} · {text(edge.resolution)} · {edge.traversed_against_relationship ? t('changePackage.reverseTraversal') : t('changePackage.forwardTraversal')} · {t('changePackage.hopCount', { count: number(edge.hops) ?? edgeIndex + 1 })}</span>
                                       <OpenCode path={edgePath} line={edge.evidence_start_line} sourceId={sourceEntity?.source_id ?? item.source_id} label={t('changePackage.openRelationshipEvidence', { location: `${edgePath}${lineLabel(edge.evidence_start_line, edge.evidence_end_line)}` })} />
                                     </li>
                                   );
@@ -429,7 +430,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.unknownAreas')}</h3>
                     {unknownEdges.length > 0 && <div className="mb-2 space-y-1.5">
                       {unknownEdges.slice(0, 30).map((edge, index) => <div key={`${String(edge.id)}-${index}`} className={`flex flex-wrap items-center justify-between gap-2 rounded border p-2 text-[0.6875rem] ${border}`}>
-                        <span>{text(edge.source_name)} — {text(edge.type)} → {text(edge.target_name)} ({text(edge.resolution)})</span>
+                        <span>{text(edge.source_name)} — {getEdgeTypeLabel(text(edge.type), t)} → {text(edge.target_name)} ({text(edge.resolution)})</span>
                         <OpenCode path={edge.file_path} line={edge.start_line} sourceId={sourceForEntity(edge.source_entity_id)} />
                       </div>)}
                     </div>}

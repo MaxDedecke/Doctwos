@@ -1,7 +1,11 @@
+import de from './i18n/de.json';
+import en from './i18n/en.json';
 import { describe, expect, it } from 'vitest';
 import {
   EDGE_DIRECTION_TAXONOMY,
   EDGE_TYPE_COLORS,
+  ENTITY_TYPE_LABELS,
+  getEdgeTypeLabel,
   getEntityTypeLabel,
   getGraphEdgeColor,
   getGraphEdgeLabelKey,
@@ -57,7 +61,7 @@ describe('graph taxonomy', () => {
   it('provides shared labels for known Java types and edge names', () => {
     expect(getEntityTypeLabel('record', 'de')).toBe('Record');
     expect(getEntityTypeLabel('record', 'en')).toBe('Record');
-    expect(getEntityTypeLabel('future_entity', 'en')).toBe('future_entity');
+    expect(getEntityTypeLabel('future_entity', 'en')).toBe('Future entity');
     expect(getGraphEdgeLabelKey('EXTENDS')).toBe('graphLabels.linkTypes.extends');
     expect(getGraphEdgeLabelKey('uses_type')).toBe('graphLabels.linkTypes.usesType');
   });
@@ -75,5 +79,49 @@ describe('graph taxonomy', () => {
     expect(getGraphNodeIconName({ type: 'entity', entity_type: 'copybook' })).toBe('copybook');
     expect(getGraphNodeIconName({ type: 'document', url: 'https://example.test/page' })).toBe('web');
     expect(getGraphNodeIconName({ type: 'document', file_path: 'notes.custom' })).toBe('file');
+  });
+});
+
+describe('labels of parser types', () => {
+  const dictionaries = { de, en } as const;
+  const translator = (locale: 'de' | 'en') => (key: string) => {
+    const value = key.split('.').reduce<unknown>((node, part) => (node as Record<string, unknown> | undefined)?.[part], dictionaries[locale]);
+    if (typeof value !== 'string') throw new Error(`missing ${locale} translation: ${key}`);
+    return value;
+  };
+
+  // Alle Typen, die die Parser im Bestand erzeugt haben (Java, COBOL, JCL, XML, Maven, ...).
+  const ENTITY_TYPES = ('property method parameter local_variable field class compilation_unit lambda doc_section anonymous_class constructor data_item '
+    + 'xsd_element method_reference maven_dependency interface record_component configuration_file maven_source_root properties_file asciidoc_document '
+    + 'xsd_attribute package xml_document maven_property spring_bean xsd_complex_type initializer record enum paragraph maven_project maven_module '
+    + 'html_document endpoint maven_plugin local_class function annotation_type exec_operation exec_block jcl_dataset wsdl_part xsd_schema wsdl_message '
+    + 'wsdl_operation jcl_step shell_function xsd_simple_type exec_resource xslt_template xslt_parameter groovy_file section sql_statement wsdl_port '
+    + 'xslt_stylesheet xslt_variable xsd_attribute_group copybook jcl_file sql_object wsdl_binding shell_script jcl_job file_fd wsdl_service html_form '
+    + 'wsdl_port_type program sql_script javascript_file xslt_section sql_block sql_include jcl_proc xsd_group sql_table entry').split(' ');
+  const EDGE_TYPES = ('CALLS USES_TYPE READS IMPORTS INSTANTIATES WRITES EXTENDS DOCUMENTS CONTAINS IMPLEMENTS REFERENCES_METHOD REFERENCES_XML_ELEMENT DEPENDS_ON '
+    + 'USES_XML_TYPE INCLUDES DECLARES_SOURCE_ROOT MAPS_XML_ELEMENT CONFIGURES INJECTS PERFORM CONTAINS_MODULE EXTENDS_XML_TYPE USES EXPOSES USES_PLUGIN EXECUTES '
+    + 'REFERENCES_PROPERTY_KEY COPY MAPS_XML_TYPE LINKS_TO USES_RESOURCE GOTO DECLARES IMPLEMENTS_OPERATION BINDS_TO APPLIES_TEMPLATES DISPATCHES_TO CALL '
+    + 'REFERENCES_RESOURCE INPUT_MESSAGE OUTPUT_MESSAGE CALLS_TEMPLATE SUBMITS_TO DEFINES ASSIGNED_DATASET USES_DATASET READS_XML FAULT_MESSAGE SOURCES '
+    + 'EXECUTES_SCRIPT HANDLES_XML_ELEMENT').split(' ');
+
+  it.each(['de', 'en'] as const)('names every known type in %s, never with the raw value', (locale) => {
+    for (const type of ENTITY_TYPES) expect(ENTITY_TYPE_LABELS[type]?.[locale], type).toBeTruthy();
+    for (const type of EDGE_TYPES) {
+      expect(getGraphEdgeLabelKey(type), type).toBeTruthy();
+      expect(getEdgeTypeLabel(type, translator(locale)), type).not.toContain('_');
+    }
+  });
+
+  it('names a file, a variable and a method in both languages', () => {
+    expect(getEntityTypeLabel('compilation_unit', 'de')).toBe('Datei');
+    expect(getEntityTypeLabel('compilation_unit', 'en')).toBe('File');
+    expect(getEntityTypeLabel('local_variable', 'de')).toBe('Variable');
+    expect(getEntityTypeLabel('method', 'en')).toBe('Method');
+    expect(getEdgeTypeLabel('USES_TYPE', translator('de'))).toBe('Verwendet Typ');
+  });
+
+  it('makes a type readable that the frontend does not know yet', () => {
+    expect(getEdgeTypeLabel('NEW_EDGE_TYPE', translator('de'))).toBe('New edge type');
+    expect(getEntityTypeLabel('new_entity_type', 'de')).toBe('New entity type');
   });
 });

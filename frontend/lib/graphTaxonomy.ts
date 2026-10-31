@@ -95,7 +95,7 @@ export const NODE_TYPE_TAXONOMY: Record<string, GraphNodeTypeDefinition> = {
 
 /** Known entity names are labels only; unknown parser entity types remain valid. */
 export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
-  compilation_unit: { de: 'Datei', en: 'Compilation unit' },
+  compilation_unit: { de: 'Datei', en: 'File' },
   package: { de: 'Paket', en: 'Package' },
   module: { de: 'Modul', en: 'Module' },
   program: { de: 'Programm', en: 'Program' },
@@ -109,7 +109,7 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
   sql_include: { de: 'SQL-Include', en: 'SQL include' },
   parameter: { de: 'Parameter', en: 'Parameter' },
   record_component: { de: 'Record-Komponente', en: 'Record component' },
-  local_variable: { de: 'Lokale Variable', en: 'Local variable' },
+  local_variable: { de: 'Variable', en: 'Variable' },
   local_class: { de: 'Lokale Klasse', en: 'Local class' },
   anonymous_class: { de: 'Anonyme Klasse', en: 'Anonymous class' },
   lambda: { de: 'Lambda', en: 'Lambda' },
@@ -147,6 +147,39 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
   jcl_file: { de: 'JCL-Datei', en: 'JCL file' },
   jcl_proc: { de: 'JCL-Prozedur', en: 'JCL procedure' },
   jcl_dataset: { de: 'JCL-Dataset', en: 'JCL dataset' },
+  configuration_file: { de: 'Konfigurationsdatei', en: 'Configuration file' },
+  endpoint: { de: 'Endpunkt', en: 'Endpoint' },
+  function: { de: 'Funktion', en: 'Function' },
+  groovy_file: { de: 'Groovy-Datei', en: 'Groovy file' },
+  javascript_file: { de: 'JavaScript-Datei', en: 'JavaScript file' },
+  maven_dependency: { de: 'Maven-Abhängigkeit', en: 'Maven dependency' },
+  maven_module: { de: 'Maven-Modul', en: 'Maven module' },
+  maven_plugin: { de: 'Maven-Plugin', en: 'Maven plugin' },
+  maven_project: { de: 'Maven-Projekt', en: 'Maven project' },
+  maven_property: { de: 'Maven-Eigenschaft', en: 'Maven property' },
+  maven_source_root: { de: 'Maven-Quellverzeichnis', en: 'Maven source root' },
+  properties_file: { de: 'Properties-Datei', en: 'Properties file' },
+  property: { de: 'Eigenschaft', en: 'Property' },
+  spring_bean: { de: 'Spring-Bean', en: 'Spring bean' },
+  sql_object: { de: 'SQL-Objekt', en: 'SQL object' },
+  sql_script: { de: 'SQL-Skript', en: 'SQL script' },
+  sql_statement: { de: 'SQL-Anweisung', en: 'SQL statement' },
+  wsdl_binding: { de: 'WSDL-Binding', en: 'WSDL binding' },
+  wsdl_message: { de: 'WSDL-Nachricht', en: 'WSDL message' },
+  wsdl_operation: { de: 'WSDL-Operation', en: 'WSDL operation' },
+  wsdl_part: { de: 'WSDL-Teil', en: 'WSDL part' },
+  wsdl_port: { de: 'WSDL-Port', en: 'WSDL port' },
+  wsdl_port_type: { de: 'WSDL-Port-Typ', en: 'WSDL port type' },
+  wsdl_service: { de: 'WSDL-Service', en: 'WSDL service' },
+  xsd_attribute: { de: 'XSD-Attribut', en: 'XSD attribute' },
+  xsd_attribute_group: { de: 'XSD-Attributgruppe', en: 'XSD attribute group' },
+  xsd_complex_type: { de: 'XSD-Komplextyp', en: 'XSD complex type' },
+  xsd_element: { de: 'XSD-Element', en: 'XSD element' },
+  xsd_group: { de: 'XSD-Gruppe', en: 'XSD group' },
+  xsd_schema: { de: 'XSD-Schema', en: 'XSD schema' },
+  xsd_simple_type: { de: 'XSD-Einfachtyp', en: 'XSD simple type' },
+  xslt_parameter: { de: 'XSLT-Parameter', en: 'XSLT parameter' },
+  xslt_variable: { de: 'XSLT-Variable', en: 'XSLT variable' },
 };
 
 /** Link colors are shared by the knowledge graph, call graph and detail panes. */
@@ -217,6 +250,40 @@ const EDGE_TYPE_LABEL_KEYS: Record<string, string> = {
   USES_DATASET: 'graphLabels.linkTypes.usesDataset',
   DOCUMENTS: 'graphLabels.linkTypes.documents',
   INCLUDES: 'graphLabels.linkTypes.includesDoc',
+  APPLIES_TEMPLATES: 'graphLabels.linkTypes.appliesTemplates',
+  ASSIGNED_DATASET: 'graphLabels.linkTypes.assignedDataset',
+  BINDS_TO: 'graphLabels.linkTypes.bindsTo',
+  CALLS_TEMPLATE: 'graphLabels.linkTypes.callsTemplate',
+  CONFIGURES: 'graphLabels.linkTypes.configures',
+  CONTAINS_MODULE: 'graphLabels.linkTypes.containsModule',
+  DECLARES: 'graphLabels.linkTypes.declares',
+  DECLARES_SOURCE_ROOT: 'graphLabels.linkTypes.declaresSourceRoot',
+  DEFINES: 'graphLabels.linkTypes.defines',
+  DEPENDS_ON: 'graphLabels.linkTypes.dependsOn',
+  DISPATCHES_TO: 'graphLabels.linkTypes.dispatchesTo',
+  EXECUTES_SCRIPT: 'graphLabels.linkTypes.executesScript',
+  EXPOSES: 'graphLabels.linkTypes.exposes',
+  EXTENDS_XML_TYPE: 'graphLabels.linkTypes.extendsXmlType',
+  FAULT_MESSAGE: 'graphLabels.linkTypes.faultMessage',
+  HANDLES_XML_ELEMENT: 'graphLabels.linkTypes.handlesXmlElement',
+  IMPLEMENTS_OPERATION: 'graphLabels.linkTypes.implementsOperation',
+  INJECTS: 'graphLabels.linkTypes.injects',
+  INPUT_MESSAGE: 'graphLabels.linkTypes.inputMessage',
+  LINKS_TO: 'graphLabels.linkTypes.linksTo',
+  MAPS_XML_ELEMENT: 'graphLabels.linkTypes.mapsXmlElement',
+  MAPS_XML_TYPE: 'graphLabels.linkTypes.mapsXmlType',
+  OUTPUT_MESSAGE: 'graphLabels.linkTypes.outputMessage',
+  READS_XML: 'graphLabels.linkTypes.readsXml',
+  REFERENCES_METHOD: 'graphLabels.linkTypes.referencesMethod',
+  REFERENCES_PROPERTY_KEY: 'graphLabels.linkTypes.referencesPropertyKey',
+  REFERENCES_RESOURCE: 'graphLabels.linkTypes.referencesResource',
+  REFERENCES_XML_ELEMENT: 'graphLabels.linkTypes.referencesXmlElement',
+  SOURCES: 'graphLabels.linkTypes.sources',
+  SUBMITS_TO: 'graphLabels.linkTypes.submitsTo',
+  USES: 'graphLabels.linkTypes.uses',
+  USES_PLUGIN: 'graphLabels.linkTypes.usesPlugin',
+  USES_RESOURCE: 'graphLabels.linkTypes.usesResource',
+  USES_XML_TYPE: 'graphLabels.linkTypes.usesXmlType',
 };
 
 const CODE_ENTITY_TYPES = new Set([
@@ -345,7 +412,19 @@ export function getGraphEdgeLabelKey(type: string): string | undefined {
   return EDGE_TYPE_LABEL_KEYS[type] || EDGE_TYPE_LABEL_KEYS[type.toLowerCase()] || EDGE_TYPE_LABEL_KEYS[type.toUpperCase()];
 }
 
+/** Für Typen, die ein Parser neu liefert: `NEW_EDGE_TYPE` wird „New edge type“. */
+export function humanizeType(type: string): string {
+  const words = type.replace(/_/g, ' ').toLowerCase();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
 export function getEntityTypeLabel(type: string | null | undefined, locale: GraphLocale): string {
   if (!type) return '';
-  return ENTITY_TYPE_LABELS[type]?.[locale] || type;
+  return ENTITY_TYPE_LABELS[type]?.[locale] || humanizeType(type);
+}
+
+export function getEdgeTypeLabel(type: string | null | undefined, t: (key: string) => string): string {
+  if (!type) return '';
+  const key = getGraphEdgeLabelKey(type);
+  return key ? t(key) : humanizeType(type);
 }

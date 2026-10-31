@@ -13,7 +13,7 @@ import {
   getEntityTypeLabel,
   EDGE_DIRECTION_TAXONOMY,
   getGraphEdgeColor,
-  getGraphEdgeLabelKey,
+  getEdgeTypeLabel,
   getGraphNodeCategory,
   getGraphNodeColor,
   type GraphEdgeDirection,
@@ -78,10 +78,7 @@ export function withKeptAnchor(
 
 export const LINK_COLORS = EDGE_TYPE_COLORS;
 
-export function getLinkLabel(t: (key: string) => string, type: string): string | undefined {
-  const key = getGraphEdgeLabelKey(type);
-  return key ? t(key) : undefined;
-}
+export const getLinkLabel = (t: (key: string) => string, type: string): string => getEdgeTypeLabel(type, t);
 
 /**
  * Callers hand `selectedEntity.id`/`projectEntities[].id` in whatever shape they have on
@@ -1233,11 +1230,11 @@ export function KnowledgeGraphView({
     + linkTypes.filter(type => hiddenLinkTypes.has(type)).length
     + edgeDirections.filter(direction => hiddenEdgeDirections.has(direction)).length;
   const selectionLabel = selectedNode ? getNodeDisplayLabel(selectedNode)
-    : selectedEdge ? (getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)) : '';
+    : selectedEdge ? getLinkLabel(t, graphEdgeType(selectedEdge)) : '';
   const backNode = inspectorBack?.from.nodeId ? rawNodes.find(n => n.id === inspectorBack.from.nodeId) : undefined;
   const backEdge = inspectorBack?.from.edgeId ? rawEdges.find(e => e.id === inspectorBack.from.edgeId) : undefined;
   const inspectorBackLabel = backNode ? getNodeDisplayLabel(backNode)
-    : backEdge ? (getLinkLabel(t, graphEdgeType(backEdge)) ?? graphEdgeType(backEdge)) : '';
+    : backEdge ? getLinkLabel(t, graphEdgeType(backEdge)) : '';
 
   /* ── Theme tokens ───────────────────────────────────────────────────────────── */
   const border     = isDark ? 'border-ds-zinc-800'             : 'border-ds-zinc-200';
@@ -1250,7 +1247,7 @@ export function KnowledgeGraphView({
       ? t('knowledgeGraphView.agentDirectionOutgoing')
       : t('knowledgeGraphView.agentDirectionBoth');
   const agentRelationshipLabels = agentGraphFocus?.relationships
-    .map(type => getLinkLabel(t, type) ?? type)
+    .map(type => getLinkLabel(t, type))
     .join(', ');
   const iconBtn    = isDark ? 'text-ds-zinc-500 hover:text-ds-zinc-200 hover:bg-ds-zinc-800' : 'text-ds-zinc-400 hover:text-ds-zinc-700 hover:bg-ds-zinc-100';
   const badge      = isDark ? 'bg-ds-zinc-800 text-ds-zinc-400'  : 'bg-ds-zinc-100 text-ds-zinc-500';
@@ -1393,7 +1390,7 @@ export function KnowledgeGraphView({
                               graphRef.current?.centerAt((src.x + tgt.x) / 2, (src.y + tgt.y) / 2, 500);
                             }
                           }}
-                          title={getLinkLabel(t, graphEdgeType(l)) ?? graphEdgeType(l)}
+                          title={getLinkLabel(t, graphEdgeType(l))}
                           className={cn('w-full text-left flex items-center gap-2 px-1.5 py-1 rounded text-[0.625rem] transition-colors', connRow)}>
                           <span className="w-3 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(l)), display: 'inline-block', borderRadius: 1 }} />
                           <span className={cn('truncate', textMain)}>{other.label}</span>
@@ -1626,7 +1623,7 @@ export function KnowledgeGraphView({
           <div className="flex items-center gap-2 flex-wrap">
             <span className="w-5 shrink-0" style={{ height: 2, background: getGraphEdgeColor(graphEdgeType(selectedEdge)), display: 'inline-block', borderRadius: 1 }} />
             <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
-              {getLinkLabel(t, graphEdgeType(selectedEdge)) ?? graphEdgeType(selectedEdge)}
+              {getLinkLabel(t, graphEdgeType(selectedEdge))}
             </span>
             {graphEdgeDirection(selectedEdge) !== 'directed' && (
               <span className={cn('text-[0.625rem] px-1.5 py-0.5 rounded', badge)}>
@@ -1975,7 +1972,7 @@ export function KnowledgeGraphView({
               const info = UNIFIED_NODE_TYPES[type];
               return info ? [{ id: type, label: language === 'de' ? info.labelDe : info.labelEn, hidden: hiddenNodeTypes.has(type) }] : [];
             })}
-            links={linkTypes.map(type => ({ id: type, label: getLinkLabel(t, type) ?? type, hidden: hiddenLinkTypes.has(type), color: getGraphEdgeColor(type) }))}
+            links={linkTypes.map(type => ({ id: type, label: getLinkLabel(t, type), hidden: hiddenLinkTypes.has(type), color: getGraphEdgeColor(type) }))}
             directions={edgeDirections.map(direction => ({ id: direction, label: t(EDGE_DIRECTION_TAXONOMY[direction].labelKey), hidden: hiddenEdgeDirections.has(direction) }))}
             onToggleNode={toggleNodeType} onToggleLink={toggleLinkType} onToggleDirection={id => toggleEdgeDirection(id as GraphEdgeDirection)}
             onReset={() => { setHiddenNodeTypes(new Set()); setHiddenLinkTypes(new Set()); setHiddenEdgeDirections(new Set()); }} />

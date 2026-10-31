@@ -7,6 +7,8 @@ import {
 } from '@/components/ui/select';
 import type { PanelHistoryEntry, PanelSelection } from '@/lib/panelHistory';
 import { getAvailablePanelViewTypes } from '@/lib/panelViewTypes';
+import { getEntityTypeLabel, type GraphLocale } from '@/lib/graphTaxonomy';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import type { FocusObject, Project } from '@/types/domain';
 import {
@@ -67,7 +69,8 @@ export function PanelRenderer({
   onToggleFreeze,
   onClose,
 }: PanelRendererProps) {
-  const focusInfo = getPanelFocusInfo(focusObject, selection, t);
+  const { language } = useLanguage();
+  const focusInfo = getPanelFocusInfo(focusObject, selection, t, language);
 
   return (
     <div
@@ -149,9 +152,9 @@ function historyButtonClass(theme: string) {
   );
 }
 
-function getPanelFocusInfo(focusObject: FocusObject | null, selection: PanelSelection, t: Translate) {
+function getPanelFocusInfo(focusObject: FocusObject | null, selection: PanelSelection, t: Translate, language: GraphLocale) {
   if (focusObject) return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: 'text-ds-purple-400' };
-  if (selection.selectedEntity) return { Icon: Braces, label: selection.selectedEntity.name, kind: selection.selectedEntity.type || t('page.focusBar.entity'), colorClass: 'text-ds-indigo-400' };
+  if (selection.selectedEntity) return { Icon: Braces, label: selection.selectedEntity.name, kind: getEntityTypeLabel(selection.selectedEntity.type, language) || t('page.focusBar.entity'), colorClass: 'text-ds-indigo-400' };
   if (selection.selectedDoc) {
     const isWeb = selection.selectedDoc.isWebOrigin || ['confluence', 'jira'].includes((selection.selectedDoc.type || '').toLowerCase());
     return {

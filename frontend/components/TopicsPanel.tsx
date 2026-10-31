@@ -10,6 +10,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { api, API_URL } from '@/app/services/api';
+import { getEntityTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 
@@ -83,7 +84,7 @@ type NodeTypeKey = typeof NODE_TYPES[number]['key'];
 
 export function TopicsPanel({ theme, projectId }: TopicsPanelProps) {
   const isDark = theme === 'dark';
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
 
   const scope = projectId ? `?project_id=${projectId}` : '';
 
@@ -569,7 +570,7 @@ export function TopicsPanel({ theme, projectId }: TopicsPanelProps) {
                           <span className={cn('max-w-[180px] truncate', titleText)}>{node.node_label}</span>
                           {typeof node.node_meta?.type === 'string' && node.node_meta.type !== '' && (
                             <span className={cn('text-[0.625rem] px-1 rounded shrink-0', subText)}>
-                              {node.node_meta.type}
+                              {node.node_type === 'entity' ? getEntityTypeLabel(node.node_meta.type, language) : node.node_meta.type}
                             </span>
                           )}
                           {typeof node.node_meta?.file_path === 'string' && node.node_meta.file_path !== '' && !node.node_meta?.type && (
@@ -670,7 +671,7 @@ export function TopicsPanel({ theme, projectId }: TopicsPanelProps) {
                                 )}
                                 <span className="truncate flex-1">{r.node_label}</span>
                                 {typeof r.node_meta?.type === 'string' && r.node_meta.type !== '' && (
-                                  <span className={cn('text-[0.625rem] shrink-0', subText)}>{r.node_meta.type}</span>
+                                  <span className={cn('text-[0.625rem] shrink-0', subText)}>{r.node_type === 'entity' ? getEntityTypeLabel(r.node_meta.type, language) : r.node_meta.type}</span>
                                 )}
                                 {typeof r.node_meta?.file_path === 'string' && r.node_meta.file_path !== '' && !r.node_meta?.type && (
                                   <span className={cn('text-[0.625rem] shrink-0 truncate max-w-[120px]', subText)}>
