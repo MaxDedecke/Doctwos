@@ -2124,6 +2124,8 @@
       "data": "Daten",
       "includes": "Einbindungen"
     },
+    "layoutHorizontal": "Ebenen nebeneinander anzeigen",
+    "layoutVertical": "Ebenen untereinander anzeigen",
     "layers": "Ebenen",
     "layerLabel": "Ebene {{layer}} · {{count}}",
     "unresolved": "{{count}} nicht aufgelöst",
@@ -2136,6 +2138,7 @@
     "loadError": "Die Ebenen konnten nicht geladen werden.",
     "noFocus": "Wähle einen Startpunkt (Programm, Klasse, Methode oder Feld), um seine Ebenen zu sehen.",
     "end": "Darunter folgt nichts mehr.",
+    "endHorizontal": "Danach folgt nichts mehr.",
     "empty": "Für diese Auswahl gibt es keine belegten Verbindungen."
   },
   "insightEvidence": {

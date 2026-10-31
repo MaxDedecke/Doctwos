@@ -2,6 +2,7 @@
 
 export type DropKind = 'control' | 'data' | 'includes';
 export type DropDirection = 'down' | 'up';
+export type DropOrientation = 'vertical' | 'horizontal';
 
 export const DROP_KINDS: DropKind[] = ['control', 'data', 'includes'];
 export const DROP_DEFAULT_LAYERS = 3;
@@ -51,6 +52,36 @@ export interface DropResult {
 export function toggleKind(active: DropKind[], kind: DropKind): DropKind[] {
   const next = active.includes(kind) ? active.filter(item => item !== kind) : [...active, kind];
   return next.length === 0 ? active : DROP_KINDS.filter(item => next.includes(item));
+}
+
+type Box = { left: number; right: number; top: number; bottom: number };
+
+/**
+ * Kurve zwischen zwei Knoten verschiedener Ebenen, relativ zur Zeichenfläche. Quer zur Ebene: untereinander
+ * vom unteren zum oberen Rand, nebeneinander vom rechten zum linken. `reversed`: Das Ziel liegt vor der Quelle;
+ * das richtet sich nach der Lage, nicht nach der Kantenrichtung. `null`: beide liegen auf derselben Höhe.
+ */
+export function connectorPath(from: Box, to: Box, base: { left: number; top: number }, orientation: DropOrientation): { d: string; reversed: boolean } | null {
+  const horizontal = orientation === 'horizontal';
+  const reversed = horizontal ? from.left > to.left : from.top > to.top;
+  const first = reversed ? to : from;
+  const second = reversed ? from : to;
+  if (horizontal) {
+    const y1 = (first.top + first.bottom) / 2 - base.top;
+    const y2 = (second.top + second.bottom) / 2 - base.top;
+    const x1 = first.right - base.left;
+    const x2 = second.left - base.left;
+    if (x2 <= x1) return null;
+    const bend = (x2 - x1) / 2;
+    return { d: `M ${x1} ${y1} C ${x1 + bend} ${y1}, ${x2 - bend} ${y2}, ${x2} ${y2}`, reversed };
+  }
+  const x1 = (first.left + first.right) / 2 - base.left;
+  const x2 = (second.left + second.right) / 2 - base.left;
+  const y1 = first.bottom - base.top;
+  const y2 = second.top - base.top;
+  if (y2 <= y1) return null;
+  const bend = (y2 - y1) / 2;
+  return { d: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`, reversed };
 }
 
 /** Breite einer Ebene in Prozent: oben schmal, nach unten breiter (Pyramide), nie über 100. */

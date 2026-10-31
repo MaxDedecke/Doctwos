@@ -3,14 +3,14 @@ import type { CodeEntity } from '@/types/domain';
 
 import { api } from '@/app/services/api';
 import {
-  DROP_DEFAULT_LAYERS, DROP_KINDS, DROP_MAX_LAYERS, layerWidthPercent, toggleExpanded, toggleKind,
-  type DropDirection, type DropEdge, type DropKind, type DropNode, type DropResult,
+  DROP_DEFAULT_LAYERS, DROP_KINDS, DROP_MAX_LAYERS, connectorPath, layerWidthPercent, toggleExpanded, toggleKind,
+  type DropDirection, type DropEdge, type DropKind, type DropNode, type DropOrientation, type DropResult,
 } from '@/lib/dropView';
 import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { dsColor } from '@/lib/designTokens';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ArrowDown, ArrowUp, ChevronsUpDown, Droplet, FileCode, Loader2, Target, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronsUpDown, Columns3, Droplet, FileCode, Loader2, Rows3, Target, ExternalLink } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -35,6 +35,16 @@ function edgeColor(type: string): string {
   return 'accent-base';
 }
 
+const ORIENTATION_STORAGE_KEY = 'doctus-drop-orientation';
+
+function storedOrientation(): DropOrientation {
+  try {
+    return window.localStorage.getItem(ORIENTATION_STORAGE_KEY) === 'horizontal' ? 'horizontal' : 'vertical';
+  } catch {
+    return 'vertical';
+  }
+}
+
 interface Connector { key: string; d: string; color: string; from: number; to: number; reversed: boolean; type: string }
 
 export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Props) {
@@ -44,6 +54,17 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   const [direction, setDirection] = useState<DropDirection>('down');
   const [kinds, setKinds] = useState<DropKind[]>(['control']);
   const [layers, setLayers] = useState(DROP_DEFAULT_LAYERS);
+  const [orientation, setOrientation] = useState<DropOrientation>(storedOrientation);
+  const horizontal = orientation === 'horizontal';
+  const switchOrientation = () => {
+    const next: DropOrientation = horizontal ? 'vertical' : 'horizontal';
+    setOrientation(next);
+    try {
+      window.localStorage.setItem(ORIENTATION_STORAGE_KEY, next);
+    } catch {
+      // Ohne Speicher gilt die Wahl nur bis zum Neuladen.
+    }
+  };
   const [expanded, setExpanded] = useState<number[]>([]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
@@ -131,7 +152,13 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
     <div className={cn('flex shrink-0 flex-wrap items-center gap-2 border-b px-3 py-1.5 text-[0.6875rem]', isDark ? 'border-ds-zinc-800 bg-ds-zinc-950' : 'border-ds-zinc-200 bg-ds-white')}>
       <button type="button" aria-label={t(direction === 'down' ? 'dropView.showUp' : 'dropView.showDown')} title={t(direction === 'down' ? 'dropView.showUp' : 'dropView.showDown')}
         onClick={() => { setDirection(direction === 'down' ? 'up' : 'down'); setExpanded([]); }} className="rounded border border-ds-zinc-600/50 p-1">
-        {direction === 'down' ? <ArrowDown className="h-3.5 w-3.5" aria-hidden /> : <ArrowUp className="h-3.5 w-3.5" aria-hidden />}
+        {direction === 'down'
+          ? (horizontal ? <ArrowRight className="h-3.5 w-3.5" aria-hidden /> : <ArrowDown className="h-3.5 w-3.5" aria-hidden />)
+          : (horizontal ? <ArrowLeft className="h-3.5 w-3.5" aria-hidden /> : <ArrowUp className="h-3.5 w-3.5" aria-hidden />)}
+      </button>
+      <button type="button" aria-label={t(horizontal ? 'dropView.layoutVertical' : 'dropView.layoutHorizontal')} title={t(horizontal ? 'dropView.layoutVertical' : 'dropView.layoutHorizontal')}
+        onClick={switchOrientation} className="rounded border border-ds-zinc-600/50 p-1">
+        {horizontal ? <Rows3 className="h-3.5 w-3.5" aria-hidden /> : <Columns3 className="h-3.5 w-3.5" aria-hidden />}
       </button>
       {DROP_KINDS.map(kind => (
         <button key={kind} type="button" aria-pressed={kinds.includes(kind)} onClick={() => { setKinds(toggleKind(kinds, kind)); setExpanded([]); }}
@@ -149,7 +176,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
     </div>
   );
 
-  // Verbindungen zwischen den Ebenen: Kurven vom unteren Rand des oberen zum oberen Rand des unteren Knotens.
+  // Verbindungen zwischen den Ebenen, gezeichnet von Rand zu Rand (siehe connectorPath).
   const allEdges = useMemo<DropEdge[]>(() => {
     const seen = new Set<string>();
     const edges: DropEdge[] = [];
@@ -172,22 +199,12 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
         const a = nodeRefs.current.get(edge.from);
         const b = nodeRefs.current.get(edge.to);
         if (!a || !b) continue;
-        const ra = a.getBoundingClientRect();
-        const rb = b.getBoundingClientRect();
-        // Oben/unten richtet sich nach der Lage, nicht nach der Kantenrichtung.
-        const reversed = ra.top > rb.top;
-        const upper = reversed ? rb : ra;
-        const lower = reversed ? ra : rb;
-        const x1 = upper.left + upper.width / 2 - base.left;
-        const y1 = upper.bottom - base.top;
-        const x2 = lower.left + lower.width / 2 - base.left;
-        const y2 = lower.top - base.top;
-        if (y2 <= y1) continue;
-        const bend = (y2 - y1) / 2;
+        const path = connectorPath(a.getBoundingClientRect(), b.getBoundingClientRect(), base, orientation);
+        if (!path) continue;
         next.push({
           key: `${edge.from}>${edge.to}:${edge.type}`,
-          d: `M ${x1} ${y1} C ${x1} ${y1 + bend}, ${x2} ${y2 - bend}, ${x2} ${y2}`,
-          color: edgeColor(edge.type), from: edge.from, to: edge.to, reversed, type: edge.type,
+          d: path.d,
+          color: edgeColor(edge.type), from: edge.from, to: edge.to, reversed: path.reversed, type: edge.type,
         });
       }
       setConnectors(next);
@@ -197,7 +214,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
     const observer = new ResizeObserver(measure);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [allEdges, expanded, result]);
+  }, [allEdges, expanded, result, orientation]);
 
   let body: React.ReactNode;
   if (startId == null) {
@@ -207,7 +224,8 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
   } else if (result) {
     const lastLayer = result.layers[result.layers.length - 1]?.layer ?? 0;
     body = (
-      <div ref={canvasRef} className="relative flex flex-col items-center gap-8 p-4" data-testid="drop-pyramid">
+      <div ref={canvasRef} data-orientation={orientation} data-testid="drop-pyramid"
+        className={cn('relative flex p-4', horizontal ? 'min-h-full w-max min-w-full flex-row items-center gap-16' : 'flex-col items-center gap-8')}>
         <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" aria-hidden="true" data-testid="drop-connectors">
           <defs>
             {['accent-base', 'success-base', 'warning-base'].map(color => (
@@ -232,7 +250,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
           })}
         </svg>
         {result.layers.map(layer => (
-          <div key={layer.layer} data-testid={`drop-layer-${layer.layer}`} className="relative z-10 flex flex-col items-center gap-1" style={{ width: `${layerWidthPercent(layer.layer, Math.max(lastLayer, 1))}%` }}>
+          <div key={layer.layer} data-testid={`drop-layer-${layer.layer}`} className="relative z-10 flex shrink-0 flex-col items-center gap-1" style={horizontal ? undefined : { width: `${layerWidthPercent(layer.layer, Math.max(lastLayer, 1))}%` }}>
             {layer.layer > 0 && (
               <div className="flex items-center gap-2 text-[0.625rem] text-ds-zinc-500">
                 <span>{t('dropView.layerLabel', { layer: layer.layer, count: layer.count })}</span>
@@ -245,11 +263,11 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect }: Prop
                 <ChevronsUpDown className="h-3 w-3" aria-hidden />{t('dropView.expand', { count: layer.count })}
               </button>
             ) : (
-              <div className="flex flex-wrap justify-center gap-1.5">{layer.nodes.map(node => chip(node, layer.layer === 0))}</div>
+              <div className={cn('flex gap-1.5', horizontal ? 'flex-col items-center' : 'flex-wrap justify-center')}>{layer.nodes.map(node => chip(node, layer.layer === 0))}</div>
             )}
           </div>
         ))}
-        {result.stopped === 'end' && result.layers.length > 1 && <p className="text-[0.625rem] text-ds-zinc-500">{t('dropView.end')}</p>}
+        {result.stopped === 'end' && result.layers.length > 1 && <p className="text-[0.625rem] text-ds-zinc-500">{t(horizontal ? 'dropView.endHorizontal' : 'dropView.end')}</p>}
         {result.layers.length === 2 && result.layers[1].count === 0 && result.layers[1].unresolved === 0 && <p className="text-xs text-ds-zinc-500">{t('dropView.empty')}</p>}
       </div>
     );

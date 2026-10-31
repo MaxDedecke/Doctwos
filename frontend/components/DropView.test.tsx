@@ -35,6 +35,23 @@ describe('DropView', () => {
     expect(onFileSelect).toHaveBeenCalledWith('src/doCreate.java', 10, 8);
   });
 
+  it('switches between layers below and beside each other and remembers it, without loading again', async () => {
+    window.localStorage.removeItem('doctus-drop-orientation');
+    const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
+    renderView();
+    const pyramid = await screen.findByTestId('drop-pyramid');
+    expect(pyramid.getAttribute('data-orientation')).toBe('vertical');
+    const calls = spy.mock.calls.length;
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ebenen nebeneinander anzeigen' }));
+    expect(screen.getByTestId('drop-pyramid').getAttribute('data-orientation')).toBe('horizontal');
+    expect(window.localStorage.getItem('doctus-drop-orientation')).toBe('horizontal');
+    expect(spy.mock.calls.length).toBe(calls);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ebenen untereinander anzeigen' }));
+    expect(screen.getByTestId('drop-pyramid').getAttribute('data-orientation')).toBe('vertical');
+  });
+
   it('loads the other direction and further kinds only when switched', async () => {
     const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
     renderView();

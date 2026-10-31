@@ -2124,6 +2124,8 @@
       "data": "Data",
       "includes": "Includes"
     },
+    "layoutHorizontal": "Show layers side by side",
+    "layoutVertical": "Show layers one below the other",
     "layers": "Layers",
     "layerLabel": "Layer {{layer}} · {{count}}",
     "unresolved": "{{count}} unresolved",
@@ -2136,6 +2138,7 @@
     "loadError": "The layers could not be loaded.",
     "noFocus": "Pick a start point (program, class, method or field) to see its layers.",
     "end": "Nothing follows below.",
+    "endHorizontal": "Nothing follows after this.",
     "empty": "No evidenced connections for this selection."
   },
   "insightEvidence": {
