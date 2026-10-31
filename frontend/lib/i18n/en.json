@@ -1447,6 +1447,7 @@
     "loadMoreConnections": "Load more connections",
     "loadMoreConnectionsTitle": "Loads additional neighborhood nodes and edges for this focus area from the database",
     "hiddenConnections": "{{count}} more connections are not loaded",
+    "groupLoading": "Loading the next level of “{{label}}”",
     "expandInPlace": "Show connections here",
     "expandMore": "Show more connections",
     "expandInPlaceTitle": "Loads this node's remaining connections into the overview; all other nodes stay where they are",

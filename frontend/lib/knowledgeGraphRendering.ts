@@ -34,14 +34,26 @@ type RenderOptions = {
   focusNeighborIds: Set<string> | null; isDark: boolean;
   /** Connections per node that exist but are not loaded, drawn as a "+N" badge. */
   hiddenCounts?: Map<string, number>;
+  /** Dieser Knoten zeigt drei pulsierende Punkte (Gruppe, deren nächste Ebene gerade lädt). */
+  loadingNodeId?: string | null;
   styleRevision?: string;
   viewport: () => GraphViewport | null; zoom: () => number;
 };
 
+/** Deckkraft eines der drei Ladepunkte: Sie pulsieren nacheinander, bei reduzierter Bewegung gar nicht. */
+export function loadingDotAlpha(index: number, nowMs: number, reducedMotion = prefersReducedMotion()): number {
+  return reducedMotion ? 0.8 : 0.3 + 0.7 * Math.max(0, Math.sin(nowMs / 200 - index * 0.9));
+}
+
+function prefersReducedMotion() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function'
+    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 /** Snapshot CSS and topology once. No DOM reads or graph searches during a frame. */
 export function createKnowledgeGraphRenderer(options: RenderOptions) {
   const { nodes, links, degrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId,
-    focusNeighborIds, isDark, hiddenCounts, viewport, zoom } = options;
+    focusNeighborIds, isDark, hiddenCounts, loadingNodeId, viewport, zoom } = options;
   const byId = new Map(nodes.map(node => [node.id, node]));
   const colors = new Map<string, string>();
   const resolve = (value: string) => {
@@ -208,7 +220,9 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
       ctx.lineWidth = 2 / scale;
       ctx.stroke();
     }
-    if (r * scale >= 9) drawKnowledgeNodeIcon(node, ctx, scale, NODE_RADIUS_SCALE, r);
+    const loading = node.id === loadingNodeId;
+    if (r * scale >= 9 && !loading) drawKnowledgeNodeIcon(node, ctx, scale, NODE_RADIUS_SCALE, r);
+    if (loading) drawLoadingDots(ctx, x, y, r, scale);
     const hidden = hiddenCounts?.get(node.id);
     if (hidden && !dimmed && (primary || r * scale >= 6)) drawHiddenBadge(ctx, x + r * 0.72, y - r * 0.72, hidden, scale);
     if ((scale > 0.45 && !dimmed) || primary) {
@@ -230,6 +244,21 @@ export function createKnowledgeGraphRenderer(options: RenderOptions) {
     const height = 15 / scale;
     const width = Math.max(height, (`+${hidden > 999 ? '999+' : hidden}`.length * 6.2 + 9) / scale);
     return { cx: node.x + r * 0.72, cy: node.y - r * 0.72, width, height };
+  }
+
+  function drawLoadingDots(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, scale: number) {
+    // Passen die Punkte nicht in den Knoten, stehen sie über ihm.
+    const inside = r * scale >= 14;
+    const cy = inside ? y : y - r - 9 / scale;
+    const now = performance.now();
+    [-1, 0, 1].forEach((offset, index) => {
+      ctx.beginPath();
+      ctx.arc(x + offset * 6 / scale, cy, 2.2 / scale, 0, Math.PI * 2);
+      ctx.fillStyle = inside ? '#ffffff' : foreground;
+      ctx.globalAlpha = loadingDotAlpha(index, now);
+      ctx.fill();
+    });
+    ctx.globalAlpha = 1;
   }
 
   function drawHiddenBadge(ctx: CanvasRenderingContext2D, cx: number, cy: number, count: number, scale: number) {

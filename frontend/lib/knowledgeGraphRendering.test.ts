@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EDGE_MIN_SCREEN_WIDTH, PASS_THROUGH_EDGE_WIDTH } from './graphLayout';
-import { createKnowledgeGraphRenderer, type GraphViewport } from './knowledgeGraphRendering';
+import { createKnowledgeGraphRenderer, loadingDotAlpha, type GraphViewport } from './knowledgeGraphRendering';
 import type { GraphNode, GraphEdge } from './knowledgeGraphTypes';
 
 function fixture() {
@@ -128,5 +128,14 @@ describe('knowledge graph rendering', () => {
     expect(before.linkColor(links[0])).toBe('rgb(1 2 3)');
     expect(after.linkColor(links[0])).toBe('rgb(4 5 6)');
     document.documentElement.style.removeProperty('--ds-accent');
+  });
+});
+
+describe('loadingDotAlpha', () => {
+  it('pulses the dots one after the other and holds them still for reduced motion', () => {
+    const brightest = (now: number) => [0, 1, 2].map(index => loadingDotAlpha(index, now, false))
+      .reduce((best, alpha, index, all) => alpha > all[best] ? index : best, 0);
+    expect(new Set([300, 480, 660].map(brightest)).size).toBe(3);
+    expect(loadingDotAlpha(0, 300, true)).toBe(loadingDotAlpha(2, 660, true));
   });
 });

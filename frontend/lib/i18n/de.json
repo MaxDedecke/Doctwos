@@ -1447,6 +1447,7 @@
     "loadMoreConnections": "Weitere Verbindungen laden",
     "loadMoreConnectionsTitle": "Lädt weitere Nachbarschafts-Knoten und Kanten für diesen Fokusbereich aus der Datenbank",
     "hiddenConnections": "{{count}} weitere Verbindungen sind nicht geladen",
+    "groupLoading": "Nächste Ebene von „{{label}}“ wird geladen",
     "expandInPlace": "Verbindungen hier einblenden",
     "expandMore": "Weitere Verbindungen einblenden",
     "expandInPlaceTitle": "Lädt die übrigen Verbindungen dieses Knotens in die Übersicht; die übrigen Knoten bleiben, wo sie sind",

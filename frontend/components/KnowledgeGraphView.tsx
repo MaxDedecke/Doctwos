@@ -146,6 +146,8 @@ interface Props {
 const EMPTY_PROJECT_ENTITIES: CodeEntity[] = [];
 const AUTO_EXPAND_STORAGE_KEY = 'doctus-graph-auto-expand';
 
+type GroupBeingLoaded = { nodeId: string; label: string };
+
 /* ── Component ───────────────────────────────────────────────────────────────── */
 
 export function KnowledgeGraphView({
@@ -217,6 +219,8 @@ export function KnowledgeGraphView({
   // Gruppen-Knoten: welche Gruppen aufgeklappt sind, schickt der Browser bei jedem Laden mit.
   const [isGrouped, setIsGrouped] = useState(false);
   const expandedGroupsRef = useRef<string[]>([]);
+  const groupLoadCounterRef = useRef(0);
+  const [groupBeingLoaded, setGroupBeingLoaded] = useState<GroupBeingLoaded | null>(null);
   const sceneNodesRef = useRef<GraphNode[]>([]);
   // Die Nachbarschaft wird an fester Stelle angeordnet, die Kamera bleibt dagegen, wo man in der
   // Übersicht hingeschaut hat. Nach dem Wechsel wird sie deshalb einmal nachgeführt.
@@ -457,10 +461,16 @@ export function KnowledgeGraphView({
     }
   }, [selectedProject, selectedDoc, onlyLinked, addFocusParam, resetExpansions, graphLoadGate]);
 
-  const applyGroups = useCallback((next: string[], collapsedKey: string | null) => {
+  const applyGroups = useCallback((next: string[], collapsedKey: string | null, loading: GroupBeingLoaded | null = null) => {
     groupRequestRef.current = true;
+    const request = ++groupLoadCounterRef.current;
+    setGroupBeingLoaded(loading);
     void loadOverview(true, undefined, undefined, { expanded: next, collapsedKey })
-      .finally(() => { groupRequestRef.current = false; });
+      .finally(() => {
+        groupRequestRef.current = false;
+        // Eine überholte Anfrage darf die Anzeige der neueren nicht beenden.
+        if (request === groupLoadCounterRef.current) setGroupBeingLoaded(null);
+      });
   }, [loadOverview]);
 
   const toggleGroup = useCallback((key: string, expand: boolean) => {
@@ -474,7 +484,8 @@ export function KnowledgeGraphView({
     }
     setSelectedNodeId(null);
     setSelectedEdgeId(null);
-    applyGroups(next, expand ? null : key);
+    const node = expand ? sceneNodesRef.current.find(candidate => candidate.group_key === key) : null;
+    applyGroups(next, expand ? null : key, node ? { nodeId: node.id, label: node.label } : null);
   }, [applyGroups]);
 
   const undoGroupStep = useCallback(() => {
@@ -996,6 +1007,7 @@ export function KnowledgeGraphView({
     }
     return degrees;
   }, [filteredData.nodes, filteredData.links]);
+  const loadingNodeId = groupBeingLoaded?.nodeId ?? null;
   const hiddenCounts = useMemo(() => viewMode === 'overview' ? hiddenEdgeCounts(rawNodes, rawEdges) : new Map<string, number>(),
     [viewMode, rawNodes, rawEdges]);
 
@@ -1105,11 +1117,11 @@ export function KnowledgeGraphView({
   // eslint-disable-next-line react-hooks/refs
   const renderer = useMemo(() => createKnowledgeGraphRenderer({
     nodes: filteredData.nodes, links: filteredData.links, degrees: nodeDegrees, ghostIds,
-    selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, hiddenCounts,
+    selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, hiddenCounts, loadingNodeId,
     viewport: () => viewportRef.current, zoom: () => zoomRef.current,
     // The subscription invalidates colors after parent effects apply theme CSS.
     styleRevision,
-  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, hiddenCounts, styleRevision]);
+  }), [filteredData, nodeDegrees, ghostIds, selectedNodeId, selectedEdgeId, focusNodeId, focusNeighborIds, isDark, hiddenCounts, loadingNodeId, styleRevision]);
   const updateViewport = useCallback(() => {
     const graph = graphRef.current;
     if (!graph?.screen2GraphCoords) return;
@@ -1796,6 +1808,19 @@ export function KnowledgeGraphView({
               <span className="truncate">{journeyLabel ? t('knowledgeGraphView.journeyTo', { label: journeyLabel }) : t('knowledgeGraphView.journeyGeneric')}</span>
             </div>
           )}
+          {groupBeingLoaded && journeyLabel === null && (
+            <div role="status" aria-live="polite"
+              className={cn('pointer-events-none absolute left-1/2 top-3 z-20 flex max-w-[90%] -translate-x-1/2 items-center gap-2 rounded-full border px-3 py-1.5 text-xs shadow-lg',
+                isDark ? 'border-ds-zinc-700 bg-ds-zinc-900/95 text-ds-zinc-100' : 'border-ds-zinc-200 bg-ds-white/95 text-ds-zinc-900')}>
+              <span className="truncate">{t('knowledgeGraphView.groupLoading', { label: groupBeingLoaded.label })}</span>
+              <span className="flex shrink-0 items-center gap-0.5" aria-hidden="true">
+                {[0, 150, 300].map(delay => (
+                  <span key={delay} style={{ animationDelay: `${delay}ms` }}
+                    className="h-1 w-1 rounded-full bg-ds-indigo-400 animate-bounce motion-reduce:animate-none" />
+                ))}
+              </span>
+            </div>
+          )}
           {isLoading && (
             <div className={cn('absolute inset-0 z-20 flex items-center justify-center', isDark ? 'bg-ds-zinc-950/60' : 'bg-ds-white/65')}>
               <div className="flex w-[min(90%,26rem)] flex-col items-center gap-3 px-6 py-7 text-center">
@@ -1868,7 +1893,7 @@ export function KnowledgeGraphView({
               linkCanvasObjectMode={renderer.linkCanvasObjectMode}
               linkPointerAreaPaint={renderer.linkPointerArea}
               linkCurvature={renderer.curvature}
-              autoPauseRedraw
+              autoPauseRedraw={!groupBeingLoaded}
               onNodeClick={(node: GraphNode, event?: MouseEvent) => {
                 if (node.type === 'group' && node.group_key) {
                   toggleGroup(node.group_key, true);

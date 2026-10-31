@@ -696,6 +696,28 @@ describe('KnowledgeGraphView overview truncation & neighborhood focus (O-053)', 
     expect(String(fetchMock.mock.calls[2][0])).not.toContain('expanded=');
   });
 
+  it('shows that the next level of a group is loading until it has arrived', async () => {
+    const collapsed = { grouped: true, expanded: [], nodes: [
+      { id: 'group:c1', type: 'group', label: 'core · Billing', group_key: 'c1', group_kind: 'community', file_count: 2 },
+    ], edges: [] };
+    const expanded = { grouped: true, expanded: ['c1'], nodes: [
+      { id: 'file:1:2:A.java', type: 'code_file', label: 'A.java', file_path: 'A.java', project_id: 1, group_parent: 'c1' },
+    ], edges: [] };
+    let release: (value: unknown) => void = () => {};
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({ ok: true, json: async () => collapsed })
+      .mockImplementationOnce(() => new Promise(resolve => { release = resolve; })));
+
+    renderGraph();
+    fireEvent.click(await screen.findByTestId('node-group:c1'));
+    const status = await screen.findByRole('status');
+    expect(status.textContent).toContain('core · Billing');
+
+    release({ ok: true, json: async () => expanded });
+    await waitFor(() => expect(screen.getByTestId('node-file:1:2:A.java')).toBeTruthy());
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
   it('undoes the last expansion step and resets the graph to its initial state', async () => {
     const group = (key: string) => ({ id: `group:${key}`, type: 'group', label: key, group_key: key, group_kind: 'community', file_count: 2, project_id: 1 });
     const file = (name: string, parent: string) => ({ id: `file:${name}`, type: 'code_file', label: name, file_path: name, project_id: 1, group_parent: parent, group_parent_label: parent });
