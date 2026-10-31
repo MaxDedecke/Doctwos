@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { ProcessView } from './CallGraphView';
+import { guardLabel } from './ProcessFlow';
 
 vi.mock('react-force-graph-2d', () => ({ default: () => <div data-testid="process-graph" /> }));
 
