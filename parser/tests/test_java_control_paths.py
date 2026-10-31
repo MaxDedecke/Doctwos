@@ -52,3 +52,35 @@ def test_arrow_statement_and_short_circuit_evaluation_have_guards():
     assert calls["b"].meta["control_path"] == [
         {"type": "IF", "branch": "ELSE", "condition": "flag"}
     ]
+
+
+def test_object_creation_and_field_access_stand_under_their_condition():
+    result = parse_java_file(
+        """class Flow {
+      int count; Object last;
+      void use(boolean ok) {
+        if (ok && count > 0) {
+          last = new Object();
+          throw new IllegalStateException();
+        }
+        count = 1;
+      }
+    }""",
+        "Flow.java",
+    )
+    guard = [{"type": "IF", "branch": "THEN", "condition": "ok && count > 0"}]
+    created = {edge.dst_name: edge for edge in result.edges if edge.type == "INSTANTIATES"}
+    assert created["Object"].meta["control_path"] == guard
+    assert created["IllegalStateException"].meta["control_path"] == guard
+
+    writes = {
+        edge.dst_name.rsplit(".", 1)[-1]: edge
+        for edge in result.edges
+        if edge.type == "WRITES" and edge.src_start_line in {5, 8}
+    }
+    assert writes["last"].meta["control_path"] == guard
+    # Die Bedingung selbst wird vor der Verzweigung gelesen.
+    read = next(edge for edge in result.edges if edge.type == "READS" and "count" in edge.dst_name)
+    assert "control_path" not in read.meta or read.meta["control_path"] != guard
+    assert "control_path" not in writes["count"].meta
+

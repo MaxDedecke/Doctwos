@@ -34,6 +34,7 @@ _FLOW_SOURCES = 8
 _FLOW_TEXT = 160
 _ROUTINE_SCOPE_TYPES = {"method", "constructor", "lambda", "initializer"}
 # Ab hier gehört ein Aufruf zu einem anderen Ablauf (eigene Methode/Lambda/Klasse).
+_CONTROL_PATH_EDGES = frozenset({"CALLS", "INSTANTIATES", "READS", "WRITES"})
 _CONTROL_PATH_STOP_RULES = {
     "methodDeclaration",
     "constructorDeclaration",
@@ -236,7 +237,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                     )
                     break
                 current = current.parentCtx
-        if edge_type == "CALLS":
+        if edge_type in _CONTROL_PATH_EDGES:
             control_path = self._control_path(context)
             if control_path:
                 edge_meta["control_path"] = control_path
