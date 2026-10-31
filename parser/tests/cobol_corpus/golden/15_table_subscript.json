@@ -147,6 +147,12 @@
       "parent_name": "AUSGABE",
       "qualified_name": "TABSUB.AUSGABE.200-MONATE-ANZEIGEN",
       "meta": {
+        "exits": [
+          {
+            "statement": "GOBACK",
+            "line": 21
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

@@ -66,6 +66,12 @@
       "parent_name": "COPYREPL",
       "qualified_name": "COPYREPL.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 9
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

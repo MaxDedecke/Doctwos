@@ -93,6 +93,12 @@
       "parent_name": "DATAQUAL",
       "qualified_name": "DATAQUAL.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 29
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

@@ -186,6 +186,24 @@ def _loop_of(tokens: list[Token], start: int, chars: Chars | None = None) -> dic
     return None
 
 
+def _exit_statement(token: Token, following: Token | None) -> str | None:
+    if token.kind != "WORD":
+        return None
+    word = canonical_identifier(token.value)
+    if word == "GOBACK":
+        return "GOBACK"
+    next_word = (
+        canonical_identifier(following.value)
+        if following is not None and following.kind == "WORD"
+        else ""
+    )
+    if word == "STOP" and next_word == "RUN":
+        return "STOP RUN"
+    if word == "EXIT" and next_word == "PROGRAM":
+        return "EXIT PROGRAM"
+    return None
+
+
 def _with_path(meta: dict, path_stack: list[dict[str, str]]) -> dict:
     if path_stack:
         meta["control_path"] = [dict(entry) for entry in path_stack]
@@ -326,6 +344,14 @@ def scan(
                 if path_stack and path_stack[-1]["type"] == "LOOP":
                     path_stack.pop()
             timeline.note(tok, path_stack)
+
+        statement_end = _exit_statement(tok, nxt)
+        if statement_end is not None:
+            paragraph = _enclosing_paragraph(program, tok.phys_line)
+            if paragraph:
+                program.exits.setdefault(paragraph, []).append(
+                    _with_path({"statement": statement_end, "line": tok.phys_line}, path_stack)
+                )
 
         if tok.kind == "WORD" and canonical_identifier(tok.value) == "CALL":
             if nxt is not None and nxt.kind in ("LITERAL", "WORD"):

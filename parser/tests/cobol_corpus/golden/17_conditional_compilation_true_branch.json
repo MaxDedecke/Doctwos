@@ -66,6 +66,12 @@
       "parent_name": "DIALECTTEST",
       "qualified_name": "DIALECTTEST.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "GOBACK",
+            "line": 13
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

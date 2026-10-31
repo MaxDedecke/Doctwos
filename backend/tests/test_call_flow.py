@@ -415,7 +415,7 @@ def test_direction_both_resolves_the_entry_and_keeps_callers_of_the_program(
         item = CodeEntity(
             project_id=test_project,
             source_id=source.id,
-            file_path=f"{name}.cbl",
+            file_path=parent.file_path if parent else f"{name}.cbl",
             name=name,
             qualified_name=name if parent is None else f"{parent.name}.{name}",
             type=type_,

@@ -123,15 +123,18 @@ def _to_mermaid(nodes: list[dict], edges: list[dict]) -> str:
 def cobol_entry_paragraph(db: Session, program: CodeEntity) -> CodeEntity | None:
     """Wo ein COBOL-Programm beginnt: beim ersten Paragraphen der PROCEDURE DIVISION.
 
-    Die Kanten hängen an Paragraphen, nicht am Programm. Sections zählen nicht: Auch die der DATA
-    DIVISION tragen diesen Typ."""
+    Die Kanten hängen an Paragraphen, nicht am Programm. Paragraphen können auch in einer Section
+    liegen, deshalb entscheidet der Zeilenbereich des Programms statt `parent_id`; das unterscheidet
+    auch mehrere Programme in einer Datei."""
     return (
         db.query(CodeEntity)
         .filter(
             CodeEntity.project_id == program.project_id,
             CodeEntity.source_id == program.source_id,
             CodeEntity.variant_key == program.variant_key,
-            CodeEntity.parent_id == program.id,
+            CodeEntity.file_path == program.file_path,
+            CodeEntity.start_line >= program.start_line,
+            CodeEntity.end_line <= program.end_line,
             CodeEntity.type == "paragraph",
         )
         .order_by(CodeEntity.start_line, CodeEntity.id)

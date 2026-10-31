@@ -66,6 +66,12 @@
       "parent_name": "DYNCALL",
       "qualified_name": "DYNCALL.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 11
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

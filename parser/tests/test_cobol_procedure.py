@@ -254,3 +254,35 @@ def test_inline_perform_loop_scopes_only_its_body():
     ]
     # nach END-PERFORM / END-IF / END-EVALUATE: kein Kontext mehr
     assert "control_path" not in edges[("PERFORM", "ONE-PARA", 15)].meta
+
+
+def test_statements_that_end_a_run_are_noted_on_their_paragraph_with_their_condition():
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. ENDS.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           IF WS-A = 'Y'\n"
+        "               STOP RUN\n"
+        "           END-IF.\n"
+        "           GOBACK.\n"
+        "       LEAVE-PARA.\n"
+        "           EXIT PROGRAM.\n"
+        "       DONE-PARA.\n"
+        "           EXIT.\n"
+        "           STOP 'X'.\n"
+    )
+    program, _, errors = _edges(text)
+    assert errors == []
+    assert program.exits == {
+        "MAIN-PARA": [
+            {
+                "statement": "STOP RUN",
+                "line": 6,
+                "control_path": [{"type": "IF", "branch": "THEN", "condition": "WS-A = 'Y'"}],
+            },
+            {"statement": "GOBACK", "line": 8},
+        ],
+        "LEAVE-PARA": [{"statement": "EXIT PROGRAM", "line": 10}],
+    }
+

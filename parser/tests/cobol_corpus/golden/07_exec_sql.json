@@ -66,6 +66,12 @@
       "parent_name": "EXECSQL",
       "qualified_name": "EXECSQL.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 26
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

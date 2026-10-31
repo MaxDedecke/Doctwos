@@ -39,6 +39,12 @@
       "parent_name": "FREEDIR",
       "qualified_name": "FREEDIR.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 9
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

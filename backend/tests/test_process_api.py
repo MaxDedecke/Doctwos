@@ -888,6 +888,7 @@ def test_process_focus_on_a_program_starts_at_the_first_procedure_paragraph(
 ):
     entity, edge, remove_source = _cobol_program(db_session, test_project, test_team)
     program = entity("SIGNON", "program", 1)
+    program.end_line = 100
     entity("WORKING-STORAGE", "section", 5, program)
     first = entity("0000-MAIN", "paragraph", 50, program)
     other = entity("1000-INIT", "paragraph", 80, program)
@@ -1022,4 +1023,61 @@ def test_logging_and_simple_getter_calls_are_marked_as_helpers(
         "store": None,
     }
     remove()
+
+
+def test_process_focus_shows_where_a_routine_ends_the_run(
+    client, db_session, test_project, test_team
+):
+    entity, _, remove_source = _cobol_program(db_session, test_project, test_team)
+    guard = [{"type": "IF", "branch": "THEN", "condition": "WS-A"}]
+    para = entity(
+        "MAIN-PARA",
+        "paragraph",
+        10,
+        meta={
+            "exits": [
+                {"statement": "STOP RUN", "line": 12, "control_path": guard},
+                {"statement": "GOBACK", "line": 14},
+            ]
+        },
+    )
+    db_session.commit()
+
+    def focus(**params):
+        return client.get(
+            "/process/focus",
+            params={"entity_id": para.id, "project_id": test_project, **params},
+        ).json()
+
+    body = focus()
+    labels = {node["id"]: node["label"] for node in body["nodes"]}
+    steps = {labels[item["target"]]: item for item in body["transitions"]}
+    assert set(steps) == {"STOP RUN", "GOBACK"}
+    assert steps["STOP RUN"]["kind"] == "exit"
+    assert steps["STOP RUN"]["locator"]["start_line"] == 12
+    assert steps["STOP RUN"]["meta"]["control_path"] == guard
+    assert steps["GOBACK"]["origin_kind"] == "synthetic"
+
+    assert focus(direction="incoming")["transitions"] == []
+    assert focus(kinds="call")["transitions"] == []
+    remove_source()
+
+
+def test_program_entry_finds_a_paragraph_inside_a_section(
+    client, db_session, test_project, test_team
+):
+    entity, edge, remove_source = _cobol_program(db_session, test_project, test_team)
+    program = entity("SIGNON", "program", 1)
+    program.end_line = 100
+    section = entity("MAIN-SECTION", "section", 20, program)
+    first = entity("FIRST-PARA", "paragraph", 21, section)
+    later = entity("LATER-PARA", "paragraph", 50, program)
+    edge(first, later, "PERFORM", 22)
+    db_session.commit()
+
+    body = client.get(
+        "/process/focus", params={"entity_id": program.id, "project_id": test_project}
+    ).json()
+    assert body["root_node_id"] == f"entity:{first.id}"
+    remove_source()
 

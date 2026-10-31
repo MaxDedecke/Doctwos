@@ -158,6 +158,8 @@ class CobolProgram:
     sections: list[Section] = field(default_factory=list)
     paragraphs: list[Paragraph] = field(default_factory=list)
     entry_points: list[EntryPoint] = field(default_factory=list)
+    # Paragraph -> Anweisungen, die den Lauf beenden (GOBACK, STOP RUN, EXIT PROGRAM).
+    exits: dict[str, list[dict]] = field(default_factory=dict)
     parent_name: str | None = None
 
 

@@ -357,6 +357,9 @@ def _build_entities(
                 parent_name=paragraph.section or program.name,
                 qualified_name=_qualify(parent_qname, paragraph.name),
                 parent_qualified_name=parent_qname,
+                meta={"exits": program.exits[paragraph.name]}
+                if paragraph.name in program.exits
+                else {},
             )
         )
 

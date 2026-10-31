@@ -39,6 +39,12 @@
       "parent_name": "MINIMAL",
       "qualified_name": "MINIMAL.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 6
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

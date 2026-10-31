@@ -49,7 +49,7 @@ EDGE_KIND = {
     "USES_RESOURCE": "data_access",
     "TRANSFORMS_WITH": "data_access",
 }
-KNOWN_PROCESS_KINDS = frozenset(set(EDGE_KIND.values()) | {"external_call", "iteration"})
+KNOWN_PROCESS_KINDS = frozenset(set(EDGE_KIND.values()) | {"external_call", "iteration", "exit"})
 # Eingebettete Anweisungen: Der Paragraph enthält den Block, der Ablauf zeigt die Anweisung darin.
 EMBEDDED_BLOCK_TYPES = frozenset({"exec_block", "sql_block"})
 EXIT_OPERATIONS = frozenset({"RETURN", "ABEND"})
@@ -257,6 +257,39 @@ def _add_entry_routines(db: Session, root: CodeEntity, projection: ProcessProjec
         )
 
 
+def _add_exits(
+    routine: CodeEntity, transitions: list[ProcessTransition], nodes: list[ProcessNode]
+) -> None:
+    """Beendende Anweisungen stehen in `meta.exits` der Routine; sie haben kein eigenes Ziel im Index."""
+    for item in (routine.meta_json or {}).get("exits") or []:
+        node_id = f"end:{routine.id}:{item['line']}"
+        locator = ProcessLocator(
+            source_id=routine.source_id, file_path=routine.file_path, start_line=item["line"]
+        )
+        nodes.append(
+            ProcessNode(
+                id=node_id,
+                kind="exit",
+                label=item["statement"],
+                language=_language(routine),
+                locator=locator,
+            )
+        )
+        transitions.append(
+            ProcessTransition(
+                id=f"exit:{routine.id}:{item['line']}",
+                source=_node_id(routine.id),
+                target=node_id,
+                kind="exit",
+                certainty="certain",
+                resolution="resolved",
+                locator=locator,
+                origin_kind="synthetic",
+                meta={"control_path": item["control_path"]} if item.get("control_path") else {},
+            )
+        )
+
+
 def _node_label(entity: CodeEntity) -> str:
     """Ein Block heißt nach seiner Anweisung (`CICS READ USRSEC`), nicht nach seiner Zeile."""
     if entity.type not in EMBEDDED_BLOCK_TYPES:
@@ -389,6 +422,7 @@ def _projection(
         )
 
     frontier = {root.id}
+    walked: set[int] = set()
     transitions: list[ProcessTransition] = []
     seen_edge_ids: set[int] = set()
     reasons: set[str] = set()
@@ -583,6 +617,7 @@ def _projection(
             if helper:
                 transitions[-1].meta["helper"] = helper
             seen_edge_ids.add(edge.id)
+        walked |= frontier
         frontier = next_frontier
 
     _annotate_semantics(transitions)
@@ -621,10 +656,14 @@ def _projection(
             )
         )
 
+    if direction != "incoming" and "exit" in requested_kinds:
+        for entity_id in walked:
+            _add_exits(entities[entity_id], transitions, nodes)
+
     identity = "|".join(
         [str(root.project_id), str(root.id), direction, str(hops), str(node_limit), str(edge_limit)]
         + sorted(requested_kinds)
-        + [str(transition.code_edge_ids[0]) for transition in transitions]
+        + [transition.id for transition in transitions]
     )
     return ProcessProjection(
         projection_id=f"process:{sha256(identity.encode()).hexdigest()[:20]}",

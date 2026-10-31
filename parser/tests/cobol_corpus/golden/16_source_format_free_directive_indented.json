@@ -39,6 +39,12 @@
       "parent_name": "INDENTDIR",
       "qualified_name": "INDENTDIR.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 7
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

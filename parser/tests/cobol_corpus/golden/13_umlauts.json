@@ -120,6 +120,12 @@
       "parent_name": "PRÜFUNGS-LOGIK",
       "qualified_name": "KONTOSTATUSPRÜFUNG.PRÜFUNGS-LOGIK.200-BUCHUNGSPOSITIONEN-PRÜFEN",
       "meta": {
+        "exits": [
+          {
+            "statement": "GOBACK",
+            "line": 26
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

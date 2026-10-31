@@ -39,6 +39,12 @@
       "parent_name": "MULTIMAIN",
       "qualified_name": "MULTIMAIN.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 7
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -120,6 +126,12 @@
       "parent_name": "MULTISUB",
       "qualified_name": "MULTISUB.MAIN-PARA",
       "meta": {
+        "exits": [
+          {
+            "statement": "STOP RUN",
+            "line": 17
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
