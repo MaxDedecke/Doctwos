@@ -223,7 +223,7 @@ Zwei Korrekturen an der Matrix stammen aus dem Schreiben der Tests selbst:
 
 ## 7. Zustandsbesitz und Übergänge
 
-**Anzeige des Fokus:** Der globale Fokus steht in der Kopfzeile neben der Projektauswahl (`FocusIndicator`). Panels zeigen ihn nicht mehr einzeln; nur ein eingefrorenes Panel nennt im Kopf sein eigenes Objekt, weil es als einziges abweichen kann. Das X führt vom Objekt zurück auf seine Datei und schließt erst danach die Datei; eingefrorene Panels bleiben unberührt.
+**Anzeige des Fokus:** Der globale Fokus steht in der Kopfzeile neben der Projektauswahl (`FocusIndicator`). Panels zeigen ihn nicht mehr einzeln; nur ein eingefrorenes Panel nennt im Kopf sein eigenes Objekt, weil es als einziges abweichen kann. Das X hebt nur diesen Fokus und den Chat-Pin auf: Jede Ansicht bleibt, wie sie ist, bis wieder etwas ausgewählt wird (PS-33).
 
 Die Matrix regelt, welches Panel einer Auswahl folgt. Dieser Abschnitt regelt, **wer** den
 verbindlichen Zustand besitzt und wie zusammengehörige Änderungen gemeinsam ablaufen. Anlass:
@@ -284,6 +284,7 @@ liegt; er nutzt denselben, gesondert getesteten Baustein.
 | ID | Auslöser | Soll | Status |
 |---|---|---|---|
 | PS-31 | Projektwechsel | Auswahl, Objektfokus, Historie und Chat-Pin aller Panels sind leer; die Panels bleiben offen | ✅ |
+| PS-33 | Fokus im Header aufgehoben | Globale Auswahl und Chat-Pin sind leer; alle Panels behalten Datei, Objekt und Ansicht, auch bei späteren Layoutänderungen. Die nächste Auswahl gilt wieder für alle nicht eingefrorenen Panels | ✅ |
 | PS-32 | Panel mit eigenem Ziel geöffnet (Chat-Verweis, „In passender Ansicht öffnen", Dokument-Sprung, Prozessfluss, Agent) | Das Panel zeigt sein Ziel und folgt danach, sobald sich die globale Auswahl ändert, wie jedes Live-Panel. Bis 29.10.2026 blieb es dauerhaft stehen, wirkte also eingefroren, ohne so angezeigt zu werden | ✅ |
 
 ---

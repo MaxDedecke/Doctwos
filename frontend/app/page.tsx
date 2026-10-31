@@ -1098,29 +1098,14 @@ function AppContent() {
     else if (selectedFile) void handleFileSelect(selectedFile, selectedLine, selectedSource?.id);
   }, [handleDocFocusRequest, handleFileSelect, selectedDoc, selectedEntity, selectedFile, selectedLine, selectedSource?.id]);
 
-  // In zwei Schritten: Vom Objekt zurück auf seine Datei, erst danach schließt die Datei. Eingefrorene
-  // Panels behalten ihre Auswahl.
-  const clearFocus = useCallback(() => {
-    setPinnedCode(null);
-    setSelectedLine(null);
-    if (selectedEntity) {
-      setSelectedEntity(null);
-      return;
-    }
-    setSelectedFile(null);
-    setSelectedDoc(null);
-    setFileNavStack([]);
-    setFileContent('');
-  }, [selectedEntity, setFileContent, setFileNavStack, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine]);
-
   const focusIndicator = useMemo(() => (
     <FocusIndicator
       selection={{ selectedEntity, selectedDoc, selectedFile }}
       theme={theme}
       onView={viewFocus}
-      onClear={clearFocus}
+      onClear={workspaceState.clearFocus}
     />
-  ), [clearFocus, selectedDoc, selectedEntity, selectedFile, theme, viewFocus]);
+  ), [selectedDoc, selectedEntity, selectedFile, theme, viewFocus, workspaceState.clearFocus]);
 
   const renderPanel = (index: number) => {
     const contentType = panelConfigs[index] || 'chat';

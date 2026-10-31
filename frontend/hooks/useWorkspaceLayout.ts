@@ -148,6 +148,11 @@ export function useWorkspaceLayout({
   // Keep the mobile tab aligned with the content that is actually available.
   // These guards preserve the mobile navigation rules while keeping that
   // cross-panel state out of the page component.
+  // Nach dem Aufheben des Fokus behalten die Panels ihren Stand, bis wieder etwas ausgewählt wird.
+  const [focusCleared, setFocusCleared] = useState(false);
+  const hasSelection = Boolean(selectedFile || selectedDoc || selectedEntity);
+  if (focusCleared && hasSelection) setFocusCleared(false);
+  const panelsKeepState = focusCleared && !hasSelection;
   const [previousMobileReset, setPreviousMobileReset] = useState({ selectedFile, selectedDoc, activeRightTab });
   if (
     previousMobileReset.selectedFile !== selectedFile ||
@@ -155,7 +160,7 @@ export function useWorkspaceLayout({
     previousMobileReset.activeRightTab !== activeRightTab
   ) {
     setPreviousMobileReset({ selectedFile, selectedDoc, activeRightTab });
-    if (!selectedFile && !selectedDoc && activeRightTab !== 'graph') setActiveMobileTab('chat');
+    if (!selectedFile && !selectedDoc && activeRightTab !== 'graph' && !panelsKeepState) setActiveMobileTab('chat');
   }
 
   const [previousGraphSync, setPreviousGraphSync] = useState({ activeRightTab, isMobile });
@@ -191,7 +196,7 @@ export function useWorkspaceLayout({
     let changed = false;
     const historyPushIndexes: number[] = [];
     const nextSelections = panelSelections.map((selection, index) => {
-      if (panelFrozen[index]) return selection;
+      if (panelFrozen[index] || panelsKeepState) return selection;
       // A newly-created panel can carry an explicit destination (for example a
       // code-tour step). The global selection still describes the old workspace;
       // syncing it immediately would erase the new panel's destination. The
@@ -254,7 +259,7 @@ export function useWorkspaceLayout({
       return next;
     });
 
-    if (willUnfreeze) {
+    if (willUnfreeze && !panelsKeepState) {
       const previousSelection = panelSelections[index] || EMPTY_PANEL_SELECTION;
       const liveSelection: PanelSelection = { selectedFile, selectedDoc, selectedEntity, selectedLine: null };
       setPanelHistory((previousHistory) => {
@@ -269,7 +274,7 @@ export function useWorkspaceLayout({
         return next;
       });
     }
-  }, [panelFrozen, panelSelections, selectedDoc, selectedEntity, selectedFile]);
+  }, [panelFrozen, panelSelections, panelsKeepState, selectedDoc, selectedEntity, selectedFile]);
 
   const closePanel = useCallback((index: number) => {
     if (panelConfigs.length <= 1) return;
@@ -656,6 +661,16 @@ export function useWorkspaceLayout({
    * Chat-Pin und geladenen Dateiinhalt. Panels bleiben offen. Teil des Projektwechsels
    * (hooks/useProjectTransition.ts), damit keine Auswahl des alten Projekts stehen bleibt.
    */
+  /** Hebt nur den globalen Fokus auf (Header, Chat-Pin); jede Ansicht bleibt, wie sie ist. */
+  const clearFocus = useCallback(() => {
+    setFocusCleared(true);
+    setSelectedFile(null);
+    setSelectedDoc(null);
+    setSelectedLine(null);
+    setSelectedEntity(null);
+    setPinnedCode(null);
+  }, []);
+
   const clearSelection = useCallback(() => {
     setSelectedFile(null);
     setSelectedDoc(null);
@@ -669,6 +684,7 @@ export function useWorkspaceLayout({
   }, []);
 
   return {
+    clearFocus,
     clearSelection,
     isSidebarOpen,
     setIsSidebarOpen,

@@ -157,6 +157,45 @@ describe('useWorkspaceLayout 3-col divider resize', () => {
   });
 });
 
+describe('useWorkspaceLayout clearing the focus', () => {
+  it('leaves every view as it is until something is selected again', () => {
+    const { result } = renderLayout();
+    act(() => { result.current.addPanel('code'); });
+    act(() => { result.current.addPanel('graph'); });
+    act(() => {
+      result.current.setSelectedFile('src/A.java');
+      result.current.setSelectedLine(12);
+    });
+    const shown = result.current.panelSelections;
+    expect(shown[1].selectedFile).toBe('src/A.java');
+
+    act(() => { result.current.clearFocus(); });
+    expect(result.current.selectedFile).toBeNull();
+    expect(result.current.panelSelections).toEqual(shown);
+
+    // Spätere Layoutänderungen dürfen den Stand ebenfalls nicht leeren.
+    act(() => { result.current.addPanel('chat'); });
+    expect(result.current.panelSelections.slice(0, 3)).toEqual(shown);
+    act(() => { result.current.togglePanelFreeze(1); });
+    act(() => { result.current.togglePanelFreeze(1); });
+    expect(result.current.panelSelections[1].selectedFile).toBe('src/A.java');
+
+    act(() => { result.current.setSelectedFile('src/B.java'); });
+    expect(result.current.panelSelections[1].selectedFile).toBe('src/B.java');
+    expect(result.current.panelSelections[2].selectedFile).toBe('src/B.java');
+  });
+
+  it('keeps a frozen panel on its own object', () => {
+    const { result } = renderLayout();
+    act(() => { result.current.addPanel('code'); });
+    act(() => { result.current.setSelectedFile('src/A.java'); });
+    act(() => { result.current.togglePanelFreeze(1); });
+    act(() => { result.current.clearFocus(); });
+    act(() => { result.current.setSelectedFile('src/B.java'); });
+    expect(result.current.panelSelections[1].selectedFile).toBe('src/A.java');
+  });
+});
+
 describe('useWorkspaceLayout panel identity', () => {
   it('keeps a graph panel identity when an earlier chat panel closes', () => {
     const { result } = renderLayout();
