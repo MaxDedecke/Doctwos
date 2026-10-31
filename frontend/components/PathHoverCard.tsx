@@ -6,9 +6,33 @@ import { createPortal } from 'react-dom';
 
 const OPEN_DELAY_MS = 200;
 const CLOSE_DELAY_MS = 150;
-const CARD_WIDTH_PX = 448;
 const VIEWPORT_MARGIN_PX = 8;
-const MIN_SPACE_ABOVE_PX = 130;
+const TRIGGER_GAP_PX = 4;
+
+type Size = { width: number; height: number };
+
+/**
+ * Wo die Karte im Fenster liegt: bevorzugt über dem Auslöser, sonst darunter. Passt sie auf keiner
+ * Seite, nimmt sie die größere und scrollt. Rechnet mit der gemessenen Größe, weil `rem` mit der
+ * Fensterbreite wächst und lange Pfade umbrechen.
+ */
+export function placePathCard(
+  anchor: { left: number; top: number; bottom: number },
+  card: Size,
+  viewport: Size,
+): { left: number; top: number; maxHeight: number } {
+  const margin = VIEWPORT_MARGIN_PX;
+  const left = Math.max(margin, Math.min(anchor.left, viewport.width - card.width - margin));
+  const above = anchor.top - TRIGGER_GAP_PX - margin;
+  const below = viewport.height - anchor.bottom - TRIGGER_GAP_PX - margin;
+  const useAbove = card.height <= above || (card.height > below && above >= below);
+  const maxHeight = useAbove ? above : below;
+  return {
+    left,
+    top: useAbove ? anchor.top - TRIGGER_GAP_PX - Math.min(card.height, above) : anchor.bottom + TRIGGER_GAP_PX,
+    maxHeight,
+  };
+}
 
 /** Führt die zuletzt geplante Aktion nach ihrer Verzögerung aus; neuere ersetzen ältere. */
 function useDelayedAction() {
@@ -56,6 +80,11 @@ export const PathHoverCard: React.FC<PathHoverCardProps> = ({ path, theme, note,
   const [triggerElement, setTriggerElement] = useState<HTMLElement | null>(null);
   const [card, setCard] = useState<HTMLDivElement | null>(null);
   const { schedule, cancel } = useDelayedAction();
+  // `card` kommt aus dem Ref-Callback: Dieses Rendern läuft noch vor dem Zeichnen, die Karte erscheint
+  // also gleich an der richtigen Stelle.
+  const placement = anchor && card
+    ? placePathCard(anchor, { width: card.offsetWidth, height: card.scrollHeight }, { width: window.innerWidth, height: window.innerHeight })
+    : null;
   const show = () => schedule(() => setAnchor(triggerElement?.getBoundingClientRect() ?? null), OPEN_DELAY_MS);
   const hide = () => schedule(() => setAnchor(null), CLOSE_DELAY_MS);
 
@@ -63,7 +92,11 @@ export const PathHoverCard: React.FC<PathHoverCardProps> = ({ path, theme, note,
     if (!anchor) return;
     const close = () => setAnchor(null);
     window.addEventListener('scroll', close, true);
-    return () => window.removeEventListener('scroll', close, true);
+    window.addEventListener('resize', close);
+    return () => {
+      window.removeEventListener('scroll', close, true);
+      window.removeEventListener('resize', close);
+    };
   }, [anchor]);
 
   const actionClass = cn(
@@ -102,17 +135,9 @@ export const PathHoverCard: React.FC<PathHoverCardProps> = ({ path, theme, note,
             setAnchor(null);
             triggerElement?.focus();
           }}
-          style={{
-            position: 'fixed',
-            zIndex: 1000,
-            left: Math.max(
-              VIEWPORT_MARGIN_PX,
-              Math.min(anchor.left, window.innerWidth - VIEWPORT_MARGIN_PX - Math.min(CARD_WIDTH_PX, window.innerWidth - 2 * VIEWPORT_MARGIN_PX)),
-            ),
-            ...(anchor.top > MIN_SPACE_ABOVE_PX ? { bottom: window.innerHeight - anchor.top + 4 } : { top: anchor.bottom + 4 }),
-          }}
+          style={{ position: 'fixed', zIndex: 1000, visibility: placement ? 'visible' : 'hidden', ...placement }}
           className={cn(
-            'w-[min(28rem,calc(100vw-1rem))] rounded-md border p-2 text-xs shadow-xl',
+            'w-[min(28rem,calc(100vw-1rem))] overflow-y-auto rounded-md border p-2 text-xs shadow-xl',
             theme === 'dark' ? 'border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-200' : 'border-ds-zinc-200 bg-ds-white text-ds-zinc-800',
           )}
         >

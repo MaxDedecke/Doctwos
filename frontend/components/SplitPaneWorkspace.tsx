@@ -1277,12 +1277,17 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   )}
                 </PathHoverCard>
               ) : (
-                <span
-                  className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
-                  title={selectedDoc?.name || ''}
-                >
-                  {selectedDoc?.name?.split('/').pop() || selectedDoc?.name || t('splitPane.documentFallback')}
-                </span>
+                <PathHoverCard path={selectedDoc?.name || ''} theme={theme}>
+                  {(trigger) => (
+                    <span
+                      {...trigger}
+                      tabIndex={0}
+                      className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
+                    >
+                      {selectedDoc?.name?.split('/').pop() || selectedDoc?.name || t('splitPane.documentFallback')}
+                    </span>
+                  )}
+                </PathHoverCard>
               )}
             </div>
             <div className="flex items-center gap-1.5 shrink-0">

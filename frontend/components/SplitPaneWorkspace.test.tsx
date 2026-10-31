@@ -536,6 +536,16 @@ describe('SplitPaneWorkspace', () => {
   });
 
   describe('Sprung zur Zielzeile', () => {
+    it('offers the full document path on hover in the document header', async () => {
+      renderWorkspace({ activeRightTab: 'doc', selectedFile: null, selectedDoc: { id: 7, name: 'docs/handbuch/Betrieb.md' }, fileContent: 'Text' });
+
+      const name = screen.getAllByText('Betrieb.md')[0];
+      fireEvent.mouseEnter(name);
+      expect(await screen.findByRole('group', { name: 'docs/handbuch/Betrieb.md' })).toBeTruthy();
+      expect(screen.getByRole('button', { name: 'Pfad kopieren' })).toBeTruthy();
+      expect(screen.queryByRole('button', { name: 'Ansehen' })).toBeNull();
+    });
+
     it('shows only the file name in the header and offers the full path on hover, without a view action', async () => {
       renderWorkspace({ activeRightTab: 'code', selectedFile: 'src/app/ZAHLUNG.cbl', fileContent: 'A' });
 
