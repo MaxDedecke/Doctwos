@@ -10,6 +10,7 @@ Dateien/Entitäten/Statistiken/Referenzen nicht sehen.
 """
 
 import os
+from unittest.mock import patch
 
 import pytest
 
@@ -499,6 +500,17 @@ def test_get_project_entities_scoped_to_project_and_filterable_by_type(
         res = client.get(f"/projects/{test_project}/entities", params={"type": "paragraph"})
         assert res.status_code == 200
         assert {e["name"] for e in res.json()} == {"INIT-PARA"}
+
+        res = client.get(f"/projects/{test_project}/entities", params={"file_path": "OTHER.cbl"})
+        assert res.status_code == 200
+        assert res.json() == []
+
+        # Über der Grenze keine Liste; je Datei geht es weiter.
+        with patch("api.projects.MAX_PROJECT_ENTITY_LIST", 1):
+            assert client.get(f"/projects/{test_project}/entities").status_code == 413
+            res = client.get(f"/projects/{test_project}/entities", params={"file_path": "ACCOUNT.cbl"})
+            assert res.status_code == 200
+            assert {e["name"] for e in res.json()} == {"ACCOUNT", "INIT-PARA"}
     finally:
         db_session.query(CodeEntity).filter(
             CodeEntity.id.in_([own_program.id, own_paragraph.id, foreign_entity.id])

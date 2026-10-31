@@ -165,6 +165,7 @@ function ProjectLinkManagerView({
   // Manual link form state
   const [manualKind, setManualKind] = useState<'entity' | 'knowledge' | null>(null);
   const [entities, setEntities] = useState<PickerEntity[]>([]);
+  const [oversizedProjectId, setOversizedProjectId] = useState<number | null>(null);
   const [entitySearchInput, setEntitySearchInput] = useState('');
   const [selectedEntityId, setSelectedEntityId] = useState<number | null>(null);
   const [selectedEntityObj, setSelectedEntityObj] = useState<PickerEntity | null>(null);
@@ -277,13 +278,40 @@ function ProjectLinkManagerView({
   }, [projectId]);
 
   useEffect(() => {
-    if (projectId && manualKind === 'entity' && entities.length === 0) {
+    if (projectId && manualKind === 'entity' && entities.length === 0 && oversizedProjectId !== projectId) {
       api.fetch(`${API_URL}/projects/${projectId}/entities`)
-        .then(r => r.json())
+        .then(r => {
+          if (r.status === 413) {
+            setOversizedProjectId(projectId);
+            return [];
+          }
+          return r.json();
+        })
         .then((all: Array<{ type?: string | null }>) => setEntities(all.filter(e => !(e.type && DOCUMENTATION_ENTITY_TYPES.has(e.type))) as PickerEntity[]))
         .catch(() => {});
     }
-  }, [projectId, manualKind, entities.length]);
+  }, [projectId, manualKind, entities.length, oversizedProjectId]);
+
+  // Sehr große Projekte: keine vollständige Liste, die Auswahl sucht auf dem Server.
+  useEffect(() => {
+    const query = entitySearchInput.trim();
+    if (!projectId || oversizedProjectId !== projectId || manualKind !== 'entity' || !query) return;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => {
+      api.searchGlobal(query, { types: 'entity', projectId, limit: 50, signal: controller.signal })
+        .then(res => setEntities(res.data.results.flatMap(result => {
+          const type = result.node_meta?.type as string | undefined;
+          const filePath = result.node_meta?.file_path as string | undefined;
+          if (!filePath || (type && DOCUMENTATION_ENTITY_TYPES.has(type))) return [];
+          return [{ id: result.node_id, name: result.node_label, file_path: filePath, type, start_line: result.node_meta?.start_line as number | undefined }];
+        })))
+        .catch(() => {});
+    }, 300);
+    return () => {
+      clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [projectId, oversizedProjectId, manualKind, entitySearchInput]);
 
   useEffect(() => {
     if (!projectId || !docSearchQuery.trim()) {

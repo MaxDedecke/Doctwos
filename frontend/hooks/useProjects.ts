@@ -1,6 +1,7 @@
 import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
 import type { CodeEntity, Project, ProjectStats } from '@/types/domain';
+import { isAxiosError } from 'axios';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRequestGate } from '@/lib/requestGate';
 
@@ -29,6 +30,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
   const [files, setFiles] = useState<string[]>([]);
   const [branch, setBranch] = useState('main');
   const [projectEntities, setProjectEntities] = useState<CodeEntity[]>([]);
+  const [oversizedProjectId, setOversizedProjectId] = useState<number | null>(null);
   const [projectStats, setProjectStats] = useState<Record<number, ProjectStats>>({});
   const filesGate = useRequestGate();
   const [backendStatus, setBackendStatus] = useState('connecting');
@@ -111,9 +113,6 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
               api.getProjectFiles(newProject.id)
                 .then((fileRes) => setFiles(fileRes.data))
                 .catch(console.error);
-              api.getProjectEntities(newProject.id)
-                .then((entityRes) => setProjectEntities(entityRes.data))
-                .catch(console.error);
             }
           } else if (newProject.status === 'error') {
             showToast(t('page.toast.projectAnalysisError', { name: newProject.name }), 'error');
@@ -137,9 +136,18 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
     }
     // Nach einem schnellen Projektwechsel darf die Antwort des vorigen Projekts nicht mehr landen.
     let cancelled = false;
-    api.getProjectEntities(selectedProject.id)
-      .then((res) => { if (!cancelled) setProjectEntities(res.data); })
-      .catch((error) => console.error('Failed to load project entities:', error));
+    const projectId = selectedProject.id;
+    api.getProjectEntities(projectId)
+      .then((res) => {
+        if (cancelled) return;
+        setOversizedProjectId(null);
+        setProjectEntities(res.data);
+      })
+      .catch((error) => {
+        if (cancelled) return;
+        if (isAxiosError(error) && error.response?.status === 413) setOversizedProjectId(projectId);
+        else console.error('Failed to load project entities:', error);
+      });
     return () => { cancelled = true; };
   }, [selectedProject]);
 
@@ -192,6 +200,7 @@ export function useProjects({ isLoggedIn, isSettingsOpen, t, showToast }: UsePro
     setBranch,
     projectEntities,
     setProjectEntities,
+    entityListTooLarge: selectedProject != null && oversizedProjectId === selectedProject.id,
     projectStats,
     setProjectStats,
     backendStatus,

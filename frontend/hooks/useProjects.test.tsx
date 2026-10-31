@@ -1,5 +1,6 @@
 import { act, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { AxiosError } from 'axios';
 import { axiosResponse } from '@/test/http';
 import { api } from '@/app/services/api';
 import type { Project } from '@/types/domain';
@@ -222,6 +223,23 @@ describe('useProjects', () => {
         await result.current.selectProject(second);
       });
       await waitFor(() => expect(result.current.projectEntities).toEqual([{ id: 2, name: 'Entity-2', file_path: '2.cbl', start_line: 1 }]));
+    });
+
+    it('marks a project whose full entity list the server refuses, only while it is selected', async () => {
+      mockedApi.getProjectEntities.mockImplementation((id: number) => id === 1
+        ? Promise.reject(new AxiosError('too large', undefined, undefined, undefined, { status: 413 } as never))
+        : Promise.resolve(axiosResponse([])));
+      const { result } = renderHook(() => useProjects({ isLoggedIn: false, isSettingsOpen: false, t, showToast }));
+
+      await act(async () => {
+        await result.current.selectProject(project({ id: 1 }));
+      });
+      await waitFor(() => expect(result.current.entityListTooLarge).toBe(true));
+
+      await act(async () => {
+        await result.current.selectProject(project({ id: 2, name: 'Zinsberechnung' }));
+      });
+      expect(result.current.entityListTooLarge).toBe(false);
     });
   });
 

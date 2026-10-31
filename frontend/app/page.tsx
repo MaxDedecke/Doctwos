@@ -28,6 +28,7 @@ import { useChatController } from '@/hooks/useChatController';
 import { useChatSessions } from '@/hooks/useChatSessions';
 import { useDisplaySettings } from '@/hooks/useDisplaySettings';
 import { useKnowledgeSources } from '@/hooks/useKnowledgeSources';
+import { useOpenFileEntities } from '@/hooks/useOpenFileEntities';
 import { usePanelNavigation } from '@/hooks/usePanelNavigation';
 import { useProjects } from '@/hooks/useProjects';
 import { useWorkspaceLayout } from '@/hooks/useWorkspaceLayout';
@@ -190,7 +191,7 @@ function AppContent() {
 
   const {
     projects, setProjects, selectedProject, setSelectedProject, files, setFiles,
-    branch, setBranch, projectEntities, setProjectEntities, projectStats,
+    branch, setBranch, projectEntities: fullEntityList, setProjectEntities, entityListTooLarge, projectStats,
     setProjectStats, backendStatus, selectProject,
   } = projectState;
   const {
@@ -222,6 +223,12 @@ function AppContent() {
     handleDividerMouseDown, handleGridResizePointerDown, handleThreeColLeftDividerPointerDown,
     handleThreeColRightDividerPointerDown, restoreWorkspaceSnapshot, buildWorkspaceSnapshot,
   } = workspaceState;
+  const openFiles = useMemo(() => {
+    const paths = panelSelections.map((selection) => selection.selectedFile);
+    return [...paths, selectedFile].filter((path): path is string => Boolean(path));
+  }, [panelSelections, selectedFile]);
+  const openFileEntities = useOpenFileEntities(selectedProject?.id ?? null, entityListTooLarge, openFiles);
+  const projectEntities = entityListTooLarge ? openFileEntities : fullEntityList;
 
   const fileContentGate = useRequestGate();
   // Der Chat-Controller entsteht erst weiter unten; ein neuer Chat muss seinen laufenden Stream
@@ -391,7 +398,7 @@ function AppContent() {
           showToast('Das Projekt ist noch nicht fertig indiziert.', 'warning');
           return;
         }
-        const response = await api.getProjectEntities(project.id);
+        const response = await api.getProjectEntities(project.id, ideLink.path);
         if (cancelled) return;
         const candidates = response.data.filter(entity =>
           entity.source_id === ideLink.sourceId && entity.file_path === ideLink.path &&

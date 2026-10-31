@@ -11,6 +11,7 @@ import logging
 import random
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session, aliased
 from sqlalchemy import and_, or_
 
@@ -393,36 +394,48 @@ def list_project_files(
     return sorted(files)
 
 
+MAX_PROJECT_ENTITY_LIST = 50_000
+
+
 @router.get("/{id}/entities")
 def get_project_entities(
     id: int,
     type: Optional[str] = None,
+    file_path: Optional[str] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    """Ohne `file_path` ist die Liste begrenzt: Darüber antwortet der Endpunkt mit 413, und der
+    Aufrufer lädt je Datei. Die fertige JSON-Antwort entsteht hier im Worker-Thread; FastAPIs
+    Umwandlung läuft sonst in der Ereignisschleife und blockiert bei Millionen Zeilen alle Anfragen.
+    """
     proj = db.query(Project).filter(Project.id == id).first()
     if not proj:
         raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
     assert_project_visible(id, user, db)
 
-    q = db.query(CodeEntity).filter(CodeEntity.project_id == id)
+    q = db.query(
+        CodeEntity.id,
+        CodeEntity.name,
+        CodeEntity.type,
+        CodeEntity.file_path,
+        CodeEntity.start_line,
+        CodeEntity.end_line,
+        CodeEntity.project_id,
+        CodeEntity.source_id,
+        CodeEntity.variant_key,
+    ).filter(CodeEntity.project_id == id)
     if type:
         q = q.filter(CodeEntity.type == type)
+    if file_path:
+        q = q.filter(CodeEntity.file_path == file_path)
+    else:
+        q = q.limit(MAX_PROJECT_ENTITY_LIST + 1)
 
-    return [
-        {
-            "id": e.id,
-            "name": e.name,
-            "type": e.type,
-            "file_path": e.file_path,
-            "start_line": e.start_line,
-            "end_line": e.end_line,
-            "project_id": e.project_id,
-            "source_id": e.source_id,
-            "variant_key": e.variant_key,
-        }
-        for e in q.all()
-    ]
+    rows = q.all()
+    if not file_path and len(rows) > MAX_PROJECT_ENTITY_LIST:
+        raise HTTPException(status_code=413, detail="Projekt zu groß für die vollständige Liste")
+    return JSONResponse([dict(row._mapping) for row in rows])
 
 
 # Strukturelle Kanten gehören zum Aufbau der Objekte, nicht zu einer Verwendung im Text.

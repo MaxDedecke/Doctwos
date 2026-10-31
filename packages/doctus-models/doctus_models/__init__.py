@@ -6,4 +6,4 @@ zu führen. Schemaänderungen brauchen weiterhin eine Alembic-Migration in
 backend/alembic/; die Paketversion wird bei jeder Modelländerung erhöht.
 """
 
-__version__ = "1.3.1"
+__version__ = "1.3.2"

@@ -577,7 +577,9 @@ class CodeEntity(Base):
 
     __tablename__ = "code_entities"
     id = Column(Integer, primary_key=True, index=True)
-    project_id = Column(Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True)
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=True, index=True
+    )
     source_id = Column(
         Integer, ForeignKey("knowledge_sources.id", ondelete="CASCADE"), nullable=True, index=True
     )

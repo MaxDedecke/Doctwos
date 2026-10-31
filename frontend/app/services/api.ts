@@ -138,7 +138,8 @@ export const api = {
         axios.post(`${API_URL}/knowledge-sources/git`, data),
     getFileReferences: (id: number, filePath: string, sourceId?: number | null) =>
       axios.get<{ references: UsageReference<CodeEntity>[]; truncated: boolean }>(`${API_URL}/projects/${id}/file-references`, { params: { file_path: filePath, ...(sourceId != null ? { source_id: sourceId } : {}) } }),
-    getProjectEntities: (id: number) => axios.get<Array<CodeEntity & { id: number }>>(`${API_URL}/projects/${id}/entities`),
+    // Ohne filePath antwortet der Server bei sehr großen Projekten mit 413; dann je Datei laden.
+    getProjectEntities: (id: number, filePath?: string) => axios.get<Array<CodeEntity & { id: number }>>(`${API_URL}/projects/${id}/entities`, filePath ? { params: { file_path: filePath } } : undefined),
     // projectId ist der aktuelle Projekt-Kontext des Aufrufers (Code-Editor etc.) --
     // fehlt er (Allgemein-Modus), gilt serverseitig das Default-Deny-Opt-in für
     // projektübergreifende Sichtbarkeit von Code-Analyse-Objekten (siehe
