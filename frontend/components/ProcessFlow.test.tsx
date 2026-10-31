@@ -112,3 +112,20 @@ describe('ProcessView – Ablauf', () => {
     expect(at("sonst (nicht: WS-A = 'Y')")).toBeLessThan(at('WRITE-OUT'));
   });
 });
+
+describe('guardLabel', () => {
+  const t = (key: string, vars?: Record<string, string | number>) => `${key.split('.').pop()}:${vars?.text ?? vars?.when ?? ''}`;
+
+  it('liest EVALUATE TRUE und FALSE als Bedingungen statt als Vergleich mit TRUE', () => {
+    const entry = { type: 'EVALUATE', subject: 'TRUE', when: 'WS-A = SPACES' };
+    expect(guardLabel(entry, t)).toBe('ifThen:WS-A = SPACES');
+    expect(guardLabel({ ...entry, subject: 'FALSE' }, t)).toBe('ifNot:WS-A = SPACES');
+    expect(guardLabel({ ...entry, when: 'OTHER' }, t)).toBe('otherwise:');
+  });
+
+  it('nennt bei einem echten Subjekt weiter den Vergleich', () => {
+    expect(guardLabel({ type: 'EVALUATE', subject: 'WS-RESP-CD', when: '0' }, t)).toBe('when:0');
+    expect(guardLabel({ type: 'SWITCH', subject: 'mode', when: 'default' }, t)).toBe('other:');
+  });
+});
+

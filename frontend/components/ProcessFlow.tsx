@@ -390,7 +390,14 @@ export function guardLabel(entry: PathEntry, t: Translate): string {
   }
   if (entry.type === 'EVALUATE' || entry.type === 'SWITCH') {
     const when = entry.when || '…';
-    return when.toUpperCase() === 'OTHER' || when.toLowerCase() === 'default'
+    const isOther = when.toUpperCase() === 'OTHER' || when.toLowerCase() === 'default';
+    // EVALUATE TRUE ist nur eine Liste von Bedingungen: Das WHEN ist die Bedingung selbst.
+    const subject = (entry.subject || '').toUpperCase();
+    if (subject === 'TRUE' || subject === 'FALSE') {
+      if (isOther) return t('processFlow.guard.otherwise');
+      return t(subject === 'TRUE' ? 'processFlow.guard.ifThen' : 'processFlow.guard.ifNot', { text: when });
+    }
+    return isOther
       ? t('processFlow.guard.other', { subject: entry.subject || '…' })
       : t('processFlow.guard.when', { subject: entry.subject || '…', when });
   }

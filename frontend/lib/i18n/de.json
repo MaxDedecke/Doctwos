@@ -1842,6 +1842,8 @@
     "unresolved": "offen",
     "condition": "Bedingung",
     "guard": {
+      "ifNot": "wenn nicht {{text}}",
+      "otherwise": "sonst",
       "ifThen": "wenn {{text}}",
       "ifElse": "sonst (nicht: {{text}})",
       "when": "bei {{subject}} = {{when}}",
