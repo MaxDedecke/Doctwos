@@ -163,6 +163,64 @@ describe('buildFlowRows', () => {
     expect(opened.find(row => row.key === 'root/a')!.openElsewhere).toBeUndefined();
   });
 
+  describe('Weiterlaufen in den nächsten Paragraphen', () => {
+    const onward = (id: number, next: number): FlowProjection => ({
+      nodes: [node(`entity:${id}`, `P${id}`), node(`entity:${next}`, `P${next}`)],
+      transitions: [tr(`f${id}`, `entity:${id}`, `entity:${next}`, 'step', next * 10, [], { meta: { fall_through: true } })],
+    });
+    const labels = (rows: { label: string }[]) => rows.map(row => row.label);
+
+    it('zeigt es am Programmanfang und bleibt dabei auf derselben Ebene', () => {
+      const entry = { ...onward(1, 2), rootNodeId: 'entity:1' };
+      const projections = new Map([['entity:9', entry], ['entity:2', onward(2, 3)]]);
+      const { rows } = buildFlowRows('entity:9', projections, new Set(['root/f1']));
+      expect(labels(rows)).toEqual(['P1', 'P2', 'P3']);
+      expect(rows[1].fallThrough).toBe(true);
+      expect(rows[2].indent).toBe(rows[1].indent);
+    });
+
+    it('zeigt es nicht nach einem PERFORM, denn von dort kehrt der Lauf zurück', () => {
+      const main: FlowProjection = {
+        nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'P2')],
+        transitions: [tr('p', 'entity:1', 'entity:2', 'call', 5, ['PERFORM'])],
+      };
+      const { rows } = buildFlowRows('entity:1', new Map([['entity:1', main], ['entity:2', onward(2, 3)]]), new Set(['root/p']));
+      expect(labels(rows)).toEqual(['MAIN', 'P2']);
+    });
+
+    it('zeigt es nach GO TO und bei PERFORM THRU bis zum genannten Endpunkt', () => {
+      const via = (kind: string, meta = {}): FlowProjection => ({
+        nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'P2')],
+        transitions: [tr('p', 'entity:1', 'entity:2', kind, 5, ['PERFORM'], { meta })],
+      });
+      const chain: [string, FlowProjection][] = [['entity:2', onward(2, 3)], ['entity:3', onward(3, 4)]];
+      const open = new Set(['root/p', 'root/p/f2']);
+
+      const jump = buildFlowRows('entity:1', new Map([['entity:1', via('jump')], ...chain]), open).rows;
+      expect(labels(jump)).toEqual(['MAIN', 'P2', 'P3', 'P4']);
+
+      const thru = buildFlowRows('entity:1', new Map([['entity:1', via('call', { thru: 'p3' })], ...chain]), open).rows;
+      expect(labels(thru)).toEqual(['MAIN', 'P2', 'P3']);
+      expect(thru[1].thru).toBe('p3');
+    });
+  });
+
+  it('zählt ausgeblendete Datenzugriffe am Zweig und zeigt ihn trotzdem', () => {
+    const then = { type: 'IF', branch: 'THEN', condition: 'WS-A' };
+    const flow: FlowProjection = {
+      nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'A'), node('entity:9', 'FELD')],
+      transitions: [
+        tr('d1', 'entity:1', 'entity:9', 'data_access', 10, ['READS']),
+        tr('d2', 'entity:1', 'entity:9', 'data_access', 11, ['WRITES'], { meta: { control_path: [then] } }),
+        tr('d3', 'entity:1', 'entity:9', 'data_access', 12, ['WRITES'], { meta: { control_path: [then] } }),
+        tr('a', 'entity:1', 'entity:2', 'call', 20, ['PERFORM']),
+      ],
+    };
+    const { rows, hiddenData } = buildFlowRows('entity:1', new Map([['entity:1', flow]]), new Set(), { hideData: true });
+    expect(hiddenData).toBe(3);
+    expect(rows.map(row => (row.guard ? `wenn:${row.dataCount}` : row.label))).toEqual(['MAIN', 'wenn:2', 'A']);
+  });
+
   it('setzt Wächterzeilen für Bedingungen und Schleifen und rückt darunterliegende Schritte ein', () => {
     const ifThen = { type: 'IF', branch: 'THEN', condition: "WS-A = 'Y'" };
     const ifElse = { ...ifThen, branch: 'ELSE' };

@@ -967,7 +967,7 @@ def test_entry_routines_show_the_methods_of_a_java_file_and_mark_getters(
         ).json()
 
     for root in (unit, cls):
-        body = focus(root.id, entry_routines=True)
+        body = focus(root.id, flow_view=True)
         steps = {item["target"]: item for item in body["transitions"]}
         assert set(steps) == {f"entity:{run.id}", f"entity:{getter.id}", f"entity:{heavy.id}"}
         assert all(item["origin_kind"] == "synthetic" for item in steps.values())
@@ -975,7 +975,7 @@ def test_entry_routines_show_the_methods_of_a_java_file_and_mark_getters(
         assert "helper" not in steps[f"entity:{heavy.id}"]["meta"]
 
     assert focus(cls.id)["transitions"] == []
-    assert focus(run.id, entry_routines=True)["transitions"] == []
+    assert focus(run.id, flow_view=True)["transitions"] == []
     remove()
 
 
@@ -1017,7 +1017,7 @@ def test_logging_and_simple_getter_calls_are_marked_as_helpers(
     helpers = {labels[item["target"]]: item["meta"].get("helper") for item in body["transitions"]}
     assert helpers == {
         "LOG.info": "logging",
-        "Objects.requireNonNull": "precondition",
+        "Objects.requireNonNull": "utility",
         "getName": "accessor",
         "getReport": None,
         "store": None,
@@ -1079,5 +1079,33 @@ def test_program_entry_finds_a_paragraph_inside_a_section(
         "/process/focus", params={"entity_id": program.id, "project_id": test_project}
     ).json()
     assert body["root_node_id"] == f"entity:{first.id}"
+    remove_source()
+
+
+def test_flow_view_offers_the_next_paragraph_when_a_paragraph_runs_on(
+    client, db_session, test_project, test_team
+):
+    entity, _, remove_source = _cobol_program(db_session, test_project, test_team)
+    following = entity("NEXT-PARA", "paragraph", 20)
+    para = entity(
+        "OPEN-PARA",
+        "paragraph",
+        10,
+        meta={"falls_through": {"paragraph": following.qualified_name, "certain": False}},
+    )
+    db_session.commit()
+
+    def focus(**params):
+        return client.get(
+            "/process/focus",
+            params={"entity_id": para.id, "project_id": test_project, **params},
+        ).json()
+
+    assert focus()["transitions"] == []
+    [step] = focus(flow_view=True)["transitions"]
+    assert step["target"] == f"entity:{following.id}"
+    assert step["meta"] == {"fall_through": True}
+    assert step["certainty"] == "possible"
+    assert step["locator"]["start_line"] == 20
     remove_source()
 

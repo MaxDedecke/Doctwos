@@ -160,6 +160,8 @@ class CobolProgram:
     entry_points: list[EntryPoint] = field(default_factory=list)
     # Paragraph -> Anweisungen, die den Lauf beenden (GOBACK, STOP RUN, EXIT PROGRAM).
     exits: dict[str, list[dict]] = field(default_factory=dict)
+    # Paragraph -> (nächster Paragraph, sicher?), wenn der Lauf am Ende weiterläuft statt zu enden.
+    fall_through: dict[str, tuple[str, bool]] = field(default_factory=dict)
     parent_name: str | None = None
 
 

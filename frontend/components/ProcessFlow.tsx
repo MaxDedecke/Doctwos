@@ -24,13 +24,33 @@ const VERB_ORDER: DataVerb[] = ['read', 'write', 'use'];
 
 async function fetchProjection(entityId: number, projectId: number | null | undefined): Promise<{ projection: FlowProjection; truncated: boolean }> {
   const projectParam = projectId ? `&project_id=${projectId}` : '';
-  const response = await api.fetch(`${API_URL}/process/focus?entity_id=${entityId}&hops=1&direction=outgoing&node_limit=500&edge_limit=1000&entry_routines=true${projectParam}`);
+  const response = await api.fetch(`${API_URL}/process/focus?entity_id=${entityId}&hops=1&direction=outgoing&node_limit=500&edge_limit=1000&flow_view=true${projectParam}`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const data: FlowProjection & { root_node_id?: string; truncation?: { truncated: boolean } } = await response.json();
   return {
     projection: { nodes: data.nodes || [], transitions: data.transitions || [], rootNodeId: data.root_node_id },
     truncated: Boolean(data.truncation?.truncated),
   };
+}
+
+type Caller = { id: string; label: string; filePath: string; line: number; sourceId?: number | null };
+
+async function fetchCallers(entityId: number, projectId: number | null | undefined): Promise<Caller[]> {
+  const projectParam = projectId ? `&project_id=${projectId}` : '';
+  const response = await api.fetch(`${API_URL}/process/focus?entity_id=${entityId}&hops=1&direction=incoming&kinds=call,jump,iteration&node_limit=200&edge_limit=200${projectParam}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const data: FlowProjection & { root_node_id: string } = await response.json();
+  const labels = new Map(data.nodes.map(node => [node.id, node.label]));
+  return data.transitions
+    .filter(transition => transition.target === data.root_node_id)
+    .sort((a, b) => a.locator.file_path.localeCompare(b.locator.file_path) || a.locator.start_line - b.locator.start_line)
+    .map(transition => ({
+      id: transition.id,
+      label: labels.get(transition.source) ?? '?',
+      filePath: transition.locator.file_path,
+      line: transition.locator.start_line,
+      sourceId: transition.locator.source_id,
+    }));
 }
 
 export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: Props) {
@@ -46,6 +66,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<Gate>({ truncated: false });
+  const [callers, setCallers] = useState<Caller[] | 'loading' | null>(null);
   const [expandingAll, setExpandingAll] = useState(false);
   const [expandLimited, setExpandLimited] = useState(false);
   const requested = useRef<Set<string>>(new Set());
@@ -87,6 +108,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       setError(null);
       setExpandingAll(false);
       setExpandLimited(false);
+      setCallers(null);
       if (rootEntityId != null) load(`entity:${rootEntityId}`, rootEntityId);
     });
     // load hängt nur an projectId/t; ein Sprachwechsel soll nicht neu laden.
@@ -94,10 +116,15 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
   }, [rootEntityId, projectId]);
 
   const [hideHelpers, setHideHelpers] = useState(true);
-  const { rows, capped, hiddenHelpers } = useMemo(
-    () => (rootId ? buildFlowRows(rootId, projections, expanded, { hideHelpers }) : { rows: [], capped: false, hiddenHelpers: 0 }),
-    [rootId, projections, expanded, hideHelpers],
-  );
+  const [hideData, setHideData] = useState(true);
+  const { rows, capped, hiddenHelpers, hiddenData } = useMemo(() => {
+    if (!rootId) return { rows: [], capped: false, hiddenHelpers: 0, hiddenData: 0 };
+    const built = buildFlowRows(rootId, projections, expanded, { hideHelpers, hideData });
+    // Besteht ein Schritt nur aus Datenzugriffen, sind sie sein Inhalt und bleiben sichtbar.
+    return built.rows.length <= 1 && built.hiddenData > 0
+      ? buildFlowRows(rootId, projections, expanded, { hideHelpers })
+      : built;
+  }, [rootId, projections, expanded, hideHelpers, hideData]);
 
   const toggleStep = (row: FlowRow) => {
     if (!row.expandable) return;
@@ -107,6 +134,20 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       return next;
     });
     if (!row.expanded && row.nodeId && row.entityId != null) load(row.nodeId, row.entityId);
+  };
+
+  const toggleCallers = async () => {
+    if (callers !== null || rootEntityId == null) { setCallers(null); return; }
+    const current = generation.current;
+    setCallers('loading');
+    try {
+      const found = await fetchCallers(rootEntityId, projectId);
+      if (generation.current === current) setCallers(found);
+    } catch (err) {
+      if (generation.current !== current) return;
+      setCallers(null);
+      setError((err instanceof Error ? err.message : undefined) || t('processFlow.loadError'));
+    }
   };
 
   const expandAll = async () => {
@@ -178,6 +219,25 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
           <div className="text-xs font-bold truncate">{focusedEntity.name}</div>
           <div className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500">{t('processFlow.subtitle')}</div>
         </div>
+        <button
+          type="button"
+          onClick={() => void toggleCallers()}
+          aria-expanded={callers !== null}
+          title={t('processFlow.callersTitle')}
+          className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors"
+        >
+          {t('processFlow.callers')}
+        </button>
+        {(hiddenData > 0 || !hideData) && (
+          <button
+            type="button"
+            aria-pressed={hideData}
+            onClick={() => setHideData(value => !value)}
+            className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors"
+          >
+            {hideData ? t('processFlow.dataHidden', { count: hiddenData }) : t('processFlow.dataShown')}
+          </button>
+        )}
         {(hiddenHelpers > 0 || !hideHelpers) && (
           <button
             type="button"
@@ -239,6 +299,25 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
         </div>
       )}
 
+      {callers !== null && (
+        <div className={cn('shrink-0 border-b px-3 py-2 text-[0.6875rem]', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
+          {callers === 'loading' && <Loader2 className="h-3 w-3 animate-spin text-ds-indigo-500" />}
+          {callers !== 'loading' && callers.length === 0 && <span className="text-ds-zinc-500">{t('processFlow.noCallers')}</span>}
+          {callers !== 'loading' && callers.length > 0 && (
+            <ul className="max-h-40 space-y-0.5 overflow-y-auto">
+              {callers.map(caller => (
+                <li key={caller.id}>
+                  <button type="button" onClick={() => open(caller)} className="flex max-w-full items-center gap-2 text-left hover:text-ds-indigo-400">
+                    <span className="truncate font-semibold">{caller.label}</span>
+                    <span className="shrink-0 font-mono text-[0.625rem] text-ds-zinc-500">{caller.filePath.split('/').pop()}:{caller.line}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       {/* Legende der Markierungen auf dem Zeitstrahl */}
       <div className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-1.5 text-[0.625rem] uppercase tracking-[0.12em]', isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/40 text-ds-zinc-400' : 'border-ds-zinc-200 bg-ds-zinc-50 text-ds-zinc-500')}>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-ds-indigo-500" /><Workflow className="h-3 w-3" />{t('processFlow.laneControl')}</span>
@@ -286,7 +365,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
               </div>
 
               <div className={cn('min-w-0 flex-1 pb-2.5', row.lane === 'data' && 'pt-0.5')}>
-                {row.lane === 'control' && row.guard && <GuardPill entry={row.guard} isDark={isDark} indent={row.indent} t={t} />}
+                {row.lane === 'control' && row.guard && <GuardPill entry={{ ...row.guard, dataCount: row.dataCount }} isDark={isDark} indent={row.indent} t={t} />}
                 {row.lane === 'control' && !row.guard && <StepPill row={row} isDark={isDark} selected={selectedKey === row.key} onToggle={toggleStep} onSelect={toggleSelect} onOpen={open} loading={row.nodeId ? loadingIds.has(row.nodeId) : false} t={t} />}
                 {row.lane === 'data' && (
                   <div style={{ paddingLeft: `${indentRem + 1.25}rem` }}>
@@ -379,6 +458,8 @@ function StepPill({ row, isDark, selected, onToggle, onSelect, onOpen, loading, 
           {row.loop && (
             <Badge tone="indigo"><Repeat className="h-2.5 w-2.5" />{guardLabel({ type: 'LOOP', kind: row.loop.kind, text: row.loop.text }, t)}</Badge>
           )}
+          {row.fallThrough && <Badge tone="indigo">{t('processFlow.fallThrough')}</Badge>}
+          {row.thru && <Badge tone="slate">{t('processFlow.thru', { name: row.thru })}</Badge>}
           {row.openElsewhere && <Badge tone="slate">{t('processFlow.openElsewhere')}</Badge>}
           {row.transitionKind === 'jump' && <Badge tone="slate">GOTO</Badge>}
           {row.transitionKind === 'exit' && <Badge tone="slate"><Square className="h-2.5 w-2.5" />{t('processFlow.exit')}</Badge>}
@@ -482,7 +563,7 @@ export function guardLabel(entry: PathEntry, t: Translate): string {
   return text;
 }
 
-function GuardPill({ entry, isDark, indent, t }: { entry: PathEntry; isDark: boolean; indent: number; t: Translate }) {
+function GuardPill({ entry, isDark, indent, t }: { entry: PathEntry & { dataCount?: number }; isDark: boolean; indent: number; t: Translate }) {
   const isLoop = entry.type === 'LOOP';
   const label = guardLabel(entry, t);
   return (
@@ -494,6 +575,7 @@ function GuardPill({ entry, isDark, indent, t }: { entry: PathEntry; isDark: boo
       >
         {label}
       </span>
+      {entry.dataCount && <span className="shrink-0 text-[0.625rem] text-ds-zinc-500">· {t('processFlow.guardData', { count: entry.dataCount })}</span>}
     </div>
   );
 }

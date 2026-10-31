@@ -286,3 +286,39 @@ def test_statements_that_end_a_run_are_noted_on_their_paragraph_with_their_condi
         "LEAVE-PARA": [{"statement": "EXIT PROGRAM", "line": 10}],
     }
 
+
+def test_a_paragraph_runs_on_unless_something_always_ends_it():
+    from cobol.parse import parse_program
+
+    result = parse_program(
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. ONWARD.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       FIRST-PARA.\n"
+        "           DISPLAY 'A'.\n"
+        "       SECOND-PARA.\n"
+        "           IF WS-A\n"
+        "               GOBACK\n"
+        "           END-IF.\n"
+        "       THIRD-PARA.\n"
+        "           GO TO FIFTH-PARA.\n"
+        "       FOURTH-PARA.\n"
+        "           EXEC CICS RETURN\n"
+        "           END-EXEC.\n"
+        "       FIFTH-PARA.\n"
+        "           DISPLAY 'B'.\n",
+        "ONWARD.CBL",
+    )
+    onward = {
+        entity.name: entity.meta.get("falls_through")
+        for entity in result.entities
+        if entity.type == "paragraph"
+    }
+    assert onward == {
+        "FIRST-PARA": {"paragraph": "ONWARD.SECOND-PARA", "certain": True},
+        "SECOND-PARA": {"paragraph": "ONWARD.THIRD-PARA", "certain": False},
+        "THIRD-PARA": None,
+        "FOURTH-PARA": None,
+        "FIFTH-PARA": None,
+    }
+

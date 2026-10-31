@@ -550,6 +550,40 @@ def _build_meta(
     return meta
 
 
+_ENDING_EXEC_OPERATIONS = frozenset({"RETURN", "XCTL", "ABEND"})
+
+
+def mark_fall_through(
+    program: CobolProgram,
+    edges: Iterable[ParsedEdge],
+    exec_blocks: Iterable[ExecBlock],
+    timeline: ControlTimeline,
+) -> None:
+    """Ein Paragraph läuft in den nächsten weiter, wenn ihn nichts bedingungslos beendet.
+
+    Beendet ihn etwas nur unter einer Bedingung, bleibt das Weiterlaufen möglich, aber nicht sicher.
+    Beide Zweige eines IF zu vergleichen wäre eine Ablaufanalyse, die dieser Parser nicht macht.
+    """
+    endings: list[tuple[str, bool]] = [
+        (name, not item.get("control_path"))
+        for name, items in program.exits.items()
+        for item in items
+    ]
+    endings += [
+        (edge.src_name, not edge.meta.get("control_path")) for edge in edges if edge.type == "GOTO"
+    ]
+    endings += [
+        (_enclosing_paragraph(program, block.start_line), not timeline.at(block.start_line))
+        for block in exec_blocks
+        if block.operation in _ENDING_EXEC_OPERATIONS
+    ]
+    always = {name for name, unconditional in endings if unconditional}
+    sometimes = {name for name, unconditional in endings if not unconditional}
+    for paragraph, following in zip(program.paragraphs, program.paragraphs[1:]):
+        if paragraph.name not in always:
+            program.fall_through[paragraph.name] = (following.name, paragraph.name not in sometimes)
+
+
 def block_edges(
     program: CobolProgram,
     blocks: Iterable[ExecBlock | SqlBlock],

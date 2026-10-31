@@ -230,6 +230,7 @@ def parse_program(
         dynamic_targets_mod.annotate(
             [*proc_edges, *exec_edges], tokens, program.start_line, program.end_line
         )
+        procedure_mod.mark_fall_through(program, proc_edges, exec_blocks, timeline)
         edges.extend(
             [
                 *proc_edges,
@@ -342,12 +343,30 @@ def _build_entities(
             )
         )
 
+    def paragraph_qname(paragraph) -> str:
+        parent = (
+            section_qnames.get(paragraph.section, program.name)
+            if paragraph.section
+            else program.name
+        )
+        return _qualify(parent, paragraph.name)
+
+    paragraphs_by_name = {paragraph.name: paragraph for paragraph in program.paragraphs}
     for paragraph in program.paragraphs:
         parent_qname = (
             section_qnames.get(paragraph.section, program.name)
             if paragraph.section
             else program.name
         )
+        meta: dict = {}
+        if paragraph.name in program.exits:
+            meta["exits"] = program.exits[paragraph.name]
+        if paragraph.name in program.fall_through:
+            following, certain = program.fall_through[paragraph.name]
+            meta["falls_through"] = {
+                "paragraph": paragraph_qname(paragraphs_by_name[following]),
+                "certain": certain,
+            }
         add_entity(
             Entity(
                 type="paragraph",
@@ -357,9 +376,7 @@ def _build_entities(
                 parent_name=paragraph.section or program.name,
                 qualified_name=_qualify(parent_qname, paragraph.name),
                 parent_qualified_name=parent_qname,
-                meta={"exits": program.exits[paragraph.name]}
-                if paragraph.name in program.exits
-                else {},
+                meta=meta,
             )
         )
 

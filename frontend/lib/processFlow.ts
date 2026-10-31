@@ -30,6 +30,10 @@ export interface FlowTransition {
     candidate_targets?: string[];
     /** Begleitet den Ablauf nur (Logging, einfache Getter, Vorprüfungen). */
     helper?: string;
+    /** Der nächste Paragraph, falls der Lauf am Ende weiterläuft. */
+    fall_through?: boolean;
+    /** Endpunkt von `PERFORM … THRU`. */
+    thru?: string;
   } & Record<string, unknown>;
   locator: { file_path: string; start_line: number; source_id?: number | null };
 }
@@ -93,6 +97,10 @@ export interface FlowRow {
   detailOnly?: boolean;
   /** Derselbe Schritt ist an anderer Stelle der Ansicht aufgeklappt. */
   openElsewhere?: boolean;
+  fallThrough?: boolean;
+  thru?: string;
+  /** Bei einer Bedingung: ausgeblendete Datenzugriffe in ihrem Zweig. */
+  dataCount?: number;
   expandable: boolean;
   expanded: boolean;
   /** Aufgeklappt, aber die Unterschritte sind noch nicht geladen. */
@@ -115,6 +123,8 @@ export function dataVerb(types: string[]): DataVerb {
 
 const MAX_ROWS = 800;
 
+type Entered = { runsOn: boolean; until?: string };
+
 /** Ein reines PERFORM ... END-PERFORM ohne Kopf sagt nichts über den Ablauf. */
 function visiblePath(transition: FlowTransition): PathEntry[] {
   const path = transition.meta?.control_path;
@@ -134,29 +144,35 @@ export function buildFlowRows(
   rootId: string,
   projections: ReadonlyMap<string, FlowProjection>,
   expanded: ReadonlySet<string>,
-  { hideHelpers = false }: { hideHelpers?: boolean } = {},
-): { rows: FlowRow[]; capped: boolean; hiddenHelpers: number } {
+  { hideHelpers = false, hideData = false }: { hideHelpers?: boolean; hideData?: boolean } = {},
+): { rows: FlowRow[]; capped: boolean; hiddenHelpers: number; hiddenData: number } {
   const nodeIndex = new Map<string, FlowNode>();
   projections.forEach(projection => projection.nodes.forEach(node => nodeIndex.set(node.id, node)));
   const root = nodeIndex.get(projections.get(rootId)?.rootNodeId ?? rootId);
   const rows: FlowRow[] = [];
   let capped = false;
   let hiddenHelpers = 0;
-  if (!root) return { rows, capped, hiddenHelpers };
+  let hiddenData = 0;
+  if (!root) return { rows, capped, hiddenHelpers, hiddenData };
 
   const push = (row: FlowRow) => {
     if (rows.length >= MAX_ROWS) { capped = true; return; }
     rows.push(row);
   };
 
-  const walk = (nodeId: string, depth: number, indent: number, visited: ReadonlySet<string>, prefix: string) => {
+  // Ein Paragraph läuft nur weiter, wenn man nicht per PERFORM hineinkam: von dort kehrt der Lauf zurück.
+  // Weiter geht es am Programmanfang, nach GO TO und bis zum Ende von `PERFORM … THRU`.
+  const walk = (nodeId: string, depth: number, indent: number, visited: ReadonlySet<string>, prefix: string, entered: Entered) => {
     const projection = projections.get(nodeId);
     if (!projection) return;
     const sourceId = projection.rootNodeId ?? nodeId;
     const path = new Set([...visited, sourceId]);
+    const startsProgram = projection.rootNodeId !== undefined && projection.rootNodeId !== nodeId;
+    const label = nodeIndex.get(sourceId)?.label.toUpperCase();
+    const runsOn = (startsProgram || entered.runsOn) && label !== entered.until;
     const outgoing = projection.transitions
       .filter(transition => transition.source === sourceId)
-      .sort((a, b) => a.locator.start_line - b.locator.start_line || a.id.localeCompare(b.id));
+      .sort((a, b) => a.locator.start_line - b.locator.start_line || a.id.localeCompare(b.id, undefined, { numeric: true }));
 
     let run: FlowTransition[] = [];
     let previousPath: PathEntry[] = [];
@@ -182,6 +198,13 @@ export function buildFlowRows(
       if (run.length === 0) return;
       const key = `${prefix}/data@${run[0].locator.start_line}:${run[0].id}`;
       const runIndent = enterPath(run[0], key);
+      if (hideData) {
+        hiddenData += run.length;
+        const last = rows[rows.length - 1];
+        if (last?.guard && visiblePath(run[0]).length > 0) last.dataCount = (last.dataCount ?? 0) + run.length;
+        run = [];
+        return;
+      }
       const accesses: DataAccess[] = run.map(transition => ({
         id: transition.id,
         verb: dataVerb(transition.code_edge_types),
@@ -211,6 +234,7 @@ export function buildFlowRows(
         run.push(transition);
         continue;
       }
+      if (transition.meta?.fall_through && !runsOn) continue;
       // Der nächste Datenlauf schließt an: Ein ausgeblendeter Aufruf trennt keine Zeilen.
       if (hideHelpers && transition.meta?.helper) {
         hiddenHelpers += 1;
@@ -240,10 +264,19 @@ export function buildFlowRows(
         invocationKind: transition.meta?.invocation_kind,
         candidateTargets: transition.meta?.candidate_targets,
         detailOnly: transition.kind === 'step' && transition.code_edge_types.includes('CONTAINS'),
+        fallThrough: transition.meta?.fall_through === true,
+        thru: transition.meta?.thru,
         expandable, expanded: isExpanded, needsLoad: isExpanded && !projections.has(target.id),
         unresolved: external,
       });
-      if (isExpanded) walk(target.id, depth + 1, stepIndent + 1, new Set([...path, target.id]), key);
+      if (isExpanded) {
+        const thru = transition.meta?.thru?.toUpperCase();
+        const next: Entered = transition.meta?.fall_through
+          ? { runsOn, until: entered.until }
+          : { runsOn: Boolean(thru) || transition.kind === 'jump' || transition.kind === 'branch', until: thru };
+        // Ein weiterlaufender Paragraph ist derselbe Lauf, keine tiefere Ebene.
+        walk(target.id, depth + 1, transition.meta?.fall_through ? stepIndent : stepIndent + 1, new Set([...path, target.id]), key, next);
+      }
     }
     flushRun();
   };
@@ -254,10 +287,10 @@ export function buildFlowRows(
     sourceId: root.locator.source_id, certainty: 'certain',
     expandable: false, expanded: true, needsLoad: !projections.has(rootId),
   });
-  walk(rootId, 1, 1, new Set([rootId, root.id]), 'root');
+  walk(rootId, 1, 1, new Set([rootId, root.id]), 'root', { runsOn: false });
   const open = new Set(rows.filter(row => row.expanded).map(row => row.nodeId));
   rows.forEach(row => { if (row.expandable && !row.expanded && open.has(row.nodeId)) row.openElsewhere = true; });
-  return { rows, capped, hiddenHelpers };
+  return { rows, capped, hiddenHelpers, hiddenData };
 }
 
 /**

@@ -577,6 +577,8 @@ class JavaRelationshipVisitor(JavaParserVisitor):
             children = getattr(parent, "children", ()) or ()
             if len(children) >= 3:
                 receiver = children[0].getText()
+        # Argumente werden vor dem Aufruf ausgewertet; in dieser Reihenfolge entstehen auch die Kanten.
+        result = self.visitChildren(context)
         destination = f"{receiver}.{name}" if receiver else name
         invocation_kind = "special" if receiver in {"super", "this"} else "virtual"
         self._edge(
@@ -657,7 +659,7 @@ class JavaRelationshipVisitor(JavaParserVisitor):
                 )
                 if not literal:
                     self.edges[-1].resolution = "dynamic"
-        return self.visitChildren(context)
+        return result
 
     def visitExplicitGenericInvocation(self, context):
         suffix = context.explicitGenericInvocationSuffix()
@@ -754,6 +756,14 @@ class JavaRelationshipVisitor(JavaParserVisitor):
         return self.visitChildren(context)
 
     def visitCreator(self, context):
+        """Wie beim Methodenaufruf: Die Kante entsteht hinter denen der Konstruktorargumente."""
+        first = len(self.edges)
+        result = self._visit_creator(context)
+        if len(self.edges) > first + 1 and self.edges[first].type == "INSTANTIATES":
+            self.edges.append(self.edges.pop(first))
+        return result
+
+    def _visit_creator(self, context):
         created_name = context.createdName()
         if (
             created_name is not None

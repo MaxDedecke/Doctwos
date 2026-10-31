@@ -66,6 +66,10 @@
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.FIRST-EXIT-PARA",
       "meta": {
+        "falls_through": {
+          "paragraph": "BAREVERBS.FIRST-EXIT-PARA-ENDE",
+          "certain": true
+        },
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -93,6 +97,10 @@
       "parent_name": "BAREVERBS",
       "qualified_name": "BAREVERBS.FIRST-EXIT-PARA-ENDE",
       "meta": {
+        "falls_through": {
+          "paragraph": "BAREVERBS.SECOND-PARA",
+          "certain": true
+        },
         "evidence": {
           "schema_version": 1,
           "kind": "source",

@@ -84,3 +84,16 @@ def test_object_creation_and_field_access_stand_under_their_condition():
     assert "control_path" not in read.meta or read.meta["control_path"] != guard
     assert "control_path" not in writes["count"].meta
 
+
+def test_arguments_come_before_the_call_that_uses_them():
+    result = parse_java_file(
+        """class Flow {
+      void use() {
+        store(load(), new Item(name()));
+      }
+    }""",
+        "Flow.java",
+    )
+    order = [edge.dst_name for edge in result.edges if edge.type in {"CALLS", "INSTANTIATES"}]
+    assert order == ["load", "name", "Item", "store"]
+

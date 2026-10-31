@@ -43,12 +43,33 @@ describe('ProcessView – Ablauf', () => {
   it('zeigt Schritte in Zeilenreihenfolge, Datenzugriffe gebündelt und offene Aufrufe in ihrer Bahn', async () => {
     setup();
     await screen.findByText('INIT');
+    expect(screen.queryByText(/1× liest/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '2 Datenzugriffe ausgeblendet' }));
     const rows = screen.getAllByRole('row').map(row => row.textContent ?? '');
     const order = ['MAIN', '1× liest · 1× schreibt', 'INIT', 'BANK-AUTH', 'WRITE-OUT'];
     const positions = order.map(text => rows.findIndex(row => row.includes(text)));
     expect(positions.every(p => p >= 0)).toBe(true);
     expect([...positions].sort((a, b) => a - b)).toEqual(positions);
     expect(screen.getByText('offen')).toBeTruthy();
+  });
+
+  it('zeigt auf Wunsch, von wo der Schritt aufgerufen wird, und springt dorthin', async () => {
+    const { fetchMock, onFileSelect } = setup();
+    await screen.findByText('INIT');
+    fetchMock.mockImplementationOnce(async () => ({
+      ok: true,
+      json: async () => ({
+        root_node_id: 'entity:1',
+        nodes: [N('entity:1', 'MAIN'), N('entity:7', 'CALLER-PARA')],
+        transitions: [T('c', 'entity:7', 'entity:1', 'call', 42, ['PERFORM'])],
+      }),
+    }) as never);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Aufrufer' }));
+    fireEvent.click(await screen.findByRole('button', { name: /CALLER-PARA/ }));
+
+    expect(String(fetchMock.mock.calls[1][0])).toContain('direction=incoming');
+    expect(onFileSelect).toHaveBeenCalledWith(expect.any(String), 42, expect.anything());
   });
 
   it('klappt auf Wunsch alles auf und lädt dafür die fehlenden Schritte', async () => {
@@ -85,6 +106,7 @@ describe('ProcessView – Ablauf', () => {
 
   it('klappt gebündelte Datenzugriffe einzeln auf', async () => {
     setup();
+    fireEvent.click(await screen.findByRole('button', { name: '2 Datenzugriffe ausgeblendet' }));
     const summary = await screen.findByText('1× liest · 1× schreibt');
     expect(screen.queryByText('schreibt')).toBeNull();
     fireEvent.click(summary);

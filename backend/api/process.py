@@ -57,7 +57,22 @@ _MAX_LABEL_RESOURCES = 2
 # Woran man einen Aufruf erkennt, der den Ablauf nur begleitet. Die Ansicht blendet ihn auf Wunsch aus
 # und nennt die Zahl; es ist eine Lesehilfe, keine Aussage über den Code.
 _LOGGER_RECEIVERS = frozenset({"log", "logger"})
-_PRECONDITION_RECEIVERS = frozenset({"Objects"})
+_UTILITY_RECEIVERS = frozenset(
+    {
+        "Arrays",
+        "Boolean",
+        "Collections",
+        "Integer",
+        "List",
+        "Long",
+        "Map",
+        "Math",
+        "Objects",
+        "Optional",
+        "Set",
+        "String",
+    }
+)
 _GETTER_NAME = re.compile(r"(?:get|is)[A-Z]\w*")
 _FIELD_EXPRESSION = re.compile(r"(?:this\.)?\w+")
 # Mit Annotation und geschweiften Klammern auf eigenen Zeilen.
@@ -164,8 +179,8 @@ def _helper_role(edge: CodeEdge, target: CodeEntity | None) -> str | None:
     receiver = meta.get("receiver") or ""
     if receiver.casefold() in _LOGGER_RECEIVERS:
         return "logging"
-    if receiver in _PRECONDITION_RECEIVERS:
-        return "precondition"
+    if receiver in _UTILITY_RECEIVERS:
+        return "utility"
     if (
         meta.get("argument_count") == 0
         and _GETTER_NAME.fullmatch(meta.get("method_name") or "")
@@ -255,6 +270,53 @@ def _add_entry_routines(db: Session, root: CodeEntity, projection: ProcessProjec
                 meta={"helper": role} if role else {},
             )
         )
+
+
+def _add_fall_through(db: Session, routine: CodeEntity, projection: ProcessProjection) -> None:
+    """Der nächste Paragraph, falls der Lauf dorthin weiterläuft. Ob es dazu kommt, entscheidet der Weg
+    hinein: Nach PERFORM kehrt der Lauf zurück. Das weiß nur, wer den Ablauf zusammensetzt."""
+    following = (routine.meta_json or {}).get("falls_through")
+    if not following:
+        return
+    target = (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.project_id == routine.project_id,
+            CodeEntity.source_id == routine.source_id,
+            CodeEntity.variant_key == routine.variant_key,
+            CodeEntity.file_path == routine.file_path,
+            CodeEntity.qualified_name == following["paragraph"],
+        )
+        .first()
+    )
+    if target is None:
+        return
+    node_id = _node_id(target.id)
+    locator = _entity_locator(target)
+    if all(node.id != node_id for node in projection.nodes):
+        projection.nodes.append(
+            ProcessNode(
+                id=node_id,
+                kind=_node_kind(target, routine),
+                label=_node_label(target),
+                language=_language(target),
+                locator=locator,
+                entity_id=target.id,
+            )
+        )
+    projection.transitions.append(
+        ProcessTransition(
+            id=f"fall-through:{routine.id}",
+            source=_node_id(routine.id),
+            target=node_id,
+            kind="step",
+            certainty="certain" if following.get("certain") else "possible",
+            resolution="resolved",
+            locator=locator,
+            origin_kind="synthetic",
+            meta={"fall_through": True},
+        )
+    )
 
 
 def _add_exits(
@@ -693,7 +755,7 @@ def focus_process(
     node_limit: int = Query(default=200, ge=1, le=MAX_NODE_LIMIT),
     edge_limit: int = Query(default=400, ge=1, le=MAX_EDGE_LIMIT),
     kinds: list[str] | None = Query(default=None),
-    entry_routines: bool = Query(default=False),
+    flow_view: bool = Query(default=False),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -706,6 +768,7 @@ def focus_process(
     projection = _projection(
         db, root, direction, hops, node_limit, edge_limit, _requested_kinds(kinds)
     )
-    if entry_routines:
+    if flow_view:
         _add_entry_routines(db, root, projection, node_limit)
+        _add_fall_through(db, root, projection)
     return projection

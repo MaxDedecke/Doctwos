@@ -264,6 +264,9 @@ def trace_call_flow(
                 CodeEdge.type.in_(CALL_EXECUTION_EDGE_TYPES),
                 (CodeEdge.type == "EXECUTES")
                 & (CodeEdge.meta_json["language"].as_string() == "jcl"),
+                # Der Weg vom Paragraphen in seinen EXEC-Block; dort steht z. B. der CICS-Programmwechsel.
+                (CodeEdge.type == "CONTAINS")
+                & CodeEdge.meta_json["target_qualified_name"].as_string().like("%-BLOCK@%"),
             )
         elif scope == "dependencies":
             language = CodeEdge.meta_json["language"].as_string()

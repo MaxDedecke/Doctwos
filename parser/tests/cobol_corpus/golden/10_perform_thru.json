@@ -72,6 +72,10 @@
       "parent_name": "PERFTHRU",
       "qualified_name": "PERFTHRU.INIT-PARA",
       "meta": {
+        "falls_through": {
+          "paragraph": "PERFTHRU.MIDDLE-PARA",
+          "certain": true
+        },
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -99,6 +103,10 @@
       "parent_name": "PERFTHRU",
       "qualified_name": "PERFTHRU.MIDDLE-PARA",
       "meta": {
+        "falls_through": {
+          "paragraph": "PERFTHRU.CLEANUP-PARA",
+          "certain": true
+        },
         "evidence": {
           "schema_version": 1,
           "kind": "source",

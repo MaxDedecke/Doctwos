@@ -120,6 +120,10 @@
       "parent_name": "AUFBAU",
       "qualified_name": "TABSUB.AUFBAU.100-MONATE-FUELLEN",
       "meta": {
+        "falls_through": {
+          "paragraph": "TABSUB.AUSGABE.200-MONATE-ANZEIGEN",
+          "certain": true
+        },
         "evidence": {
           "schema_version": 1,
           "kind": "source",

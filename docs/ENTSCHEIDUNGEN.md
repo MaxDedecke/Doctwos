@@ -689,6 +689,9 @@ Server eine Angabe, wird der Parser erweitert** – nicht im Server geraten und 
 5. **Kontrollpfad an Daten und eingebetteten Anweisungen.** `meta.control_path` steht auch an Datenzugriffen; die Operanden
    einer Bedingung stehen vor ihr, nicht in ihr. Eingebettete Anweisungen (COBOL: `EXEC CICS`, `EXEC SQL`) hängen über eine
    `CONTAINS`-Kante mit diesem Pfad an ihrer Routine, damit der Ablauf sie ohne Zeilennähe findet.
+   Wie ein Lauf endet oder weitergeht, steht an der Routine: `meta.exits` (`statement`, `line`, `control_path`) und
+   `meta.falls_through` (`paragraph`, `certain`). Beides hat bewusst keine Kante: Es gibt kein Ziel im Index bzw. es gilt nur,
+   wenn man nicht per Aufruf in die Routine kam.
 6. **Parserversion anheben**, wenn sich Entitäten oder Kanten ändern, damit der nächste Sync neu parst
    (`parser/core/registry.py`). Golden-Dateien (`parser/tests/java_corpus/golden`) werden mit
    `parser/tests/update_java_goldens.py` neu erzeugt und im Diff geprüft.
