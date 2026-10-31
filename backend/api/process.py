@@ -47,6 +47,10 @@ EDGE_KIND = {
     "TRANSFORMS_WITH": "data_access",
 }
 KNOWN_PROCESS_KINDS = frozenset(set(EDGE_KIND.values()) | {"external_call", "iteration"})
+# Eingebettete Anweisungen: Der Paragraph enthält den Block, der Ablauf zeigt die Anweisung darin.
+EMBEDDED_BLOCK_TYPES = frozenset({"exec_block", "sql_block"})
+EXIT_OPERATIONS = frozenset({"RETURN", "ABEND"})
+_MAX_LABEL_RESOURCES = 2
 
 
 def _language(entity: CodeEntity) -> str:
@@ -121,6 +125,18 @@ def _node_kind(entity: CodeEntity, root: CodeEntity) -> str:
     if _language(entity).lower() == "jcl" and entity.type == "jcl_dataset":
         return "data_access"
     return "step"
+
+
+def _node_label(entity: CodeEntity) -> str:
+    """Ein Block heißt nach seiner Anweisung (`CICS READ USRSEC`), nicht nach seiner Zeile."""
+    if entity.type not in EMBEDDED_BLOCK_TYPES:
+        return entity.name
+    meta = entity.meta_json or {}
+    if entity.type == "sql_block":
+        words = ["SQL", meta.get("statement_type"), *(meta.get("tables") or [])[:_MAX_LABEL_RESOURCES]]
+    else:
+        words = [meta.get("dialect"), meta.get("operation"), *(meta.get("resources") or [])[:_MAX_LABEL_RESOURCES]]
+    return " ".join(word for word in words if word) or entity.name
 
 
 def _certainty(edge: CodeEdge, source: CodeEntity) -> str:
@@ -277,19 +293,64 @@ def _projection(
             omitted_transitions += len(rows) - (edge_limit - len(transitions))
             rows = rows[: edge_limit - len(transitions)]
 
-        next_frontier: set[int] = set()
+        # Ein Programmwechsel im Block gehört direkt in den Ablauf des Paragraphen: Er übernimmt dessen
+        # Bedingung und kostet keinen eigenen Schritt.
+        block_ids = {
+            edge.dst_entity_id
+            for edge in rows
+            if edge.type == "CONTAINS"
+            and edge.dst_entity_id is not None
+            and edge.src_entity_id in frontier
+            and direction != "incoming"
+        }
+        blocks = (
+            {
+                entity.id: entity
+                for entity in db.query(CodeEntity).filter(
+                    CodeEntity.id.in_(block_ids), CodeEntity.type.in_(EMBEDDED_BLOCK_TYPES)
+                )
+            }
+            if block_ids
+            else {}
+        )
+        block_calls: dict[int, list[CodeEdge]] = defaultdict(list)
+        if blocks:
+            for call in (
+                db.query(CodeEdge)
+                .filter(CodeEdge.src_entity_id.in_(blocks), CodeEdge.type == "CALL")
+                .order_by(CodeEdge.id)
+            ):
+                block_calls[call.src_entity_id].append(call)
+
+        steps: list[tuple[CodeEdge, int, CodeEdge | None]] = []
         for edge in rows:
+            calls = block_calls.get(edge.dst_entity_id) if edge.type == "CONTAINS" else None
+            if calls and edge.src_entity_id in frontier:
+                steps.extend((call, edge.src_entity_id, edge) for call in calls)
+            else:
+                steps.append((edge, edge.src_entity_id, None))
+
+        next_frontier: set[int] = set()
+        for edge, source_id, enclosing in steps:
             if edge.id in seen_edge_ids:
                 continue
             base_kind = _edge_kind(edge)
             kind = _transition_kind(edge)
             if base_kind not in requested_kinds and kind not in requested_kinds:
                 continue
-            source = entities.get(edge.src_entity_id)
+            block = blocks.get(edge.dst_entity_id) if edge.type == "CONTAINS" else None
+            if block is not None:
+                exits = (block.meta_json or {}).get("operation") in EXIT_OPERATIONS
+                kind = "exit" if exits else "step"
+            source = entities.get(source_id)
             if source is None:
-                source = db.query(CodeEntity).filter(CodeEntity.id == edge.src_entity_id).first()
+                source = db.query(CodeEntity).filter(CodeEntity.id == source_id).first()
                 if source is None:
                     continue
+            # Die Operation steckt schon in der Bezeichnung des Blocks.
+            if source.type in EMBEDDED_BLOCK_TYPES and edge.type == "EXECUTES":
+                continue
+            if source.id not in entities:
                 if len(entities) >= node_limit:
                     reasons.add("node_limit")
                     omitted_nodes += 1
@@ -358,9 +419,18 @@ def _projection(
                     condition=_condition_text(edge.meta_json or {}),
                     meta={
                         key: value
-                        for key, value in (edge.meta_json or {}).items()
-                        if key
+                        for key, value in {
+                            **(edge.meta_json or {}),
+                            **(
+                                {"control_path": (enclosing.meta_json or {}).get("control_path")}
+                                if enclosing is not None
+                                else {}
+                            ),
+                        }.items()
+                        if value is not None
+                        and key
                         in {
+                            "candidate_targets",
                             "thru",
                             "thru_resolution",
                             "thru_target_qualified_name",
@@ -389,7 +459,7 @@ def _projection(
             ProcessNode(
                 id=_node_id(entity.id),
                 kind=_node_kind(entity, root),
-                label=entity.name,
+                label=_node_label(entity),
                 language=_language(entity),
                 locator=_entity_locator(
                     entity,
@@ -441,36 +511,23 @@ def _projection(
     )
 
 
-_ENTRY_NAMES = {"main-para", "main", "procedure-division", "procedure-start"}
-
-
 def _program_entry(db: Session, program: CodeEntity) -> CodeEntity | None:
-    """Einstiegsparagraph eines COBOL-Programms (die Kanten hängen an Paragraphen, nicht am Programm).
+    """Wo ein COBOL-Programm beginnt: beim ersten Paragraphen der PROCEDURE DIVISION.
 
-    Gleiche Regel wie `services.call_flow.trace_call_flow`: ein eindeutig benannter Einstieg
-    oder der einzige Paragraph; sonst bleibt das Programm die Wurzel."""
-    children = (
+    Die Kanten hängen an Paragraphen, nicht am Programm. Sections zählen nicht: Auch die der DATA
+    DIVISION tragen diesen Typ. Ohne Paragraph bleibt das Programm die Wurzel."""
+    return (
         db.query(CodeEntity)
         .filter(
             CodeEntity.project_id == program.project_id,
             CodeEntity.source_id == program.source_id,
             CodeEntity.variant_key == program.variant_key,
             CodeEntity.parent_id == program.id,
-            CodeEntity.type.in_(["paragraph", "section"]),
+            CodeEntity.type == "paragraph",
         )
         .order_by(CodeEntity.start_line, CodeEntity.id)
-        .limit(2_000)
-        .all()
+        .first()
     )
-    named = [
-        c
-        for c in children
-        if c.name.casefold() in _ENTRY_NAMES
-        or (c.qualified_name or "").casefold().endswith(tuple("." + n for n in _ENTRY_NAMES))
-    ]
-    if len(named) == 1:
-        return named[0]
-    return children[0] if len(children) == 1 else None
 
 
 @router.get("/focus", response_model=ProcessProjection)

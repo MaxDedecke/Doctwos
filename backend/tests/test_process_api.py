@@ -686,7 +686,7 @@ def test_process_helpers_map_loops_to_iteration_and_never_return_list_conditions
     assert _condition_text({}) is None
 
 
-def test_process_focus_on_a_cobol_program_starts_at_its_unique_entry_paragraph(
+def test_process_focus_on_a_cobol_program_starts_at_its_entry_paragraph(
     client, db_session, test_project, test_team
 ):
     """Die Kanten hängen an Paragraphen: ein Programm als Einstieg lieferte nur den Wurzelknoten."""
@@ -755,11 +755,150 @@ def test_process_focus_on_a_cobol_program_starts_at_its_unique_entry_paragraph(
             (f"entity:{main.id}", f"entity:{init.id}")
         ]
 
-        init2 = paragraph("MAIN", 30)  # zweiter Einstiegsname: mehrdeutig, Programm bleibt Wurzel
+        paragraph("MAIN", 30)  # Der Name zählt nicht: COBOL beginnt beim ersten Paragraphen.
         body = client.get(
             "/process/focus", params={"entity_id": program.id, "project_id": test_project}
         ).json()
-        assert body["root_node_id"] == f"entity:{program.id}" and init2.id
+        assert body["root_node_id"] == f"entity:{main.id}"
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def _cobol_program(db_session, project, team):
+    source = KnowledgeSource(
+        name="process-cics", type="Git", project_id=project, team_id=team, branch="main", spaces={}
+    )
+    db_session.add(source)
+    db_session.flush()
+
+    def entity(name, type_, line, parent=None, meta=None):
+        row = CodeEntity(
+            project_id=project,
+            source_id=source.id,
+            file_path="SIGNON.cbl",
+            name=name,
+            qualified_name=f"SIGNON.{name}",
+            type=type_,
+            start_line=line,
+            end_line=line + 1,
+            parent_id=parent.id if parent else None,
+            meta_json={"language": "cobol", **(meta or {})},
+        )
+        db_session.add(row)
+        db_session.flush()
+        return row
+
+    def edge(src, dst, type_, line, dst_name=None, resolution="resolved", meta=None):
+        db_session.add(
+            CodeEdge(
+                project_id=project,
+                source_id=source.id,
+                src_entity_id=src.id,
+                dst_entity_id=dst.id if dst else None,
+                dst_name=dst_name or dst.name,
+                type=type_,
+                resolution=resolution,
+                src_start_line=line,
+                src_end_line=line,
+                meta_json=meta or {},
+            )
+        )
+
+    def remove_source():
+        db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
+        db_session.commit()
+
+    return entity, edge, remove_source
+
+
+def test_process_focus_shows_exec_statements_in_the_flow_of_their_paragraph(
+    client, db_session, test_project, test_team
+):
+    entity, edge, remove_source = _cobol_program(db_session, test_project, test_team)
+    program = entity("SIGNON", "program", 1)
+    para = entity("LOGIN-PARA", "paragraph", 10, program)
+    guard = [{"type": "IF", "branch": "THEN", "condition": "WS-ADMIN"}]
+    transfer = entity(
+        "EXEC-CICS-BLOCK@20", "exec_block", 20, program, {"dialect": "CICS", "operation": "XCTL"}
+    )
+    dynamic = entity(
+        "EXEC-CICS-BLOCK@25", "exec_block", 25, program, {"dialect": "CICS", "operation": "XCTL"}
+    )
+    read = entity(
+        "EXEC-CICS-BLOCK@30",
+        "exec_block",
+        30,
+        program,
+        {"dialect": "CICS", "operation": "READ", "resources": ["USRSEC"]},
+    )
+    done = entity(
+        "EXEC-CICS-BLOCK@40", "exec_block", 40, program, {"dialect": "CICS", "operation": "RETURN"}
+    )
+    other_program = entity("COADM01C", "program", 1)
+    edge(para, transfer, "CONTAINS", 20, meta={"control_path": guard})
+    edge(transfer, other_program, "CALL", 20, meta={"invocation_kind": "cics_xctl"})
+    edge(para, dynamic, "CONTAINS", 25)
+    edge(
+        dynamic,
+        None,
+        "CALL",
+        25,
+        dst_name="CDEMO-TO-PROGRAM",
+        resolution="dynamic",
+        meta={"invocation_kind": "cics_xctl", "candidate_targets": ["COMEN01C"]},
+    )
+    edge(para, read, "CONTAINS", 30)
+    edge(para, done, "CONTAINS", 40)
+    edge(read, None, "EXECUTES", 30, dst_name="READ")
+    db_session.commit()
+
+    response = client.get(
+        f"/process/focus?entity_id={para.id}&hops=1&direction=outgoing&project_id={test_project}"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    labels = {node["id"]: node["label"] for node in payload["nodes"]}
+    steps = {
+        labels[item["target"]]: item
+        for item in sorted(payload["transitions"], key=lambda item: item["locator"]["start_line"])
+    }
+
+    assert set(steps) == {"COADM01C", "CDEMO-TO-PROGRAM", "CICS READ USRSEC", "CICS RETURN"}
+    call = steps["COADM01C"]
+    assert call["source"] == f"entity:{para.id}"
+    assert call["kind"] == "call"
+    assert call["meta"]["invocation_kind"] == "cics_xctl"
+    assert call["meta"]["control_path"] == guard
+    assert steps["CDEMO-TO-PROGRAM"]["kind"] == "external_call"
+    assert steps["CDEMO-TO-PROGRAM"]["meta"]["candidate_targets"] == ["COMEN01C"]
+    assert steps["CICS READ USRSEC"]["kind"] == "step"
+    assert steps["CICS RETURN"]["kind"] == "exit"
+
+    # Aufgeklappt zeigt der Block seine Daten, nicht die Operation aus seiner eigenen Bezeichnung.
+    opened = client.get(
+        f"/process/focus?entity_id={read.id}&hops=1&direction=outgoing&project_id={test_project}"
+    ).json()
+    assert opened["transitions"] == []
+    remove_source()
+
+
+def test_process_focus_on_a_program_starts_at_the_first_procedure_paragraph(
+    client, db_session, test_project, test_team
+):
+    entity, edge, remove_source = _cobol_program(db_session, test_project, test_team)
+    program = entity("SIGNON", "program", 1)
+    entity("WORKING-STORAGE", "section", 5, program)
+    first = entity("0000-MAIN", "paragraph", 50, program)
+    other = entity("1000-INIT", "paragraph", 80, program)
+    edge(first, other, "PERFORM", 55)
+    db_session.commit()
+
+    payload = client.get(
+        f"/process/focus?entity_id={program.id}&hops=1&direction=outgoing&project_id={test_project}"
+    ).json()
+
+    assert payload["root_node_id"] == f"entity:{first.id}"
+    assert [item["target"] for item in payload["transitions"]] == [f"entity:{other.id}"]
+    remove_source()
+

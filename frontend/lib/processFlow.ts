@@ -22,7 +22,13 @@ export interface FlowTransition {
   certainty: 'certain' | 'possible' | 'unresolved';
   code_edge_types: string[];
   condition?: string | null;
-  meta?: { control_path?: PathEntry[]; loop?: { kind: string; text?: string }; multiple_targets?: boolean } & Record<string, unknown>;
+  meta?: {
+    control_path?: PathEntry[];
+    loop?: { kind: string; text?: string };
+    multiple_targets?: boolean;
+    invocation_kind?: string;
+    candidate_targets?: string[];
+  } & Record<string, unknown>;
   locator: { file_path: string; start_line: number; source_id?: number | null };
 }
 /** Eintrag der Kontrollpfade, die Parser (COBOL und Java) an Kanten schreiben. */
@@ -38,6 +44,8 @@ export interface PathEntry {
 export interface FlowProjection {
   nodes: FlowNode[];
   transitions: FlowTransition[];
+  /** Die Wurzel der Antwort; beim COBOL-Programm ist das sein Einstiegsparagraph, nicht das Programm. */
+  rootNodeId?: string;
 }
 
 export type FlowLane = 'control' | 'data' | 'external';
@@ -75,6 +83,10 @@ export interface FlowRow {
   condition?: string | null;
   cycle?: 'recursion' | 'cycle';
   multiTarget?: boolean;
+  /** Art des Aufrufs, wenn sie den Ablauf ändert (z. B. `cics_xctl`: keine Rückkehr). */
+  invocationKind?: string;
+  /** Bei einem Variablen-Ziel: Programmnamen, die der Variablen zugewiesen werden. */
+  candidateTargets?: string[];
   expandable: boolean;
   expanded: boolean;
   /** Aufgeklappt, aber die Unterschritte sind noch nicht geladen. */
@@ -108,6 +120,10 @@ function samePathEntry(a: PathEntry | undefined, b: PathEntry | undefined): bool
   return !!a && !!b && JSON.stringify(a) === JSON.stringify(b);
 }
 
+function samePath(a: PathEntry[], b: PathEntry[]): boolean {
+  return a.length === b.length && a.every((entry, index) => samePathEntry(entry, b[index]));
+}
+
 export function buildFlowRows(
   rootId: string,
   projections: ReadonlyMap<string, FlowProjection>,
@@ -115,7 +131,7 @@ export function buildFlowRows(
 ): { rows: FlowRow[]; capped: boolean } {
   const nodeIndex = new Map<string, FlowNode>();
   projections.forEach(projection => projection.nodes.forEach(node => nodeIndex.set(node.id, node)));
-  const root = nodeIndex.get(rootId);
+  const root = nodeIndex.get(projections.get(rootId)?.rootNodeId ?? rootId);
   const rows: FlowRow[] = [];
   let capped = false;
   if (!root) return { rows, capped };
@@ -125,51 +141,20 @@ export function buildFlowRows(
     rows.push(row);
   };
 
-  const walk = (nodeId: string, depth: number, indent: number, path: ReadonlySet<string>, prefix: string) => {
+  const walk = (nodeId: string, depth: number, indent: number, visited: ReadonlySet<string>, prefix: string) => {
     const projection = projections.get(nodeId);
     if (!projection) return;
+    const sourceId = projection.rootNodeId ?? nodeId;
+    const path = new Set([...visited, sourceId]);
     const outgoing = projection.transitions
-      .filter(transition => transition.source === nodeId)
+      .filter(transition => transition.source === sourceId)
       .sort((a, b) => a.locator.start_line - b.locator.start_line || a.id.localeCompare(b.id));
 
     let run: FlowTransition[] = [];
     let previousPath: PathEntry[] = [];
-    const flushRun = () => {
-      if (run.length === 0) return;
-      // Datenzugriffe tragen keinen Kontrollpfad: ein Wächter davor endet hier.
-      previousPath = [];
-      const accesses: DataAccess[] = run.map(transition => ({
-        id: transition.id,
-        verb: dataVerb(transition.code_edge_types),
-        target: nodeIndex.get(transition.target)?.label || '?',
-        line: transition.locator.start_line,
-        filePath: transition.locator.file_path,
-        sourceId: transition.locator.source_id,
-        certainty: transition.certainty,
-      }));
-      const counts: Record<DataVerb, number> = { read: 0, write: 0, use: 0 };
-      accesses.forEach(access => { counts[access.verb] += 1; });
-      const key = `${prefix}/data@${accesses[0].line}`;
-      push({
-        key, depth, indent, lane: 'data',
-        label: '', line: accesses[0].line, filePath: accesses[0].filePath, sourceId: accesses[0].sourceId,
-        certainty: accesses.every(a => a.certainty === 'certain') ? 'certain' : 'possible',
-        expandable: true, expanded: expanded.has(key), needsLoad: false,
-        accesses, counts,
-        targets: [...new Set(accesses.map(a => a.target).filter(name => name && name !== '?' && name !== 'unresolved target'))],
-      });
-      run = [];
-    };
 
-    for (const transition of outgoing) {
-      if (transition.kind === 'data_access') { run.push(transition); continue; }
-      flushRun();
-      const target = nodeIndex.get(transition.target);
-      if (!target) continue;
-      const key = `${prefix}/${transition.id}`;
-
-      // Wächterzeilen für Bedingungen/Schleifen, die sich gegenüber dem
-      // vorherigen Schritt geändert haben.
+    // Wächterzeilen für Bedingungen/Schleifen, die sich gegenüber dem vorherigen Schritt geändert haben.
+    const enterPath = (transition: FlowTransition, key: string): number => {
       const transitionPath = visiblePath(transition);
       let common = 0;
       while (common < transitionPath.length && samePathEntry(transitionPath[common], previousPath[common])) common += 1;
@@ -182,13 +167,54 @@ export function buildFlowRows(
         });
       });
       previousPath = transitionPath;
-      const stepIndent = indent + transitionPath.length;
+      return indent + transitionPath.length;
+    };
+
+    const flushRun = () => {
+      if (run.length === 0) return;
+      const key = `${prefix}/data@${run[0].locator.start_line}:${run[0].id}`;
+      const runIndent = enterPath(run[0], key);
+      const accesses: DataAccess[] = run.map(transition => ({
+        id: transition.id,
+        verb: dataVerb(transition.code_edge_types),
+        target: nodeIndex.get(transition.target)?.label || '?',
+        line: transition.locator.start_line,
+        filePath: transition.locator.file_path,
+        sourceId: transition.locator.source_id,
+        certainty: transition.certainty,
+      }));
+      const counts: Record<DataVerb, number> = { read: 0, write: 0, use: 0 };
+      accesses.forEach(access => { counts[access.verb] += 1; });
+      push({
+        key, depth, indent: runIndent, lane: 'data',
+        label: '', line: accesses[0].line, filePath: accesses[0].filePath, sourceId: accesses[0].sourceId,
+        certainty: accesses.every(a => a.certainty === 'certain') ? 'certain' : 'possible',
+        expandable: true, expanded: expanded.has(key), needsLoad: false,
+        accesses, counts,
+        targets: [...new Set(accesses.map(a => a.target).filter(name => name && name !== '?' && name !== 'unresolved target'))],
+      });
+      run = [];
+    };
+
+    for (const transition of outgoing) {
+      if (transition.kind === 'data_access') {
+        // Ein Datenlauf steht unter genau einer Bedingung.
+        if (run.length > 0 && !samePath(visiblePath(run[0]), visiblePath(transition))) flushRun();
+        run.push(transition);
+        continue;
+      }
+      flushRun();
+      const target = nodeIndex.get(transition.target);
+      if (!target) continue;
+      const key = `${prefix}/${transition.id}`;
+
+      const stepIndent = enterPath(transition, key);
 
       const external = transition.kind === 'external_call' || target.kind === 'external_call';
       const recursive = transition.source === transition.target;
       const looped = recursive || path.has(target.id);
       const cycle: FlowRow['cycle'] = recursive ? 'recursion' : looped ? 'cycle' : undefined;
-      const expandable = !external && !looped && target.entity_id != null;
+      const expandable = !external && !looped && transition.kind !== 'exit' && target.entity_id != null;
       const isExpanded = expandable && expanded.has(key);
       const loop = transition.meta?.loop;
       push({
@@ -198,6 +224,8 @@ export function buildFlowRows(
         filePath: transition.locator.file_path, sourceId: transition.locator.source_id,
         certainty: transition.certainty, transitionKind: transition.kind, condition: transition.condition,
         cycle, multiTarget: transition.meta?.multiple_targets === true,
+        invocationKind: transition.meta?.invocation_kind,
+        candidateTargets: transition.meta?.candidate_targets,
         expandable, expanded: isExpanded, needsLoad: isExpanded && !projections.has(target.id),
         unresolved: external,
       });
@@ -210,8 +238,8 @@ export function buildFlowRows(
     key: 'root', depth: 0, indent: 0, lane: 'control', nodeId: root.id, entityId: root.entity_id,
     label: root.label, line: root.locator.start_line, filePath: root.locator.file_path,
     sourceId: root.locator.source_id, certainty: 'certain',
-    expandable: false, expanded: true, needsLoad: !projections.has(root.id),
+    expandable: false, expanded: true, needsLoad: !projections.has(rootId),
   });
-  walk(root.id, 1, 1, new Set([root.id]), 'root');
+  walk(rootId, 1, 1, new Set([rootId, root.id]), 'root');
   return { rows, capped };
 }

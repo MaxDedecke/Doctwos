@@ -686,7 +686,10 @@ Server eine Angabe, wird der Parser erweitert** – nicht im Server geraten und 
    Eine Routine mit Tabelle wird über (b) gelesen, jede andere über (a); der Server nennt keine Sprache.
 4. **Begrenzung.** Tabellen und Listen sind klein (Java: höchstens 80 Anweisungen je Routine, 8 Quellen je Anweisung,
    160 Zeichen Text), damit der Index nicht aufquillt.
-5. **Parserversion anheben**, wenn sich Entitäten oder Kanten ändern, damit der nächste Sync neu parst
+5. **Kontrollpfad an Daten und eingebetteten Anweisungen.** `meta.control_path` steht auch an Datenzugriffen; die Operanden
+   einer Bedingung stehen vor ihr, nicht in ihr. Eingebettete Anweisungen (COBOL: `EXEC CICS`, `EXEC SQL`) hängen über eine
+   `CONTAINS`-Kante mit diesem Pfad an ihrer Routine, damit der Ablauf sie ohne Zeilennähe findet.
+6. **Parserversion anheben**, wenn sich Entitäten oder Kanten ändern, damit der nächste Sync neu parst
    (`parser/core/registry.py`). Golden-Dateien (`parser/tests/java_corpus/golden`) werden mit
    `parser/tests/update_java_goldens.py` neu erzeugt und im Diff geprüft.
 

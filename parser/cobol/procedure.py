@@ -26,8 +26,11 @@ Programme derselben Datei sonst nicht mehr zwischen ihnen unterscheiden kann
 
 from __future__ import annotations
 
+from bisect import bisect_right
+from collections.abc import Iterable
+
 from .lexer import Token
-from .model import CobolProgram, EntryPoint, ParsedEdge
+from .model import CobolProgram, EntryPoint, ExecBlock, ParsedEdge, SqlBlock
 from .names import canonical_identifier
 
 _PERFORM_INLINE_KEYWORDS = {"UNTIL", "VARYING", "WITH", "TEST", "FOREVER"}
@@ -99,6 +102,8 @@ _STATEMENT_DELIMITERS = {
 
 
 _CLAUSE_MAX_TOKENS = 24
+# Platzhalter-Token eines EXEC-Blocks (embedded.py), keine Fortsetzung der Bedingung.
+_EMBEDDED_BLOCK_PREFIX = "EMBEDDED-BLOCK-"
 _LOOP_HEAD_WORDS = {"WITH", "TEST", "BEFORE", "AFTER"}
 
 
@@ -128,7 +133,10 @@ def _clause_text(tokens: list[Token], start: int, chars: Chars | None = None) ->
     for token in tokens[start : start + _CLAUSE_MAX_TOKENS]:
         if token.kind == "PERIOD":
             break
-        if token.kind == "WORD" and canonical_identifier(token.value) in _STATEMENT_DELIMITERS:
+        if token.kind == "WORD" and (
+            canonical_identifier(token.value) in _STATEMENT_DELIMITERS
+            or canonical_identifier(token.value).startswith(_EMBEDDED_BLOCK_PREFIX)
+        ):
             break
         taken.append(token)
     if not taken:
@@ -184,9 +192,35 @@ def _with_path(meta: dict, path_stack: list[dict[str, str]]) -> dict:
     return meta
 
 
+class ControlTimeline:
+    """Der Kontrollpfad je Quelltextstelle, für alles außerhalb des Hauptdurchlaufs.
+
+    Datenzugriffe entstehen in einem eigenen Durchlauf, und der Lexer sieht EXEC-Blöcke gar nicht.
+    Beide fragen hier nach, unter welcher Bedingung ihre Stelle steht. Ein Eintrag gilt ab dem Token,
+    das den Pfad geändert hat.
+    """
+
+    def __init__(self) -> None:
+        self._positions: list[tuple[int, int]] = []
+        self._paths: list[list[dict[str, str]]] = []
+
+    def note(self, token: Token, path_stack: list[dict[str, str]]) -> None:
+        if (self._paths[-1] if self._paths else []) != path_stack:
+            self._positions.append((token.phys_line, token.col))
+            self._paths.append([dict(entry) for entry in path_stack])
+
+    def at(self, line: int, col: int = 0) -> list[dict[str, str]]:
+        index = bisect_right(self._positions, (line, col)) - 1
+        return [dict(entry) for entry in self._paths[index]] if index >= 0 else []
+
+
 def scan(
-    program: CobolProgram, tokens: list[Token], lines: list | None = None
+    program: CobolProgram,
+    tokens: list[Token],
+    lines: list | None = None,
+    timeline: ControlTimeline | None = None,
 ) -> tuple[list[ParsedEdge], list[str]]:
+    timeline = timeline if timeline is not None else ControlTimeline()
     chars = _char_map(lines)
     errors: list[str] = []
     edges: list[ParsedEdge] = []
@@ -221,6 +255,7 @@ def scan(
         if tok.kind == "PERIOD":
             control_stack.clear()
             path_stack.clear()
+            timeline.note(tok, path_stack)
             i += 1
             continue
 
@@ -290,6 +325,7 @@ def scan(
             elif w == "END-PERFORM":
                 if path_stack and path_stack[-1]["type"] == "LOOP":
                     path_stack.pop()
+            timeline.note(tok, path_stack)
 
         if tok.kind == "WORD" and canonical_identifier(tok.value) == "CALL":
             if nxt is not None and nxt.kind in ("LITERAL", "WORD"):
@@ -358,6 +394,7 @@ def scan(
                 else:
                     # Reines PERFORM ... END-PERFORM: nur der END-PERFORM-Abgleich zählt.
                     path_stack.append({"type": "LOOP", "kind": "INLINE", "text": ""})
+                timeline.note(tok, path_stack)
 
             if not is_inline and nxt is not None and nxt.kind == "WORD":
                 end_idx = i + 1
@@ -485,6 +522,41 @@ def _build_meta(
     if control_stack:
         meta["control_context"] = [dict(c) for c in control_stack]
     return meta
+
+
+def block_edges(
+    program: CobolProgram,
+    blocks: Iterable[ExecBlock | SqlBlock],
+    timeline: ControlTimeline,
+) -> list[ParsedEdge]:
+    """Verbindet Paragraphen mit ihren EXEC-Blöcken: Ohne das bleiben CICS-Programmwechsel, Dateizugriffe
+    und `RETURN` aus dem Ablauf ausgeschlossen, denn Blöcke hängen sonst nur am Programm."""
+    procedure = next((d for d in program.divisions if d.name == "PROCEDURE"), None)
+    if procedure is None:
+        return []
+    edges = []
+    for block in blocks:
+        if not procedure.start_line <= block.start_line <= procedure.end_line:
+            continue
+        edges.append(
+            ParsedEdge(
+                type="CONTAINS",
+                src_name=_enclosing_paragraph(program, block.start_line),
+                dst_name=block.name,
+                resolution="resolved",
+                src_start_line=block.start_line,
+                src_end_line=block.end_line,
+                scope=program.name,
+                meta=_with_path(
+                    {
+                        "program": program.name,
+                        "target_qualified_name": f"{program.name}.{block.name}",
+                    },
+                    timeline.at(block.start_line),
+                ),
+            )
+        )
+    return edges
 
 
 def _enclosing_paragraph(program: CobolProgram, line: int) -> str:

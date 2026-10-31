@@ -151,3 +151,87 @@ def test_ims_isrt_classifies_from_buffer_as_read_data():
         by_name.setdefault(entity.name.upper(), []).append(entity)
     target = resolve_local_target(access, by_qname, by_name)
     assert target is not None and target.type == "data_item" and target.name == "WS-ORDER"
+
+
+CONTROL_FLOW_PROGRAM = (
+    "       IDENTIFICATION DIVISION.\n"
+    "       PROGRAM-ID. SIGNON.\n"
+    "       DATA DIVISION.\n"
+    "       WORKING-STORAGE SECTION.\n"
+    "       01 WS-ADMIN PIC X.\n"
+    "       01 WS-USER PIC X(8).\n"
+    "       PROCEDURE DIVISION.\n"
+    "       LOGIN-PARA.\n"
+    "           IF WS-ADMIN = 'Y'\n"
+    "               MOVE 'A' TO WS-USER\n"
+    "               EXEC CICS XCTL\n"
+    "                   PROGRAM('COADM01C')\n"
+    "               END-EXEC\n"
+    "           ELSE\n"
+    "               EXEC CICS XCTL\n"
+    "                   PROGRAM('COMEN01C')\n"
+    "               END-EXEC\n"
+    "           END-IF.\n"
+    "           EXEC CICS RETURN\n"
+    "           END-EXEC.\n"
+)
+
+
+def _block_edges():
+    result = parse_program(CONTROL_FLOW_PROGRAM, "SIGNON.CBL")
+    return result, {
+        edge.dst_name: edge for edge in result.edges if edge.type == "CONTAINS"
+    }
+
+
+def test_a_paragraph_contains_its_exec_blocks_under_their_condition():
+    _, edges = _block_edges()
+
+    admin = edges["EXEC-CICS-BLOCK@11"]
+    assert admin.src_name == "LOGIN-PARA"
+    assert admin.meta["target_qualified_name"] == "SIGNON.EXEC-CICS-BLOCK@11"
+    assert admin.meta["control_path"] == [
+        {"type": "IF", "branch": "THEN", "condition": "WS-ADMIN = 'Y'"}
+    ]
+    assert edges["EXEC-CICS-BLOCK@15"].meta["control_path"] == [
+        {"type": "IF", "branch": "ELSE", "condition": "WS-ADMIN = 'Y'"}
+    ]
+    # Der Punkt hat die Bedingung beendet.
+    assert "control_path" not in edges["EXEC-CICS-BLOCK@19"].meta
+
+
+def test_data_access_knows_its_condition_but_the_condition_itself_stands_before_it():
+    result, _ = _block_edges()
+    edges = {
+        (edge.type, edge.dst_name): edge
+        for edge in result.edges
+        if edge.dst_name in {"WS-ADMIN", "WS-USER"} and edge.type in {"READS", "WRITES"}
+    }
+
+    assert edges[("WRITES", "WS-USER")].meta["control_path"] == [
+        {"type": "IF", "branch": "THEN", "condition": "WS-ADMIN = 'Y'"}
+    ]
+    assert "control_path" not in edges[("READS", "WS-ADMIN")].meta
+
+
+def test_exec_block_names_its_resources_for_the_process_view():
+    result, _ = _block_edges()
+    block = next(e for e in result.entities if e.name == "EXEC-CICS-BLOCK@11")
+    assert block.meta["resources"] == ["COADM01C"]
+
+
+def test_a_condition_ends_before_the_exec_block_that_follows_it():
+    result = parse_program(
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. SIGNON.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       LOGIN-PARA.\n"
+        "           IF WS-ADMIN\n"
+        "               EXEC CICS RETURN\n"
+        "               END-EXEC\n"
+        "           END-IF.\n",
+        "SIGNON.CBL",
+    )
+    edge = next(item for item in result.edges if item.type == "CONTAINS")
+    assert edge.meta["control_path"][0]["condition"] == "WS-ADMIN"
+

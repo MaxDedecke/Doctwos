@@ -289,6 +289,13 @@
       "scope": "TABSUB",
       "meta": {
         "program": "TABSUB",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "VARYING",
+            "text": "WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 12"
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -351,6 +358,13 @@
         "program": "TABSUB",
         "operand_role": "source",
         "operation": "MOVE",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "VARYING",
+            "text": "WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 12"
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -382,6 +396,13 @@
         "program": "TABSUB",
         "operand_role": "target",
         "operation": "MOVE",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "VARYING",
+            "text": "WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 12"
+          }
+        ],
         "parent": "WS-MONATE",
         "evidence": {
           "schema_version": 1,
@@ -414,6 +435,13 @@
         "program": "TABSUB",
         "operand_role": "target",
         "operation": "MOVE",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "VARYING",
+            "text": "WS-IDX FROM 1 BY 1 UNTIL WS-IDX > 12"
+          }
+        ],
         "evidence": {
           "schema_version": 1,
           "kind": "source",

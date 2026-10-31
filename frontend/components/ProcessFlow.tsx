@@ -5,7 +5,7 @@ import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { buildFlowRows, type DataVerb, type FlowProjection, type FlowRow, type PathEntry } from '@/lib/processFlow';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ChevronRight, Database, ExternalLink, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Route, Split, Workflow } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Database, ExternalLink, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Route, Split, Square, Workflow } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 interface Props {
@@ -22,8 +22,11 @@ async function fetchProjection(entityId: number, projectId: number | null | unde
   const projectParam = projectId ? `&project_id=${projectId}` : '';
   const response = await api.fetch(`${API_URL}/process/focus?entity_id=${entityId}&hops=1&direction=outgoing&node_limit=500&edge_limit=1000${projectParam}`);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const data: FlowProjection & { truncation?: { truncated: boolean } } = await response.json();
-  return { projection: { nodes: data.nodes || [], transitions: data.transitions || [] }, truncated: Boolean(data.truncation?.truncated) };
+  const data: FlowProjection & { root_node_id?: string; truncation?: { truncated: boolean } } = await response.json();
+  return {
+    projection: { nodes: data.nodes || [], transitions: data.transitions || [], rootNodeId: data.root_node_id },
+    truncated: Boolean(data.truncation?.truncated),
+  };
 }
 
 export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: Props) {
@@ -301,6 +304,12 @@ function StepPill({ row, isDark, selected, onToggle, onSelect, onOpen, loading, 
             <Badge tone="indigo"><Repeat className="h-2.5 w-2.5" />{guardLabel({ type: 'LOOP', kind: row.loop.kind, text: row.loop.text }, t)}</Badge>
           )}
           {row.transitionKind === 'jump' && <Badge tone="slate">GOTO</Badge>}
+          {row.transitionKind === 'exit' && <Badge tone="slate"><Square className="h-2.5 w-2.5" />{t('processFlow.exit')}</Badge>}
+          {row.invocationKind === 'cics_xctl' && <Badge tone="indigo">{t('processFlow.transferNoReturn')}</Badge>}
+          {row.invocationKind === 'cics_link' && <Badge tone="indigo">{t('processFlow.link')}</Badge>}
+          {row.candidateTargets && row.candidateTargets.length > 0 && (
+            <Badge tone="slate"><span className="max-w-[16rem] truncate" title={row.candidateTargets.join(', ')}>{t('processFlow.candidates', { names: row.candidateTargets.join(', ') })}</span></Badge>
+          )}
           {row.transitionKind === 'branch' && <Badge tone="amber"><GitBranch className="h-2.5 w-2.5" />{t('processFlow.multiTarget')}</Badge>}
           {row.certainty === 'possible' && <Badge tone="slate">{t('processFlow.possible')}</Badge>}
           {row.certainty === 'unresolved' && <Badge tone="amber">{t('processFlow.unresolved')}</Badge>}

@@ -14,6 +14,7 @@ from doctus_models.database import CodeEntity
 LOCAL_TARGET_TYPES: dict[str, tuple[str, ...]] = {
     "PERFORM": ("paragraph", "section"),
     "GOTO": ("paragraph", "section"),
+    "CONTAINS": ("exec_block", "sql_block"),
     "USES": ("data_item", "exec_resource", "file_fd"),
     "READS": ("data_item", "file_fd", "sql_table"),
     "WRITES": ("data_item", "file_fd", "sql_table"),
@@ -26,6 +27,7 @@ SOURCE_TYPES: dict[str, tuple[str, ...]] = {
     "CALL": ("program", "paragraph"),
     "PERFORM": ("program", "paragraph"),
     "GOTO": ("program", "paragraph"),
+    "CONTAINS": ("program", "paragraph"),
     "COPY": ("program", "paragraph"),
     "USES": ("program", "paragraph", "sql_block", "exec_block"),
     "READS": ("paragraph", "sql_block", "exec_block"),

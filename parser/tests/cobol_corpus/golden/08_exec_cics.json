@@ -68,6 +68,7 @@
       "meta": {
         "dialect": "CICS",
         "operation": "SEND",
+        "resources": [],
         "evidence": {
           "schema_version": 1,
           "kind": "source",
@@ -130,6 +131,36 @@
         "dialect": "CICS",
         "language": "cobol",
         "target_qualified_name": "EXECDEMO.EXEC-CICS-BLOCK@5.SEND@5",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/08_exec_cics.cbl",
+            "start_line": 5,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "CONTAINS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "EXEC-CICS-BLOCK@5",
+      "resolution": "resolved",
+      "src_start_line": 5,
+      "src_end_line": 8,
+      "scope": "EXECDEMO",
+      "meta": {
+        "program": "EXECDEMO",
+        "target_qualified_name": "EXECDEMO.EXEC-CICS-BLOCK@5",
         "evidence": {
           "schema_version": 1,
           "kind": "source",

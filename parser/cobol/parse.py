@@ -171,7 +171,8 @@ def parse_program(
         errors.extend(dd_errors)
         dd_diagnostics_all.extend(dd_diagnostics)
 
-        proc_edges, proc_errors = procedure_mod.scan(program, tokens, masked_lines)
+        timeline = procedure_mod.ControlTimeline()
+        proc_edges, proc_errors = procedure_mod.scan(program, tokens, masked_lines, timeline)
         errors.extend(proc_errors)
 
         copy_edges, copy_errors = copybook_mod.scan(
@@ -214,11 +215,17 @@ def parse_program(
             copybook_index,
             profile.copy_search_order if profile is not None else (),
         )
-        xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields)
+        xref_edges, xref_errors = xref_mod.scan(
+            program, tokens, items, inherited_fields, timeline
+        )
         errors.extend(xref_errors)
 
         fd_edges = data_division_mod.file_descriptor_edges(program, file_descriptors, items)
         io_edges = io_mod.scan(program, tokens, file_descriptors, items)
+        for edge in io_edges:
+            path = timeline.at(edge.src_start_line)
+            if path:
+                edge.meta["control_path"] = path
         xref_edges = _drop_xref_edges_covered_by_io(io_edges, xref_edges)
         dynamic_targets_mod.annotate(
             [*proc_edges, *exec_edges], tokens, program.start_line, program.end_line
@@ -230,6 +237,7 @@ def parse_program(
                 *sql_edges,
                 *sql_include_edges,
                 *exec_edges,
+                *procedure_mod.block_edges(program, [*exec_blocks, *sql_blocks], timeline),
                 *fd_edges,
                 *io_edges,
                 *xref_edges,
@@ -435,7 +443,11 @@ def _build_entities(
                 parent_name=program.name,
                 qualified_name=block_qname,
                 parent_qualified_name=program.name,
-                meta={"dialect": block.dialect, "operation": block.operation},
+                meta={
+                    "dialect": block.dialect,
+                    "operation": block.operation,
+                    "resources": [resource.name for resource in block.resources],
+                },
             )
         )
         add_entity(

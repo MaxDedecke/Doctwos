@@ -25,6 +25,7 @@ from __future__ import annotations
 
 from .lexer import Token
 from .model import CobolProgram, DataItem, ParsedEdge
+from .procedure import ControlTimeline
 from .names import canonical_identifier
 
 _QUALIFIERS = ("OF", "IN")
@@ -224,6 +225,7 @@ def scan(
     tokens: list[Token],
     items: list[DataItem],
     inherited_fields: list[dict] | None = None,
+    timeline: ControlTimeline | None = None,
 ) -> tuple[list[ParsedEdge], list[str]]:
     errors: list[str] = []
     edges: list[ParsedEdge] = []
@@ -303,6 +305,13 @@ def scan(
             edge_type, operand_role, operation = access
             meta["operand_role"] = operand_role
             meta["operation"] = operation
+        if timeline is not None:
+            path = timeline.at(tok.phys_line, tok.col)
+            # Die Bedingung selbst wird vor der Verzweigung gelesen, nicht in ihr.
+            if access is not None and access[1] == "condition":
+                path = path[:-1]
+            if path:
+                meta["control_path"] = path
         if target is not None:
             if isinstance(target, dict):
                 meta["copybook_path"] = target["path"]

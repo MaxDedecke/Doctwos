@@ -69,6 +69,59 @@ describe('buildFlowRows', () => {
     expect(buildFlowRows('entity:404', new Map(), new Set()).rows).toEqual([]);
   });
 
+  it('startet beim Einstiegsparagraphen, wenn die Antwort für ein Programm ihn als Wurzel nennt', () => {
+    const entry: FlowProjection = {
+      rootNodeId: 'entity:1',
+      nodes: [node('entity:1', '0000-MAIN', 'entry'), node('entity:2', 'INIT')],
+      transitions: [tr('a', 'entity:1', 'entity:2', 'call', 10, ['PERFORM'])],
+    };
+    const job: FlowProjection = {
+      nodes: [node('entity:7', 'JOB', 'entry'), node('entity:5', 'PROGRAMM')],
+      transitions: [tr('p', 'entity:7', 'entity:5', 'call', 3, ['EXECUTES'])],
+    };
+
+    const direct = buildFlowRows('entity:5', new Map([['entity:5', entry]]), new Set());
+    expect(direct.rows.map(row => row.label)).toEqual(['0000-MAIN', 'INIT']);
+
+    const nested = buildFlowRows('entity:7', new Map([['entity:7', job], ['entity:5', entry]]), new Set(['root/p']));
+    expect(nested.rows.map(row => row.label)).toEqual(['JOB', 'PROGRAMM', 'INIT']);
+  });
+
+  it('zeigt Bedingungen auch ohne Aufruf und setzt sie nach Datenzeilen nicht erneut', () => {
+    const then = { type: 'IF', branch: 'THEN', condition: 'WS-A' };
+    const flow: FlowProjection = {
+      nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'A'), node('entity:9', 'FELD')],
+      transitions: [
+        tr('d1', 'entity:1', 'entity:9', 'data_access', 10, ['READS']),
+        tr('d2', 'entity:1', 'entity:9', 'data_access', 11, ['WRITES'], { meta: { control_path: [then] } }),
+        tr('d3', 'entity:1', 'entity:9', 'data_access', 12, ['WRITES'], { meta: { control_path: [then] } }),
+        tr('a', 'entity:1', 'entity:2', 'call', 13, ['PERFORM'], { meta: { control_path: [then] } }),
+      ],
+    };
+    const { rows } = buildFlowRows('entity:1', new Map([['entity:1', flow]]), new Set());
+    expect(rows.map(row => (row.guard ? 'wenn' : row.lane === 'data' ? `daten:${row.accesses!.length}` : row.label))).toEqual([
+      'MAIN', 'daten:1', 'wenn', 'daten:2', 'A',
+    ]);
+    const data = rows.filter(row => row.lane === 'data');
+    expect(data[1].indent).toBe(data[0].indent + 1);
+  });
+
+  it('macht das Ende eines Laufs nicht aufklappbar und reicht Art und Kandidaten des Aufrufs weiter', () => {
+    const flow: FlowProjection = {
+      nodes: [node('entity:1', 'MAIN', 'entry'), node('entity:2', 'CICS RETURN', 'step'), node('external:edge:5', 'CDEMO-TO-PROGRAM', 'external_call', false)],
+      transitions: [
+        tr('r', 'entity:1', 'entity:2', 'exit', 20, ['CONTAINS']),
+        tr('x', 'entity:1', 'external:edge:5', 'external_call', 10, ['CALL'], {
+          certainty: 'possible', meta: { invocation_kind: 'cics_xctl', candidate_targets: ['COMEN01C'] },
+        }),
+      ],
+    };
+    const { rows } = buildFlowRows('entity:1', new Map([['entity:1', flow]]), new Set());
+    expect(rows[1].invocationKind).toBe('cics_xctl');
+    expect(rows[1].candidateTargets).toEqual(['COMEN01C']);
+    expect(rows[2].expandable).toBe(false);
+  });
+
   it('setzt Wächterzeilen für Bedingungen und Schleifen und rückt darunterliegende Schritte ein', () => {
     const ifThen = { type: 'IF', branch: 'THEN', condition: "WS-A = 'Y'" };
     const ifElse = { ...ifThen, branch: 'ELSE' };

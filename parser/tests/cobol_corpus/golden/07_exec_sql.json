@@ -481,6 +481,126 @@
           "condition": null
         }
       }
+    },
+    {
+      "type": "CONTAINS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "SQL-BLOCK@10",
+      "resolution": "resolved",
+      "src_start_line": 10,
+      "src_end_line": 15,
+      "scope": "EXECSQL",
+      "meta": {
+        "program": "EXECSQL",
+        "target_qualified_name": "EXECSQL.SQL-BLOCK@10",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 10,
+            "end_line": 15
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "CONTAINS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "SQL-BLOCK@16",
+      "resolution": "resolved",
+      "src_start_line": 16,
+      "src_end_line": 18,
+      "scope": "EXECSQL",
+      "meta": {
+        "program": "EXECSQL",
+        "target_qualified_name": "EXECSQL.SQL-BLOCK@16",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 16,
+            "end_line": 18
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "CONTAINS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "SQL-BLOCK@19",
+      "resolution": "resolved",
+      "src_start_line": 19,
+      "src_end_line": 22,
+      "scope": "EXECSQL",
+      "meta": {
+        "program": "EXECSQL",
+        "target_qualified_name": "EXECSQL.SQL-BLOCK@19",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 19,
+            "end_line": 22
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "CONTAINS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "SQL-BLOCK@23",
+      "resolution": "resolved",
+      "src_start_line": 23,
+      "src_end_line": 25,
+      "scope": "EXECSQL",
+      "meta": {
+        "program": "EXECSQL",
+        "target_qualified_name": "EXECSQL.SQL-BLOCK@23",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/07_exec_sql.cbl",
+            "start_line": 23,
+            "end_line": 25
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
     }
   ],
   "chunks": [
