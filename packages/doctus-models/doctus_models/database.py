@@ -221,6 +221,8 @@ class KnowledgeSource(Base):
     # last_synced_at wird auch nach Fehlern gesetzt. Bei Git gehört dazu
     # sync_cursor["last_commit"]; beide werden im selben Commit geschrieben.
     indexed_at = Column(DateTime(timezone=True), nullable=True)
+    # Dateien und Zeilen je Sprache, berechnet am Sync-Ende (doctus_models/repo_stats.py).
+    repo_stats = Column(JSON, nullable=True)
     celery_task_id = Column(String(255), nullable=True)
     progress = Column(Integer, default=0)
     progress_message = Column(String, nullable=True)

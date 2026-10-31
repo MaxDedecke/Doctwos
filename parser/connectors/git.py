@@ -84,6 +84,7 @@ from ollama_client import (
 from code_parser import CodeParser, fit_chunks_to_utf8_budget
 from chunk_reindex import reindex_chunks_preserving_links
 from tasks.edge_resolver import resolve_global_edges
+from doctus_models.repo_stats import compute_worktree_stats
 from tasks.file_edges import refresh_code_file_edges
 from tasks.shared import get_authenticated_url
 from core import config
@@ -1688,6 +1689,9 @@ class GitConnector(BaseConnector):
             )
             if file_edges is not None:
                 self._log(f"Graph-Übersicht: {file_edges} Dateikante(n) im Grundgerüst berechnet.")
+            self.source.repo_stats = await asyncio.to_thread(
+                compute_worktree_stats, git_utils.worktree_path(REPOS_ROOT, self.source_id)
+            )
 
             # sync_cursor erst nach erfolgreichem Durchlauf vorrücken, damit ein
             # Abbruch den nächsten Sync exakt denselben Diff neu berechnen lässt

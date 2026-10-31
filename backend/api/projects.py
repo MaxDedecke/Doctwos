@@ -42,23 +42,13 @@ from api.schemas import (
     ProjectCompleteRequest,
 )
 from api.serializers import serialize_project, serialize_source
+from doctus_models.repo_stats import compute_worktree_stats
 from core.config import celery_app
-from services.reference_search import refs_for_document, refs_for_file
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/projects", tags=["projects"])
 
 REPOS_ROOT = "/repos"  # Oder config-wert falls definiert
-
-
-# Kept as private API aliases for the focused regression tests that predate the
-# extraction. Route code has no dependency on the text-search implementation.
-def _refs_for_document(project_id, file_path, base_name, db) -> list[dict]:
-    return refs_for_document(project_id, file_path, base_name, db)
-
-
-def _refs_for_file(project_id, file_path, base_name, db) -> list[dict]:
-    return refs_for_file(project_id, file_path, base_name, db)
 
 
 def _default_team_id(db: Session) -> int:
@@ -528,34 +518,6 @@ def get_file_references(
     return {"references": references, "truncated": len(rows) > _MAX_FILE_REFERENCES}
 
 
-_EXT_LANG_MAP = {
-    ".py": "Python",
-    ".js": "JavaScript",
-    ".jsx": "JavaScript",
-    ".ts": "TypeScript",
-    ".tsx": "TypeScript",
-    ".java": "Java",
-    ".c": "C",
-    ".cpp": "C++",
-    ".h": "C/C++ Header",
-    ".hpp": "C/C++ Header",
-    ".go": "Go",
-    ".rs": "Rust",
-    ".cs": "C#",
-    ".php": "PHP",
-    ".rb": "Ruby",
-    ".html": "HTML",
-    ".htm": "HTML",
-    ".css": "CSS",
-    ".sh": "Shell",
-    ".json": "JSON",
-    ".yaml": "YAML",
-    ".yml": "YAML",
-    ".xml": "XML",
-    ".md": "Markdown",
-}
-
-
 @router.get("/{id}/stats")
 def get_project_repository_stats(
     id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
@@ -573,41 +535,17 @@ def get_project_repository_stats(
     if not git_source:
         return {"total_files": 0, "total_lines": 0, "languages": []}
 
+    if git_source.repo_stats is not None:
+        return git_source.repo_stats
+
+    # Quelle ohne Sync seit Einführung von `repo_stats`: einmal hier rechnen, danach der Parser.
     # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id>, siehe list_project_files() oben.
     repo_path = os.path.join(REPOS_ROOT, "wt", f"ks_{git_source.id}")
     if not os.path.exists(repo_path):
         return {"total_files": 0, "total_lines": 0, "languages": []}
-
-    total_files = 0
-    total_lines = 0
-    language_counts: dict[str, int] = {}
-
-    for root, dirs, files in os.walk(repo_path):
-        if ".git" in dirs:
-            dirs.remove(".git")
-        for file in files:
-            file_path = os.path.join(root, file)
-            if os.path.islink(file_path):
-                continue
-            total_files += 1
-            lang = _EXT_LANG_MAP.get(os.path.splitext(file)[1].lower(), "Other")
-            try:
-                with open(file_path, "r", errors="ignore") as f:
-                    lines = sum(1 for _ in f)
-                total_lines += lines
-                language_counts[lang] = language_counts.get(lang, 0) + lines
-            except Exception:
-                pass
-
-    languages = []
-    if total_lines > 0:
-        for lang, lines in language_counts.items():
-            pct = round((lines / total_lines) * 100, 1)
-            if pct > 0:
-                languages.append({"name": lang, "lines": lines, "percentage": pct})
-        languages.sort(key=lambda x: x["percentage"], reverse=True)
-
-    return {"total_files": total_files, "total_lines": total_lines, "languages": languages}
+    git_source.repo_stats = compute_worktree_stats(repo_path)
+    db.commit()
+    return git_source.repo_stats
 
 
 @router.post("/{id}/sync")

@@ -15,6 +15,7 @@ from unittest.mock import patch
 import pytest
 
 import api.projects as projects_api
+from doctus_models.repo_stats import compute_worktree_stats
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from doctus_models.database import (
     CodeEntity,
@@ -572,6 +573,15 @@ def test_get_project_repository_stats_counts_worktree_lines_by_language(
     assert languages["Python"]["lines"] == 3
     assert languages["Markdown"]["lines"] == 1
 
+    # Einmal gerechnet, danach aus der Quelle: Ein geänderter Worktree ändert nichts mehr.
+    (worktree / "new.py").write_text("d\n")
+    assert client.get(f"/projects/{test_project}/stats").json() == body
+
+    db_session.refresh(source)
+    source.repo_stats = {"total_files": 9, "total_lines": 9, "languages": []}
+    db_session.commit()
+    assert client.get(f"/projects/{test_project}/stats").json()["total_files"] == 9
+
 
 def test_get_project_repository_stats_requires_project_membership(
     unauthenticated_client, test_project, team_member_without_project
@@ -912,3 +922,18 @@ def test_get_file_references_requires_project_membership(
         f"/projects/{test_project}/file-references", params={"file_path": "A.java"}
     )
     assert res.status_code == 403
+
+
+def test_worktree_stats_count_lines_like_an_editor_and_skip_git_and_links(tmp_path):
+    (tmp_path / ".git").mkdir()
+    (tmp_path / ".git" / "config").write_text("ignored\n")
+    (tmp_path / "crlf.java").write_bytes(b"a\r\nb\r\n")
+    (tmp_path / "no_newline.java").write_bytes(b"a\nb")
+    (tmp_path / "empty.java").write_bytes(b"")
+    (tmp_path / "link.java").symlink_to(tmp_path / "crlf.java")
+
+    stats = compute_worktree_stats(str(tmp_path))
+
+    assert stats["total_files"] == 3
+    assert stats["total_lines"] == 4
+    assert stats["languages"] == [{"name": "Java", "lines": 4, "percentage": 100.0}]

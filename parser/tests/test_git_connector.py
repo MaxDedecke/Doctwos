@@ -348,6 +348,7 @@ async def test_markup_budget_and_duplicate_shell_entities_survive_git_ingestion(
         await connector.sync()
     db_session.refresh(test_source)
     assert test_source.sync_status == "completed", test_source.last_error
+    assert test_source.repo_stats["total_files"] > 0
     markup_batches = [
         call.args[0] for call in batch.call_args_list if any("😀" in item for item in call.args[0])
     ]
