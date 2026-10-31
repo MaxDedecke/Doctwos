@@ -111,6 +111,8 @@
       "insights": "💡 Insights"
     },
     "focusBar": {
+      "current": "Current focus",
+      "clear": "Clear focus",
       "entity": "Code object",
       "document": "Document",
       "webOrigin": "Web page",

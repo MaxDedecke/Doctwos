@@ -7,21 +7,16 @@ import {
 } from '@/components/ui/select';
 import type { PanelHistoryEntry, PanelSelection } from '@/lib/panelHistory';
 import { getAvailablePanelViewTypes } from '@/lib/panelViewTypes';
-import { getEntityTypeLabel, type GraphLocale } from '@/lib/graphTaxonomy';
+import { getFocusInfo } from '@/components/FocusIndicator';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import type { FocusObject, Project } from '@/types/domain';
+import type { Project } from '@/types/domain';
 import {
-  BookOpen,
-  Box,
-  Braces,
   ChevronLeft,
   ChevronRight,
-  Globe,
   Lock,
   RefreshCw,
   Search,
-  Terminal,
   X,
 } from 'lucide-react';
 import React from 'react';
@@ -32,7 +27,6 @@ interface PanelRendererProps {
   index: number;
   contentType: string;
   selection: PanelSelection;
-  focusObject: FocusObject | null;
   theme: string;
   t: Translate;
   selectedProject: Project | null;
@@ -53,7 +47,6 @@ export function PanelRenderer({
   index,
   contentType,
   selection,
-  focusObject,
   theme,
   t,
   selectedProject,
@@ -70,7 +63,8 @@ export function PanelRenderer({
   onClose,
 }: PanelRendererProps) {
   const { language } = useLanguage();
-  const focusInfo = getPanelFocusInfo(focusObject, selection, t, language);
+  // Nur ein eingefrorenes Panel kann vom Fokus im Header abweichen.
+  const frozenFocus = panelFrozen ? getFocusInfo(selection, t, language) : null;
 
   return (
     <div
@@ -113,6 +107,12 @@ export function PanelRenderer({
           <button onClick={() => onHistoryForward(index)} disabled={(panelHistory?.future.length || 0) === 0} className={historyButtonClass(theme)} title={`${t('page.workspace.historyForward')} (Alt+→)`}>
             <ChevronRight className="w-3 h-3" />
           </button>
+          {frozenFocus && (
+            <span data-testid="frozen-panel-focus" title={frozenFocus.path} className="hidden min-w-0 max-w-[10rem] items-center gap-1 text-[0.625rem] sm:flex">
+              <frozenFocus.Icon className={cn('h-3 w-3 shrink-0', frozenFocus.colorClass)} />
+              <span className={cn('truncate font-medium', theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700')}>{frozenFocus.label}</span>
+            </span>
+          )}
           <button
             onClick={() => onToggleFreeze(index)}
             className={cn(
@@ -129,15 +129,6 @@ export function PanelRenderer({
         </div>
       </div>
 
-      {focusInfo && contentType !== 'doc' && contentType !== 'webview' && contentType !== 'linkmanager' && contentType !== 'insights' && (
-        <div className={cn('px-3 py-1 border-b flex items-center gap-1.5 text-[0.6875rem] shrink-0 z-10 min-w-0', theme === 'dark' ? 'border-ds-zinc-900 bg-ds-zinc-950/40' : 'border-ds-zinc-200 bg-ds-zinc-50/40')}>
-          <focusInfo.Icon className={cn('w-3 h-3 shrink-0', focusInfo.colorClass)} />
-          <span className={cn('truncate font-medium', theme === 'dark' ? 'text-ds-zinc-300' : 'text-ds-zinc-700')} title={focusInfo.label}>{focusInfo.label}</span>
-          <span className="text-ds-zinc-600 shrink-0">·</span>
-          <span className="text-ds-zinc-500 uppercase tracking-wide text-[0.5625rem] shrink-0">{focusInfo.kind}</span>
-        </div>
-      )}
-
       <div className="flex-1 min-w-0 min-h-0 overflow-hidden relative">{content}</div>
     </div>
   );
@@ -150,20 +141,4 @@ function historyButtonClass(theme: string) {
       ? 'bg-transparent border-ds-zinc-800 text-ds-zinc-500 hover:text-ds-zinc-200 hover:border-ds-zinc-700'
       : 'bg-transparent border-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700 hover:border-ds-zinc-300'
   );
-}
-
-function getPanelFocusInfo(focusObject: FocusObject | null, selection: PanelSelection, t: Translate, language: GraphLocale) {
-  if (focusObject) return { Icon: Box, label: focusObject.name, kind: focusObject.kind || t('page.focusBar.entity'), colorClass: 'text-ds-purple-400' };
-  if (selection.selectedEntity) return { Icon: Braces, label: selection.selectedEntity.name, kind: getEntityTypeLabel(selection.selectedEntity.type, language) || t('page.focusBar.entity'), colorClass: 'text-ds-indigo-400' };
-  if (selection.selectedDoc) {
-    const isWeb = selection.selectedDoc.isWebOrigin || ['confluence', 'jira'].includes((selection.selectedDoc.type || '').toLowerCase());
-    return {
-      Icon: isWeb ? Globe : BookOpen,
-      label: isWeb ? selection.selectedDoc.name : (selection.selectedDoc.name?.split('/').pop() || selection.selectedDoc.name),
-      kind: isWeb ? t('page.focusBar.webOrigin') : t('page.focusBar.document'),
-      colorClass: isWeb ? 'text-ds-emerald-400' : 'text-ds-orange-400',
-    };
-  }
-  if (selection.selectedFile) return { Icon: Terminal, label: selection.selectedFile, kind: t('page.focusBar.file'), colorClass: 'text-ds-blue-400' };
-  return null;
 }

@@ -46,6 +46,8 @@ interface GlobalSearchProps {
   onSaveSessionWithoutChat: (title: string) => void | Promise<void>;
   onUpdateSessionSnapshot: () => void | Promise<void>;
   currentUser?: { is_admin?: boolean } | null;
+  /** Steht rechts neben der Projektauswahl. */
+  focusIndicator?: React.ReactNode;
 }
 
 const GROUP_ORDER = ['entity', 'document', 'project', 'knowledge_source'];
@@ -81,6 +83,7 @@ export function GlobalSearch({
   onSaveSessionWithoutChat,
   onUpdateSessionSnapshot,
   currentUser,
+  focusIndicator,
 }: GlobalSearchProps) {
   const { t } = useLanguage();
   const features = useFeatures();
@@ -403,7 +406,7 @@ export function GlobalSearch({
           </SelectContent>
         </Select>
       </div>
-      <div className="flex-1" />
+      <div className="flex min-w-0 flex-1 items-center px-2">{focusIndicator}</div>
 
       {/* Global header actions — add view, knowledge graph, link manager, theme & settings */}
       <div className="flex items-center gap-1 shrink-0 ml-auto pl-1">

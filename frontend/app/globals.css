@@ -312,6 +312,22 @@ html {
   border-left: 2px solid rgb(var(--ds-accent) / 0.6);
 }
 
+/* Der Fokus steht weit weg vom Inhalt: Ein Wechsel leuchtet kurz auf, damit er auffällt. */
+@keyframes doctus-focus-flash {
+  from { box-shadow: 0 0 0 2px rgb(var(--ds-accent) / 0.55); }
+  to { box-shadow: 0 0 0 2px rgb(var(--ds-accent) / 0); }
+}
+
+.doctus-focus-flash {
+  animation: doctus-focus-flash 1.2s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .doctus-focus-flash {
+    animation: none;
+  }
+}
+
 /* Kurzes Hervorheben der angesprungenen Zeile. --ds-accent ist im Dark Mode hell; die Basisfarbe
    wäre dort ein dunkles Blau, in dem farbiger Code absäuft. */
 .doctus-line-flash {

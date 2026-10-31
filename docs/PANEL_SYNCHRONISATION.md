@@ -223,6 +223,8 @@ Zwei Korrekturen an der Matrix stammen aus dem Schreiben der Tests selbst:
 
 ## 7. Zustandsbesitz und Übergänge
 
+**Anzeige des Fokus:** Der globale Fokus steht in der Kopfzeile neben der Projektauswahl (`FocusIndicator`). Panels zeigen ihn nicht mehr einzeln; nur ein eingefrorenes Panel nennt im Kopf sein eigenes Objekt, weil es als einziges abweichen kann. Das X führt vom Objekt zurück auf seine Datei und schließt erst danach die Datei; eingefrorene Panels bleiben unberührt.
+
 Die Matrix regelt, welches Panel einer Auswahl folgt. Dieser Abschnitt regelt, **wer** den
 verbindlichen Zustand besitzt und wie zusammengehörige Änderungen gemeinsam ablaufen. Anlass:
 Architektur-Review (Punkt 6, 29.10.2026).

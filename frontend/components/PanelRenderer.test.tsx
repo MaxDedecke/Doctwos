@@ -25,7 +25,6 @@ function renderChatPanel(overrides: Partial<React.ComponentProps<typeof PanelRen
       index={0}
       contentType="chat"
       selection={EMPTY_SELECTION}
-      focusObject={null}
       theme="dark"
       t={(key: string) => key}
       selectedProject={null}
@@ -80,14 +79,13 @@ describe('PanelRenderer focus bar', () => {
     expect(container.firstElementChild?.children.length).toBe(2);
   });
 
-  it('shows the focus bar with the focused object once something is focused', () => {
-    const { container } = renderChatPanel({
-      contentType: 'code',
-      selection: { ...EMPTY_SELECTION, selectedFile: 'app/ZAHLUNG.CBL' },
-    });
+  it('shows no focus of its own in a live panel: the header holds it', () => {
+    renderChatPanel({ contentType: 'code', selection: { ...EMPTY_SELECTION, selectedFile: 'app/ZAHLUNG.CBL' } });
+    expect(screen.queryByTestId('frozen-panel-focus')).toBeNull();
+  });
 
-    expect(screen.getByText('app/ZAHLUNG.CBL')).toBeTruthy();
-    expect(screen.getByText('page.focusBar.file')).toBeTruthy();
-    expect(container.firstElementChild?.children.length).toBe(3);
+  it('shows its own object when frozen, because it can differ from the header', () => {
+    renderChatPanel({ contentType: 'code', panelFrozen: true, selection: { ...EMPTY_SELECTION, selectedFile: 'app/ZAHLUNG.CBL' } });
+    expect(screen.getByTestId('frozen-panel-focus').textContent).toContain('ZAHLUNG.CBL');
   });
 });

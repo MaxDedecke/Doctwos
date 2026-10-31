@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 
+import { FocusIndicator } from "@/components/FocusIndicator";
 import { GlobalSearch } from "@/components/GlobalSearch";
 import { LoginView } from "@/components/LoginView";
 import { OpenGraphDialog } from "@/components/OpenGraphDialog";
@@ -1098,6 +1099,36 @@ function AppContent() {
     });
   };
 
+  const viewFocus = useCallback(() => {
+    if (selectedEntity) void handleFileSelect(selectedEntity.file_path, selectedEntity.start_line, selectedEntity.source_id);
+    else if (selectedDoc) handleDocFocusRequest(selectedDoc.name, selectedDoc.id, selectedDoc);
+    else if (selectedFile) void handleFileSelect(selectedFile, selectedLine, selectedSource?.id);
+  }, [handleDocFocusRequest, handleFileSelect, selectedDoc, selectedEntity, selectedFile, selectedLine, selectedSource?.id]);
+
+  // In zwei Schritten: Vom Objekt zurück auf seine Datei, erst danach schließt die Datei. Eingefrorene
+  // Panels behalten ihre Auswahl.
+  const clearFocus = useCallback(() => {
+    setPinnedCode(null);
+    setSelectedLine(null);
+    if (selectedEntity) {
+      setSelectedEntity(null);
+      return;
+    }
+    setSelectedFile(null);
+    setSelectedDoc(null);
+    setFileNavStack([]);
+    setFileContent('');
+  }, [selectedEntity, setFileContent, setFileNavStack, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedFile, setSelectedLine]);
+
+  const focusIndicator = useMemo(() => (
+    <FocusIndicator
+      selection={{ selectedEntity, selectedDoc, selectedFile }}
+      theme={theme}
+      onView={viewFocus}
+      onClear={clearFocus}
+    />
+  ), [clearFocus, selectedDoc, selectedEntity, selectedFile, theme, viewFocus]);
+
   const renderPanel = (index: number) => {
     const contentType = panelConfigs[index] || 'chat';
     const selection = panelSelections[index] || { selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null };
@@ -1106,7 +1137,6 @@ function AppContent() {
         index={index}
         contentType={contentType}
         selection={selection}
-        focusObject={panelFocusObject[index]}
         theme={theme}
         t={t}
         selectedProject={selectedProject}
@@ -1211,6 +1241,7 @@ function AppContent() {
         onSaveSessionWithoutChat={handleSaveSessionWithoutChat}
         onUpdateSessionSnapshot={handleUpdateSessionSnapshot}
         currentUser={currentUser}
+        focusIndicator={focusIndicator}
       />
 
       <div className="flex-1 flex overflow-hidden min-h-0">

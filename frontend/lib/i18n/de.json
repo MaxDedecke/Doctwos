@@ -111,6 +111,8 @@
       "insights": "💡 Erkenntnisse"
     },
     "focusBar": {
+      "current": "Aktueller Fokus",
+      "clear": "Fokus aufheben",
       "entity": "Code-Objekt",
       "document": "Dokument",
       "webOrigin": "Webseite",
