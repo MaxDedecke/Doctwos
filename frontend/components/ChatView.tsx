@@ -244,12 +244,8 @@ export function ChatView({
       (selectedFile || selectedDoc) ? splitClasses.chat : "w-full"
     )}>
 
-      {/* Upper Spacer to offset Sidebar Menu button */}
-      <div className={cn(
-        "h-16 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center px-4 @sm/chat:px-6"
-      )}>
-        <div aria-hidden="true" />
-        {sessionChatMode === null ? (
+      {sessionChatMode === null && (
+      <div className="flex shrink-0 justify-center px-4 pt-2 @sm/chat:px-6">
         <div role="group" aria-label={t('chatView.modeLabel')} className={cn(
           "flex items-center rounded-full border p-1 shadow-sm",
           theme === 'dark' ? 'border-ds-zinc-700 bg-ds-zinc-900' : 'border-ds-zinc-200 bg-ds-white'
@@ -266,14 +262,13 @@ export function ChatView({
             </button>
           ))}
         </div>
-        ) : <div aria-hidden="true" />}
-        <div aria-hidden="true" />
       </div>
+      )}
 
       {/* Chat message stream container */}
       <ScrollArea className="flex-1 w-full min-w-0">
         <div ref={messageStreamRef} className={cn(
-          "w-full px-4 @sm/chat:px-6 py-6 @sm/chat:py-8 flex flex-col min-h-full justify-between mx-auto",
+          "w-full px-4 @sm/chat:px-6 pt-3 pb-6 @sm/chat:pb-8 flex flex-col min-h-full justify-between mx-auto",
           chatMessages.length === 0 ? "max-w-7xl" : "max-w-4xl"
         )}>
 

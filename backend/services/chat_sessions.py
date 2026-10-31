@@ -302,7 +302,7 @@ def sanitize_workspace_snapshot(snapshot: dict | None, user: User) -> dict | Non
     keep = [index for index, panel_type in enumerate(configs) if panel_type != "linkmanager"]
     sanitized = dict(snapshot)
     sanitized["panelConfigs"] = [configs[index] for index in keep] or ["chat"]
-    for key in ("panelFrozen", "panelSelections", "panelFocusObject"):
+    for key in ("panelFrozen", "panelSelections"):
         values = snapshot.get(key)
         if isinstance(values, list):
             sanitized[key] = [values[index] for index in keep if index < len(values)]

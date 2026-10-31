@@ -76,14 +76,6 @@ export interface WorkspaceDocument {
   locatorPrecision?: string | null;
   indexedExcerpt?: boolean;
 }
-export interface FocusObject {
-  kind?: string;
-  name: string;
-  type?: string;
-  material?: string;
-  volume?: number;
-  fireRating?: string;
-}
 export type PanelTab = 'code' | 'doc' | 'weborigin' | 'graph';
 export interface FileNavEntry { file: string | null; doc: WorkspaceDocument | null; tab: PanelTab }
 /** Fields are optional because stored sessions can predate individual layout features. */
@@ -91,7 +83,6 @@ export interface WorkspaceSnapshot {
   panelConfigs?: string[];
   panelFrozen?: boolean[];
   panelSelections?: PanelSelection[];
-  panelFocusObject?: Array<FocusObject | null>;
   fileNavStack?: FileNavEntry[];
   pinnedCode?: ChatPinnedFocus | null;
   activeRightTab?: PanelTab;

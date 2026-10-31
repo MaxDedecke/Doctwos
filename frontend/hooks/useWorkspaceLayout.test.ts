@@ -269,7 +269,6 @@ describe('useWorkspaceLayout restoring saved workspaces', () => {
         panelConfigs: ['chat', 'search', 'code'],
         panelSelections: [empty, { ...empty, agentSearch: { query: 'x' } }, { ...empty, selectedFile: 'A.cbl' }],
         panelFrozen: [false, true, false],
-        panelFocusObject: [null, null, null],
       } as unknown as Parameters<typeof result.current.restoreWorkspaceSnapshot>[0]);
     });
     expect(result.current.panelConfigs).toEqual(['chat', 'code']);

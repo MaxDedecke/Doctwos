@@ -4,7 +4,7 @@ import { appendPanelHistory, type PanelHistoryEntry, type PanelSelection } from 
 import { resolvePanelNavigationTarget } from '@/lib/panelNavigation';
 import { resolveReferenceTarget } from '@/lib/referenceTarget';
 import { getSelectionViewType } from '@/lib/workspaceSelection';
-import type { CodeEntity, FocusObject, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { CodeEntity, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import { isAxiosError } from 'axios';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { useCallback } from 'react';
@@ -31,7 +31,6 @@ interface PanelNavigationOptions {
   panelSelections: PanelSelection[];
   fileNavStack: FileNavEntry[];
   setPinnedCode: Setter<PinnedCode | null>;
-  setPanelFocusObject: Setter<Array<FocusObject | null>>;
   setPanelSelections: Setter<PanelSelection[]>;
   setPanelHistory: Setter<PanelHistoryEntry[]>;
   setActiveMobileTab: Setter<'chat' | 'editor' | 'graph'>;
@@ -63,7 +62,6 @@ export function usePanelNavigation({
   panelSelections,
   fileNavStack,
   setPinnedCode,
-  setPanelFocusObject,
   setPanelSelections,
   setPanelHistory,
   setActiveMobileTab,
@@ -106,26 +104,6 @@ export function usePanelNavigation({
       paragraph: entity.paragraph ?? null,
     });
   }, [setPinnedCode]);
-
-  const handleObjectFocus = useCallback((object: FocusObject, panelIndex: number) => {
-    if (!object) return;
-    setPanelFocusObject(previous => {
-      const next = [...previous];
-      next[panelIndex] = object;
-      return next;
-    });
-    const selection = panelSelections[panelIndex];
-    const filepath = selection?.selectedFile || selection?.selectedDoc?.name || t('page.objectFileFallback');
-    const context =
-      `${t('page.focusedObjectLabel')}: ${object.name}\n` +
-      `Typ: ${object.type}\n` +
-      `Material: ${object.material}\n` +
-      `Volumen: ${object.volume}\n` +
-      `Feuerwiderstand: ${object.fireRating}`;
-    setPinnedCode({ filepath, line: 0, label: object.name, context });
-    const textarea = document.getElementById('chat-textarea') as HTMLTextAreaElement;
-    if (textarea) textarea.focus();
-  }, [panelSelections, setPanelFocusObject, setPinnedCode, t]);
 
   const handlePanelEntitySelect = useCallback(async (index: number, entity: CodeEntity) => {
     pinEntityFocus(entity);
@@ -375,7 +353,6 @@ export function usePanelNavigation({
   return {
     pinFileFocus,
     pinEntityFocus,
-    handleObjectFocus,
     handlePanelEntitySelect,
     handlePanelEntitySelectAndOpen,
     handlePanelFileSelect,

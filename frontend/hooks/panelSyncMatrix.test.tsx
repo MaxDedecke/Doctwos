@@ -337,7 +337,6 @@ function useNavigationHarness(options: HarnessOptions = {}) {
   const [handleFileSelect] = useState(() => vi.fn().mockResolvedValue(undefined));
   const [loadFileReferences] = useState(() => vi.fn().mockResolvedValue(undefined));
   const [updatePanelEntitySelection] = useState(() => vi.fn());
-  const [setPanelFocusObject] = useState(() => vi.fn());
 
   const navigation = usePanelNavigation({
     t: (key) => key,
@@ -351,7 +350,6 @@ function useNavigationHarness(options: HarnessOptions = {}) {
     panelSelections,
     fileNavStack: [],
     setPinnedCode,
-    setPanelFocusObject,
     setPanelSelections,
     setPanelHistory,
     setActiveMobileTab,

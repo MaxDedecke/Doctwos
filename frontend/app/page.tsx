@@ -216,7 +216,7 @@ function AppContent() {
     splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, setSplitPercent, isDragging, panelConfigs, panelIds, setPanelConfigs,
     layoutMode, fileNavStack, setFileNavStack, selectedEntity, setSelectedEntity,
     pinnedCode, setPinnedCode, panelFrozen, setPanelFrozen,
-    panelFocusObject, setPanelFocusObject, panelSelections,
+    panelSelections,
     setPanelSelections, panelHistory, setPanelHistory, splitContainerRef,
     activePanelIndex, setActivePanelIndex, isRestoringSnapshotRef, isPanelHistoryNavRef, togglePanelFreeze,
     closePanel, addPanel, ensurePanelType, ensureLivePanelType,
@@ -355,11 +355,10 @@ function AppContent() {
     setPanelSelections([{ selectedFile: null, selectedDoc: null, selectedEntity: null, selectedLine: null }]);
     setPanelHistory([{ past: [], future: [] }]);
     setPanelFrozen([false]);
-    setPanelFocusObject([null]);
     setSplitPercent(45);
     setWorkspaceSplit("45/55");
     setIsSettingsOpen(false);
-  }, [resetChatSession, setActiveRightTab, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFocusObject, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
+  }, [resetChatSession, setActiveRightTab, setCurrentMessage, setFileContent, setFileContentFormat, setFileNavStack, setIsSettingsOpen, setPanelConfigs, setPanelFrozen, setPanelHistory, setPanelSelections, setPinnedCode, setSelectedDoc, setSelectedEntity, setSelectedLine, setSelectedSource, setSplitPercent, setWorkspaceSplit]);
 
   const changeProject = useProjectTransition({
     selectedProject,
@@ -774,7 +773,6 @@ function AppContent() {
     panelSelections,
     fileNavStack,
     setPinnedCode,
-    setPanelFocusObject,
     setPanelSelections,
     setPanelHistory,
     setActiveMobileTab,
@@ -1085,11 +1083,6 @@ function AppContent() {
     setPanelConfigs((previous) => {
       const next = [...previous];
       next[index] = newType;
-      return next;
-    });
-    setPanelFocusObject((previous) => {
-      const next = [...previous];
-      next[index] = null;
       return next;
     });
     setPanelHistory((previous) => {

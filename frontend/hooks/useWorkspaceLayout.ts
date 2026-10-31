@@ -15,7 +15,7 @@ import {
   pointerToWorkspacePercent,
 } from '@/lib/workspaceResize';
 import { getSelectionViewType, seedSelectionForPanelType } from '@/lib/workspaceSelection';
-import type { ChatSession, CodeEntity, FocusObject, KnowledgeSource, Project, WorkspaceDocument, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatSession, CodeEntity, KnowledgeSource, Project, WorkspaceDocument, WorkspaceSnapshot } from '@/types/domain';
 import type { Dispatch, SetStateAction } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
@@ -103,7 +103,6 @@ export function useWorkspaceLayout({
   const [selectedEntity, setSelectedEntity] = useState<CodeEntity | null>(null);
   const [pinnedCode, setPinnedCode] = useState<PinnedCode | null>(null);
   const [panelFrozen, setPanelFrozen] = useState<boolean[]>([false]);
-  const [panelFocusObject, setPanelFocusObject] = useState<Array<FocusObject | null>>([null]);
   const [panelSelections, setPanelSelections] = useState<PanelSelection[]>([EMPTY_PANEL_SELECTION]);
   const [panelHistory, setPanelHistory] = useState<PanelHistoryEntry[]>([{ past: [], future: [] }]);
   const [activePanelIndex, setActivePanelIndex] = useState(0);
@@ -279,7 +278,6 @@ export function useWorkspaceLayout({
     setPanelFrozen((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelSelections((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     setPanelHistory((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
-    setPanelFocusObject((previous) => previous.filter((_, itemIndex) => itemIndex !== index));
     activePanelIndexRef.current = Math.max(0, index - 1);
   }, [panelConfigs.length]);
 
@@ -291,7 +289,6 @@ export function useWorkspaceLayout({
     if (panelConfigs.length + pendingPanelCountRef.current >= 4) return false;
     pendingPanelCountRef.current += 1;
     setPanelFrozen((previous) => [...previous, frozenOverride ?? false]);
-    setPanelFocusObject((previous) => [...previous, null]);
     const seeded = seedSelectionForPanelType(type, { selectedFile, selectedDoc, selectedEntity });
     setPanelSelections((previous) => [...previous, {
       selectedFile: selectionOverride?.selectedFile ?? seeded.selectedFile,
@@ -440,7 +437,6 @@ export function useWorkspaceLayout({
   const buildWorkspaceSnapshot = (): WorkspaceSnapshot => ({
     panelConfigs,
     panelSelections,
-    panelFocusObject,
     panelFrozen,
     activeRightTab,
     splitPercent,
@@ -476,7 +472,7 @@ export function useWorkspaceLayout({
     };
   // Snapshot contents, not the callback identity, define the save boundary.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeSessionId, panelConfigs, panelSelections, panelFocusObject, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, fileNavStack, pinnedCode, selectedProject, selectedSource, setSessions]);
+  }, [activeSessionId, panelConfigs, panelSelections, panelFrozen, activeRightTab, splitPercent, gridColumnPercent, gridRowPercent, threeColLeftPercent, threeColRightPercent, fileNavStack, pinnedCode, selectedProject, selectedSource, setSessions]);
 
   // Presets are a second representation of the same split value. The guarded
   // render update keeps a drag-selected percentage intact until a preset
@@ -614,7 +610,6 @@ export function useWorkspaceLayout({
     setPanelFrozen(Array.isArray(snapshot.panelFrozen) ? filterParallel(snapshot.panelFrozen, false) : restoredSelections.map(() => false));
     setPanelSelections(restoredSelections);
     setPanelHistory(restoredSelections.map(() => ({ past: [], future: [] })));
-    setPanelFocusObject(Array.isArray(snapshot.panelFocusObject) ? filterParallel(snapshot.panelFocusObject, null) : restoredSelections.map(() => null));
     setFileNavStack(Array.isArray(snapshot.fileNavStack) ? snapshot.fileNavStack : []);
     setPinnedCode(snapshot.pinnedCode ?? null);
     if (typeof snapshot.activeRightTab === 'string') setActiveRightTab(snapshot.activeRightTab);
@@ -648,7 +643,6 @@ export function useWorkspaceLayout({
     setPanelSelections([EMPTY_PANEL_SELECTION]);
     setPanelHistory([{ past: [], future: [] }]);
     setPanelFrozen([false]);
-    setPanelFocusObject([null]);
     setSplitPercent(45);
     setGridColumnPercent(50);
     setGridRowPercent(50);
@@ -671,7 +665,6 @@ export function useWorkspaceLayout({
     setFileNavStack([]);
     setFileContent('');
     setPanelSelections(previous => previous.map(() => EMPTY_PANEL_SELECTION));
-    setPanelFocusObject(previous => previous.map(() => null));
     setPanelHistory(previous => previous.map(() => ({ past: [], future: [] })));
   }, []);
 
@@ -719,8 +712,6 @@ export function useWorkspaceLayout({
     setPinnedCode,
     panelFrozen,
     setPanelFrozen,
-    panelFocusObject,
-    setPanelFocusObject,
     panelSelections,
     setPanelSelections,
     panelHistory,
