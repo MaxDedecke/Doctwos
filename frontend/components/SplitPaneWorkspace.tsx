@@ -537,7 +537,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   range: range,
                   options: {
                     isWholeLine: true,
-                    className: 'bg-ds-indigo-500/20 border-y border-ds-indigo-500/30'
+                    className: 'doctus-line-flash'
                   }
                 }
               ]
