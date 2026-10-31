@@ -1549,6 +1549,7 @@ class GitConnector(BaseConnector):
             )
             return
 
+        pending_tasks: set[asyncio.Task] = set()
         try:
             self.source = (
                 self.db.query(KnowledgeSource).filter(KnowledgeSource.id == self.source_id).first()
@@ -1607,7 +1608,6 @@ class GitConnector(BaseConnector):
                 f"Strukturparsing: {max(self._parse_workers, 1)} Prozess(e), "
                 f"{embed_concurrency} Dateien parallel."
             )
-            pending_tasks = set()
 
             async def doc_producer():
                 async for doc in self.fetch_documents(force_reindex=force_reindex):
@@ -1733,6 +1733,12 @@ class GitConnector(BaseConnector):
                 self.source.last_error = error_msg
                 self.db.commit()
         finally:
+            # Noch wartende Dateien dürfen nach dem Abbruch nicht weiter in die geschlossene Session
+            # schreiben.
+            for task in pending_tasks:
+                task.cancel()
+            if pending_tasks:
+                await asyncio.gather(*pending_tasks, return_exceptions=True)
             if self._parse_pool is not None:
                 self._parse_pool.shutdown(wait=False, cancel_futures=True)
                 self._parse_pool = None
