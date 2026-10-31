@@ -2,7 +2,9 @@
 
 from collections import defaultdict
 
-from doctus_models.database import CodeEntity, CodeEdge
+from doctus_models.database import CodeEdge
+from sqlalchemy import or_
+
 from java.modules import module_from_path
 
 SCHEMA_EDGES = {
@@ -48,8 +50,22 @@ def _jaxb_symbol(meta, source, defaults):
 
 
 def resolve_schema_edges(db, source_id):
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
-    edges = db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all()
+    from tasks.edge_resolver import resolution_entity_rows
+
+    edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            or_(
+                CodeEdge.type.in_(SCHEMA_EDGES),
+                CodeEdge.meta_json["schema_import"].as_string().isnot(None),
+            ),
+        )
+        .all()
+    )
+    if not edges:
+        return 0
+    entities = resolution_entity_rows(db, source_id)
     by_id = {e.id: e for e in entities}
     by_xml, roots = defaultdict(list), defaultdict(list)
     for entity in entities:

@@ -2,30 +2,69 @@
 
 from collections import defaultdict
 
+from doctus_models.database import CodeEdge, CodeEntity
+from sqlalchemy import or_
+
+from core.model import Entity, ParseResult
 from java.injection import derive_injection_edges
 from java.lambda_dispatch import derive_lambda_dispatch
 from java.modules import module_from_path
-from core.model import Entity, ParseResult
-from doctus_models.database import CodeEntity, CodeEdge
 from tasks.configuration_resolver import resolve_configuration_edges
+from tasks.resolver_rows import load_entity_rows
+
+
+def _resolve_configuration(db, source_id):
+    from tasks.edge_resolver import UNREAD_JAVA_ENTITY_META
+
+    edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.type.in_(("CONFIGURES", "INJECTS")),
+            CodeEdge.meta_json["language"].as_string() == "xml",
+        )
+        .all()
+    )
+    if not edges:
+        return
+    sources = {edge.src_entity_id for edge in edges}
+    entities = load_entity_rows(
+        db,
+        CodeEntity.source_id == source_id,
+        or_(CodeEntity.type.in_(("class", "spring_bean")), CodeEntity.id.in_(sources)),
+        drop=UNREAD_JAVA_ENTITY_META,
+    )
+    resolve_configuration_edges(entities, edges)
+    db.flush()
 
 
 def resolve_framework_edges(db, source_id):
-    from tasks.edge_resolver import _java_parse_results
+    from tasks.edge_resolver import (
+        UNREAD_FRAMEWORK_ENTITY_META,
+        UNREAD_JAVA_ENTITY_META,
+        _java_parse_results,
+        java_edge_rows,
+        java_entity_rows,
+    )
 
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
-    edges = db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all()
-    resolve_configuration_edges(entities, edges)
-    for edge in edges:
-        if (edge.meta_json or {}).get("derivation") in {"framework", "lambda_binding"}:
-            db.delete(edge)
+    _resolve_configuration(db, source_id)
+    db.query(CodeEdge).filter(
+        CodeEdge.source_id == source_id,
+        CodeEdge.meta_json["derivation"].as_string().in_(("framework", "lambda_binding")),
+    ).delete(synchronize_session=False)
+    db.expire_all()
+    language = CodeEntity.meta_json["language"].as_string()
+    entities = java_entity_rows(db, source_id, UNREAD_FRAMEWORK_ENTITY_META)
+    entities += load_entity_rows(
+        db,
+        CodeEntity.source_id == source_id,
+        CodeEntity.type == "spring_bean",
+        or_(language != "java", language.is_(None)),
+        drop=UNREAD_JAVA_ENTITY_META,
+    )
+    edges = java_edge_rows(db, source_id)
     groups = defaultdict(list)
-    original_edges = [
-        edge
-        for edge in edges
-        if (edge.meta_json or {}).get("derivation") not in {"framework", "lambda_binding"}
-    ]
-    for result, _, _ in _java_parse_results(entities, original_edges):
+    for result, _, _ in _java_parse_results(entities, edges):
         groups[result.variant_key].append(result)
     by_identity = {(e.variant_key, e.file_path, e.qualified_name): e for e in entities}
     resolved = 0

@@ -25,6 +25,7 @@ import posixpath
 from collections import defaultdict
 from pathlib import Path
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from cobol.copybook import strip_copybook_extension
@@ -41,11 +42,20 @@ from core.doc_resolution import (
     FILE_ROOT_TYPES,
     resolve_documentation_edges,
 )
-from core.resource_resolution import resolve_resource_edges
+from core.resource_resolution import RESOURCE_EDGE_TYPES, resolve_resource_edges
 from java.resolution import resolve_global_edges as resolve_java_global_edges
 from doctus_models.database import CodeEdge, CodeEntity
 from maven.workspace import resolve_scoped_java
 from tasks.framework_resolver import resolve_framework_edges
+from tasks.resolver_rows import (
+    EdgeRow,
+    EntityRow,
+    bulk_update_edges,
+    bulk_update_entity_meta,
+    load_edge_rows,
+    load_entity_rows,
+    meta_checksum,
+)
 from tasks.schema_resolver import resolve_schema_edges
 
 # CALL-Ziele sind Programme, COPY-Ziele sind Copybooks — getrennt statt über
@@ -55,6 +65,49 @@ _TARGET_TYPE_BY_EDGE_TYPE = {"CALL": "program", "COPY": "copybook"}
 # Datenreferenzen auf Copybook-Felder: "USES" (ungerichtet) sowie die gerichteten
 # READS/WRITES (Zugriffsrichtung, O-Reihe zur COBOL-Datenzugriffsklassifikation).
 _DATA_REFERENCE_EDGE_TYPES = ("USES", "READS", "WRITES")
+# Große Metadaten, die der jeweilige Auflöser nicht liest. Die Framework-Ableitung braucht
+# zusätzlich data_flow und die Annotationen (java/injection.py, java/lambda_dispatch.py).
+UNREAD_FRAMEWORK_ENTITY_META = frozenset(
+    {"return_expressions", "exception_flow", "signature", "source_kind"}
+)
+UNREAD_JAVA_ENTITY_META = UNREAD_FRAMEWORK_ENTITY_META | {
+    "data_flow",
+    "annotation_details",
+    "annotations",
+}
+UNREAD_JAVA_EDGE_META = frozenset({"argument_refs", "argument_expressions", "control_path"})
+_JAVA_LANGUAGE = CodeEntity.meta_json["language"].as_string() == "java"
+
+
+def java_entity_rows(db: Session, source_id: int, drop: frozenset[str]) -> list[EntityRow]:
+    """Java-Elemente und was ihre Auflösung sonst braucht; Konfigurationseinträge bleiben draußen."""
+    return load_entity_rows(
+        db,
+        CodeEntity.source_id == source_id,
+        or_(_JAVA_LANGUAGE, CodeEntity.type.in_(("package", "module", "maven_project"))),
+        drop=drop,
+        keep_full=frozenset({"maven_project"}),
+    )
+
+
+def java_edge_rows(db: Session, source_id: int) -> list[EdgeRow]:
+    java_sources = db.query(CodeEntity.id).filter(CodeEntity.source_id == source_id, _JAVA_LANGUAGE)
+    return load_edge_rows(
+        db,
+        CodeEdge.source_id == source_id,
+        CodeEdge.src_entity_id.in_(java_sources),
+        drop=UNREAD_JAVA_EDGE_META,
+    )
+
+
+def resolution_entity_rows(db: Session, source_id: int) -> list[EntityRow]:
+    """Für Auflöser ohne Bezug zu Konfigurationsschlüsseln: alles außer `property`."""
+    return load_entity_rows(
+        db,
+        CodeEntity.source_id == source_id,
+        CodeEntity.type != "property",
+        drop=UNREAD_JAVA_ENTITY_META,
+    )
 
 
 def _resolve_cobol_edges(db: Session, source_id: int) -> int:
@@ -129,8 +182,8 @@ def _resolve_cobol_edges(db: Session, source_id: int) -> int:
 
 
 def _java_parse_results(
-    entities: list[CodeEntity], edges: list[CodeEdge]
-) -> list[tuple[ParseResult, list[CodeEdge], list[ParsedEdge]]]:
+    entities: list, edges: list
+) -> list[tuple[ParseResult, list, list[ParsedEdge]]]:
     """Rebuild the Java resolver's DB-free input from persisted rows.
 
     This is deliberately a small adapter rather than a second Java resolver:
@@ -168,7 +221,12 @@ def _java_parse_results(
                 start_line=entity.start_line or 1,
                 end_line=entity.end_line or entity.start_line or 1,
                 qualified_name=entity.qualified_name,
-                meta=dict(entity.meta_json or {}),
+                # Geteilte Pakete/Module gehören mehreren Dateien, ihre Metadaten also je Kopie.
+                meta=dict(entity.meta_json or {})
+                if entity.type in {"package", "module"}
+                else entity.meta_json
+                if entity.meta_json is not None
+                else {},
                 parent_qualified_name=(
                     by_id[entity.parent_id].qualified_name if entity.parent_id in by_id else None
                 ),
@@ -189,7 +247,7 @@ def _java_parse_results(
                     src_start_line=edge.src_start_line,
                     src_end_line=edge.src_end_line,
                     scope=scope.qualified_name if scope else None,
-                    meta=dict(edge.meta_json or {}),
+                    meta=edge.meta_json if edge.meta_json is not None else {},
                 )
             )
         result = ParseResult(
@@ -205,27 +263,58 @@ def _java_parse_results(
 
 
 def _resolve_java_edges(db: Session, source_id: int) -> int:
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
-    edges = db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all()
+    entities = java_entity_rows(db, source_id, UNREAD_JAVA_ENTITY_META)
+    edges = java_edge_rows(db, source_id)
     result_pairs = _java_parse_results(entities, edges)
     if not result_pairs:
         return 0
+    for row in entities:
+        row.checksum = meta_checksum(row.meta_json)
+    for edge in edges:
+        edge.checksum = meta_checksum(edge.meta_json)
 
     resolved = resolve_scoped_java(
-        [p[0] for p in result_pairs], entities, resolve_java_global_edges
+        [p[0] for p in result_pairs],
+        [row for row in entities if row.type == "maven_project"],
+        resolve_java_global_edges,
     )
-    by_file = {(e.variant_key, e.file_path, e.qualified_name): e for e in entities}
+
+    # Nur Pakete/Module sind Kopien, alle anderen Metadaten hat der Auflöser direkt an der Zeile
+    # geändert.
+    containers = {
+        (row.variant_key, row.file_path, row.qualified_name): row
+        for row in entities
+        if row.type in {"package", "module"}
+    }
     for result, _, _ in result_pairs:
         for entity in result.entities:
-            row = by_file.get((result.variant_key, result.path, entity.qualified_name))
-            if row is not None:
-                row.meta_json = dict(entity.meta)
+            if entity.type in {"package", "module"}:
+                row = containers.get((result.variant_key, result.path, entity.qualified_name))
+                if row is not None:
+                    row.meta_json = entity.meta
+    db.flush()
+    bulk_update_entity_meta(
+        db,
+        [
+            (row.id, row.meta_json)
+            for row in entities
+            if row.type != "maven_project" and meta_checksum(row.meta_json) != row.checksum
+        ],
+        UNREAD_JAVA_ENTITY_META,
+    )
 
-    entity_by_variant_qname: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
-    for entity in entities:
-        if entity.qualified_name:
-            entity_by_variant_qname[(entity.variant_key, entity.qualified_name)].append(entity)
+    wanted = {
+        (result.variant_key, (parsed.meta or {}).get("target_qualified_name"))
+        for result, _, parsed_edges in result_pairs
+        for parsed in parsed_edges
+        if (parsed.meta or {}).get("target_qualified_name")
+    }
+    entity_by_variant_qname: dict[tuple[str, str], list[EntityRow]] = defaultdict(list)
+    for row in entities:
+        if (row.variant_key, row.qualified_name) in wanted:
+            entity_by_variant_qname[(row.variant_key, row.qualified_name)].append(row)
 
+    updates: list[tuple] = []
     for result, persisted_edges, parsed_edges in result_pairs:
         for persisted, parsed in zip(persisted_edges, parsed_edges):
             target_qname = (parsed.meta or {}).get("target_qualified_name")
@@ -239,14 +328,19 @@ def _resolve_java_edges(db: Session, source_id: int) -> int:
                 target_matches = [
                     entity for entity in target_matches if entity.file_path == target_path
                 ]
+            dst_entity_id, resolution = persisted.dst_entity_id, persisted.resolution
             if parsed.resolution == "resolved" and len(target_matches) == 1:
-                persisted.dst_entity_id = target_matches[0].id
-                persisted.resolution = "resolved"
+                dst_entity_id, resolution = target_matches[0].id, "resolved"
             elif parsed.resolution != "resolved":
-                persisted.dst_entity_id = None
-                persisted.resolution = parsed.resolution
-            persisted.meta_json = parsed.meta or None
-
+                dst_entity_id, resolution = None, parsed.resolution
+            if (
+                dst_entity_id != persisted.dst_entity_id
+                or resolution != persisted.resolution
+                or meta_checksum(parsed.meta) != persisted.checksum
+            ):
+                updates.append((persisted.id, dst_entity_id, resolution, parsed.meta))
+    bulk_update_edges(db, updates, UNREAD_JAVA_EDGE_META)
+    db.expire_all()
     return resolved
 
 
@@ -259,14 +353,18 @@ def _resolve_xslt_edges(db: Session, source_id: int) -> int:
     exactly one candidate exists; cycles and ambiguous modes remain visible as
     unresolved edges instead of being guessed.
     """
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
     edges = (
         db.query(CodeEdge)
-        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved")
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.resolution == "unresolved",
+            CodeEdge.meta_json["language"].as_string() == "xslt",
+        )
         .all()
     )
     if not edges:
         return 0
+    entities = resolution_entity_rows(db, source_id)
 
     by_variant_qname: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
     templates_by_name: dict[tuple[str, str], list[CodeEntity]] = defaultdict(list)
@@ -333,12 +431,18 @@ def _resolve_markup_edges(db: Session, source_id: int) -> int:
     controller requires framework configuration (O-246), which is not inferred
     from a page alone. Includes and literal links do have a file-level proof.
     """
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
     edges = (
         db.query(CodeEdge)
-        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved")
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.resolution == "unresolved",
+            CodeEdge.meta_json["language"].as_string().in_(("jsp", "html")),
+        )
         .all()
     )
+    if not edges:
+        return 0
+    entities = resolution_entity_rows(db, source_id)
     resolved = 0
     for edge in edges:
         meta = edge.meta_json or {}
@@ -367,12 +471,18 @@ def _resolve_markup_edges(db: Session, source_id: int) -> int:
 
 def _resolve_shell_edges(db: Session, source_id: int) -> int:
     """Resolve literal script/XSLT paths and unambiguous Java main classes."""
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
     edges = (
         db.query(CodeEdge)
-        .filter(CodeEdge.source_id == source_id, CodeEdge.resolution == "unresolved")
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.resolution == "unresolved",
+            CodeEdge.meta_json["language"].as_string() == "shell",
+        )
         .all()
     )
+    if not edges:
+        return 0
+    entities = resolution_entity_rows(db, source_id)
     resolved = 0
     for edge in edges:
         meta = edge.meta_json or {}
@@ -407,7 +517,14 @@ _JCL_PROC_FILE_EXTENSIONS = frozenset({".PRC", ".PROC"})
 
 def _resolve_jcl_edges(db: Session, source_id: int) -> int:
     """Resolve literal JCL PGM/PROC targets within one source and variant."""
-    entities = db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all()
+    has_executes = (
+        db.query(CodeEdge.id)
+        .filter(CodeEdge.source_id == source_id, CodeEdge.type == "EXECUTES")
+        .first()
+    )
+    if has_executes is None:
+        return 0
+    entities = resolution_entity_rows(db, source_id)
     # Prozedur-Aufrufe werden bei jedem Lauf neu entschieden, damit eine Regeländerung auch frühere
     # (z. B. auf die eigene Prozedur gerichtete) Auflösungen korrigiert.
     for stale in (
@@ -602,14 +719,20 @@ def _resolve_documentation_edges(db: Session, source_id: int) -> int:
     if not edges:
         return 0
     project_ids = {edge.project_id for edge in edges}
-    query = db.query(CodeEntity).filter(
-        CodeEntity.type.in_(RESOLUTION_TARGET_TYPES | FILE_ROOT_TYPES)
+    scope = (
+        CodeEntity.source_id == source_id
+        if None in project_ids
+        else CodeEntity.project_id.in_(project_ids)
     )
-    if None in project_ids:
-        query = query.filter(CodeEntity.source_id == source_id)
-    else:
-        query = query.filter(CodeEntity.project_id.in_(project_ids))
-    return resolve_documentation_edges(query.all(), edges)
+    return resolve_documentation_edges(
+        load_entity_rows(
+            db,
+            CodeEntity.type.in_(RESOLUTION_TARGET_TYPES | FILE_ROOT_TYPES),
+            scope,
+            drop=UNREAD_JAVA_ENTITY_META,
+        ),
+        edges,
+    )
 
 
 def _derive_dataset_assignments(db: Session, source_id: int) -> int:
@@ -723,10 +846,21 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     resolved += resolve_schema_edges(db, source_id)
     _derive_dataset_assignments(db, source_id)
     _mark_external_targets(db, source_id)
-    resolved += resolve_resource_edges(
-        db.query(CodeEntity).filter(CodeEntity.source_id == source_id).all(),
-        db.query(CodeEdge).filter(CodeEdge.source_id == source_id).all(),
+    # IMPORTS zählen hier nur bei XSLT, die vielen Java-Imports hat der Java-Pass schon erledigt.
+    resource_edges = (
+        db.query(CodeEdge)
+        .filter(
+            CodeEdge.source_id == source_id,
+            CodeEdge.type.in_(RESOURCE_EDGE_TYPES),
+            or_(CodeEdge.type != "IMPORTS", CodeEdge.meta_json["language"].as_string() == "xslt"),
+        )
+        .all()
     )
+    if resource_edges:
+        resolved += resolve_resource_edges(
+            load_entity_rows(db, CodeEntity.source_id == source_id, drop=UNREAD_JAVA_ENTITY_META),
+            resource_edges,
+        )
     # Open reasons and invalidated resource targets must also be persisted.
     db.commit()
     return resolved
