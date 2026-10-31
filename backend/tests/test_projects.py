@@ -505,12 +505,21 @@ def test_get_project_entities_scoped_to_project_and_filterable_by_type(
         assert res.status_code == 200
         assert res.json() == []
 
-        # Über der Grenze keine Liste; je Datei geht es weiter.
+        res = client.get(
+            f"/projects/{test_project}/entities",
+            params={"names": "init-para,OTHER", "type": "paragraph,section"},
+        )
+        assert res.status_code == 200
+        assert {e["name"] for e in res.json()} == {"INIT-PARA"}
+
+        # Über der Grenze keine Liste; je Datei und je Name geht es weiter.
         with patch("api.projects.MAX_PROJECT_ENTITY_LIST", 1):
             assert client.get(f"/projects/{test_project}/entities").status_code == 413
             res = client.get(f"/projects/{test_project}/entities", params={"file_path": "ACCOUNT.cbl"})
             assert res.status_code == 200
             assert {e["name"] for e in res.json()} == {"ACCOUNT", "INIT-PARA"}
+            res = client.get(f"/projects/{test_project}/entities", params={"names": "ACCOUNT"})
+            assert res.status_code == 200
     finally:
         db_session.query(CodeEntity).filter(
             CodeEntity.id.in_([own_program.id, own_paragraph.id, foreign_entity.id])

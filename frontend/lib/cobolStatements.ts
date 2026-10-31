@@ -129,3 +129,26 @@ export function readStatement(lines: string[], lineNumber: number, keyword: Stat
   }
   return { verb: keyword.verb, startLine: lineNumber, endLine, text, names };
 }
+
+/** Welche Entity-Arten die Namen einer Anweisung meinen. */
+export function statementEntityTypes(verb: StatementVerb): string[] {
+  return verb === 'PERFORM' ? ['paragraph', 'section'] : ['data_item'];
+}
+
+/** Die Objekte zu den Namen einer Anweisung: bevorzugt aus der offenen Datei, höchstens vier. */
+export function matchStatementEntities<T extends { name?: string | null; type?: string | null; file_path?: string | null }>(
+  statement: CobolStatement,
+  entities: T[],
+  currentFile: string | null,
+): T[] {
+  const wantedTypes = statementEntityTypes(statement.verb);
+  const matches: T[] = [];
+  for (const name of statement.names) {
+    const candidates = entities.filter(
+      (entity) => entity.type != null && wantedTypes.includes(entity.type) && entity.name?.toUpperCase() === name
+    );
+    const match = candidates.find((entity) => entity.file_path === currentFile) ?? candidates[0];
+    if (match && !matches.includes(match)) matches.push(match);
+  }
+  return matches.slice(0, 4);
+}

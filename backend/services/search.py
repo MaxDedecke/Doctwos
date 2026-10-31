@@ -7,7 +7,7 @@ Cross-type search across Project, CodeEntity, KnowledgeSource, and DocumentChunk
 import re
 from typing import Optional
 from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_, func, case, false
+from sqlalchemy import and_, or_, func, case, false, select
 
 from core.projects import build_document_chunk_code_gate, get_globally_exposed_project_ids
 from doctus_models.database import Project, CodeEntity, DocumentChunk, KnowledgeSource
@@ -16,6 +16,7 @@ ALL_TYPES = "project,entity,document,knowledge_source"
 
 # Entities, die eine ganze Datei vertreten. Nur sie dürfen über den Dateinamen gefunden werden;
 # sonst passte jede Entity einer Datei (209 bei COPAUA0C) allein wegen des Pfads.
+# Die Liste steht auch im Trigramm-Index (Revision 0042); weicht sie ab, wird die Suche zum Vollscan.
 ROOT_ENTITY_TYPES = (
     "program",
     "copybook",
@@ -37,6 +38,8 @@ ROOT_ENTITY_TYPES = (
 _TOKEN_SPLIT = re.compile(r"[\s.#]+|::")
 _MAX_TOKENS = 6
 _MAX_TOKEN_LENGTH = 80
+_MIN_INDEXED_TOKEN_LENGTH = 3
+_SHORT_QUERY_CANDIDATES = 2000
 
 
 def _search_tokens(q: str) -> list[str]:
@@ -46,6 +49,15 @@ def _search_tokens(q: str) -> list[str]:
         # Ein einzelner qualifizierter Name (`a.b.c.Klasse#methode(Typ)`): das Ende ist der spezifische Teil.
         return [t[:_MAX_TOKEN_LENGTH] for t in tokens[-_MAX_TOKENS:]]
     return [t[:_MAX_TOKEN_LENGTH] for t in tokens[:_MAX_TOKENS]]
+
+
+def _bound_short_query(db: Session, query, model, tokens: list[str]):
+    """Trigramm-Indizes greifen erst ab drei Zeichen. Kürzere Begriffe („j“) passen in großen
+    Projekten auf Millionen Zeilen: Sie zählen und sortieren nur die ersten Kandidaten."""
+    if not tokens or any(len(token) >= _MIN_INDEXED_TOKEN_LENGTH for token in tokens):
+        return query
+    candidates = query.with_entities(model.id).limit(_SHORT_QUERY_CANDIDATES).subquery()
+    return db.query(model).filter(model.id.in_(select(candidates.c.id)))
 
 
 def _contains(column, token: str):
@@ -170,6 +182,7 @@ def search_nodes(
             query = query.filter(
                 or_(CodeEntity.project_id.in_(exposed_project_ids), CodeEntity.project_id.is_(None))
             )
+        query = _bound_short_query(db, query, CodeEntity, tokens)
         if count_total:
             counts["entity"] = query.count()
         if tokens:
@@ -321,6 +334,7 @@ def search_nodes(
             ]
             chunk_filter = chunk_filter.filter(DocumentChunk.project_id.in_(project_ids))
 
+        chunk_filter = _bound_short_query(db, chunk_filter, DocumentChunk, doc_tokens)
         counts["document"] = (
             chunk_filter.with_entities(func.count(func.distinct(DocumentChunk.file_path))).scalar()
             or 0

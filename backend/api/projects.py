@@ -395,6 +395,13 @@ def list_project_files(
 
 
 MAX_PROJECT_ENTITY_LIST = 50_000
+MAX_ENTITY_NAME_LOOKUP = 20
+MAX_ENTITY_NAME_MATCHES = 200
+
+
+def _exactly(column, value: str):
+    escaped = value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+    return column.ilike(escaped, escape="\\")
 
 
 @router.get("/{id}/entities")
@@ -402,10 +409,12 @@ def get_project_entities(
     id: int,
     type: Optional[str] = None,
     file_path: Optional[str] = None,
+    names: Optional[str] = None,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """Ohne `file_path` ist die Liste begrenzt: Darüber antwortet der Endpunkt mit 413, und der
+    """`type` und `names` nehmen kommagetrennte Werte; `names` sucht ohne Groß-/Kleinschreibung.
+    Ohne `file_path` und `names` ist die Liste begrenzt: Darüber antwortet der Endpunkt mit 413, und der
     Aufrufer lädt je Datei. Die fertige JSON-Antwort entsteht hier im Worker-Thread; FastAPIs
     Umwandlung läuft sonst in der Ereignisschleife und blockiert bei Millionen Zeilen alle Anfragen.
     """
@@ -426,14 +435,18 @@ def get_project_entities(
         CodeEntity.variant_key,
     ).filter(CodeEntity.project_id == id)
     if type:
-        q = q.filter(CodeEntity.type == type)
+        q = q.filter(CodeEntity.type.in_(type.split(",")))
     if file_path:
         q = q.filter(CodeEntity.file_path == file_path)
-    else:
+    if names:
+        wanted = names.split(",")[:MAX_ENTITY_NAME_LOOKUP]
+        q = q.filter(or_(*[_exactly(CodeEntity.name, name) for name in wanted]))
+        q = q.order_by(CodeEntity.id).limit(MAX_ENTITY_NAME_MATCHES)
+    elif not file_path:
         q = q.limit(MAX_PROJECT_ENTITY_LIST + 1)
 
     rows = q.all()
-    if not file_path and len(rows) > MAX_PROJECT_ENTITY_LIST:
+    if not file_path and not names and len(rows) > MAX_PROJECT_ENTITY_LIST:
         raise HTTPException(status_code=413, detail="Projekt zu groß für die vollständige Liste")
     return JSONResponse([dict(row._mapping) for row in rows])
 

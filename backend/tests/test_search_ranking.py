@@ -1,5 +1,7 @@
 """Kopfzeilen-Suche: Namen vor Pfad, Teilbegriffe als UND, keine Ordnertreffer, sortierte Dokumente."""
 
+from unittest.mock import patch
+
 import pytest
 
 from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project
@@ -162,3 +164,17 @@ def test_a_long_qualified_name_keeps_its_specific_tail():
     assert tokens[-2:] == ["UserServiceImpl", "create(UserCR)"] and len(tokens) == 6
     # Mehrwortanfragen behalten dagegen den Anfang der Eingabe.
     assert _search_tokens("a b c d e f g h") == ["a", "b", "c", "d", "e", "f"]
+
+
+def test_short_terms_only_look_at_the_first_candidates(db_session, corpus):
+    _, counts = _labels(db_session, corpus, "a")
+    assert counts["entity"] > 1
+
+    with patch("services.search._SHORT_QUERY_CANDIDATES", 1):
+        labels, counts = _labels(db_session, corpus, "a")
+        assert counts["entity"] == 1
+        assert len(labels) == 1
+
+        # Ab drei Zeichen hilft der Index, die Begrenzung entfällt.
+        _, long_counts = _labels(db_session, corpus, "authorization", types="entity,document")
+        assert long_counts["document"] > 1

@@ -65,6 +65,7 @@ type PanelContentRendererProps = {
   handleGutterClick: (index: number, lineNumber: number, lineContent: string) => void;
   handleGutterAskEntity: (index: number, entity: CodeEntity) => void;
   projectEntities: CodeEntity[];
+  entityListPartial?: boolean;
   fileNavStack: Array<{ file: string | null; doc: WorkspaceDocument | null; tab: PanelTab }>;
   handleNavigateBack: () => Promise<void> | void;
   handleDocFocusRequest: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>, openIfMissing?: boolean, comparison?: boolean) => void;
@@ -123,6 +124,7 @@ export function PanelContentRenderer({
   handleGutterClick,
   handleGutterAskEntity,
   projectEntities,
+  entityListPartial,
   fileNavStack,
   handleNavigateBack,
   handleDocFocusRequest,
@@ -262,6 +264,7 @@ export function PanelContentRenderer({
       editorMinimap={editorMinimap}
       selectedProject={selectedProject}
       projectEntities={projectEntities}
+      entityListPartial={entityListPartial}
       handleEntitySelect={(entity) => handlePanelEntitySelect(index, entity)}
       handleEntitySelectAndOpen={handlePanelEntitySelectAndOpen
         ? (entity) => handlePanelEntitySelectAndOpen(index, entity)

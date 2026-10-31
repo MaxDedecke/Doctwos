@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findStatementKeywords, keywordAtColumn, readStatement } from './cobolStatements';
+import { findStatementKeywords, keywordAtColumn, matchStatementEntities, readStatement } from './cobolStatements';
 
 const fixed = (code: string) => `      ${code}`;
 
@@ -40,5 +40,16 @@ describe('cobolStatements', () => {
     const statement = readStatement(lines, 1, findStatementKeywords(lines[0])[0]);
     expect(statement.endLine).toBe(1);
     expect(statement.names).toEqual(['A', 'B']);
+  });
+
+  it('matches statement names to the right entity kind and prefers the open file', () => {
+    const entity = (name: string, type: string, file_path: string) => ({ name, type, file_path });
+    const inCopybook = entity('WS-A', 'data_item', 'COPY.cpy');
+    const inProgram = entity('ws-a', 'data_item', 'PROG.cbl');
+    const statement = { verb: 'MOVE' as const, startLine: 1, endLine: 1, text: 'MOVE WS-A TO WS-B', names: ['WS-A', 'WS-B'] };
+
+    expect(matchStatementEntities(statement, [inCopybook, inProgram], 'PROG.cbl')).toEqual([inProgram]);
+    expect(matchStatementEntities(statement, [inCopybook], 'PROG.cbl')).toEqual([inCopybook]);
+    expect(matchStatementEntities(statement, [entity('WS-B', 'paragraph', 'PROG.cbl')], 'PROG.cbl')).toEqual([]);
   });
 });

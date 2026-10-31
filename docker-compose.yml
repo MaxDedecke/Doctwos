@@ -138,6 +138,9 @@ services:
     # pre-built/loaded image is found regardless of what folder this is checked
     # out into — required for the air-gapped path (docker-compose.offline.yml).
     image: doctus-backend-api:${DOCTUS_VERSION:-latest}
+    # Eine aus dem Ruder laufende Anfrage soll den Container (restart: always) treffen, nicht die
+    # WSL-VM samt Host. Normalbetrieb liegt weit darunter.
+    mem_limit: ${BACKEND_MEM_LIMIT:-3g}
     container_name: doctus-backend
     restart: always
     logging: *default-logging

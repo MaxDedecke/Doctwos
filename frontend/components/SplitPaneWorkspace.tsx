@@ -42,7 +42,7 @@ import { cn } from "@/lib/utils";
 import { addWebAnchorScroll, addWebOriginTheme } from '@/lib/webDocumentHtml';
 import { computeEntityAnchor, FILE_LEVEL_TYPES, pickFileLevelEntity, type EntityAnchor } from '@/lib/entityAnchors';
 import { computeUsageAnchor, type UsageReference } from '@/lib/usageAnchors';
-import { findStatementKeywords, keywordAtColumn, readStatement, type CobolStatement } from '@/lib/cobolStatements';
+import { findStatementKeywords, keywordAtColumn, matchStatementEntities, readStatement, statementEntityTypes, type CobolStatement } from '@/lib/cobolStatements';
 
 const RULER_COLUMNS = Array.from({ length: 160 }, (_, i) => i + 1);
 
@@ -142,6 +142,8 @@ interface SplitPaneWorkspaceProps {
   editorFontFamily: string;
   editorMinimap: boolean;
   projectEntities?: CodeEntity[];
+  /** `projectEntities` enthält nur die offenen Dateien (sehr großes Projekt). */
+  entityListPartial?: boolean;
   handleEntitySelect?: (ent: CodeEntity) => Promise<void> | void;
   handleEntitySelectAndOpen?: (ent: CodeEntity) => Promise<void> | void;
   onGutterClick?: (lineNumber: number, lineContent: string) => void;
@@ -187,6 +189,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   editorMinimap,
   selectedProject = null,
   projectEntities = [],
+  entityListPartial = false,
   handleEntitySelect,
   handleEntitySelectAndOpen,
   onGutterClick,
@@ -578,6 +581,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   const onGutterClickRef = useRef(onGutterClick);
   const onGutterAskEntityRef = useRef(onGutterAskEntity);
   const projectEntitiesRef = useRef(projectEntities);
+  const entityLookupProjectIdRef = useRef<number | null>(null);
   const selectedFileRef = useRef(selectedFile);
 
   // Popover opened by clicking the gutter (glyph icon / line number): lets the
@@ -693,6 +697,10 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   useEffect(() => {
     projectEntitiesRef.current = projectEntities;
   }, [projectEntities]);
+
+  useEffect(() => {
+    entityLookupProjectIdRef.current = entityListPartial ? selectedProject?.id ?? null : null;
+  }, [entityListPartial, selectedProject?.id]);
 
   useEffect(() => {
     selectedFileRef.current = selectedFile;
@@ -1049,17 +1057,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         if (model && keyword) {
           const lines = Array.from({ length: model.getLineCount() }, (_, i) => model.getLineContent(i + 1));
           const statement = readStatement(lines, lineNumber, keyword);
-          const wantedTypes = statement.verb === 'PERFORM' ? ['paragraph', 'section'] : ['data_item'];
-          const allEntities = projectEntitiesRef.current || [];
-          const entities: CodeEntity[] = [];
-          for (const name of statement.names) {
-            const candidates = allEntities.filter(
-              (ent: CodeEntity) => ent.type != null && wantedTypes.includes(ent.type) && ent.name?.toUpperCase() === name
-            );
-            const match = candidates.find((ent: CodeEntity) => ent.file_path === selectedFileRef.current) ?? candidates[0];
-            if (match && !entities.includes(match)) entities.push(match);
-          }
-          return { kind: 'statement', statement, entities: entities.slice(0, 4) };
+          const entities = matchStatementEntities(statement, projectEntitiesRef.current || [], selectedFileRef.current);
+          return { kind: 'statement', statement, entities };
         }
       }
       return null;
@@ -1067,7 +1066,18 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
     const openObjectMenu = (hit: CodeHit, x: number, y: number) => {
       if (hit.kind === 'entity') setEntityMenu({ x, y, entity: hit.entity, usage: hit.usage });
-      else setStatementMenu({ x, y, statement: hit.statement, entities: hit.entities });
+      else {
+        const { statement } = hit;
+        setStatementMenu({ x, y, statement, entities: hit.entities });
+        // Die Liste kennt nur die offenen Dateien; Ziele etwa in einem Copybook nennt der Server.
+        const projectId = entityLookupProjectIdRef.current;
+        if (projectId == null || !statement.names.length) return;
+        api.getProjectEntitiesByName(projectId, statement.names, statementEntityTypes(statement.verb))
+          .then((res) => setStatementMenu((current) => current?.statement === statement
+            ? { ...current, entities: matchStatementEntities(statement, res.data, selectedFileRef.current) }
+            : current))
+          .catch((error) => console.error('Failed to look up statement targets:', error));
+      }
     };
 
     // Rechtsklick: Menü. Im Capture-Handler, damit Monacos eigenes Kontextmenü nur dort entfällt,

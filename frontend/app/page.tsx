@@ -1065,6 +1065,7 @@ function AppContent() {
       handleGutterClick={handleGutterClick}
       handleGutterAskEntity={handleGutterAskEntity}
       projectEntities={projectEntities}
+      entityListPartial={entityListTooLarge}
       fileNavStack={fileNavStack}
       handleNavigateBack={handleNavigateBack}
       handleDocFocusRequest={handleDocFocusRequest}

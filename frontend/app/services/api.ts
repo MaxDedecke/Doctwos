@@ -140,6 +140,8 @@ export const api = {
       axios.get<{ references: UsageReference<CodeEntity>[]; truncated: boolean }>(`${API_URL}/projects/${id}/file-references`, { params: { file_path: filePath, ...(sourceId != null ? { source_id: sourceId } : {}) } }),
     // Ohne filePath antwortet der Server bei sehr großen Projekten mit 413; dann je Datei laden.
     getProjectEntities: (id: number, filePath?: string) => axios.get<Array<CodeEntity & { id: number }>>(`${API_URL}/projects/${id}/entities`, filePath ? { params: { file_path: filePath } } : undefined),
+    getProjectEntitiesByName: (id: number, names: string[], types: string[]) =>
+        axios.get<Array<CodeEntity & { id: number }>>(`${API_URL}/projects/${id}/entities`, { params: { names: names.join(','), type: types.join(',') } }),
     // projectId ist der aktuelle Projekt-Kontext des Aufrufers (Code-Editor etc.) --
     // fehlt er (Allgemein-Modus), gilt serverseitig das Default-Deny-Opt-in für
     // projektübergreifende Sichtbarkeit von Code-Analyse-Objekten (siehe
