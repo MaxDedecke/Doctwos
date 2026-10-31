@@ -54,7 +54,7 @@ async function fetchCallers(entityId: number, projectId: number | null | undefin
 }
 
 type SharedUser = {
-  program: string; entity_id: number; access: 'read' | 'write'; via: 'batch' | 'cics' | 'sql';
+  program: string; entity_id: number; access: 'read' | 'write' | 'use'; via: 'batch' | 'cics' | 'sql' | 'resource';
   jobs: string[]; is_focus: boolean; certainty: 'certain' | 'possible'; file_path: string; line: number;
 };
 type SharedResource = { key: string; label: string; kind: string; shared: boolean; users: SharedUser[] };
@@ -465,7 +465,7 @@ function SharedDataPanel({ data, isDark, t, onOpenSource, onFollow }: {
                 {user.is_focus
                   ? <span className="font-semibold">{user.program}</span>
                   : <button type="button" onClick={() => onFollow(user)} title={t('processFlow.followProgram')} className="font-semibold text-ds-indigo-400 hover:underline">{user.program}</button>}
-                <span className="text-ds-zinc-500">{user.via === 'cics' ? t('processFlow.viaDialog') : user.via === 'sql' ? 'SQL' : user.jobs.length ? t('processFlow.viaJob', { names: user.jobs.join(', ') }) : t('processFlow.viaBatch')}</span>
+                <span className="text-ds-zinc-500">{user.via === 'resource' ? '' : user.via === 'cics' ? t('processFlow.viaDialog') : user.via === 'sql' ? 'SQL' : user.jobs.length ? t('processFlow.viaJob', { names: user.jobs.join(', ') }) : t('processFlow.viaBatch')}</span>
                 {user.certainty === 'possible' && <Badge tone="slate">{t('processFlow.possible')}</Badge>}
                 <button type="button" onClick={() => onOpenSource(user)} className="font-mono text-[0.625rem] text-ds-zinc-500 hover:text-ds-indigo-400">{user.file_path.split('/').pop()}:{user.line}</button>
               </li>

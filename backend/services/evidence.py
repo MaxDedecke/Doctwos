@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from doctus_models.language_profile import CONTROL_EDGES, INCLUDE_EDGES, ROUTINE_TYPES, role_of
 from doctus_models.database import CodeEdge, CodeEntity, User
 from services.call_flow import TEST_PATH_PATTERN
+from services.shared_data import shared_data
 from services.source_access import site_excerpt, source_visible
 
 # Question wording that asks for one block; a block is only built when the question asks for it.
@@ -29,11 +30,85 @@ DATA_INTENT = re.compile(
     r"\bwert\b.{0,40}(stammt|kommt|gesetzt)|woher .{0,40}(wert|betrag|inhalt)",
     re.I,
 )
+# Wer teilt Dateien: ausdrücklich gefragt, oder "wer liest/schreibt" im Zusammenhang mit Dateien.
+SHARED_FILES_INTENT = re.compile(
+    r"gemeinsam|geteilt|teil(t|en) .{0,30}(datei|tabelle|dataset|ressource)|"
+    r"(wer|welche\w*) .{0,50}(liest|lesen|schreibt|schreiben|nutzt|nutzen|verwendet|verwenden|zugreif|greif).{0,40}"
+    r"(datei|tabelle|dataset|ressource|\bvsam\b)|"
+    r"(datei|tabelle|dataset|ressource) .{0,40}(wer|welche\w*) .{0,30}(liest|lesen|schreibt|schreiben|nutzt|nutzen)|"
+    r"shared (file|data|table|resource)|who (reads|writes|uses) .{0,40}(file|table|dataset|resource)|"
+    r"(which|what) (programs?|jobs?|class\w*) .{0,40}(read|write|use)\w* .{0,30}(file|table|dataset|resource)",
+    re.I,
+)
+# Eine Frage nach der Datei selbst: Sie braucht keine Formulierung, um den Baustein zu bekommen.
+RESOURCE_ENTITY_TYPES = frozenset({"jcl_dataset", "cics_file", "file_fd", "sql_table"})
+SAME_NAME_RESOURCE_TYPES = frozenset({"jcl_dataset", "sql_table"})
+_SHARED_MAX_RESOURCES = 6
+_SHARED_MAX_USERS = 12
+_SHARED_MAX_ONLY_HERE = 8
 FLOW_INTENT = re.compile(
     r"kontrollfluss|control flow|ablauf|l[aä]uft|ausgef[uü]hrt|folgeschritt|reihenfolge|aufrufkette|call chain|"
     r"perform|schritte|was passiert|ruft .{0,60}auf|aufgerufen|call hierarch",
     re.I,
 )
+
+
+def shared_files(db: Session, user: User, entity: CodeEntity) -> dict | None:
+    """Dateien und Tabellen der Einheit und wer sie noch nutzt. Lücken stehen in `unresolved`."""
+    result = shared_data(db, entity)
+    visible: dict[int | None, bool] = {}
+
+    def allowed(source_id: int | None) -> bool:
+        if source_id not in visible:
+            visible[source_id] = source_visible(db, user, source_id)
+        return visible[source_id]
+
+    shared, only_here = [], []
+    for resource in result["resources"]:
+        users = [item for item in resource["users"] if allowed(item["source_id"])]
+        if not users:
+            continue
+        if not resource["shared"]:
+            only_here.append(resource["label"])
+            continue
+        shared.append(
+            {
+                "file": resource["label"],
+                "kind": resource["kind"],
+                "users": [
+                    {
+                        "unit": item["program"],
+                        "access": item["access"],
+                        "via": item["via"],
+                        "certainty": item["certainty"],
+                        "cite": item["cite"],
+                        **({"jobs": item["jobs"]} if item["jobs"] else {}),
+                        **({"focus": True} if item["is_focus"] else {}),
+                    }
+                    for item in users[:_SHARED_MAX_USERS]
+                ],
+                **(
+                    {"more_users": len(users) - _SHARED_MAX_USERS}
+                    if len(users) > _SHARED_MAX_USERS
+                    else {}
+                ),
+            }
+        )
+    unresolved = [
+        {"name": item["name"], "cite": item["cite"]}
+        for item in result["unresolved"]
+        if allowed(item["source_id"])
+    ]
+    if not shared and not only_here and not unresolved:
+        return None
+    block: dict = {"files": shared[:_SHARED_MAX_RESOURCES]}
+    if len(shared) > _SHARED_MAX_RESOURCES:
+        block["more_files"] = len(shared) - _SHARED_MAX_RESOURCES
+    if only_here:
+        block["only_here"] = only_here[:_SHARED_MAX_ONLY_HERE]
+    if unresolved:
+        block["unresolved"] = unresolved
+    return block
 
 
 def _short(name: str | None) -> str:

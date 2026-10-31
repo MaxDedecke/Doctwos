@@ -118,6 +118,17 @@ def evaluate_evidence(client, project_id, fact):
             if step["cite"].endswith(expect["cite"]) and (expect.get("operation") is None or step["operation"] == expect["operation"]):
                 return True, f"{step['operation']} {step['cite'].rsplit('/', 1)[-1]}"
         return False, f"Schritt {expect['cite']} fehlt ({[x['cite'].rsplit('/', 1)[-1] for x in data][:5]})"
+    if block == "shared_files":
+        for item in data.get("files", []):
+            if not item["file"].endswith(expect["file"]):
+                continue
+            users = {user["unit"]: user for user in item["users"]}
+            other = users.get(expect["unit"])
+            if other is None:
+                return False, f"{expect['unit']} fehlt bei {item['file']} ({sorted(users)[:5]})"
+            ok = other["access"] == expect["access"] and other["cite"].endswith(expect["cite"])
+            return ok, f"{other['unit']} {other['access']} {other['cite'].rsplit('/', 1)[-1]}"
+        return False, f"{expect['file']} fehlt ({[x['file'] for x in data.get('files', [])][:4]})"
     return False, f"unbekannter Baustein {block!r}"
 
 

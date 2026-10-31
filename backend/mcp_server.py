@@ -734,7 +734,8 @@ mcp = FastMCP(
     instructions=(
         "Doctus indexes source code. For a question about code call answer_context first with the question text: "
         "it resolves the named classes, methods, programs and copybooks and returns source with line numbers, "
-        "callers, callees, data access and users in one call. Use explain_symbol for one named symbol, "
+        "callers, callees, data access and users in one call, and who shares a file, dataset or table when "
+        "the question asks. Use explain_symbol for one named symbol, "
         "search_code only to discover names, search_knowledge for wording or business terms. "
         "Cite the file:line numbers from the results."
     ),
@@ -1271,6 +1272,20 @@ def _fit_evidence(evidence: list[dict], limit: int) -> None:
         block["truncated"] = True
         return True
 
+    def trim_shared(entry: dict) -> bool:
+        files = (entry.get("shared_files") or {}).get("files")
+        if not files:
+            return False
+        for item in files:
+            if len(item["users"]) > 4:
+                item["more_users"] = item.get("more_users", 0) + len(item["users"]) - 4
+                del item["users"][4:]
+                return True
+        if len(files) > 2:
+            files.pop()
+            return True
+        return False
+
     def trim_flow(entry: dict) -> bool:
         flow = (entry.get("control_flow") or {}).get("flow")
         if not flow or len(flow) <= 6:
@@ -1308,6 +1323,7 @@ def _fit_evidence(evidence: list[dict], limit: int) -> None:
         lambda e: e.pop("callees", None),
         lambda e: e.pop("callee_chain", None),
         lambda e: e.get("data_origin") and len(e["data_origin"]) > 5 and e["data_origin"].pop(),
+        trim_shared,
         trim_includes,
         trim_flow,
     ]
@@ -1429,6 +1445,7 @@ def build_answer_context(
     )
     includes_intent = bool(evidence_blocks.INCLUDES_INTENT.search(text))
     flow_intent = bool(evidence_blocks.FLOW_INTENT.search(text))
+    shared_intent = bool(evidence_blocks.SHARED_FILES_INTENT.search(text))
     given = [
         s.strip() for s in (symbols or []) if isinstance(s, str) and 2 < len(s.strip()) <= 160
     ][:8]
@@ -1475,6 +1492,13 @@ def build_answer_context(
         if not pool:
             unresolved.append(term)
             continue
+        # Derselbe Dataset- oder Tabellenname aus mehreren Jobs oder Programmen ist dieselbe Datei.
+        if pool and all(
+            item.type in evidence_blocks.SAME_NAME_RESOURCE_TYPES
+            and item.name.upper() == pool[0].name.upper()
+            for item in pool
+        ):
+            pool = pool[:1]
         entity, others = _pick_entity(pool)
         if entity is None or entity.id in seen:
             if entity is None:
@@ -1534,6 +1558,10 @@ def build_answer_context(
             included = evidence_blocks.includes(db, user, project_id, entity)
             if included:
                 entry["includes"] = included
+        if shared_intent or entity.type in evidence_blocks.RESOURCE_ENTITY_TYPES:
+            shared = evidence_blocks.shared_files(db, user, entity)
+            if shared:
+                entry["shared_files"] = shared
         if role in {"container", "routine"} and flow_intent:
             flow = evidence_blocks.control_flow(
                 db, user, project_id, entity, budget_chars=min(3000, per_entity)

@@ -1008,6 +1008,40 @@
         "cite": "WAMultifactorAuthenticationTrustStorage.java:68",
         "operation": "argument"
       }
+    },
+    {
+      "id": "E-C6",
+      "project": "carddemo",
+      "kind": "evidence",
+      "case": "Gemeinsame Dateien COBOL: Dialog und Batch auf demselben Dataset",
+      "symbols": [
+        "COTRN02C"
+      ],
+      "topic": "Welche Programme nutzen gemeinsame Dateien mit COTRN02C?",
+      "block": "shared_files",
+      "expect": {
+        "file": "TRANSACT.VSAM.KSDS",
+        "unit": "CBTRN02C",
+        "access": "write",
+        "cite": "CBTRN02C.cbl:256"
+      }
+    },
+    {
+      "id": "E-J6",
+      "project": "syncope",
+      "kind": "evidence",
+      "case": "Gemeinsame Dateien Java: dieselbe Ressourcendatei",
+      "symbols": [
+        "org.apache.syncope.fit.console.AbstractConsoleITCase"
+      ],
+      "topic": "Welche Klassen nutzen dieselbe Ressource?",
+      "block": "shared_files",
+      "expect": {
+        "file": "fit/core-reference/src/test/resources/test.properties",
+        "unit": "AbstractEnduserITCase",
+        "access": "use",
+        "cite": "AbstractEnduserITCase.java:140"
+      }
     }
   ]
 }

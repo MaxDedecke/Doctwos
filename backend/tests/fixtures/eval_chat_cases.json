@@ -239,6 +239,39 @@
           }
         ]
       }
+    },
+    {
+      "id": "Q10",
+      "project": "AWS CardDemo",
+      "label": "C10 Gemeinsame Dateien (COBOL, O(1)-Baustein)",
+      "question": "Welche Programme schreiben in die Datei TRANSACT, und wer liest sie? Bitte mit Fundstellen.",
+      "checks": {
+        "answer_all": [
+          "CBTRN02C",
+          "COTRN02C"
+        ],
+        "cites": [
+          {
+            "file": "app/cbl/COTRN02C.cbl",
+            "lines": [
+              713,
+              713
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q11",
+      "project": "Apache Syncope",
+      "label": "J10 Gemeinsame Dateien (Java, O(1)-Baustein)",
+      "question": "Welche Klassen nutzen dieselbe Ressourcendatei wie `AbstractConsoleITCase`? Bitte mit Fundstellen.",
+      "checks": {
+        "answer_all": [
+          "test\\.properties",
+          "AbstractEnduserITCase"
+        ]
+      }
     }
   ]
 }

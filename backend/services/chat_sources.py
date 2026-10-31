@@ -167,6 +167,20 @@ def extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[i
                     record_agent_source(
                         agent_sources, step["file"], int(step["line"]), int(step["line"]), source_id
                     )
+            shared = entry.get("shared_files") or {}
+            for item in [
+                *[user for row in shared.get("files") or [] for user in row.get("users") or []],
+                *(shared.get("unresolved") or []),
+            ]:
+                match = _FILE_LINE_RE.match(str(item.get("cite") or ""))
+                if match:
+                    record_agent_source(
+                        agent_sources,
+                        match.group(1),
+                        int(match.group(2)),
+                        int(match.group(2)),
+                        source_id,
+                    )
             for group in ("resolved", "external", "unresolved"):
                 for item in (entry.get("includes") or {}).get(group) or []:
                     match = (
