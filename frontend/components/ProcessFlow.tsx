@@ -53,9 +53,27 @@ async function fetchCallers(entityId: number, projectId: number | null | undefin
     }));
 }
 
-export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: Props) {
+type SharedUser = {
+  program: string; entity_id: number; access: 'read' | 'write'; via: 'batch' | 'cics' | 'sql';
+  jobs: string[]; is_focus: boolean; certainty: 'certain' | 'possible'; file_path: string; line: number;
+};
+type SharedResource = { key: string; label: string; kind: string; shared: boolean; users: SharedUser[] };
+
+async function fetchSharedData(entityId: number, projectId: number | null | undefined): Promise<SharedResource[]> {
+  const projectParam = projectId ? `&project_id=${projectId}` : '';
+  const response = await api.fetch(`${API_URL}/process/shared-data?entity_id=${entityId}${projectParam}`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return (await response.json()).resources;
+}
+
+export function ProcessFlow({ theme, focusedEntity: focusFromView, projectId, onFileSelect }: Props) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
+  // „Ablauf öffnen“ aus den gemeinsamen Dateien: bleibt hier, bis die Ansicht einen neuen Fokus setzt.
+  const [followed, setFollowed] = useState<{ from: number | null; entity: Pick<CodeEntity, 'id' | 'name'> } | null>(null);
+  const focusId = focusFromView?.id ?? null;
+  if (followed && followed.from !== focusId) setFollowed(null);
+  const focusedEntity = followed && followed.from === focusId ? followed.entity : focusFromView;
   const rootEntityId = focusedEntity?.id ?? null;
   const rootId = rootEntityId != null ? `entity:${rootEntityId}` : null;
 
@@ -67,6 +85,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
   const [error, setError] = useState<string | null>(null);
   const [gate, setGate] = useState<Gate>({ truncated: false });
   const [callers, setCallers] = useState<Caller[] | 'loading' | null>(null);
+  const [sharedData, setSharedData] = useState<SharedResource[] | 'loading' | null>(null);
   const [expandingAll, setExpandingAll] = useState(false);
   const [expandLimited, setExpandLimited] = useState(false);
   const requested = useRef<Set<string>>(new Set());
@@ -109,6 +128,7 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       setExpandingAll(false);
       setExpandLimited(false);
       setCallers(null);
+      setSharedData(null);
       if (rootEntityId != null) load(`entity:${rootEntityId}`, rootEntityId);
     });
     // load hängt nur an projectId/t; ein Sprachwechsel soll nicht neu laden.
@@ -146,6 +166,20 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
     } catch (err) {
       if (generation.current !== current) return;
       setCallers(null);
+      setError((err instanceof Error ? err.message : undefined) || t('processFlow.loadError'));
+    }
+  };
+
+  const toggleSharedData = async () => {
+    if (sharedData !== null || rootEntityId == null) { setSharedData(null); return; }
+    const current = generation.current;
+    setSharedData('loading');
+    try {
+      const found = await fetchSharedData(rootEntityId, projectId);
+      if (generation.current === current) setSharedData(found);
+    } catch (err) {
+      if (generation.current !== current) return;
+      setSharedData(null);
       setError((err instanceof Error ? err.message : undefined) || t('processFlow.loadError'));
     }
   };
@@ -217,6 +251,11 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
       <div className={cn('px-3 py-2 border-b flex flex-wrap items-center gap-2', isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200')}>
         <div className="min-w-0 mr-auto">
           <div className="text-xs font-bold truncate">{focusedEntity.name}</div>
+          {followed && focusFromView && (
+            <button type="button" onClick={() => setFollowed(null)} className="block text-[0.625rem] text-ds-indigo-400 hover:underline">
+              ← {t('processFlow.backTo', { name: focusFromView.name })}
+            </button>
+          )}
           <div className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500">{t('processFlow.subtitle')}</div>
         </div>
         <button
@@ -227,6 +266,15 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
           className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors"
         >
           {t('processFlow.callers')}
+        </button>
+        <button
+          type="button"
+          onClick={() => void toggleSharedData()}
+          aria-expanded={sharedData !== null}
+          title={t('processFlow.sharedDataTitle')}
+          className="h-7 px-2 rounded border border-ds-zinc-700 hover:border-ds-indigo-500 text-[0.625rem] font-bold text-ds-zinc-400 hover:text-ds-indigo-400 transition-colors"
+        >
+          {t('processFlow.sharedData')}
         </button>
         {(hiddenData > 0 || !hideData) && (
           <button
@@ -318,6 +366,16 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
         </div>
       )}
 
+      {sharedData !== null && (
+        <SharedDataPanel
+          data={sharedData}
+          isDark={isDark}
+          t={t}
+          onOpenSource={user => open({ filePath: user.file_path, line: user.line })}
+          onFollow={user => setFollowed({ from: focusId, entity: { id: user.entity_id, name: user.program } })}
+        />
+      )}
+
       {/* Legende der Markierungen auf dem Zeitstrahl */}
       <div className={cn('flex shrink-0 flex-wrap items-center gap-x-4 gap-y-1 border-b px-3 py-1.5 text-[0.625rem] uppercase tracking-[0.12em]', isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/40 text-ds-zinc-400' : 'border-ds-zinc-200 bg-ds-zinc-50 text-ds-zinc-500')}>
         <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-full border-2 border-ds-indigo-500" /><Workflow className="h-3 w-3" />{t('processFlow.laneControl')}</span>
@@ -378,6 +436,44 @@ export function ProcessFlow({ theme, focusedEntity, projectId, onFileSelect }: P
           );
         })}
       </div>
+    </div>
+  );
+}
+
+function SharedDataPanel({ data, isDark, t, onOpenSource, onFollow }: {
+  data: SharedResource[] | 'loading'; isDark: boolean; t: Translate;
+  onOpenSource: (user: SharedUser) => void;
+  onFollow: (user: SharedUser) => void;
+}) {
+  const border = isDark ? 'border-ds-zinc-800' : 'border-ds-zinc-200';
+  if (data === 'loading') return <div className={cn('shrink-0 border-b px-3 py-2', border)}><Loader2 className="h-3 w-3 animate-spin text-ds-indigo-500" /></div>;
+  const shared = data.filter(resource => resource.shared);
+  const alone = data.length - shared.length;
+  return (
+    <div className={cn('max-h-64 shrink-0 space-y-2 overflow-y-auto border-b px-3 py-2 text-[0.6875rem]', border)}>
+      {shared.length === 0 && <p className="text-ds-zinc-500">{t('processFlow.sharedDataEmpty')}</p>}
+      {shared.map(resource => (
+        <div key={resource.key}>
+          <div className="flex min-w-0 items-center gap-1.5 font-semibold">
+            <Database className="h-3 w-3 shrink-0 text-ds-cyan-500" />
+            <span className="truncate font-mono" title={resource.label}>{resource.label}</span>
+          </div>
+          <ul className="mt-0.5 space-y-0.5 pl-[1.125rem]">
+            {resource.users.map(user => (
+              <li key={`${user.entity_id}:${user.access}`} className="flex min-w-0 flex-wrap items-center gap-x-1.5">
+                <span className={cn('w-14 shrink-0', user.access === 'write' ? 'text-ds-amber-500' : 'text-ds-zinc-500')}>{t(`processFlow.verbs.${user.access}`)}</span>
+                {user.is_focus
+                  ? <span className="font-semibold">{user.program}</span>
+                  : <button type="button" onClick={() => onFollow(user)} title={t('processFlow.followProgram')} className="font-semibold text-ds-indigo-400 hover:underline">{user.program}</button>}
+                <span className="text-ds-zinc-500">{user.via === 'cics' ? t('processFlow.viaDialog') : user.via === 'sql' ? 'SQL' : user.jobs.length ? t('processFlow.viaJob', { names: user.jobs.join(', ') }) : t('processFlow.viaBatch')}</span>
+                {user.certainty === 'possible' && <Badge tone="slate">{t('processFlow.possible')}</Badge>}
+                <button type="button" onClick={() => onOpenSource(user)} className="font-mono text-[0.625rem] text-ds-zinc-500 hover:text-ds-indigo-400">{user.file_path.split('/').pop()}:{user.line}</button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+      {alone > 0 && <p className="text-ds-zinc-500">{t('processFlow.sharedDataAlone', { count: alone })}</p>}
     </div>
   );
 }

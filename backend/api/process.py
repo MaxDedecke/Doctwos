@@ -22,6 +22,7 @@ from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
 from doctus_models.language_profile import JAVA
 from services.call_flow import cobol_entry_paragraph
 from services.provenance import build_provenance
+from services.shared_data import shared_data
 
 router = APIRouter(prefix="/process", tags=["process"])
 
@@ -744,6 +745,21 @@ def _projection(
             reasons=sorted(reasons),
         ),
     )
+
+
+@router.get("/shared-data")
+def process_shared_data(
+    entity_id: int,
+    project_id: int | None = Query(default=None),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Dateien und Tabellen des fokussierten Programms oder Jobs und wer sie sonst noch nutzt."""
+    entity = db.query(CodeEntity).filter(CodeEntity.id == entity_id).first()
+    if entity is None:
+        raise HTTPException(status_code=404, detail="Entity nicht gefunden")
+    _assert_entity_visible(entity, user, db, project_id)
+    return shared_data(db, entity)
 
 
 @router.get("/focus", response_model=ProcessProjection)

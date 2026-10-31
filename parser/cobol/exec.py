@@ -110,7 +110,9 @@ def scan(
                     scope=program.name,
                     meta={
                         **common,
+                        "operation": operation,
                         "resource_kind": resource.kind,
+                        "dynamic": resource.dynamic,
                         "target_qualified_name": resource_qname,
                     },
                 )

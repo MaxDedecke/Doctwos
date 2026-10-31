@@ -235,3 +235,25 @@ def test_a_condition_ends_before_the_exec_block_that_follows_it():
     edge = next(item for item in result.edges if item.type == "CONTAINS")
     assert edge.meta["control_path"][0]["condition"] == "WS-ADMIN"
 
+
+def test_a_cics_file_held_in_a_variable_names_its_possible_values():
+    result = parse_program(
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. ADDTRN.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-FILE PIC X(8) VALUE 'TRANSACT'.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       WRITE-PARA.\n"
+        "           EXEC CICS WRITE\n"
+        "               DATASET(WS-FILE)\n"
+        "           END-EXEC.\n",
+        "ADDTRN.CBL",
+    )
+    edge = next(
+        item for item in result.edges if item.type == "USES" and item.dst_name == "WS-FILE"
+    )
+    assert edge.meta["operation"] == "WRITE"
+    assert edge.meta["dynamic"] is True
+    assert [item["name"] for item in edge.meta["candidate_targets"]] == ["TRANSACT"]
+

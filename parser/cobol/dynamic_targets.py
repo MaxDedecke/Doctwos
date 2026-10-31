@@ -18,6 +18,7 @@ from .model import ParsedEdge
 
 _PROGRAM_NAME = re.compile(r"[A-Za-z0-9#@$][A-Za-z0-9#@$-]{0,29}")
 _MAX_CANDIDATES = 20
+_FILE_KINDS = frozenset({"FILE", "DATASET"})
 
 
 def _literal(value: str) -> str | None:
@@ -74,8 +75,13 @@ def literal_assignments(tokens: list[Token]) -> dict[str, list[tuple[str, int, s
 
 
 def annotate(edges: list[ParsedEdge], tokens: list[Token], first_line: int, last_line: int) -> None:
-    """Hängt belegte Kandidaten an dynamische `CALL`-Kanten desselben Programms."""
-    dynamic = [e for e in edges if e.type == "CALL" and e.resolution == "dynamic"]
+    """Hängt belegte Kandidaten an dynamische `CALL`- und CICS-Dateikanten desselben Programms."""
+    dynamic = [
+        e
+        for e in edges
+        if e.resolution == "dynamic"
+        and (e.type == "CALL" or (e.type == "USES" and e.meta.get("resource_kind") in _FILE_KINDS))
+    ]
     if not dynamic:
         return
     scope = [t for t in tokens if first_line <= t.phys_line <= last_line]

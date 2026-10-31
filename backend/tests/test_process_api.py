@@ -1109,3 +1109,60 @@ def test_flow_view_offers_the_next_paragraph_when_a_paragraph_runs_on(
     assert step["locator"]["start_line"] == 20
     remove_source()
 
+
+def test_shared_data_joins_dialog_and_batch_through_the_same_dataset(
+    client, db_session, test_project, test_team
+):
+    entity, edge, remove_source = _cobol_program(db_session, test_project, test_team)
+    dataset = "AWS.TRANSACT.KSDS"
+    online = entity("COTRN02C", "program", 1)
+    batch = entity("CBTRN03C", "program", 1)
+    other = entity("OTHER", "program", 1)
+    para = entity("WRITE-PARA", "paragraph", 10, online)
+    block = entity("EXEC-CICS-BLOCK@20", "exec_block", 20, online)
+    resource = entity("WS-FILE", "exec_resource", 20, online)
+    entity("TRANSACT", "cics_file", 3, None, {"dataset": dataset})
+    fd = entity("TRAN-FILE", "file_fd", 30, batch)
+    job = entity("TRANREPT", "jcl_job", 1)
+    step = entity("STEP05", "jcl_step", 2, job)
+    lonely = entity("OTHER-FILE", "file_fd", 40, other)
+    target = entity(dataset, "jcl_dataset", 5, job)
+    edge(
+        block,
+        resource,
+        "USES",
+        20,
+        meta={
+            "resource_kind": "DATASET",
+            "operation": "WRITE",
+            "dynamic": True,
+            "candidate_targets": [{"name": "TRANSACT"}],
+        },
+    )
+    edge(fd, target, "ASSIGNED_DATASET", 2, dst_name=dataset)
+    edge(para, fd, "USES", 31, meta={"open_mode": "INPUT"})
+    edge(step, batch, "EXECUTES", 2)
+    edge(lonely, target, "ASSIGNED_DATASET", 2, dst_name="AWS.OTHER")
+    db_session.commit()
+
+    def shared(root):
+        return client.get(
+            "/process/shared-data", params={"entity_id": root.id, "project_id": test_project}
+        ).json()["resources"]
+
+    for root in (online, para):
+        [resource_row] = shared(root)
+        assert resource_row["label"] == dataset and resource_row["shared"] is True
+        users = {user["program"]: user for user in resource_row["users"]}
+        assert users["COTRN02C"]["access"] == "write"
+        assert users["COTRN02C"]["via"] == "cics" and users["COTRN02C"]["is_focus"] is True
+        assert users["COTRN02C"]["certainty"] == "certain"
+        assert users["CBTRN03C"]["access"] == "read"
+        assert users["CBTRN03C"]["jobs"] == ["TRANREPT"]
+        assert users["CBTRN03C"]["certainty"] == "possible"
+        assert users["CBTRN03C"]["line"] == 31
+
+    assert [row["label"] for row in shared(job)] == [dataset]
+    assert shared(other) == []
+    remove_source()
+

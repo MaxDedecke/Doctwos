@@ -72,6 +72,35 @@ describe('ProcessView – Ablauf', () => {
     expect(onFileSelect).toHaveBeenCalledWith(expect.any(String), 42, expect.anything());
   });
 
+  it('zeigt gemeinsame Dateien und öffnet den Ablauf des anderen Programms', async () => {
+    const { fetchMock } = setup();
+    await screen.findByText('INIT');
+    const user = { via: 'batch', certainty: 'possible', file_path: 'app/cbl/X.cbl', line: 7, jobs: [] };
+    fetchMock.mockImplementationOnce(async () => ({
+      ok: true,
+      json: async () => ({
+        resources: [{
+          key: 'dataset:TRANSACT', label: 'TRANSACT.VSAM', kind: 'dataset', shared: true,
+          users: [
+            { ...user, program: 'MAIN', entity_id: 1, access: 'write', via: 'cics', is_focus: true },
+            { ...user, program: 'CBTRN03C', entity_id: 2, access: 'read', jobs: ['TRANREPT'], is_focus: false },
+          ],
+        }],
+      }),
+    }) as never);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Gemeinsame Dateien' }));
+    expect(await screen.findByText('TRANSACT.VSAM')).toBeTruthy();
+    expect(screen.getByText('in TRANREPT')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'CBTRN03C' }));
+    await screen.findByRole('button', { name: /Zurück zu MAIN/ });
+    await waitFor(() => expect(fetchMock.mock.calls.some(call => String(call[0]).includes('entity_id=2&'))).toBe(true));
+
+    fireEvent.click(screen.getByRole('button', { name: /Zurück zu MAIN/ }));
+    expect(screen.queryByRole('button', { name: /Zurück zu MAIN/ })).toBeNull();
+  });
+
   it('klappt auf Wunsch alles auf und lädt dafür die fehlenden Schritte', async () => {
     setup();
     await screen.findByText('INIT');

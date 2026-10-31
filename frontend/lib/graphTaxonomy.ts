@@ -147,6 +147,8 @@ export const ENTITY_TYPE_LABELS: Record<string, { de: string; en: string }> = {
   jcl_file: { de: 'JCL-Datei', en: 'JCL file' },
   jcl_proc: { de: 'JCL-Prozedur', en: 'JCL procedure' },
   jcl_dataset: { de: 'JCL-Dataset', en: 'JCL dataset' },
+  cics_file: { de: 'CICS-Datei', en: 'CICS file' },
+  csd_file: { de: 'CICS-Ressourcendefinition', en: 'CICS resource definition' },
   configuration_file: { de: 'Konfigurationsdatei', en: 'Configuration file' },
   endpoint: { de: 'Endpunkt', en: 'Endpoint' },
   function: { de: 'Funktion', en: 'Function' },

@@ -47,6 +47,7 @@ DEFAULT_LANGUAGE_EXTENSIONS: dict[str, set[str]] = {
     "terraform": {".tf", ".tfvars"},
     "jsp": {".jsp", ".jspx", ".jspf", ".tag", ".tagx"},
     "properties": {".properties"},
+    "csd": {".csd"},
     "xml": {".xml", ".xsd", ".wsdl", ".xjb"},
     "xslt": {".xsl", ".xslt"},
 }

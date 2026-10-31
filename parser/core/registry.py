@@ -20,6 +20,7 @@ from resources.asciidoc_prepare import prepare_asciidoc_source, configuration_fi
 from resources.configuration import parse_configuration
 from resources.groovy import parse_groovy_file
 from resources.javascript import parse_javascript_file
+from resources.csd import parse_csd_file
 from resources.properties import parse_properties_file
 from resources.sqlscript import parse_sql_file
 from shell.parse import parse_shell_file
@@ -82,14 +83,14 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         parse=_parse_cobol,
         prepare_source=prepare_copybook_index,
         root_entity_types=("program",),
-        parser_version="cobol-structure-18",
+        parser_version="cobol-structure-19",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "copybook": ParserEntry(
         parse=_parse_copybook,
         prepare_source=prepare_copybook_index,
         root_entity_types=("copybook",),
-        parser_version="cobol-structure-18",
+        parser_version="cobol-structure-19",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "java": ParserEntry(
@@ -123,6 +124,11 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     ),
     "jsp": ParserEntry(
         parse=parse_jsp_or_html, root_entity_types=("jsp_page",), parser_version="jsp-structure-3"
+    ),
+    "csd": ParserEntry(
+        parse=parse_csd_file,
+        root_entity_types=("csd_file",),
+        parser_version="csd-structure-1",
     ),
     "properties": ParserEntry(
         parse=parse_properties_file,
