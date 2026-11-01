@@ -238,7 +238,7 @@ describe('GlobalSearch add-view menu', () => {
 
     for (const label of [
       '💬 Chat', '💻 Code-Viewer', '📖 Doku Viewer', '🕸️ Wissensgraph',
-      '🔀 Ablauf', '🌐 Web Viewer', '🔗 Link Manager', '💡 Erkenntnisse',
+      '🔀 Ablauf-View', '🌐 Web Viewer', '🔗 Link Manager', '💡 Erkenntnisse',
     ]) {
       expect(screen.getByText(label)).toBeTruthy();
     }
