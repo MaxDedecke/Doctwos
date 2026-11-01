@@ -157,8 +157,7 @@ describe('LayoutSettingsTab Wissensgraph-Export', () => {
   beforeEach(() => {
     createdAnchor = null;
     // jsdom kennt URL.createObjectURL nicht -- die beiden Methoden werden am
-    // echten URL-Konstruktor ergänzt und danach wieder entfernt (analog
-    // CallGraphView.test.tsx), damit URL selbst funktionsfähig bleibt.
+    // echten URL-Konstruktor ergänzt und danach wieder entfernt damit URL selbst funktionsfähig bleibt.
     Object.assign(URL, { createObjectURL: vi.fn(() => 'blob:layout'), revokeObjectURL: vi.fn() });
     anchorClick = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(function (this: HTMLAnchorElement) {
       createdAnchor = this;

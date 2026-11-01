@@ -533,7 +533,7 @@ describe('ChatView', () => {
       renderChat({ chatMessages: [TRACE_MESSAGE] });
 
       expect(screen.getByTestId('callgraph-prompt-card')).toBeTruthy();
-      expect(screen.getByText(/Darf ich den Prozess Viewer öffnen/)).toBeTruthy();
+      expect(screen.getByText(/Darf ich die Ablauf-Ansicht öffnen/)).toBeTruthy();
       expect(screen.getByText('Ablauf untersuchen')).toBeTruthy();
       expect(screen.getByText('Nein')).toBeTruthy();
     });
@@ -546,7 +546,7 @@ describe('ChatView', () => {
 
       expect(screen.queryByTestId('callgraph-prompt-card')).toBeNull();
       // Es verbleibt ein dezenter Link zum späteren Öffnen
-      expect(screen.getByText('Ablauf in Prozess Viewer öffnen')).toBeTruthy();
+      expect(screen.getByText('In der Ablauf-Ansicht öffnen')).toBeTruthy();
     });
 
     it('ruft onOpenCallFlow auf, wenn der Nutzer auf "Ja, öffnen" klickt', () => {
@@ -561,7 +561,7 @@ describe('ChatView', () => {
           hops: 2,
         })
       );
-      expect(screen.getByText(/Im Prozess Viewer geöffnet/)).toBeTruthy();
+      expect(screen.getByText(/In der Ablauf-Ansicht geöffnet/)).toBeTruthy();
     });
   });
 });

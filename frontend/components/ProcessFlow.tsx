@@ -1,5 +1,5 @@
 "use client";
-import type { CodeEntity } from '@/types/domain';
+import type { CodeEntity, WorkspaceDocument } from '@/types/domain';
 
 import { api, API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
@@ -7,12 +7,15 @@ import { buildFlowRows, nextExpansion, type DataVerb, type FlowProjection, type 
 import { cn } from '@/lib/utils';
 import { AlertTriangle, ChevronRight, Database, ExternalLink, FileCode, GitBranch, Loader2, RefreshCw, Repeat, Route, Split, Square, Workflow } from 'lucide-react';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { ChangePackageAction } from './ChangePackageAction';
+import { InsightDraftAction } from './InsightDraftAction';
 
 interface Props {
   theme: string;
   focusedEntity: Pick<CodeEntity, 'id' | 'name'> | null;
   projectId?: number | null;
   onFileSelect: (path: string, line?: number | null, sourceId?: number | string | null) => void;
+  onOpenDoc?: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
 }
 
 type Gate = { truncated: boolean };
@@ -66,7 +69,7 @@ async function fetchSharedData(entityId: number, projectId: number | null | unde
   return (await response.json()).resources;
 }
 
-export function ProcessFlow({ theme, focusedEntity: focusFromView, projectId, onFileSelect }: Props) {
+export function ProcessFlow({ theme, focusedEntity: focusFromView, projectId, onFileSelect, onOpenDoc }: Props) {
   const { t } = useLanguage();
   const isDark = theme === 'dark';
   // „Ablauf öffnen“ aus den gemeinsamen Dateien: bleibt hier, bis die Ansicht einen neuen Fokus setzt.
@@ -258,6 +261,20 @@ export function ProcessFlow({ theme, focusedEntity: focusFromView, projectId, on
           )}
           <div className="text-[0.5625rem] uppercase tracking-wider text-ds-zinc-500">{t('processFlow.subtitle')}</div>
         </div>
+        <ChangePackageAction
+          projectId={projectId}
+          target={{ entityId: focusedEntity.id, label: focusedEntity.name }}
+          theme={theme}
+          onOpenCode={onFileSelect}
+          onOpenDoc={onOpenDoc}
+        />
+        <InsightDraftAction
+          projectId={projectId}
+          origin="process"
+          evidence={[{ entity_id: focusedEntity.id, process_root: focusedEntity.name }]}
+          defaultTitle={focusedEntity.name}
+          theme={theme}
+        />
         <button
           type="button"
           onClick={() => void toggleCallers()}

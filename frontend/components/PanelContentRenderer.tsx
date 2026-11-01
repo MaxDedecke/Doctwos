@@ -4,7 +4,7 @@ import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
-import { ProcessView } from '@/components/CallGraphView';
+import { ProcessFlow } from '@/components/ProcessFlow';
 import { ChatView } from '@/components/ChatView';
 import { LinkManagerView } from '@/components/LinkManagerView';
 import { DropView } from '@/components/DropView';
@@ -174,17 +174,28 @@ export function PanelContentRenderer({
   }
 
   if (contentType === 'callgraph') {
+    if (selection.customCallFlow) {
+      return (
+        <DropView
+          theme={theme}
+          focusedEntity={selection.selectedEntity}
+          projectId={selectedProject?.id}
+          customFlow={selection.customCallFlow}
+          onClearCustomFlow={() => {
+            if (selection.selectedEntity || selection.customCallFlow?.root) {
+              handlePanelEntitySelect(index, (selection.selectedEntity || selection.customCallFlow?.root) as CodeEntity);
+            }
+          }}
+          onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
+          onOpenDoc={handleDocFocusRequest}
+        />
+      );
+    }
     return (
-      <ProcessView
+      <ProcessFlow
         theme={theme}
         focusedEntity={selection.selectedEntity}
         projectId={selectedProject?.id}
-        customFlow={selection.customCallFlow}
-        onClearCustomFlow={() => {
-          if (selection.selectedEntity || selection.customCallFlow?.root) {
-            handlePanelEntitySelect(index, (selection.selectedEntity || selection.customCallFlow?.root) as CodeEntity);
-          }
-        }}
         onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
         onOpenDoc={handleDocFocusRequest}
       />
@@ -194,12 +205,11 @@ export function PanelContentRenderer({
   if (contentType === 'dropview') {
     return (
       <DropView
-        // Neu starten, sobald ein anderes Objekt fokussiert wird (der Start steckt im lokalen Zustand).
-        key={selection.selectedEntity?.id ?? 'none'}
         theme={theme}
         focusedEntity={selection.selectedEntity}
         projectId={selectedProject?.id}
         onFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId, true)}
+        onOpenDoc={handleDocFocusRequest}
       />
     );
   }

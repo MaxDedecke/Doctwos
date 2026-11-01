@@ -3051,6 +3051,7 @@ def drop(
     ``down`` follows what the entity uses, ``up`` who uses it. A layer above 40 nodes is returned collapsed
     (``count`` only, ``collapsed: true``) and nothing below it is computed until it is listed again via ``expand``.
     Every node and edge carries ``cite``; edges the index could not resolve are counted in ``unresolved``.
+    ``back_edges`` lists edges leading back to a node already shown (same layer, an earlier one, a cycle).
     """
     with _tool_context(
         ctx,

@@ -2,10 +2,7 @@ import React from 'react';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
-import { ProcessView } from './CallGraphView';
-import { guardLabel } from './ProcessFlow';
-
-vi.mock('react-force-graph-2d', () => ({ default: () => <div data-testid="process-graph" /> }));
+import { ProcessFlow, guardLabel } from './ProcessFlow';
 
 const loc = (line: number) => ({ file_path: 'MAIN.CBL', start_line: line, source_id: 5 });
 const N = (id: string, label: string, kind = 'step') => ({ id, kind, label, language: 'cobol', entity_id: id.startsWith('entity:') ? Number(id.split(':')[1]) : null, locator: loc(1) });
@@ -33,11 +30,11 @@ function setup() {
   const fetchMock = vi.fn(async (url: string) => ({ ok: true, json: async () => (url.includes('entity_id=2&') ? INIT : ROOT) }));
   vi.stubGlobal('fetch', fetchMock);
   const onFileSelect = vi.fn();
-  render(<LanguageProvider><ProcessView theme="dark" focusedEntity={{ id: 1, name: 'MAIN' }} onFileSelect={onFileSelect} projectId={3} /></LanguageProvider>);
+  render(<LanguageProvider><ProcessFlow theme="dark" focusedEntity={{ id: 1, name: 'MAIN' }} onFileSelect={onFileSelect} projectId={3} /></LanguageProvider>);
   return { fetchMock, onFileSelect };
 }
 
-describe('ProcessView – Ablauf', () => {
+describe('ProcessFlow', () => {
   afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
   it('zeigt Schritte in Zeilenreihenfolge, Datenzugriffe gebündelt und offene Aufrufe in ihrer Bahn', async () => {
@@ -144,15 +141,6 @@ describe('ProcessView – Ablauf', () => {
     expect(within(row).getAllByText('ACCT-ID').length).toBe(2);
   });
 
-  it('wechselt über den Tab in die Netz-Ansicht', async () => {
-    vi.stubGlobal('ResizeObserver', class { observe() {} disconnect() {} });
-    setup();
-    await screen.findByText('INIT');
-    fireEvent.click(screen.getByRole('tab', { name: 'Netz' }));
-    await waitFor(() => expect(screen.getByRole('tab', { name: 'Netz' }).getAttribute('aria-selected')).toBe('true'));
-    expect(screen.queryByRole('table')).toBeNull();
-  });
-
   it('zeigt Bedingungen und Schleifen als Wächterzeilen und Badges', async () => {
     const path = [{ type: 'IF', branch: 'THEN', condition: "WS-A = 'Y'" }];
     const guarded = {
@@ -164,7 +152,7 @@ describe('ProcessView – Ablauf', () => {
       ],
     };
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => guarded })));
-    render(<LanguageProvider><ProcessView theme="dark" focusedEntity={{ id: 1, name: 'MAIN' }} onFileSelect={vi.fn()} projectId={3} /></LanguageProvider>);
+    render(<LanguageProvider><ProcessFlow theme="dark" focusedEntity={{ id: 1, name: 'MAIN' }} onFileSelect={vi.fn()} projectId={3} /></LanguageProvider>);
 
     await screen.findByText("wenn WS-A = 'Y'");
     expect(screen.getByText("sonst (nicht: WS-A = 'Y')")).toBeTruthy();

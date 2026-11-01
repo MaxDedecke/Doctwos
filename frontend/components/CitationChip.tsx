@@ -14,7 +14,7 @@ type OnFileClick = (filePath: string, line?: number, sourceId?: string) => void;
 
 /** Kleiner Warn-Punkt an einem Zitat-Badge, dessen Datei nicht uneingeschränkt
  * analysiert ist (O-120) -- dieselbe Farbcodierung wie im Editor-Dateibaum
- * (FileTreeList) und im Call-Graph (CallGraphView). */
+ * (FileTreeList) und in Abhängigkeiten (DropView). */
 const AnalysisStatusDot: React.FC<{ source: KnownSource }> = ({ source }) =>
   source.analysis_status ? (
     <span

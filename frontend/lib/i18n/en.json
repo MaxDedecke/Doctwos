@@ -104,8 +104,8 @@
       "code": "💻 Code viewer",
       "doc": "📖 Doc viewer",
       "graph": "🕸️ Knowledge graph",
-      "callgraph": "🔀 Process viewer",
-      "dropview": "💧 Flow viewer",
+      "callgraph": "🔀 Flow",
+      "dropview": "🧩 Dependencies",
       "webview": "🌐 Web viewer",
       "linkmanager": "🔗 Link manager",
       "insights": "💡 Insights"
@@ -1139,12 +1139,12 @@
     "aiDisclaimer": "AI can make mistakes. Please always double check sensitive information for accuracy.",
     "askDirectlyTitle": "Ask directly",
     "userAvatarAlt": "Illustrative employee avatar for your message",
-    "callGraphPrompt": "May I open the Process viewer to show you this flow?",
+    "callGraphPrompt": "May I open the Flow view to show you this flow?",
     "callGraphOpenButton": "Yes, open",
     "callGraphInvestigateButton": "Investigate flow",
     "callGraphDismissButton": "No",
-    "callGraphOpened": "Opened in Process viewer",
-    "callGraphReopen": "Open flow in Process viewer",
+    "callGraphOpened": "Opened in the Flow view",
+    "callGraphReopen": "Open in the Flow view",
     "callGraphNoSpace": "No space in workspace for another panel (maximum 4). Please close a panel first.",
     "changeImpactTitle": "Change impact analysis",
     "changeImpactNodeCount": "{{count}} nodes",
@@ -1882,91 +1882,25 @@
       "read": "reads",
       "write": "writes",
       "use": "uses"
-    },
-    "tabs": {
-      "flow": "Flow",
-      "network": "Network",
-      "drop": "Flow viewer"
     }
   },
   "callGraphView": {
-    "processTitle": "Process viewer",
     "focusFirst": "Please focus a code object first.",
-    "inheritanceLabel": "Inheritance",
     "hopUnit": "Hop",
     "hopUnitPlural": "Hops",
     "reloadTitle": "Reload",
-    "zoomInTitle": "Zoom in",
-    "zoomOutTitle": "Zoom out",
-    "fitAllTitle": "Fit all",
-    "resetLayoutTitle": "Reset zone layout",
-    "truncatedNotice": "Limited to 500 nodes",
-    "noConnections": "No process transitions for this focus.",
-    "loadError": "Could not load Process viewer",
-    "exportError": "Export failed (HTTP {{status}})",
     "flowTitle": "Flow",
     "impactTitle": "Impact Graph",
     "flowDirectionOutgoing": "Outgoing",
     "flowDirectionIncoming": "Incoming",
     "flowDirectionBoth": "Both directions",
     "switchToFocusView": "Load focus view",
-    "investigateFromHere": "Investigate from here",
-    "investigateFromHereTitle": "Investigate this step as new process root",
-    "flowLoadedToast": "Flow for {{name}} opened in Process viewer",
-    "flowAnimation": {
-      "label": "Flow",
-      "play": "Start flow animation: shows the paths across the nodes one after another in a loop",
-      "stop": "Stop flow animation",
-      "pause": "Pause",
-      "resume": "Resume",
-      "speed": "Change speed",
-      "pathSelect": "Choose path",
-      "allPaths": "All paths ({{count}})",
-      "pathOption": "Path {{index}} ({{steps}} steps)",
-      "status": "Path {{path}}/{{paths}} · step {{step}}/{{steps}}",
-      "truncated": "Not all paths are shown: path count, depth or search effort are limited.",
-      "reducedMotion": "The animation is off because the system asks for reduced motion.",
-      "noPaths": "No visible transition leaves the root; there is no path to animate."
-    },
-    "certainty": {
-      "certain": "Certain",
-      "possible": "Possible",
-      "unresolved": "Unresolved"
-    },
+    "flowLoadedToast": "Flow for {{name}} opened",
     "resolution": {
       "resolved": "Resolved",
       "dynamic": "Dynamic",
-      "unresolved": "Unresolved"
-    },
-    "transitionDetails": {
-      "title": "Transition details",
-      "certainty": "Certainty",
-      "notProvided": "Not provided",
-      "resolution": "Resolution",
-      "origin": "Origin",
-      "origins": {
-        "code_edge": "Code edge",
-        "synthetic": "Derived transition"
-      },
-      "originalTypes": "Technical edge type",
-      "noOriginalType": "No code edge (synthetic)",
-      "sequence": "Order",
-      "condition": "Condition",
-      "reason": "Reason",
-      "sourceUnavailable": "Source location unavailable",
-      "openSource": "Open source location",
-      "close": "Close details"
-    },
-    "processKinds": {
-      "entry": "Entry",
-      "step": "Step",
-      "call": "Call",
-      "branch": "Decision",
-      "jump": "Jump",
-      "iteration": "Iteration",
-      "data_access": "Data access",
-      "external_call": "External / unresolved",
-      "exit": "Exit"
+      "unresolved": "Unresolved",
+      "external": "External"
     }
   },
   "insightDraft": {
@@ -2116,7 +2050,8 @@
     "tooltipWithReasons": "{{label}}: {{reasons}}"
   },
   "dropView": {
-    "title": "Flow viewer: layers around the start point",
+    "title": "Dependencies: layers around the start point",
+    "titleFlow": "From chat: layers around the start point",
     "showUp": "Show upward: who uses the start point",
     "showDown": "Show downward: what the start point uses",
     "kinds": {
@@ -2139,7 +2074,23 @@
     "noFocus": "Pick a start point (program, class, method or field) to see its layers.",
     "end": "Nothing follows below.",
     "endHorizontal": "Nothing follows after this.",
-    "empty": "No evidenced connections for this selection."
+    "empty": "No evidenced connections for this selection.",
+    "back": "Back to {{name}}",
+    "backEdge": "to a node already shown",
+    "backEdgeHint": "Dashed: to a node already shown (same layer, an earlier layer or a cycle).",
+    "unresolvedNode": "Target not resolved: no location in the index",
+    "flowTruncated": "Truncated: not all nodes loaded",
+    "edge": {
+      "title": "Connection",
+      "open": "{{label}}: {{from}} to {{to}}, show details",
+      "resolution": "Resolution",
+      "technicalType": "Technical edge type",
+      "condition": "Condition",
+      "reason": "Reason",
+      "sourceUnavailable": "Source location unavailable",
+      "openSource": "Open location",
+      "close": "Close details"
+    }
   },
   "insightEvidence": {
     "openSource": "Open source",

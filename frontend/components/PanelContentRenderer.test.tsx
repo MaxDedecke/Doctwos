@@ -1,5 +1,5 @@
 import type { ChatView } from './ChatView';
-import type { CallGraphView } from './CallGraphView';
+import type { ProcessFlow } from './ProcessFlow';
 import type { DropView } from './DropView';
 import type { LinkManagerView } from './LinkManagerView';
 import type { SplitPaneWorkspace } from './SplitPaneWorkspace';
@@ -25,7 +25,7 @@ import { PanelContentRenderer } from './PanelContentRenderer';
 
 type CapturedProps = {
   'chat-view': React.ComponentProps<typeof ChatView>;
-  'callgraph-view': React.ComponentProps<typeof CallGraphView>;
+  'callgraph-view': React.ComponentProps<typeof ProcessFlow>;
   'drop-view': React.ComponentProps<typeof DropView>;
   'linkmanager-view': React.ComponentProps<typeof LinkManagerView>;
   'split-pane': React.ComponentProps<typeof SplitPaneWorkspace>;
@@ -48,10 +48,7 @@ function stub<K extends keyof CapturedProps>(name: K) {
 }
 
 vi.mock('@/components/ChatView', () => ({ ChatView: stub('chat-view') }));
-vi.mock('@/components/CallGraphView', () => ({
-  CallGraphView: stub('callgraph-view'),
-  ProcessView: stub('callgraph-view'),
-}));
+vi.mock('@/components/ProcessFlow', () => ({ ProcessFlow: stub('callgraph-view') }));
 vi.mock('@/components/DropView', () => ({ DropView: stub('drop-view') }));
 vi.mock('@/components/LinkManagerView', () => ({ LinkManagerView: stub('linkmanager-view') }));
 vi.mock('@/components/SplitPaneWorkspace', () => ({ SplitPaneWorkspace: stub('split-pane') }));
@@ -153,10 +150,11 @@ describe('PanelContentRenderer', () => {
       };
       renderPanel({ contentType: 'callgraph', selection: { ...SELECTION, customCallFlow: customFlow } });
 
-      expect(screen.getByTestId('callgraph-view')).toBeTruthy();
-      expect(getCaptured('callgraph-view').focusedEntity).toBe(SELECTION.selectedEntity);
-      expect(getCaptured('callgraph-view').customFlow).toBe(customFlow);
-      expect(getCaptured('callgraph-view').projectId).toBe(3);
+      // Ein Ablauf aus dem Chat wird als Ebenen gezeigt, ohne ihn die Ablauf-Ansicht des Fokus.
+      expect(screen.getByTestId('drop-view')).toBeTruthy();
+      expect(getCaptured('drop-view').focusedEntity).toBe(SELECTION.selectedEntity);
+      expect(getCaptured('drop-view').customFlow).toBe(customFlow);
+      expect(getCaptured('drop-view').projectId).toBe(3);
     });
 
     it('rendert für "linkmanager" den Link-Manager samt Nutzerrolle', () => {

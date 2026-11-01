@@ -324,6 +324,7 @@ def get_drop(
         kinds=[k for item in kinds for k in item.split(",")],
         expand=expand,
         include_tests=include_tests,
+        with_provenance=True,
     )
 
 

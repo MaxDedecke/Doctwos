@@ -5,7 +5,7 @@
  * Vollständigkeits-Status einer Datei (core.model.AnalysisStatus im Backend/
  * Parser), verwendet von den drei im Katalogeintrag genannten Oberflächen --
  * Editor-Dateibaum (FileTreeList), Chat-Zitate (MarkdownContent) und
- * Call-Graph (CallGraphView). "complete" taucht hier bewusst nicht auf: das
+ * Abhängigkeiten (DropView). "complete" taucht hier bewusst nicht auf: das
  * Backend liefert für uneingeschränkt analysierte Dateien gar kein Feld
  * (siehe backend/core/analysis_status.py), kein Eintrag heißt schon
  * "kein Makel bekannt".

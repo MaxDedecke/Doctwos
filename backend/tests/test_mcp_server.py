@@ -2609,6 +2609,27 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     assert [n["name"] for n in from_container["layers"][1]["nodes"]] == [
         "other"
     ]  # Kanten der Mitglieder zählen zum Container
+    # Nur der Container ist ein Knoten, also beginnt die Kante bei ihm, sonst endet sie im Leeren.
+    assert from_container["layers"][1]["edges"][0]["from"] == unit.id
+
+    # Wege zurück: Sie stehen getrennt von den Ebenen, auch aus der letzten, nicht mehr verfolgten Ebene.
+    assert down["back_edges"] == []
+    _control(db_session, project_id, edge_type, leaf, main, 50)
+    _control(db_session, project_id, edge_type, init, work, 24)
+    _control(db_session, project_id, edge_type, work, work, 33)
+    db_session.commit()
+    cycle = drop.drop(db_session, user_obj, project_id, main, layers=2)
+    assert {(e["from"], e["to"]) for e in cycle["back_edges"]} == {
+        (init.id, work.id),
+        (work.id, work.id),
+        (leaf.id, main.id),
+    }
+    assert [lay["count"] for lay in cycle["layers"]] == [1, 2, 1]
+    # Wege innerhalb des Containers sind keine Rücksprünge, nur der von außen zurück zählt.
+    assert drop.drop(db_session, user_obj, project_id, unit, layers=2)["back_edges"] == []
+    with_source = drop.drop(db_session, user_obj, project_id, main, layers=1, with_provenance=True)
+    assert "provenance" in with_source["layers"][1]["edges"][0]
+    assert "provenance" not in down["layers"][1]["edges"][0]
 
 
 def _shared_entity(db_session, project_id, source_id, name, type_, file_path, parent=None, meta=None):

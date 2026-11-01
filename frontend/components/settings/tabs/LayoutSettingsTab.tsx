@@ -112,7 +112,7 @@ export const LayoutSettingsTab: React.FC = () => {
 
   // Neutraler CSV-/GraphML-Export (O-034) -- anders als exportNeo4j oben (Cypher,
   // JSON-Response mit dem Skript im Body) liefert /graph/export direkt die fertige
-  // Datei als Blob, analog zu CallGraphView.tsx::exportGraph.
+  // Datei als Blob.
   const exportGraph = async (format: 'csv' | 'graphml') => {
     const params = new URLSearchParams({ status: 'approved', format });
     if (selectedProject?.id) params.set('project_id', String(selectedProject.id));

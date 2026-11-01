@@ -104,8 +104,8 @@
       "code": "💻 Code-Viewer",
       "doc": "📖 Doku Viewer",
       "graph": "🕸️ Wissensgraph",
-      "callgraph": "🔀 Prozess Viewer",
-      "dropview": "💧 Flow Viewer",
+      "callgraph": "🔀 Ablauf",
+      "dropview": "🧩 Abhängigkeiten",
       "webview": "🌐 Web Viewer",
       "linkmanager": "🔗 Link Manager",
       "insights": "💡 Erkenntnisse"
@@ -1139,12 +1139,12 @@
     "aiDisclaimer": "KI kann Fehler machen. Bitte überprüfe sensible Informationen immer auf ihre Richtigkeit.",
     "askDirectlyTitle": "Frage direkt stellen",
     "userAvatarAlt": "Beispielavatar für eigene Nachricht",
-    "callGraphPrompt": "Darf ich den Prozess Viewer öffnen, um dir diesen Ablauf zu zeigen?",
+    "callGraphPrompt": "Darf ich die Ablauf-Ansicht öffnen, um dir diesen Ablauf zu zeigen?",
     "callGraphOpenButton": "Ja, öffnen",
     "callGraphInvestigateButton": "Ablauf untersuchen",
     "callGraphDismissButton": "Nein",
-    "callGraphOpened": "Im Prozess Viewer geöffnet",
-    "callGraphReopen": "Ablauf in Prozess Viewer öffnen",
+    "callGraphOpened": "In der Ablauf-Ansicht geöffnet",
+    "callGraphReopen": "In der Ablauf-Ansicht öffnen",
     "callGraphNoSpace": "Kein Platz mehr im Workspace für ein weiteres Panel (maximal 4). Bitte schließe zuerst ein Panel.",
     "changeImpactTitle": "Auswirkungsanalyse",
     "changeImpactNodeCount": "{{count}} Knoten",
@@ -1882,91 +1882,25 @@
       "read": "liest",
       "write": "schreibt",
       "use": "verwendet"
-    },
-    "tabs": {
-      "flow": "Ablauf",
-      "network": "Netz",
-      "drop": "Flow Viewer"
     }
   },
   "callGraphView": {
-    "processTitle": "Prozess Viewer",
     "focusFirst": "Bitte zuerst ein Code-Objekt fokussieren.",
-    "inheritanceLabel": "Vererbung",
     "hopUnit": "Hop",
     "hopUnitPlural": "Hops",
     "reloadTitle": "Neu laden",
-    "zoomInTitle": "Vergrößern",
-    "zoomOutTitle": "Verkleinern",
-    "fitAllTitle": "Alles einpassen",
-    "resetLayoutTitle": "Zonen-Layout zurücksetzen",
-    "truncatedNotice": "Auf 500 Knoten begrenzt",
-    "noConnections": "Keine Prozessübergänge für diesen Fokus.",
-    "loadError": "Prozess Viewer konnte nicht geladen werden",
-    "exportError": "Export fehlgeschlagen (HTTP {{status}})",
     "flowTitle": "Ablauf",
     "impactTitle": "Betroffenengraph",
     "flowDirectionOutgoing": "Ausgehend",
     "flowDirectionIncoming": "Eingehend",
     "flowDirectionBoth": "Beidseitig",
     "switchToFocusView": "Fokusansicht laden",
-    "investigateFromHere": "Ab hier untersuchen",
-    "investigateFromHereTitle": "Diesen Schritt als neue Prozesswurzel untersuchen",
-    "flowLoadedToast": "Ablauf für {{name}} im Prozess Viewer geöffnet",
-    "flowAnimation": {
-      "label": "Fluss",
-      "play": "Fluss-Animation starten: zeigt die Wege über die Knoten nacheinander in Dauerschleife",
-      "stop": "Fluss-Animation beenden",
-      "pause": "Pausieren",
-      "resume": "Fortsetzen",
-      "speed": "Tempo ändern",
-      "pathSelect": "Pfad wählen",
-      "allPaths": "Alle Pfade ({{count}})",
-      "pathOption": "Pfad {{index}} ({{steps}} Schritte)",
-      "status": "Pfad {{path}}/{{paths}} · Schritt {{step}}/{{steps}}",
-      "truncated": "Nicht alle Pfade werden gezeigt: Pfadanzahl, Tiefe oder Suchaufwand sind begrenzt.",
-      "reducedMotion": "Die Animation ist abgeschaltet, weil das System reduzierte Bewegung wünscht.",
-      "noPaths": "Von der Wurzel führt kein sichtbarer Übergang weiter; es gibt keinen Pfad zum Animieren."
-    },
-    "certainty": {
-      "certain": "Belegt",
-      "possible": "Möglich",
-      "unresolved": "Unaufgelöst"
-    },
+    "flowLoadedToast": "Ablauf für {{name}} geöffnet",
     "resolution": {
       "resolved": "Aufgelöst",
       "dynamic": "Dynamisch",
-      "unresolved": "Unaufgelöst"
-    },
-    "transitionDetails": {
-      "title": "Übergangsdetails",
-      "certainty": "Sicherheit",
-      "notProvided": "Nicht angegeben",
-      "resolution": "Auflösung",
-      "origin": "Herkunft",
-      "origins": {
-        "code_edge": "Codekante",
-        "synthetic": "Abgeleiteter Übergang"
-      },
-      "originalTypes": "Technischer Kantentyp",
-      "noOriginalType": "Keine Codekante (synthetisch)",
-      "sequence": "Reihenfolge",
-      "condition": "Bedingung",
-      "reason": "Grund",
-      "sourceUnavailable": "Quellstelle nicht verfügbar",
-      "openSource": "Fundstelle öffnen",
-      "close": "Details schließen"
-    },
-    "processKinds": {
-      "entry": "Einstieg",
-      "step": "Schritt",
-      "call": "Aufruf",
-      "branch": "Entscheidung",
-      "jump": "Sprung",
-      "iteration": "Iteration",
-      "data_access": "Datenzugriff",
-      "external_call": "Extern / offen",
-      "exit": "Ausstieg"
+      "unresolved": "Unaufgelöst",
+      "external": "Extern"
     }
   },
   "insightDraft": {
@@ -2116,7 +2050,8 @@
     "tooltipWithReasons": "{{label}}: {{reasons}}"
   },
   "dropView": {
-    "title": "Flow Viewer: Ebenen um den Startpunkt",
+    "title": "Abhängigkeiten: Ebenen um den Startpunkt",
+    "titleFlow": "Aus dem Chat: Ebenen um den Startpunkt",
     "showUp": "Aufwärts zeigen: wer nutzt den Startpunkt",
     "showDown": "Abwärts zeigen: was nutzt der Startpunkt",
     "kinds": {
@@ -2139,7 +2074,23 @@
     "noFocus": "Wähle einen Startpunkt (Programm, Klasse, Methode oder Feld), um seine Ebenen zu sehen.",
     "end": "Darunter folgt nichts mehr.",
     "endHorizontal": "Danach folgt nichts mehr.",
-    "empty": "Für diese Auswahl gibt es keine belegten Verbindungen."
+    "empty": "Für diese Auswahl gibt es keine belegten Verbindungen.",
+    "back": "Zurück zu {{name}}",
+    "backEdge": "zu bereits gezeigtem Knoten",
+    "backEdgeHint": "Gestrichelt: zu einem bereits gezeigten Knoten (gleiche Ebene, frühere Ebene oder Zyklus).",
+    "unresolvedNode": "Ziel nicht aufgelöst: keine Fundstelle im Index",
+    "flowTruncated": "Gekürzt: nicht alle Knoten geladen",
+    "edge": {
+      "title": "Verbindung",
+      "open": "{{label}}: {{from}} nach {{to}}, Details anzeigen",
+      "resolution": "Auflösung",
+      "technicalType": "Technischer Kantentyp",
+      "condition": "Bedingung",
+      "reason": "Grund",
+      "sourceUnavailable": "Quellstelle nicht verfügbar",
+      "openSource": "Fundstelle öffnen",
+      "close": "Details schließen"
+    }
   },
   "insightEvidence": {
     "openSource": "Quelle öffnen",

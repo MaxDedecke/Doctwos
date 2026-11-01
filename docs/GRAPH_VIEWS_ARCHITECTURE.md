@@ -6,13 +6,14 @@ Stand: 23.09.2026
 
 | Ansicht | Nutzerfrage | Knoten | Beziehungen |
 |---|---|---|---|
-| Process View / Call Graph | „Wie hängt der Code technisch zusammen und was läuft als Nächstes?“ | Code-Entities | `CodeEdge` und synthetische Strukturkanten wie `CONTAINS` |
+| Ablauf | „Was läuft in welcher Reihenfolge, unter welcher Bedingung?“ | Code-Entities | `CodeEdge` und synthetische Strukturkanten wie `CONTAINS` |
+| Abhängigkeiten | „Was hängt am Startpunkt, Ebene für Ebene?“ Zeigt auch Abläufe und Betroffenengraphen aus dem Chat. | Code-Entities | `CodeEdge` nach Kontrollfluss, Daten, Einbindungen |
 | Wissensgraph | „Welche Dateien, Systeme und Wissensquellen hängen zusammen – und warum?“ | Code-Dateien und quellenspezifische Wissensressourcen wie Confluence-Seiten, Jira-Issues oder Dokumente | Datei-zu-Datei-Projektionen aus `CodeEdge`, `EntityDocLink` und `KnowledgeLink` |
 
 Der Wissensgraph zeigt keine Code-Entities als Knoten. Er fasst Parserobjekte
 pro Quelldatei zusammen und projiziert gerichtete Beziehungen zwischen
 verschiedenen Dateien. Kanten innerhalb derselben Datei und unaufgelöste Ziele
-bleiben in der Process View bzw. im Call Graph, wo der konkrete Codepfad
+bleiben in den Ansichten Ablauf und Abhängigkeiten, wo der konkrete Codepfad
 sichtbar ist. Datei-Kanten nennen die Parserbeziehungen und repräsentative
 Codeobjekte als Beleg.
 

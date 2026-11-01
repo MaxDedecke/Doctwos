@@ -19,8 +19,105 @@ function renderView(onFileSelect = vi.fn()) {
   return onFileSelect;
 }
 
+const view = (focus: { id: number; name: string } | null, extra: Partial<React.ComponentProps<typeof DropView>> = {}) => (
+  <LanguageProvider><DropView theme="dark" focusedEntity={focus} projectId={2} onFileSelect={vi.fn()} {...extra} /></LanguageProvider>
+);
+const CHAT_FLOW = {
+  root: { id: 1, name: 'MAIN', type: 'program', file_path: 'MAIN.cbl', start_line: 1, source_id: 7 },
+  hops: 2, direction: 'outgoing' as const, truncated: true,
+  nodes: [
+    { id: 1, name: 'MAIN', type: 'program', file_path: 'MAIN.cbl', start_line: 1, source_id: 7 },
+    { id: 2, name: 'STEP', type: 'paragraph', file_path: 'MAIN.cbl', start_line: 20, source_id: 7, analysis_status: 'partial' as const },
+  ],
+  edges: [
+    { id: 10, source: 1, target: 2, target_name: 'STEP', type: 'PERFORM', resolution: 'resolved', start_line: 5, meta: { resolution_reason: 'Paragraph im selben Programm' } },
+    { id: 11, source: 2, target: null, target_name: 'UNBEKANNT', type: 'CALL', resolution: 'unresolved', start_line: 25 },
+  ],
+  focus_entity_id: 2,
+  highlighted_edge_id: 10,
+};
+
 describe('DropView', () => {
   beforeEach(() => { vi.restoreAllMocks(); });
+
+  it('keeps its settings when the focus changes and follows the new start point', async () => {
+    const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
+    const { rerender } = render(view({ id: 1, name: 'create' }));
+    await screen.findByTestId('drop-node-2');
+    fireEvent.click(screen.getByRole('button', { name: /Aufwärts zeigen/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Daten' }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(1, expect.objectContaining({ direction: 'up', kinds: ['control', 'data'] })));
+
+    rerender(view({ id: 9, name: 'other' }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(9, expect.objectContaining({ direction: 'up', kinds: ['control', 'data'] })));
+
+    // Fokus aufgehoben: Der Stand bleibt, nichts wird neu geladen.
+    const calls = spy.mock.calls.length;
+    rerender(view(null));
+    expect(spy.mock.calls.length).toBe(calls);
+    expect(screen.getByTestId('drop-pyramid')).toBeTruthy();
+  });
+
+  it('goes back to the previous start point', async () => {
+    const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
+    renderView();
+    await screen.findByTestId('drop-node-2');
+    expect(screen.queryByRole('button', { name: /Zurück zu/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /doCreate als neuen Startpunkt/ }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(2, expect.anything()));
+    fireEvent.click(await screen.findByRole('button', { name: 'Zurück zu create' }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(1, expect.anything()));
+    expect(screen.queryByRole('button', { name: /Zurück zu/ })).toBeNull();
+  });
+
+  it('marks edges leading back and shows the details of a clicked connection', async () => {
+    const edge = { from: 3, to: 2, type: 'PERFORM', resolution: 'resolved', cite: 'src/audit.java:44', condition: 'WS-A = 1', reason: 'Name eindeutig', provenance: undefined };
+    const data = { ...RESULT, back_edges: [edge] };
+    vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data } as never);
+    const onFileSelect = renderView();
+    await screen.findByTestId('drop-node-2');
+    const key = '3>2:PERFORM';
+    await waitFor(() => expect(document.querySelector(`[data-edge="${key}"]`)?.getAttribute('data-back')).toBe('true'));
+    expect(screen.getByText(/Gestrichelt/)).toBeTruthy();
+
+    fireEvent.click(document.querySelector(`[data-edge-hit="${key}"]`) as Element);
+    const details = screen.getByTestId('drop-edge-details');
+    expect(details.textContent).toContain('WS-A = 1');
+    expect(details.textContent).toContain('Name eindeutig');
+    expect(details.textContent).toContain('src/audit.java:44');
+    fireEvent.click(screen.getByRole('button', { name: 'Fundstelle öffnen' }));
+    expect(onFileSelect).toHaveBeenCalledWith('src/audit.java', 44, 8);
+    fireEvent.click(screen.getByRole('button', { name: 'Details schließen' }));
+    expect(screen.queryByTestId('drop-edge-details')).toBeNull();
+  });
+
+  it('shows a chat flow as layers without loading, with its focus, marked edge and open targets', async () => {
+    const spy = vi.spyOn(api, 'getEntityDrop');
+    const onClear = vi.fn();
+    render(view({ id: 1, name: 'MAIN' }, { customFlow: CHAT_FLOW, onClearCustomFlow: onClear }));
+    await screen.findByTestId('drop-node-2');
+    expect(spy).not.toHaveBeenCalled();
+    expect(screen.getByTestId('drop-flow-banner').textContent).toContain('Ablauf');
+    expect(screen.getByText(/Gekürzt/)).toBeTruthy();
+    expect(screen.getByTestId('drop-node-2').className).toContain('ring-2');
+    expect(screen.getByTestId('drop-node-status-2')).toBeTruthy();
+    await waitFor(() => expect(document.querySelector('[data-edge="1>2:PERFORM"]')?.getAttribute('data-marked')).toBe('true'));
+    // Offenes Ziel: Knoten ja, aber ohne Quelle zum Öffnen.
+    expect(screen.getByText('UNBEKANNT')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /Quellcode von UNBEKANNT/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /als neuen Startpunkt/ })).toBeNull();
+    expect(screen.queryByRole('button', { name: /Aufwärts zeigen/ })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Fokusansicht laden' }));
+    expect(onClear).toHaveBeenCalled();
+  });
+
+  it('keeps an impact graph inside its result', async () => {
+    render(view({ id: 1, name: 'MAIN' }, { customFlow: { ...CHAT_FLOW, mode: 'impact' } }));
+    await screen.findByTestId('drop-node-2');
+    expect(screen.getByTestId('drop-flow-banner').textContent).toContain('Betroffenengraph');
+    expect(screen.queryByRole('button', { name: /Quellcode von STEP/ })).toBeNull();
+    expect(document.querySelector('[data-edge-hit]')).toBeNull();
+  });
 
   it('shows the start point on top and the layers below, opens a node at its line', async () => {
     const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);

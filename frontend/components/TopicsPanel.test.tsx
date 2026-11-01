@@ -18,7 +18,7 @@ function jsonResponse(data: unknown, init: { ok?: boolean; status?: number } = {
 const topicA = { id: 1, name: 'Zahlungsverkehr', description: 'Alles rund um Zahlungen', color: 'indigo', node_count: 0, created_at: null };
 const topicB = { id: 2, name: 'Kernbanking', description: null, color: 'emerald', node_count: 0, created_at: null };
 
-/** Fetch-Stub, der nach URL/Methode routet -- analog CallGraphView.test.tsx. */
+/** Fetch-Stub, der nach URL/Methode routet. */
 function stubFetch(options: {
   topics?: unknown[];
   nodesByTopic?: Record<number, unknown[]>;

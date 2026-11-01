@@ -5,7 +5,8 @@ uses it. Which edge types count as ``control``, ``data`` or ``includes`` comes f
 view works for every language with a profile. Every node and edge carries ``cite`` (``path/file.ext:line``); edges the
 index could not resolve are counted per layer (``unresolved``), never invented. Layers larger than ``collapse_above``
 come back collapsed (count only) and are expanded on demand with ``expand``; nothing below a collapsed layer is
-computed until then, so one call stays bounded.
+computed until then, so one call stays bounded. Edges leading back to a node already shown (same layer, an earlier
+one, a cycle) are listed apart in ``back_edges``, so the edges of ``layers`` stay a clean descent.
 """
 
 from __future__ import annotations
@@ -16,8 +17,9 @@ from typing import Iterable
 from sqlalchemy.orm import Session
 
 from doctus_models.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, role_of
-from doctus_models.database import CodeEdge, CodeEntity, User
+from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
 from services.call_flow import TEST_PATH_PATTERN
+from services.provenance import build_provenance
 from services.source_access import source_visible
 
 KIND_EDGES = {"control": CONTROL_EDGES, "data": DATA_EDGES, "includes": INCLUDE_EDGES}
@@ -79,6 +81,13 @@ def _edges(
     return rows
 
 
+def _condition(meta: dict) -> str | None:
+    for key in ("condition", "control_context"):
+        if isinstance(meta.get(key), str):
+            return meta[key]
+    return None
+
+
 def drop(
     db: Session,
     user: User,
@@ -91,6 +100,7 @@ def drop(
     collapse_above: int = 40,
     expand: Iterable[int] = (),
     include_tests: bool = False,
+    with_provenance: bool = False,
 ) -> dict:
     down = direction != "up"
     layers = max(1, min(int(layers), MAX_LAYERS))
@@ -100,6 +110,73 @@ def drop(
     seen = {root.id}
     frontier = _members(db, project_id, root)
     seen.update(frontier)
+    # Der Start steht für alles, was er enthält: Nur er ist ein Knoten, Kanten seiner Teile enden sonst im Leeren.
+    members = set(frontier)
+
+    def anchor(entity_id: int) -> int:
+        return root.id if entity_id in members else entity_id
+
+    def other(row: CodeEdge) -> int | None:
+        return row.dst_entity_id if down else row.src_entity_id
+
+    sources: dict[int, KnowledgeSource | None] = {}
+    back: dict[tuple[int, int, str], dict] = {}
+
+    def holders_of(rows: list[CodeEdge]) -> dict[int, tuple[str, int | None]]:
+        if not rows:
+            return {}
+        return {
+            e.id: (e.file_path, e.source_id)
+            for e in db.query(CodeEntity.id, CodeEntity.file_path, CodeEntity.source_id).filter(
+                CodeEntity.id.in_({r.src_entity_id for r in rows})
+            )
+        }
+
+    def provenance_of(row: CodeEdge, file_path: str | None, source_id: int | None) -> dict:
+        if source_id is not None and source_id not in sources:
+            sources[source_id] = (
+                db.query(KnowledgeSource)
+                .filter(KnowledgeSource.id == source_id, KnowledgeSource.project_id == project_id)
+                .first()
+            )
+        source = sources.get(source_id) if source_id is not None else None
+        return build_provenance(
+            source,
+            kind="code_fact" if source else "unknown",
+            verification_status="indexed_unreviewed" if source else "unavailable",
+            locator={
+                "file_path": file_path,
+                "start_line": row.src_start_line,
+                "end_line": row.src_end_line,
+            },
+        )
+
+    def edge_of(row: CodeEdge, src: int, dst: int, holders: dict) -> dict:
+        file_path, source_id = holders.get(row.src_entity_id, (None, None))
+        meta = row.meta_json or {}
+        edge = {
+            "from": src,
+            "to": dst,
+            "type": row.type,
+            "resolution": row.resolution,
+            "cite": f"{file_path}:{row.src_start_line or 0}",
+        }
+        if isinstance(meta.get("resolution_reason"), str):
+            edge["reason"] = meta["resolution_reason"]
+        if _condition(meta):
+            edge["condition"] = _condition(meta)
+        if with_provenance:
+            edge["provenance"] = provenance_of(row, file_path, source_id)
+        return edge
+
+    def note_back(row: CodeEdge, holders: dict) -> None:
+        inner = row.src_entity_id in members and row.dst_entity_id in members
+        if inner and not row.src_entity_id == row.dst_entity_id == root.id:
+            return
+        src, dst = anchor(row.src_entity_id), anchor(row.dst_entity_id)
+        if len(back) < 4 * collapse_above:
+            back.setdefault((src, dst, row.type), edge_of(row, src, dst, holders))
+
     result_layers: list[dict] = [
         {"layer": 0, "count": 1, "nodes": [_node(root, 0)], "edges": [], "unresolved": 0}
     ]
@@ -109,7 +186,6 @@ def drop(
     for layer in range(1, layers + 1):
         rows = _edges(db, project_id, frontier, types, down)
         unresolved = sum(1 for row in rows if row.dst_entity_id is None) if down else 0
-        other = (lambda row: row.dst_entity_id) if down else (lambda row: row.src_entity_id)
         targets = (
             {
                 e.id: e
@@ -121,19 +197,13 @@ def drop(
             if rows
             else {}
         )
-        holders = (
-            {
-                e.id: e.file_path
-                for e in db.query(CodeEntity.id, CodeEntity.file_path).filter(
-                    CodeEntity.id.in_({r.src_entity_id for r in rows})
-                )
-            }
-            if rows
-            else {}
-        )
+        holders = holders_of(rows)
         nodes: dict[int, dict] = {}
         edges: list[dict] = []
         for row in rows:
+            if other(row) in seen:
+                note_back(row, holders)
+                continue
             entity = targets.get(other(row))
             if entity is None:
                 continue
@@ -146,18 +216,11 @@ def drop(
             nodes.setdefault(entity.id, _node(entity, layer))
             if len(edges) < 4 * collapse_above:
                 src, dst = (
-                    (row.src_entity_id, entity.id) if down else (entity.id, row.dst_entity_id)
+                    (anchor(row.src_entity_id), entity.id)
+                    if down
+                    else (entity.id, anchor(row.dst_entity_id))
                 )
-                site = f"{holders.get(row.src_entity_id)}:{row.src_start_line or 0}"
-                edges.append(
-                    {
-                        "from": src,
-                        "to": dst,
-                        "type": row.type,
-                        "resolution": row.resolution,
-                        "cite": site,
-                    }
-                )
+                edges.append(edge_of(row, src, dst, holders))
         entry = {"layer": layer, "count": len(nodes), "unresolved": unresolved}
         collapsed = len(nodes) > collapse_above and layer not in expanded
         if collapsed:
@@ -179,11 +242,19 @@ def drop(
         if len(nodes) > MAX_FRONTIER:
             entry["truncated"] = True
 
+    if stopped is None:
+        # Tiefe erreicht: Die letzte Ebene wurde nicht mehr verfolgt, ihre Wege zurück fehlen sonst.
+        rows = [r for r in _edges(db, project_id, frontier, types, down) if other(r) in seen]
+        holders = holders_of(rows)
+        for row in rows:
+            note_back(row, holders)
+
     return {
         "root": _node(root, 0),
         "direction": "down" if down else "up",
         "kinds": kinds,
         "layers": result_layers,
+        "back_edges": list(back.values()),
         "stopped": stopped,
         "collapse_above": collapse_above,
     }
