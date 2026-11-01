@@ -22,6 +22,7 @@ class LanguageProfile:
     data: frozenset[str]  # units that hold values: data item, field, dataset
     control_edges: frozenset[str]  # transfer of control between routines
     include_edges: frozenset[str]  # a unit includes, imports or extends another one
+    realization_edges: frozenset[str] = frozenset()  # a unit implements or specializes another one
 
 
 COBOL = LanguageProfile(
@@ -41,6 +42,7 @@ JAVA = LanguageProfile(
     data=frozenset({"field", "local_variable", "parameter", "record_component"}),
     control_edges=frozenset({"CALLS", "EXPOSES", "DISPATCHES_TO"}),
     include_edges=frozenset({"IMPORTS", "IMPORTS_MODULE", "EXTENDS", "IMPLEMENTS", "INJECTS"}),
+    realization_edges=frozenset({"EXTENDS", "IMPLEMENTS"}),
 )
 JCL = LanguageProfile(
     name="jcl",
@@ -63,6 +65,7 @@ PROFILES: tuple[LanguageProfile, ...] = (COBOL, JAVA, JCL)
 
 CONTROL_EDGES = frozenset().union(*(profile.control_edges for profile in PROFILES))
 INCLUDE_EDGES = frozenset().union(*(profile.include_edges for profile in PROFILES))
+REALIZATION_EDGES = frozenset().union(*(profile.realization_edges for profile in PROFILES))
 ROUTINE_TYPES = frozenset().union(*(profile.routines for profile in PROFILES))
 CONTAINER_TYPES = frozenset().union(*(profile.containers for profile in PROFILES))
 DATA_TYPES = frozenset().union(*(profile.data for profile in PROFILES))

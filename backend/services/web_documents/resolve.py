@@ -24,6 +24,7 @@ from doctus_models.database import DocumentChunk, KnowledgeSource, User
 from services.source_access import source_visible
 from services.web_documents import adapter_for, is_web_source
 from services.web_documents.base import FetchContext, NotRenderable, WebDocument
+from services.web_documents.mentions import find_code_refs
 
 logger = logging.getLogger(__name__)
 
@@ -222,6 +223,13 @@ def _rewrite_html(html: str, page_url: str, source: KnowledgeSource, known: dict
 
 def _finish(db: Session, user: User, source: KnowledgeSource, document: WebDocument) -> WebDocument:
     page_url = document.url or (source.url or "")
+    document.code_refs = find_code_refs(
+        db,
+        user,
+        source.project_id,
+        document.title,
+        [document.body_html, *(comment.body_html for comment in document.comments)],
+    )
     hrefs = _absolute_hrefs(document.body_html, page_url)
     for comment in document.comments:
         hrefs += _absolute_hrefs(comment.body_html, page_url)

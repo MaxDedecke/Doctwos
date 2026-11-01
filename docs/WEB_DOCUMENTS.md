@@ -19,7 +19,8 @@ ist für alle gleich. Code: `backend/services/web_documents/`, `frontend/compone
 ## Was der Adapter nicht tun muss
 
 Links absolut machen, Bilder und Anhänge über den signierten `web-asset`-Pfad leiten, bekannte Links markieren, HTML
-bereinigen, auf den Index zurückfallen, wenn die Quelle nicht antwortet: Das geschieht für alle Systeme gemeinsam.
+bereinigen, auf den Index zurückfallen, wenn die Quelle nicht antwortet, im Text genannten Code finden
+(`mentions.py`): Das geschieht für alle Systeme gemeinsam.
 `extra_css` ergänzt feste Regeln für die Klassen des Systems; Farben kommen aus den Variablen `--wd-*`.
 
 ## Regeln

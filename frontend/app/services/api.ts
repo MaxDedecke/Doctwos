@@ -168,7 +168,7 @@ export const api = {
             },
         }),
     /** Drop-Ansicht (O-387): Ebenen unter (`down`) oder über (`up`) einem Objekt; eingeklappte Ebenen über `expand` öffnen. */
-    getEntityDrop: (id: number, options: { projectId?: number | null; direction?: DropDirection; layers?: number; kinds?: DropKind[]; expand?: number[] }) =>
+    getEntityDrop: (id: number, options: { projectId?: number | null; direction?: DropDirection; layers?: number; kinds?: DropKind[]; expand?: number[]; includeTests?: boolean }) =>
         axios.get<DropResult>(`${API_URL}/entities/${id}/drop`, {
             params: {
                 project_id: options.projectId ?? undefined,
@@ -176,6 +176,7 @@ export const api = {
                 layers: options.layers,
                 kinds: options.kinds?.join(','),
                 expand: options.expand,
+                include_tests: options.includeTests || undefined,
             },
             paramsSerializer: { indexes: null },
         }),

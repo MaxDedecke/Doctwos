@@ -6,7 +6,9 @@ view works for every language with a profile. Every node and edge carries ``cite
 index could not resolve are counted per layer (``unresolved``), never invented. Layers larger than ``collapse_above``
 come back collapsed (count only) and are expanded on demand with ``expand``; nothing below a collapsed layer is
 computed until then, so one call stays bounded. Edges leading back to a node already shown (same layer, an earlier
-one, a cycle) are listed apart in ``back_edges``, so the edges of ``layers`` stay a clean descent.
+one, a cycle) are listed apart in ``back_edges``, so the edges of ``layers`` stay a clean descent. An empty first layer
+says what else exists (``alternatives``). ``unresolved_external`` is the part of ``unresolved`` whose target an import
+in the same file places outside the index; the rest is an open gap.
 """
 
 from __future__ import annotations
@@ -14,9 +16,16 @@ from __future__ import annotations
 import re
 from typing import Iterable
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from doctus_models.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, role_of
+from doctus_models.language_profile import (
+    CONTROL_EDGES,
+    DATA_EDGES,
+    INCLUDE_EDGES,
+    NAMING_EDGES,
+    role_of,
+)
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
 from services.call_flow import TEST_PATH_PATTERN
 from services.provenance import build_provenance
@@ -79,6 +88,78 @@ def _edges(
             .all()
         )
     return rows
+
+
+def _outside_index(
+    db: Session, project_id: int, rows: list[CodeEdge], holders: dict[int, tuple[str, int | None]]
+) -> int:
+    """Offene Kanten, deren Ziel ein Import derselben Datei benennt, der selbst nicht im Index liegt."""
+    open_rows = [row for row in rows if row.dst_entity_id is None]
+    files = {holders[row.src_entity_id][0] for row in open_rows if row.src_entity_id in holders}
+    if not files:
+        return 0
+    imported: dict[str, set[str]] = {}
+    for file_path, name in (
+        db.query(CodeEntity.file_path, CodeEdge.dst_name)
+        .join(CodeEdge, CodeEdge.src_entity_id == CodeEntity.id)
+        .filter(
+            CodeEdge.project_id == project_id,
+            CodeEdge.type.in_(sorted(NAMING_EDGES)),
+            CodeEdge.resolution == "unresolved",
+            CodeEntity.project_id == project_id,
+            CodeEntity.file_path.in_(list(files)[:_CHUNK]),
+        )
+    ):
+        imported.setdefault(file_path, set()).add((name or "").rsplit(".", 1)[-1])
+    count = 0
+    for row in open_rows:
+        names = imported.get(holders.get(row.src_entity_id, ("",))[0])
+        if names:
+            receiver = (row.meta_json or {}).get("receiver")
+            count += (receiver or (row.dst_name or "")).split(".", 1)[0] in names
+    return count
+
+
+def _alternatives(
+    db: Session,
+    user: User,
+    project_id: int,
+    members: list[int],
+    kinds: list[str],
+    down: bool,
+    include_tests: bool,
+) -> list[dict]:
+    """Was es um einen Start ohne Ergebnis sonst gibt: je Richtung und Kantenart die Zahl der Nachbarn."""
+    alternatives = []
+    ids = members[: 4 * _CHUNK]
+    for downward in (True, False):
+        here = CodeEdge.src_entity_id if downward else CodeEdge.dst_entity_id
+        there = CodeEdge.dst_entity_id if downward else CodeEdge.src_entity_id
+        for kind, types in KIND_EDGES.items():
+            if downward == down and kind in kinds:
+                continue
+            query = (
+                db.query(CodeEntity.source_id, func.count(there.distinct()))
+                .join(CodeEdge, there == CodeEntity.id)
+                .filter(
+                    CodeEdge.project_id == project_id,
+                    here.in_(ids),
+                    there.notin_(ids),
+                    CodeEdge.type.in_(sorted(types)),
+                )
+            )
+            if not include_tests:
+                query = query.filter(CodeEntity.file_path.op("!~")(TEST_PATH_PATTERN))
+            count = sum(
+                number
+                for source_id, number in query.group_by(CodeEntity.source_id)
+                if source_visible(db, user, source_id)
+            )
+            if count:
+                alternatives.append(
+                    {"direction": "down" if downward else "up", "kind": kind, "count": count}
+                )
+    return alternatives
 
 
 def _condition(meta: dict) -> str | None:
@@ -222,6 +303,9 @@ def drop(
                 )
                 edges.append(edge_of(row, src, dst, holders))
         entry = {"layer": layer, "count": len(nodes), "unresolved": unresolved}
+        external = _outside_index(db, project_id, rows, holders) if unresolved else 0
+        if external:
+            entry["unresolved_external"] = external
         collapsed = len(nodes) > collapse_above and layer not in expanded
         if collapsed:
             entry.update(collapsed=True, nodes=[], edges=[])
@@ -249,7 +333,13 @@ def drop(
         for row in rows:
             note_back(row, holders)
 
+    empty = len(result_layers) > 1 and result_layers[1]["count"] == 0
     return {
+        "alternatives": (
+            _alternatives(db, user, project_id, sorted(members), kinds, down, include_tests)
+            if empty
+            else []
+        ),
         "root": _node(root, 0),
         "direction": "down" if down else "up",
         "kinds": kinds,

@@ -11,6 +11,7 @@ from fastapi import HTTPException
 from doctus_models.database import DocumentChunk, KnowledgeSource, Project, Team
 from services import web_documents
 from services.web_documents import resolve as web
+from services.web_documents import mentions as web_mentions
 from services.web_documents.base import WebAdapter
 from services.web_documents.confluence import ConfluenceAdapter
 from services.web_documents.jira import JiraAdapter, _adf_to_html
@@ -23,6 +24,7 @@ USER = SimpleNamespace(id=1)
 @pytest.fixture
 def sources(db_session, monkeypatch):
     monkeypatch.setattr(web, "source_visible", lambda db, user, source_id: True)
+    monkeypatch.setattr(web_mentions, "source_visible", lambda db, user, source_id: True)
     team = Team(name=f"web-documents-{uuid.uuid4().hex[:8]}")
     db_session.add(team)
     db_session.flush()
@@ -415,3 +417,93 @@ def test_asset_route_needs_no_session_but_a_genuine_token(db_session, sources):
 
     # Die übrigen Wege der Quelle bleiben hinter der Anmeldung.
     assert client.get(f"/knowledge-sources/{source_id}/resolve?url=x").status_code == 401
+
+
+def test_names_in_the_text_become_code_refs_only_when_distinctive(db_session, sources):
+    from doctus_models.database import CodeEntity
+    from services.web_documents import mentions
+    from services.web_documents.mentions import scan_names
+
+    names = scan_names(
+        "Fix in PropagationActions and PropagationActions via userDataBinder#getUserTO, see CBACT04C "
+        "and Realm or org.apache.core.Realm, Encryptor.java, SYNCOPE-1998, UTF-8, HTTP and Error."
+    )
+    assert names["PropagationActions"].bare == 2
+    assert names["CBACT04C"].bare == 1 and names["getUserTO"].bare == 1
+    assert names["Encryptor"].as_file == 1
+    assert names["Realm"].packages == {"org.apache.core": 1}
+    assert names["Realm"].bare == 0
+    assert not {"SYNCOPE-1998", "UTF-8", "HTTP", "Error"} & set(names)
+
+    project_id = sources.jira.project_id
+
+    def entity(name, kind, path, line=1):
+        db_session.add(
+            CodeEntity(
+                project_id=project_id,
+                source_id=sources.jira.id,
+                name=name,
+                qualified_name=f"org.apache.core.{name}.{path}:{line}",
+                type=kind,
+                file_path=path,
+                start_line=line,
+                end_line=line,
+            )
+        )
+
+    entity("PropagationActions", "interface", "src/PropagationActions.java", 7)
+    entity("PropagationActions", "class", "src/test/PropagationActions.java")
+    entity("CUST-ID", "data_item", "src/P.cbl")
+    for number in range(5):
+        entity("getUserTO", "method", f"src/Binder{number}.java")
+    entity("Realm", "class", "src/Realm.java")
+    entity("doFilter", "method", "src/Filter.java")
+    entity("orm", "method", "src/Mapper.java")
+    entity("Handbuch", "doc_section", "docs/guide.adoc")
+    entity("CVTRA01Y", "copybook", "cpy/CVTRA01Y.cpy")
+    db_session.commit()
+
+    find_refs = mentions.find_code_refs
+    refs = find_refs(
+        db_session,
+        USER,
+        project_id,
+        "PropagationActions kaputt",
+        [
+            "<p>PropagationActions, <b>getUserTO</b>, CUST-ID und org.apache.core.Realm, CVTRA01Y, Handbuch.java,"
+            " orm.xml, at org.springframework.web.Other.doFilter(Other.java:1)</p>"
+        ],
+    )
+
+    by_name = {ref.name: ref for ref in refs}
+    # Testcode tritt zurück, Felder und Namen in vielen Dateien belegen nichts. Ein fremdes Paket (doFilter)
+    # und eine andere Datei (orm.xml, Handbuch.java) meinen nicht das gleichnamige Objekt.
+    assert set(by_name) == {"PropagationActions", "Realm", "CVTRA01Y"}
+    assert by_name["PropagationActions"].mentions == 2
+    assert by_name["PropagationActions"].cite == "src/PropagationActions.java:7"
+    assert find_refs(db_session, USER, None, "PropagationActions", []) == []
+
+
+@respx.mock
+def test_document_lists_mentioned_code_also_when_falling_back(db_session, sources):
+    from doctus_models.database import CodeEntity
+
+    db_session.add(
+        CodeEntity(
+            project_id=sources.jira.project_id,
+            source_id=sources.jira.id,
+            name="IndexedWord",
+            qualified_name="p.IndexedWord",
+            type="class",
+            file_path="src/IndexedWord.java",
+            start_line=1,
+            end_line=2,
+        )
+    )
+    sources.chunk(sources.jira, "ABC-3", "Fehler in IndexedWord", title="ABC-3", url=f"{JIRA}/browse/ABC-3")
+    db_session.commit()
+    respx.get(url__startswith=f"{JIRA}/rest/").mock(side_effect=httpx.ConnectError("weg"))
+
+    doc = web.resolve_web_document(db_session, USER, sources.jira, "ABC-3", True)["document"]
+
+    assert doc["origin"] == "index" and [ref["name"] for ref in doc["code_refs"]] == ["IndexedWord"]

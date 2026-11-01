@@ -76,6 +76,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
       // Ohne Speicher gilt die Wahl nur bis zum Neuladen.
     }
   };
+  const [includeTests, setIncludeTests] = useState(false);
   const [expanded, setExpanded] = useState<number[]>([]);
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(customFlow?.focus_entity_id ?? null);
@@ -111,16 +112,16 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
   const isImpact = customFlow?.mode === 'impact';
 
   // Jede Auswahl (Richtung, Kantenarten, Tiefe, geöffnete Ebenen) wird erst beim Umschalten geladen, nicht vorab.
-  const requestKey = JSON.stringify([startId, projectId, direction, layers, kinds, expanded]);
+  const requestKey = JSON.stringify([startId, projectId, direction, layers, kinds, expanded, includeTests]);
   const [loaded, setLoaded] = useState<{ key: string; data: DropResult | null; failed: boolean } | null>(null);
   useEffect(() => {
     if (startId == null || customFlow) return;
     let cancelled = false;
-    api.getEntityDrop(startId, { projectId, direction, layers, kinds, expand: expanded })
+    api.getEntityDrop(startId, { projectId, direction, layers, kinds, expand: expanded, includeTests })
       .then(response => { if (!cancelled) setLoaded({ key: requestKey, data: response.data, failed: false }); })
       .catch(() => { if (!cancelled) setLoaded({ key: requestKey, data: null, failed: true }); });
     return () => { cancelled = true; };
-  }, [requestKey, startId, projectId, direction, layers, kinds, expanded, customFlow]);
+  }, [requestKey, startId, projectId, direction, layers, kinds, expanded, includeTests, customFlow]);
   const flowResult = useMemo(() => (customFlow ? flowToDrop(customFlow) : null), [customFlow]);
   const loading = !customFlow && startId != null && loaded?.key !== requestKey;
   const result = flowResult ?? loaded?.data ?? null;
@@ -314,6 +315,12 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
         </button>
       ))}
       {!customFlow && (
+        <button type="button" aria-pressed={includeTests} title={t('dropView.testsHint')} onClick={() => { setIncludeTests(!includeTests); setExpanded([]); }}
+          className={cn('rounded-full border px-2 py-0.5', includeTests ? 'border-ds-indigo-500 text-ds-indigo-400' : 'border-ds-zinc-600/50 text-ds-zinc-500')}>
+          {t('dropView.tests')}
+        </button>
+      )}
+      {!customFlow && (
         <label className="ml-auto flex items-center gap-1 text-ds-zinc-500">
           {t('dropView.layers')}
           <select value={layers} onChange={event => { setLayers(Number(event.target.value)); setExpanded([]); }} className="rounded border border-ds-zinc-600/50 bg-transparent px-1">
@@ -384,6 +391,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
     body = <p role="alert" className="flex items-center justify-center gap-1 p-6 text-xs text-ds-red-400"><AlertTriangle className="h-3.5 w-3.5" aria-hidden />{t('dropView.loadError')}</p>;
   } else if (result) {
     const lastLayer = result.layers[result.layers.length - 1]?.layer ?? 0;
+    const firstLayerEmpty = result.layers[1]?.count === 0;
     body = (
       <div ref={canvasRef} data-orientation={orientation} data-testid="drop-pyramid" style={{ zoom }}
         className={cn('relative flex p-4', horizontal ? 'min-h-full w-max min-w-full flex-row items-center gap-16' : 'flex-col items-center gap-8')}>
@@ -426,7 +434,8 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
             {layer.layer > 0 && (
               <div className="flex items-center gap-2 text-[0.625rem] text-ds-zinc-500">
                 <span>{t('dropView.layerLabel', { layer: layer.layer, count: layer.count })}</span>
-                {layer.unresolved > 0 && <span title={t('dropView.unresolvedHint')}>{t('dropView.unresolved', { count: layer.unresolved })}</span>}
+                {layer.unresolved > (layer.unresolved_external ?? 0) && <span title={t('dropView.unresolvedHint')}>{t('dropView.unresolved', { count: layer.unresolved - (layer.unresolved_external ?? 0) })}</span>}
+                {(layer.unresolved_external ?? 0) > 0 && <span title={t('dropView.externalHint')}>{t('dropView.external', { count: layer.unresolved_external ?? 0 })}</span>}
                 {layer.truncated && <span>{t('dropView.truncated')}</span>}
               </div>
             )}
@@ -440,7 +449,18 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
           </div>
         ))}
         {customFlow && result.layers.length === 1 && <p className="text-xs text-ds-zinc-500">{t('dropView.empty')}</p>}
-        {result.stopped === 'end' && result.layers.length > 1 && <p className="text-[0.625rem] text-ds-zinc-500">{t(horizontal ? 'dropView.endHorizontal' : 'dropView.end')}</p>}
+        {firstLayerEmpty && (result.alternatives?.length ?? 0) > 0 && (
+          <div className="relative z-10 flex flex-wrap items-center justify-center gap-1.5 text-[0.6875rem]" data-testid="drop-alternatives">
+            <span className="text-ds-zinc-500">{t('dropView.alternatives')}</span>
+            {result.alternatives?.map(item => (
+              <button key={`${item.direction}-${item.kind}`} type="button" onClick={() => { setDirection(item.direction); setKinds([item.kind]); setExpanded([]); }}
+                className="rounded-full border border-ds-indigo-500/50 px-2 py-0.5 text-ds-indigo-400 hover:bg-ds-indigo-500/10">
+                {t(item.direction === 'up' ? 'dropView.alternativeUp' : 'dropView.alternativeDown', { kind: t(`dropView.kinds.${item.kind}`), count: item.count })}
+              </button>
+            ))}
+          </div>
+        )}
+        {!firstLayerEmpty && result.stopped === 'end' && result.layers.length > 1 && <p className="text-[0.625rem] text-ds-zinc-500">{t(horizontal ? 'dropView.endHorizontal' : 'dropView.end')}</p>}
         {result.layers.length === 2 && result.layers[1].count === 0 && result.layers[1].unresolved === 0 && <p className="text-xs text-ds-zinc-500">{t('dropView.empty')}</p>}
       </div>
     );

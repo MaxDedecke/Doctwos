@@ -572,6 +572,7 @@ function StepPill({ row, isDark, selected, onToggle, onSelect, onOpen, loading, 
             <Badge tone="indigo"><Repeat className="h-2.5 w-2.5" />{guardLabel({ type: 'LOOP', kind: row.loop.kind, text: row.loop.text }, t)}</Badge>
           )}
           {row.fallThrough && <Badge tone="indigo">{t('processFlow.fallThrough')}</Badge>}
+          {row.implementation && <Badge tone="indigo">{t('processFlow.implementation')}</Badge>}
           {row.thru && <Badge tone="slate">{t('processFlow.thru', { name: row.thru })}</Badge>}
           {row.openElsewhere && <Badge tone="slate">{t('processFlow.openElsewhere')}</Badge>}
           {row.transitionKind === 'jump' && <Badge tone="slate">GOTO</Badge>}

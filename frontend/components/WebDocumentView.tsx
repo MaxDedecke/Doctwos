@@ -2,10 +2,11 @@
 
 import { API_URL } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getEntityTypeLabel } from '@/lib/graphTaxonomy';
 import { cn } from '@/lib/utils';
 import { WEB_LINK_MESSAGE, addWebAnchorScroll, buildWebDocumentHtml, webAssetHref, type WebCrumb, type WebDocumentData, type WebFact, type WebRelated } from '@/lib/webDocumentHtml';
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
-import { AlertTriangle, ChevronRight, ExternalLink, Paperclip, Link2 } from 'lucide-react';
+import { AlertTriangle, ChevronRight, Code2, ExternalLink, Paperclip, Link2 } from 'lucide-react';
 import React, { useEffect, useMemo, useRef } from 'react';
 
 const TRANSLATED_FACTS = new Set([
@@ -20,6 +21,7 @@ interface Props {
   anchor?: string | null;
   /** Öffnet einen Eintrag, den der Index kennt, in Doctus statt im fremden System. */
   onOpenKnown: (url: string, sourceId: number) => void;
+  onOpenCode: (path: string, line: number | null | undefined, sourceId: number | null | undefined) => void;
 }
 
 function formatSize(bytes: number | null | undefined): string {
@@ -29,7 +31,7 @@ function formatSize(bytes: number | null | undefined): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function WebDocumentView({ document: doc, theme, anchor, onOpenKnown }: Props) {
+export function WebDocumentView({ document: doc, theme, anchor, onOpenKnown, onOpenCode }: Props) {
   const { t, language } = useLanguage();
   const isDark = theme === 'dark';
   const frameRef = useRef<HTMLIFrameElement | null>(null);
@@ -117,8 +119,23 @@ export function WebDocumentView({ document: doc, theme, anchor, onOpenKnown }: P
             </span>
           </p>
         )}
-        {doc.related.length > 0 && (
-          <details className="text-[0.6875rem]">
+        {(doc.code_refs?.length ?? 0) > 0 && (
+          <details open className="text-[0.6875rem]" data-testid="web-code-refs">
+            <summary className={cn('flex cursor-pointer items-center gap-1 font-semibold', muted)} title={t('webDocument.codeRefsHint')}>
+              <Code2 className="h-3 w-3" aria-hidden />{t('webDocument.codeRefs', { count: doc.code_refs?.length ?? 0 })}
+            </summary>
+            <ul className="mt-1 max-h-40 space-y-0.5 overflow-y-auto">
+              {doc.code_refs?.map(ref => (
+                <li key={ref.entity_id} className="flex flex-wrap items-center gap-1.5">
+                  <button type="button" className="text-left font-mono text-ds-indigo-400 hover:underline" title={ref.cite} onClick={() => onOpenCode(ref.file_path, ref.start_line, ref.source_id)}>{ref.name}</button>
+                  <span className={muted}>{getEntityTypeLabel(ref.type, language)} · {ref.file_path.split('/').pop()}</span>
+                  {ref.mentions > 1 && <span className={muted}>{t('webDocument.mentions', { count: ref.mentions })}</span>}
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+        {doc.related.length > 0 && (          <details className="text-[0.6875rem]">
             <summary className={cn('flex cursor-pointer items-center gap-1 font-semibold', muted)}>
               <Link2 className="h-3 w-3" aria-hidden />{t('webDocument.related', { count: doc.related.length })}
             </summary>

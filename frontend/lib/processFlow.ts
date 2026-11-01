@@ -32,6 +32,7 @@ export interface FlowTransition {
     helper?: string;
     /** Der nächste Paragraph, falls der Lauf am Ende weiterläuft. */
     fall_through?: boolean;
+    implementation?: boolean;
     /** Endpunkt von `PERFORM … THRU`. */
     thru?: string;
   } & Record<string, unknown>;
@@ -98,6 +99,7 @@ export interface FlowRow {
   /** Derselbe Schritt ist an anderer Stelle der Ansicht aufgeklappt. */
   openElsewhere?: boolean;
   fallThrough?: boolean;
+  implementation?: boolean;
   thru?: string;
   /** Bei einer Bedingung: ausgeblendete Datenzugriffe in ihrem Zweig. */
   dataCount?: number;
@@ -265,6 +267,7 @@ export function buildFlowRows(
         candidateTargets: transition.meta?.candidate_targets,
         detailOnly: transition.kind === 'step' && transition.code_edge_types.includes('CONTAINS'),
         fallThrough: transition.meta?.fall_through === true,
+        implementation: transition.meta?.implementation === true,
         thru: transition.meta?.thru,
         expandable, expanded: isExpanded, needsLoad: isExpanded && !projections.has(target.id),
         unresolved: external,

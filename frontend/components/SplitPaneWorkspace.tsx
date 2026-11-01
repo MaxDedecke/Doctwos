@@ -1901,6 +1901,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                       theme={theme}
                       anchor={selectedDoc.urlAnchor}
                       onOpenKnown={openKnownWebDocument}
+                      onOpenCode={(path, line, sourceId) => { void handleFileSelect(path, line, sourceId, true); }}
                     />
                   ) : webDocumentError !== null && (
                     <p role="alert" className="flex items-center justify-center gap-1.5 p-6 text-center text-xs text-ds-red-400">

@@ -7,6 +7,7 @@ export interface WebCrumb { title: string; url?: string | null; source_id?: numb
 export interface WebComment { author: string; created?: string | null; body_html: string }
 export interface WebAttachment { name: string; url: string; size?: number | null; mime?: string | null }
 export interface WebRelated { relation: string; title: string; url: string; identifier?: string | null; status?: string | null; source_id?: number | null }
+export interface WebCodeRef { entity_id: number; name: string; type: string; file_path: string; start_line?: number | null; source_id?: number | null; cite: string; mentions: number }
 export interface WebDocumentData {
   title: string;
   url?: string | null;
@@ -19,6 +20,7 @@ export interface WebDocumentData {
   comments_total?: number | null;
   attachments: WebAttachment[];
   related: WebRelated[];
+  code_refs?: WebCodeRef[];
   extra_css: string;
   origin: 'live' | 'index';
   notice?: 'unreachable' | 'index_only' | null;

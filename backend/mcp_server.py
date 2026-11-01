@@ -3052,6 +3052,8 @@ def drop(
     (``count`` only, ``collapsed: true``) and nothing below it is computed until it is listed again via ``expand``.
     Every node and edge carries ``cite``; edges the index could not resolve are counted in ``unresolved``.
     ``back_edges`` lists edges leading back to a node already shown (same layer, an earlier one, a cycle).
+    ``unresolved_external`` is the part of ``unresolved`` an import places outside the index. An empty first layer
+    names what exists instead in ``alternatives`` (direction, kind, count).
     """
     with _tool_context(
         ctx,

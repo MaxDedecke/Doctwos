@@ -195,6 +195,34 @@ describe('DropView', () => {
     expect(out.disabled).toBe(true);
   });
 
+  it('includes tests only when switched on', async () => {
+    const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
+    renderView();
+    await screen.findByTestId('drop-node-2');
+    expect(spy).toHaveBeenLastCalledWith(1, expect.objectContaining({ includeTests: false }));
+    fireEvent.click(screen.getByRole('button', { name: 'Tests' }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(1, expect.objectContaining({ includeTests: true })));
+  });
+
+  it('offers what exists instead when the first layer is empty', async () => {
+    const empty = { ...RESULT, layers: [RESULT.layers[0], { layer: 1, count: 0, unresolved: 1, nodes: [], edges: [] }],
+      alternatives: [{ direction: 'down', kind: 'data', count: 37 }, { direction: 'up', kind: 'control', count: 3 }] };
+    const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: empty } as never);
+    renderView();
+    fireEvent.click(await screen.findByRole('button', { name: 'Aufwärts: Kontrollfluss (3)' }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(1, expect.objectContaining({ direction: 'up', kinds: ['control'] })));
+    expect(screen.getByRole('button', { name: 'Daten (37)' })).toBeTruthy();
+    expect(screen.queryByText(/Darunter folgt nichts/)).toBeNull();
+  });
+
+  it('separates targets outside the code base from open gaps', async () => {
+    const split = { ...RESULT, layers: [RESULT.layers[0], { ...RESULT.layers[1], unresolved: 5, unresolved_external: 3 }] };
+    vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: split } as never);
+    renderView();
+    expect(await screen.findByText('2 nicht aufgelöst')).toBeTruthy();
+    expect(screen.getByText('3 außerhalb des Bestands')).toBeTruthy();
+  });
+
   it('keeps a collapsed layer closed until the user expands it', async () => {
     const collapsed = { ...RESULT, stopped: 'collapsed', layers: [RESULT.layers[0], { layer: 1, count: 91, unresolved: 0, nodes: [], edges: [], collapsed: true }] };
     const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: collapsed } as never);

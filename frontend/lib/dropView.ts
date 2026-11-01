@@ -44,6 +44,8 @@ export interface DropLayer {
   layer: number;
   count: number;
   unresolved: number;
+  /** Der Teil von `unresolved`, dessen Ziel ein Import außerhalb des Index benennt. */
+  unresolved_external?: number;
   nodes: DropNode[];
   edges: DropEdge[];
   collapsed?: boolean;
@@ -57,6 +59,8 @@ export interface DropResult {
   layers: DropLayer[];
   /** Kanten zurück zu einem bereits gezeigten Knoten: innerhalb einer Ebene, nach oben, Zyklen. */
   back_edges?: DropEdge[];
+  /** Nur bei leerer erster Ebene: was es um den Start sonst gibt. */
+  alternatives?: { direction: DropDirection; kind: DropKind; count: number }[];
   stopped: 'end' | 'collapsed' | null;
   collapse_above: number;
 }

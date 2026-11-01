@@ -2627,6 +2627,31 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     assert [lay["count"] for lay in cycle["layers"]] == [1, 2, 1]
     # Wege innerhalb des Containers sind keine Rücksprünge, nur der von außen zurück zählt.
     assert drop.drop(db_session, user_obj, project_id, unit, layers=2)["back_edges"] == []
+    # Eine leere erste Ebene sagt, was es sonst gibt; ein Import trennt die Bibliothek von der offenen Lücke.
+    lone = _method(project_id, "lone", "OTHER.lone", "src/Other.src", 20, 29, kind=routine_type)
+    user_of_lone = _method(project_id, "caller", "OTHER.caller", "src/Other.src", 40, 49, kind=routine_type)
+    unit_file = _method(project_id, "Other", "Other", "src/Other.src", 1, 90, kind="compilation_unit")
+    db_session.add_all([lone, user_of_lone, unit_file])
+    db_session.flush()
+    _control(db_session, project_id, "READS", lone, other, 21)
+    _control(db_session, project_id, edge_type, user_of_lone, lone, 41)
+    _control(db_session, project_id, edge_type, lone, None, 22, "unresolved", None, "List.of")
+    _control(db_session, project_id, edge_type, lone, None, 23, "unresolved", None, "Gone.call")
+    _control(db_session, project_id, "IMPORTS", unit_file, None, 1, "unresolved", None, "java.util.List")
+    db_session.commit()
+    for row in db_session.query(CodeEdge).filter(CodeEdge.dst_name == "List.of"):
+        row.meta_json = {"receiver": "List"}
+    db_session.commit()
+    empty = drop.drop(db_session, user_obj, project_id, lone, kinds=["includes"], layers=2)
+    assert empty["layers"][1]["count"] == 0
+    assert {(a["direction"], a["kind"], a["count"]) for a in empty["alternatives"]} >= {
+        ("down", "data", 1),
+        ("up", "control", 1),
+    }
+    open_layer = drop.drop(db_session, user_obj, project_id, lone, layers=1)["layers"][1]
+    assert open_layer["unresolved"] == 2 and open_layer["unresolved_external"] == 1
+    assert down["alternatives"] == []
+
     with_source = drop.drop(db_session, user_obj, project_id, main, layers=1, with_provenance=True)
     assert "provenance" in with_source["layers"][1]["edges"][0]
     assert "provenance" not in down["layers"][1]["edges"][0]

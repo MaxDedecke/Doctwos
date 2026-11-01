@@ -19,8 +19,8 @@ from api.process_schemas import (
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
-from doctus_models.language_profile import JAVA
-from services.call_flow import cobol_entry_paragraph
+from doctus_models.language_profile import JAVA, REALIZATION_EDGES, role_of
+from services.call_flow import TEST_PATH_PATTERN, cobol_entry_paragraph
 from services.provenance import build_provenance
 from services.shared_data import shared_data
 
@@ -83,6 +83,8 @@ _ABSTRACT_MAX_LINES = 3
 # Eine Datei oder Klasse hat keinen eigenen Ablauf: Einstieg sind ihre Methoden.
 _ENTRY_LIST_ROOTS = JAVA.containers | {"compilation_unit"}
 _MEMBER_TYPES = JAVA.containers | JAVA.routines
+_REALIZATION_DEPTH = 3
+_MAX_REALIZERS = 40
 
 
 def _language(entity: CodeEntity) -> str:
@@ -318,6 +320,104 @@ def _add_fall_through(db: Session, routine: CodeEntity, projection: ProcessProje
             meta={"fall_through": True},
         )
     )
+
+
+def _argument_count(signature: str) -> int:
+    """Parameter einer Signatur wie ``#f(Map<A,B>,C)``; Kommas in Typargumenten zählen nicht."""
+    inner = signature[signature.find("(") + 1 : signature.rfind(")")] if "(" in signature else ""
+    if not inner.strip():
+        return 0
+    depth, count = 0, 1
+    for char in inner:
+        depth += {"<": 1, ">": -1}.get(char, 0)
+        count += char == "," and depth == 0
+    return count
+
+
+def _add_implementations(
+    db: Session, routine: CodeEntity, projection: ProcessProjection, limit: int
+) -> None:
+    """Eine Routine ohne eigenen Ablauf führt zu dem, was sie umsetzt. Welche Umsetzung läuft, entscheidet
+    erst die Laufzeit, deshalb sind diese Übergänge nur möglich."""
+    if role_of(routine.type) != "routine" or routine.parent_id is None:
+        return
+    root_id = _node_id(routine.id)
+    if any(transition.source == root_id for transition in projection.transitions):
+        return
+    parent = db.get(CodeEntity, routine.parent_id)
+    if parent is None or not parent.qualified_name:
+        return
+
+    realizers: dict[int, CodeEntity] = {}
+    frontier = [parent.id]
+    for _ in range(_REALIZATION_DEPTH):
+        if not frontier or len(realizers) >= _MAX_REALIZERS:
+            break
+        rows = (
+            db.query(CodeEntity)
+            .join(CodeEdge, CodeEdge.src_entity_id == CodeEntity.id)
+            .filter(
+                CodeEdge.project_id == routine.project_id,
+                CodeEdge.dst_entity_id.in_(frontier),
+                CodeEdge.type.in_(sorted(REALIZATION_EDGES)),
+                CodeEntity.file_path.op("!~")(TEST_PATH_PATTERN),
+            )
+            .limit(_MAX_REALIZERS)
+            .all()
+        )
+        frontier = [row.id for row in rows if row.id not in realizers and row.id != parent.id]
+        realizers.update({row.id: row for row in rows if row.id != parent.id})
+    if not realizers:
+        return
+
+    signature = (routine.qualified_name or "")[len(parent.qualified_name) :]
+    candidates: dict[int, list[CodeEntity]] = defaultdict(list)
+    for candidate in db.query(CodeEntity).filter(
+        CodeEntity.project_id == routine.project_id,
+        CodeEntity.parent_id.in_(list(realizers)),
+        CodeEntity.name == routine.name,
+        CodeEntity.type == routine.type,
+    ):
+        candidates[candidate.parent_id].append(candidate)
+
+    targets: list[CodeEntity] = []
+    for parent_id, methods in candidates.items():
+        prefix = realizers[parent_id].qualified_name or ""
+        tails = [(method, (method.qualified_name or "")[len(prefix) :]) for method in methods]
+        exact = [method for method, tail in tails if tail == signature]
+        # Typparameter heißen in der Umsetzung oft anders; dann entscheidet die Zahl der Parameter.
+        arity = _argument_count(signature)
+        targets += exact or [m for m, tail in tails if _argument_count(tail) == arity]
+
+    known = {node.id for node in projection.nodes}
+    for target in targets[: limit - len(projection.nodes)]:
+        node_id = _node_id(target.id)
+        locator = _entity_locator(target)
+        if node_id not in known:
+            known.add(node_id)
+            projection.nodes.append(
+                ProcessNode(
+                    id=node_id,
+                    kind=_node_kind(target, routine),
+                    label=realizers[target.parent_id].name or _node_label(target),
+                    language=_language(target),
+                    locator=locator,
+                    entity_id=target.id,
+                )
+            )
+        projection.transitions.append(
+            ProcessTransition(
+                id=f"implementation:{routine.id}:{target.id}",
+                source=root_id,
+                target=node_id,
+                kind="call",
+                certainty="possible",
+                resolution="resolved",
+                locator=locator,
+                origin_kind="synthetic",
+                meta={"implementation": True},
+            )
+        )
 
 
 def _add_exits(
@@ -787,4 +887,5 @@ def focus_process(
     if flow_view:
         _add_entry_routines(db, root, projection, node_limit)
         _add_fall_through(db, root, projection)
+        _add_implementations(db, root, projection, node_limit)
     return projection

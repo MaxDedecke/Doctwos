@@ -22,8 +22,8 @@ const DOC: WebDocumentData = {
   extra_css: '', origin: 'live',
 };
 
-const show = (doc: WebDocumentData = DOC, onOpenKnown = vi.fn()) => {
-  render(<LanguageProvider><WebDocumentView document={doc} theme="dark" onOpenKnown={onOpenKnown} /></LanguageProvider>);
+const show = (doc: WebDocumentData = DOC, onOpenKnown = vi.fn(), onOpenCode = vi.fn()) => {
+  render(<LanguageProvider><WebDocumentView document={doc} theme="dark" onOpenKnown={onOpenKnown} onOpenCode={onOpenCode} /></LanguageProvider>);
   return onOpenKnown;
 };
 
@@ -53,6 +53,20 @@ describe('WebDocumentView', () => {
     const frame = screen.getByTitle('Fehler <b>x</b>');
     expect(frame.getAttribute('sandbox')).not.toContain('allow-same-origin');
     expect(frame.getAttribute('srcdoc')).toContain('<p>Inhalt</p>');
+  });
+
+  it('lists mentioned code as a mention and opens it at its line', () => {
+    const onOpenCode = vi.fn();
+    show({ ...DOC, code_refs: [{ entity_id: 5, name: 'PropagationActions', type: 'interface', file_path: 'src/P.java', start_line: 7, source_id: 8, cite: 'src/P.java:7', mentions: 2 }] }, vi.fn(), onOpenCode);
+    expect(screen.getByText('Erwähnter Code (1)')).toBeTruthy();
+    expect(screen.getByText('2× genannt')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'PropagationActions' }));
+    expect(onOpenCode).toHaveBeenCalledWith('src/P.java', 7, 8);
+  });
+
+  it('shows no code section without mentions', () => {
+    show();
+    expect(screen.queryByTestId('web-code-refs')).toBeNull();
   });
 
   it('names the fallback to the index with its date', () => {

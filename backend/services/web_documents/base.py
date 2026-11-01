@@ -55,6 +55,20 @@ class Related:
 
 
 @dataclass
+class CodeRef:
+    """Code, den der Eintrag beim Namen nennt. Eine Erwähnung, keine Aussage über die Ursache."""
+
+    entity_id: int
+    name: str
+    type: str
+    file_path: str
+    start_line: int | None
+    source_id: int | None
+    cite: str
+    mentions: int
+
+
+@dataclass
 class WebDocument:
     title: str
     url: str | None
@@ -67,6 +81,7 @@ class WebDocument:
     comments_total: int | None = None
     attachments: list[Attachment] = field(default_factory=list)
     related: list[Related] = field(default_factory=list)
+    code_refs: list[CodeRef] = field(default_factory=list)
     # Nur feste Regeln des Adapters, nie Inhalte der Quelle. Farben über die Variablen --wd-* des Frontends.
     extra_css: str = ""
     origin: str = "live"  # live | index
