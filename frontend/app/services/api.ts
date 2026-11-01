@@ -5,6 +5,7 @@ import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 import type { ProjectPulse } from '@/lib/chatStarters';
 import type { DropDirection, DropKind, DropResult } from '@/lib/dropView';
+import type { WebDocumentData } from '@/lib/webDocumentHtml';
 
 declare global {
     interface Window {
@@ -125,7 +126,7 @@ export const api = {
             };
         };
     }>(`${API_URL}/knowledge-sources/${id}/files`),
-    resolveWebOrigin: (id: number | string, url: string, theme?: string) => axios.get<{ content: string; format: string; url: string }>(`${API_URL}/knowledge-sources/${id}/resolve`, { params: { url, theme } }),
+    resolveWebOrigin: (id: number | string, url: string) => axios.get<{ format: string; document: WebDocumentData; url: string | null }>(`${API_URL}/knowledge-sources/${id}/resolve`, { params: { url } }),
     uploadLocalDocument: (formData: FormData) => axios.post(`${API_URL}/knowledge-sources/upload`, formData, {
         headers: {
             'Content-Type': 'multipart/form-data',

@@ -8,7 +8,8 @@ Endpoint-Übersicht:
     GET    /knowledge-sources            — Alle Quellen auflisten
     DELETE /knowledge-sources/{id}       — Quelle + Chunks löschen
     POST   /knowledge-sources/{id}/sync  — Manuellen Re-Sync starten
-    GET    /knowledge-sources/{id}/resolve?url=… — URL → gerendertes HTML
+    GET    /knowledge-sources/{id}/resolve?url=… — Eintrag eines Web-Systems im gemeinsamen Format
+    GET    /knowledge-sources/{id}/web-asset?token=… — Bild oder Anhang dazu (signierter Verweis)
     GET    /knowledge-sources/{id}/content — Dateiinhalt (PDF/Word/Text) extrahieren
     GET    /knowledge-sources/{id}/raw    — Datei als Binary ausliefern
     POST   /knowledge-sources/upload      — Lokale Datei hochladen + parsen
@@ -25,13 +26,12 @@ Render-Logik (/resolve):
 
 import logging
 import os
-import re
 from collections import Counter, defaultdict
 from typing import Optional
+from urllib.parse import quote
 
-import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, StreamingResponse
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
@@ -74,9 +74,18 @@ from core.projects import (
 )
 from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
+from services.web_documents.resolve import (
+    ASSET_MAX_AGE_SECONDS,
+    ASSET_MAX_BYTES,
+    open_asset,
+    read_asset_token,
+    resolve_web_document,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/knowledge-sources", tags=["knowledge_sources"])
+# Ohne Anmeldung eingebunden: Das abgeschottete iframe sendet kein Cookie, der signierte Verweis berechtigt.
+web_asset_router = APIRouter(prefix="/knowledge-sources", tags=["knowledge_sources"])
 
 
 MAX_KNOWLEDGE_SOURCES_PER_REPO = 2
@@ -408,60 +417,52 @@ def update_knowledge_source(
 def resolve_knowledge_source_url(
     source_id: int,
     url: str,
-    theme: str = "dark",
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    """
-    Löst eine (ggf. nicht-HTTP) URL zu gerendertem HTML auf.
-
-    Wenn url kein http/https-Link ist, wird sie als Seitentitel interpretiert
-    und über DocumentChunk.metadata_json.url in die echte URL übersetzt.
-    """
+    """Ein Eintrag eines Web-Systems im gemeinsamen Format; ``url`` ist seine URL oder sein Index-Schlüssel."""
     db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
     if not db_source:
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     assert_knowledge_source_visible(db_source, user, db)
+    return resolve_web_document(db, user, db_source, url, source_http_verify(db_source.spaces))
 
-    if url and not (url.startswith("http://") or url.startswith("https://")):
-        chunk = (
-            db.query(DocumentChunk)
-            .filter(DocumentChunk.source_id == source_id, DocumentChunk.file_path == url)
-            .first()
-        )
-        if not chunk:
-            chunk = (
-                db.query(DocumentChunk)
-                .filter(DocumentChunk.source_id == source_id, DocumentChunk.file_path.ilike(url))
-                .first()
-            )
-        if chunk and chunk.metadata_json and "url" in chunk.metadata_json:
-            url = chunk.metadata_json["url"]
 
-    headers = {}
-    auth = None
-    if db_source.username and db_source.token:
-        auth = (db_source.username, db_source.token)
-    elif db_source.token:
-        headers["Authorization"] = f"Bearer {db_source.token}"
+@web_asset_router.get("/{source_id}/web-asset")
+def get_web_asset(source_id: int, token: str, db: Session = Depends(get_db)):
+    """Bild oder Anhang einer Webansicht. Berechtigt ist, wer den signierten Verweis aus ``resolve`` hat."""
+    url, download_name = read_asset_token(source_id, token)
+    db_source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
+    if not db_source:
+        raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
+    client, response = open_asset(db_source, url, source_http_verify(db_source.spaces))
+    media_type = response.headers.get("content-type", "application/octet-stream")
+    if not download_name and not media_type.lower().startswith("image/"):
+        response.close()
+        client.close()
+        raise HTTPException(status_code=415, detail="Nur Bilder werden eingebettet")
 
-    try:
-        source_type = (db_source.type or "").lower()
+    def stream():
+        sent = 0
+        try:
+            for chunk in response.iter_bytes():
+                sent += len(chunk)
+                if sent > ASSET_MAX_BYTES:
+                    break
+                yield chunk
+        finally:
+            response.close()
+            client.close()
 
-        verify = source_http_verify(db_source.spaces)
-        if source_type == "confluence":
-            return _resolve_confluence(url, db_source.url, auth, headers, theme, verify)
-        elif source_type == "jira":
-            return _resolve_jira(url, db_source.url, auth, headers, theme, verify)
-        else:
-            raise HTTPException(
-                status_code=400,
-                detail="Diese Aktion wird nur für Confluence oder Jira unterstützt.",
-            )
-    except HTTPException:
-        raise
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fehler beim Auflösen der URL: {str(e)}")
+    headers = {
+        "Cache-Control": f"private, max-age={ASSET_MAX_AGE_SECONDS}",
+        "X-Content-Type-Options": "nosniff",
+        # Fremde Dateien (etwa SVG) dürfen beim direkten Öffnen nichts ausführen.
+        "Content-Security-Policy": "default-src 'none'; style-src 'unsafe-inline'; sandbox",
+    }
+    if download_name:
+        headers["Content-Disposition"] = f"attachment; filename*=UTF-8''{quote(download_name)}"
+    return StreamingResponse(stream(), media_type=media_type, headers=headers)
 
 
 @router.get("/{source_id}/files")
@@ -995,284 +996,3 @@ async def upload_local_document(
         {"trace_id": get_trace_id()},
     )
     return serialize_source(db_source)
-
-
-# ── Interne Render-Helfer für /resolve ───────────────────────────────────────
-
-_DARK_STYLE = """<style>
-body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #d4d4d8; background-color: #09090b; margin: 0; padding: 24px; }
-h1, h2, h3, h4, h5, h6 { color: #f4f4f5; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; }
-a { color: #818cf8; text-decoration: none; } a:hover { text-decoration: underline; }
-pre, code { background-color: #18181b; color: #f4f4f5; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; padding: 0.2em 0.4em; border-radius: 4px; font-size: 85%; }
-pre { padding: 1em; overflow-x: auto; }
-img { max-width: 100%; height: auto; }
-table { border-collapse: collapse; width: 100%; margin: 1.5em 0; }
-th, td { border: 1px solid #27272a; padding: 8px 12px; text-align: left; }
-th { background-color: #18181b; color: #f4f4f5; }
-html { scrollbar-width: thin; scrollbar-color: rgba(92, 102, 117, 0.5) transparent; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background-color: rgba(92, 102, 117, 0.5); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; transition: background-color 0.15s; }
-::-webkit-scrollbar-thumb:hover { background-color: rgba(92, 102, 117, 0.75); }
-::-webkit-scrollbar-corner { background: transparent; }
-</style>"""
-
-_LIGHT_STYLE = """<style>
-body { font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: #27272a; background-color: #ffffff; margin: 0; padding: 24px; }
-h1, h2, h3, h4, h5, h6 { color: #09090b; font-weight: 700; margin-top: 1.5em; margin-bottom: 0.5em; }
-a { color: #4f46e5; text-decoration: none; } a:hover { text-decoration: underline; }
-pre, code { background-color: #f4f4f5; color: #09090b; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; padding: 0.2em 0.4em; border-radius: 4px; font-size: 85%; }
-pre { padding: 1em; overflow-x: auto; }
-img { max-width: 100%; height: auto; }
-table { border-collapse: collapse; width: 100%; margin: 1.5em 0; }
-th, td { border: 1px solid #e4e4e7; padding: 8px 12px; text-align: left; }
-th { background-color: #f4f4f5; color: #09090b; }
-html { scrollbar-width: thin; scrollbar-color: rgba(161, 161, 170, 0.5) transparent; }
-::-webkit-scrollbar { width: 10px; height: 10px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background-color: rgba(161, 161, 170, 0.5); border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; transition: background-color 0.15s; }
-::-webkit-scrollbar-thumb:hover { background-color: rgba(161, 161, 170, 0.75); }
-::-webkit-scrollbar-corner { background: transparent; }
-</style>"""
-
-
-def _resolve_confluence(
-    url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True
-) -> dict:
-    import urllib.parse as urlparse
-
-    parsed = urlparse.urlparse(url)
-    params = urlparse.parse_qs(parsed.query)
-
-    page_id = None
-    if "pageId" in params:
-        page_id = params["pageId"][0]
-    else:
-        m = re.search(r"/pages/(\d+)", parsed.path)
-        if m:
-            page_id = m.group(1)
-        else:
-            for seg in parsed.path.strip("/").split("/"):
-                if seg.isdigit() and len(seg) >= 5:
-                    page_id = seg
-                    break
-
-    html_content = None
-    with httpx.Client(timeout=15.0, verify=verify) as client:
-        if page_id:
-            for prefix in ["/wiki/rest/api/content", "/rest/api/content"]:
-                try:
-                    api_url = f"{base_url.rstrip('/')}{prefix}/{page_id}"
-                    resp = client.get(
-                        api_url, auth=auth, headers=headers, params={"expand": "body.view"}
-                    )
-                    if resp.status_code == 200:
-                        html_content = resp.json().get("body", {}).get("view", {}).get("value", "")
-                        break
-                except Exception:
-                    continue
-            if not html_content:
-                raise HTTPException(
-                    status_code=404, detail="Confluence Seite konnte nicht abgerufen werden."
-                )
-        else:
-            base_parsed = urlparse.urlparse(base_url)
-            if (parsed.scheme, parsed.netloc) != (base_parsed.scheme, base_parsed.netloc):
-                raise HTTPException(
-                    status_code=400,
-                    detail="URL liegt außerhalb der konfigurierten Confluence-Instanz.",
-                )
-            resp = client.get(url, auth=auth, headers=headers)
-            resp.raise_for_status()
-            html_content = resp.text
-
-    clean = re.sub(r"<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>", "", html_content)
-    clean = re.sub(r"<a\b([^>]*)>", r'<a \1 target="_blank">', clean)
-    style = _LIGHT_STYLE if theme == "light" else _DARK_STYLE
-    return {
-        "content": f"<html><head>{style}</head><body>{clean}</body></html>",
-        "format": "html",
-        "url": url,
-    }
-
-
-def _resolve_jira(
-    url: str, base_url: str, auth, headers: dict, theme: str = "dark", verify=True
-) -> dict:
-    import urllib.parse as urlparse
-
-    parsed = urlparse.urlparse(url)
-    params = urlparse.parse_qs(parsed.query)
-
-    issue_key = None
-    if "selectedIssue" in params:
-        issue_key = params["selectedIssue"][0]
-    else:
-        m = re.search(r"/browse/([A-Z0-9]+-\d+)", parsed.path, re.IGNORECASE)
-        if m:
-            issue_key = m.group(1).upper()
-        else:
-            for seg in parsed.path.strip("/").split("/"):
-                parts = seg.split("-")
-                if len(parts) == 2 and parts[0].isalnum() and parts[1].isdigit():
-                    issue_key = seg.upper()
-                    break
-
-    if not issue_key:
-        raise HTTPException(status_code=400, detail="Kein Jira-Issue Key in der URL gefunden.")
-
-    issue_data = None
-    with httpx.Client(timeout=15.0, verify=verify) as client:
-        for prefix in ["/rest/api/3/issue", "/rest/api/2/issue"]:
-            try:
-                resp = client.get(
-                    f"{base_url.rstrip('/')}{prefix}/{issue_key}", auth=auth, headers=headers
-                )
-                if resp.status_code == 200:
-                    issue_data = resp.json()
-                    break
-            except Exception:
-                continue
-
-    if not issue_data:
-        raise HTTPException(
-            status_code=404, detail=f"Jira Ticket {issue_key} konnte nicht geladen werden."
-        )
-
-    fields = issue_data.get("fields", {})
-    summary = fields.get("summary", "Kein Titel")
-    status = (fields.get("status") or {}).get("name", "Unbekannt")
-    priority = (fields.get("priority") or {}).get("name", "Mittel")
-    assignee = (fields.get("assignee") or {}).get("displayName", "Nicht zugewiesen")
-
-    desc_html = _jira_body_to_html(fields.get("description"))
-
-    if theme == "light":
-        body_bg = "#ffffff"
-        body_color = "#27272a"
-        badge_bg = "#f4f4f5"
-        badge_color = "#09090b"
-        badge_status_bg = "#e0e7ff"
-        badge_status_color = "#3730a3"
-        section_title_color = "#71717a"
-        section_title_border = "#e4e4e7"
-        pre_bg = "#f4f4f5"
-        pre_color = "#09090b"
-        header_border = "#e4e4e7"
-        header_color = "#09090b"
-        header_meta_color = "#71717a"
-        comment_bg = "#f4f4f5"
-        comment_border = "#e4e4e7"
-        comment_meta_color = "#71717a"
-        italic_color = "#71717a"
-        scrollbar_thumb = "rgba(161, 161, 170, 0.5)"
-        scrollbar_thumb_hover = "rgba(161, 161, 170, 0.75)"
-    else:
-        body_bg = "#09090b"
-        body_color = "#d4d4d8"
-        badge_bg = "#27272a"
-        badge_color = "#f4f4f5"
-        badge_status_bg = "#312e81"
-        badge_status_color = "#c7d2fe"
-        section_title_color = "#a1a1aa"
-        section_title_border = "#18181b"
-        pre_bg = "#18181b"
-        pre_color = "#f4f4f5"
-        header_border = "#27272a"
-        header_color = "#f4f4f5"
-        header_meta_color = "#a1a1aa"
-        comment_bg = "#18181b"
-        comment_border = "#27272a"
-        comment_meta_color = "#a1a1aa"
-        italic_color = "#71717a"
-        scrollbar_thumb = "rgba(92, 102, 117, 0.5)"
-        scrollbar_thumb_hover = "rgba(92, 102, 117, 0.75)"
-
-    comments_html = ""
-    for c in fields.get("comment", {}).get("comments", []):
-        author = (c.get("author") or {}).get("displayName", "User")
-        created = (c.get("created") or "")[:10]
-        body_html = _jira_body_to_html(c.get("body"))
-        comments_html += (
-            f'<div style="background-color:{comment_bg};border:1px solid {comment_border};border-radius:8px;padding:12px 16px;margin-bottom:12px;">'
-            f'<div style="font-size:11px;font-weight:600;color:{comment_meta_color};margin-bottom:6px;">{author} &bull; {created}</div>'
-            f'<div style="font-size:13px;">{body_html}</div></div>'
-        )
-
-    jira_style = f"""<style>
-body {{ font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; line-height: 1.6; color: {body_color}; background-color: {body_bg}; margin: 0; padding: 24px; }}
-p, li, blockquote, td, th {{ color: {body_color} !important; }}
-.badge {{ background-color: {badge_bg}; color: {badge_color}; padding: 2px 8px; border-radius: 4px; font-weight: 600; }}
-.badge-status {{ background-color: {badge_status_bg}; color: {badge_status_color}; }}
-.section-title {{ font-size: 14px; font-weight: 700; text-transform: uppercase; color: {section_title_color}; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid {section_title_border}; padding-bottom: 4px; }}
-pre, code {{ background-color: {pre_bg}; color: {pre_color}; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; padding: 0.2em 0.4em; border-radius: 4px; font-size: 85%; }}
-pre {{ padding: 1em; overflow-x: auto; }}
-html {{ scrollbar-width: thin; scrollbar-color: {scrollbar_thumb} transparent; }}
-::-webkit-scrollbar {{ width: 10px; height: 10px; }}
-::-webkit-scrollbar-track {{ background: transparent; }}
-::-webkit-scrollbar-thumb {{ background-color: {scrollbar_thumb}; border-radius: 9999px; border: 2px solid transparent; background-clip: padding-box; transition: background-color 0.15s; }}
-::-webkit-scrollbar-thumb:hover {{ background-color: {scrollbar_thumb_hover}; }}
-::-webkit-scrollbar-corner {{ background: transparent; }}
-</style>"""
-
-    num_comments = len(fields.get("comment", {}).get("comments", []))
-    html = f"""<html><head>{jira_style}</head><body>
-<div style="border-bottom:1px solid {header_border};padding-bottom:16px;margin-bottom:24px;">
-  <h1 style="font-size:20px;font-weight:700;color:{header_color};margin:0 0 8px 0;">{issue_key}: {summary}</h1>
-  <div style="display:flex;gap:16px;font-size:12px;color:{header_meta_color};">
-    <span>Status: <span class="badge badge-status">{status}</span></span>
-    <span>Priorität: <span class="badge">{priority}</span></span>
-    <span>Zuständig: <span class="badge">{assignee}</span></span>
-  </div>
-</div>
-<div class="section-title">Beschreibung</div>
-<div style="font-size:14px;">{desc_html or f'<span style="color:{italic_color};font-style:italic;">Keine Beschreibung angegeben.</span>'}</div>
-<div class="section-title">Kommentare ({num_comments})</div>
-{comments_html or f'<span style="color:{italic_color};font-style:italic;">Keine Kommentare vorhanden.</span>'}
-</body></html>"""
-
-    return {"content": html, "format": "html", "url": url}
-
-
-def _jira_body_to_html(body) -> str:
-    """Jira Cloud liefert Beschreibungen und Kommentare als ADF-Baum, Jira Server (z. B. issues.apache.org) als Text."""
-    if isinstance(body, dict):
-        return _adf_to_html(body)
-    if not body:
-        return ""
-    from html import escape
-
-    return escape(str(body)).replace("\n", "<br>")
-
-
-def _adf_to_html(node) -> str:
-    """Konvertiert Atlassian Document Format (ADF) rekursiv in HTML."""
-    if not node:
-        return ""
-    if node.get("type") == "text":
-        text = node.get("text", "")
-        for mark in node.get("marks", []):
-            if mark.get("type") == "strong":
-                text = f"<strong>{text}</strong>"
-            elif mark.get("type") == "em":
-                text = f"<em>{text}</em>"
-        return text
-
-    inner = "".join(_adf_to_html(c) for c in node.get("content", []))
-    t = node.get("type")
-    if t == "paragraph":
-        return f"<p>{inner}</p>"
-    elif t == "heading":
-        lvl = node.get("attrs", {}).get("level", 3)
-        return f"<h{lvl}>{inner}</h{lvl}>"
-    elif t == "bulletList":
-        return f"<ul>{inner}</ul>"
-    elif t == "orderedList":
-        return f"<ol>{inner}</ol>"
-    elif t == "listItem":
-        return f"<li>{inner}</li>"
-    elif t == "codeBlock":
-        return f"<pre><code>{inner}</code></pre>"
-    elif t == "blockquote":
-        return f"<blockquote>{inner}</blockquote>"
-    return inner

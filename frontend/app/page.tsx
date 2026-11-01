@@ -678,14 +678,8 @@ function AppContent() {
       let content = "";
       if (resolvedSourceId) {
         if (isWebOrigin) {
-          const res = await api.resolveWebOrigin(resolvedSourceId, cleanPath, theme);
-          if (!isCurrent()) return;
-          content = res.data.content;
+          // Die Webansicht lädt den Eintrag selbst, passend zu ihrem Panel.
           setFileContentFormat("html");
-          if (res.data.url) {
-            setSelectedDoc(prev => prev ? { ...prev, url: res.data.url } : null);
-          }
-          showToast(t('page.toast.webpageLoaded', { name: cleanPath.split('/').pop() || t('page.fallbackContent') }), "success");
         } else {
           const res = await api.getKnowledgeSourceContent(resolvedSourceId, cleanPath);
           if (!isCurrent()) return;

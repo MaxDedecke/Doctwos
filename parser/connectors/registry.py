@@ -6,6 +6,8 @@ Zentrale Registry aller verfügbaren Wissensquellen-Connectoren.
 Neuen Connector in 2 Schritten hinzufügen:
     1. Connector-Klasse erstellen (Unterklasse von BaseConnector)
     2. Hier im REGISTRY-Dict eintragen — fertig
+Die Webansicht zeigt den indexierten Text dann schon; die volle Darstellung braucht einen Adapter
+(docs/WEB_DOCUMENTS.md).
 
 Der source_type-String muss exakt dem Wert entsprechen, der in der
 KnowledgeSource-DB-Spalte `type` gespeichert wird und den das Frontend

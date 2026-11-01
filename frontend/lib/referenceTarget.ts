@@ -1,5 +1,6 @@
 import type { KnowledgeSource } from '@/types/domain';
 import { DOC_FILE_RE } from './workspaceSelection';
+import { isWebSourceType } from './webSources';
 
 /**
  * Resolves whether a reference points at a local document, a web-origin
@@ -37,10 +38,7 @@ export function resolveReferenceTarget(
   const matchedSource = resolvedSourceId && connectedSources
     ? connectedSources.find((source) => String(source.id) === String(resolvedSourceId))
     : null;
-  const isWebOrigin = !!(matchedSource && (
-    matchedSource.type?.toLowerCase() === 'confluence' ||
-    matchedSource.type?.toLowerCase() === 'jira'
-  ));
+  const isWebOrigin = isWebSourceType(matchedSource?.type);
 
   return {
     isDoc: cleanPath ? DOC_FILE_RE.test(cleanPath) : false,

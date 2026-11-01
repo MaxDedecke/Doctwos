@@ -435,19 +435,26 @@ describe('SplitPaneWorkspace', () => {
       expect(screen.getByTestId('monaco-editor').getAttribute('data-language')).toBe('text');
     });
 
-    it('weborigin: bettet die aufbereitete Seite als iframe ein, ohne Editor', () => {
-      const { container } = renderWorkspace({
-        activeRightTab: 'weborigin',
-        selectedDoc: { id: 9, name: 'Confluence-Seite', type: 'confluence' },
-        fileContent: '<p>Originalseite</p>',
-        fileContentFormat: 'html',
-      });
+    it('weborigin: zeigt den Eintrag eines beliebigen Systems abgeschottet im iframe, ohne Editor', async () => {
+      vi.mocked(api.resolveWebOrigin).mockResolvedValueOnce({ data: { format: 'web_document', url: 'https://snow/i/1', document: {
+        title: 'Vorfall', url: 'https://snow/i/1', kind: 'incident', facts: [], breadcrumbs: [], body_html: '<p>Originalseite</p>',
+        comments: [], attachments: [], related: [], extra_css: '', origin: 'live',
+      } } } as never);
+      renderWorkspace({ activeRightTab: 'weborigin', selectedDoc: { id: 9, name: 'Eintrag', type: 'ServiceNow' } });
 
-      const frame = container.querySelector('iframe')!;
-      expect(frame.getAttribute('srcdoc')).toBe('<p>Originalseite</p>');
+      const frame = await screen.findByTitle('Vorfall');
+      expect(frame.getAttribute('srcdoc')).toContain('<p>Originalseite</p>');
       // Kein allow-same-origin: die Fremdseite bleibt vom App-Origin getrennt.
       expect(frame.getAttribute('sandbox')).toBe('allow-popups allow-popups-to-escape-sandbox allow-scripts');
       expect(screen.queryByTestId('monaco-editor')).toBeNull();
+      expect(screen.getByRole('link', { name: /Im Browser|browser/i }).getAttribute('href')).toBe('https://snow/i/1');
+    });
+
+    it('weborigin: nennt den Grund, wenn ein Eintrag nicht geöffnet werden darf', async () => {
+      vi.mocked(api.resolveWebOrigin).mockRejectedValueOnce({ response: { data: { detail: 'Gehört nicht zum Index' } } });
+      renderWorkspace({ activeRightTab: 'weborigin', selectedDoc: { id: 9, name: 'Eintrag', type: 'Jira', isWebOrigin: true } });
+
+      expect((await screen.findByRole('alert')).textContent).toContain('Gehört nicht zum Index');
     });
 
     it('doc: rendert Markdown als Text, nicht im Editor', () => {

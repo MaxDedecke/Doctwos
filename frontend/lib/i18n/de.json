@@ -2049,6 +2049,43 @@
     "error": "Analyse fehlgeschlagen",
     "tooltipWithReasons": "{{label}}: {{reasons}}"
   },
+  "webDocument": {
+    "emptyBody": "Kein Inhalt vorhanden.",
+    "comments": "Kommentare ({{count}})",
+    "commentsPartial": "Kommentare ({{shown}} von {{total}})",
+    "breadcrumbs": "Seitenpfad",
+    "related": "Verknüpft ({{count}})",
+    "attachments": "Anhänge ({{count}})",
+    "syncedAt": "Stand: {{date}}.",
+    "loadError": "Der Eintrag konnte nicht geladen werden.",
+    "notice": {
+      "unreachable": "Das Quellsystem ist gerade nicht erreichbar. Angezeigt wird der indexierte Text.",
+      "index_only": "Für diesen Eintrag gibt es nur den indexierten Text."
+    },
+    "relations": {
+      "parent": "Übergeordnet",
+      "subtask": "Unteraufgabe"
+    },
+    "facts": {
+      "type": "Typ",
+      "status": "Status",
+      "priority": "Priorität",
+      "resolution": "Lösung",
+      "assignee": "Bearbeiter",
+      "reporter": "Melder",
+      "labels": "Labels",
+      "components": "Komponenten",
+      "fix_versions": "Behoben in",
+      "affects_versions": "Betrifft",
+      "due": "Fällig",
+      "created": "Erstellt",
+      "updated": "Geändert",
+      "space": "Bereich",
+      "version": "Version",
+      "modified_by": "Geändert von",
+      "author": "Autor"
+    }
+  },
   "dropView": {
     "title": "Abhängigkeiten: Ebenen um den Startpunkt",
     "titleFlow": "Aus dem Chat: Ebenen um den Startpunkt",

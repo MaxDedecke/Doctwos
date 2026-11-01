@@ -4,6 +4,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import type { PanelSelection } from '@/lib/panelHistory';
 import { cn } from '@/lib/utils';
 import { BookOpen, Braces, Globe, Terminal, X, type LucideIcon } from 'lucide-react';
+import { isWebSourceType } from '@/lib/webSources';
 import React from 'react';
 
 export interface FocusInfo {
@@ -33,7 +34,7 @@ export function getFocusInfo(
     };
   }
   if (doc) {
-    const isWeb = doc.isWebOrigin || ['confluence', 'jira'].includes((doc.type || '').toLowerCase());
+    const isWeb = doc.isWebOrigin || isWebSourceType(doc.type);
     return {
       Icon: isWeb ? Globe : BookOpen,
       label: isWeb ? doc.name : fileName(doc.name),

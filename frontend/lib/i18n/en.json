@@ -2049,6 +2049,43 @@
     "error": "Analysis failed",
     "tooltipWithReasons": "{{label}}: {{reasons}}"
   },
+  "webDocument": {
+    "emptyBody": "No content.",
+    "comments": "Comments ({{count}})",
+    "commentsPartial": "Comments ({{shown}} of {{total}})",
+    "breadcrumbs": "Page path",
+    "related": "Linked ({{count}})",
+    "attachments": "Attachments ({{count}})",
+    "syncedAt": "As of {{date}}.",
+    "loadError": "The entry could not be loaded.",
+    "notice": {
+      "unreachable": "The source system is currently unreachable. Showing the indexed text.",
+      "index_only": "Only the indexed text is available for this entry."
+    },
+    "relations": {
+      "parent": "Parent",
+      "subtask": "Subtask"
+    },
+    "facts": {
+      "type": "Type",
+      "status": "Status",
+      "priority": "Priority",
+      "resolution": "Resolution",
+      "assignee": "Assignee",
+      "reporter": "Reporter",
+      "labels": "Labels",
+      "components": "Components",
+      "fix_versions": "Fixed in",
+      "affects_versions": "Affects",
+      "due": "Due",
+      "created": "Created",
+      "updated": "Updated",
+      "space": "Space",
+      "version": "Version",
+      "modified_by": "Modified by",
+      "author": "Author"
+    }
+  },
   "dropView": {
     "title": "Dependencies: layers around the start point",
     "titleFlow": "From chat: layers around the start point",

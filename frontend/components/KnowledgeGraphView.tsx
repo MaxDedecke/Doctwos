@@ -32,6 +32,7 @@ import { contentFitZoom, JOURNEY_ARRIVAL_RADIUS_PX, JOURNEY_CAMERA_MS, JOURNEY_P
 import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { createGraphScene } from '@/lib/knowledgeGraphLayout';
 import { AlertTriangle, ArrowLeft, BookOpen, Check, Crosshair, ExternalLink, Eye, Info, Link2, Loader2, Maximize2, Minus, MoreHorizontal, Plus, RotateCcw, Undo2, RefreshCw, Search, SlidersHorizontal, Workflow, X, ZoomIn, ZoomOut } from 'lucide-react';
+import { isWebSourceType } from '@/lib/webSources';
 import { createPortal } from 'react-dom';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { GraphSourceFocus } from './GraphSourceFocus';
@@ -1137,8 +1138,7 @@ export function KnowledgeGraphView({
   // path, set from `storage_key` in diesen Connectoren) resolves. Confluence/Jira
   // store non-path strings (issue key, page title) as their storage_key, so those
   // keep using url/label instead.
-  const isWebOriginSourceType = (sourceType: string | null | undefined) =>
-    !!sourceType && ['confluence', 'notion', 'jira'].includes(sourceType.toLowerCase());
+  const isWebOriginSourceType = isWebSourceType;
 
   // Nicht geladene Verbindungen eines Knotens: in die Übersicht einblenden und wieder einklappen.
   const renderExpansionControls = (node: GraphNode) => {

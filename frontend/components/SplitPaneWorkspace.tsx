@@ -2,7 +2,7 @@ import type { AgentGraphViewAction, CodeEntity, EntityNeighbor, FileReference, N
 import Editor, { loader } from '@monaco-editor/react';
 import { AnimatePresence } from 'framer-motion';
 import type { editor as MonacoEditor } from 'monaco-editor';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 // In air-gapped / on-premise environments, prevent Monaco loader from attempting
@@ -11,7 +11,7 @@ if (typeof window !== 'undefined') {
   loader.config({ paths: { vs: '/monaco/vs' } });
 }
 
-import {
+import { AlertTriangle,
   BookOpen,
   ChevronLeft,
   ChevronRight,
@@ -36,12 +36,13 @@ import { REFERENCE_PAGE_SIZE, usePagedReferenceList } from '@/hooks/usePagedRefe
 import { MarkdownContent } from "@/components/MarkdownContent";
 import { PathHoverCard } from "@/components/PathHoverCard";
 import { useDocumentLocator } from '@/hooks/useDocumentLocator';
-import { useGraphStyleRevision } from '@/hooks/useGraphStyleRevision';
 import { getEdgeTypeLabel, getEntityTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
-import { addWebAnchorScroll, addWebOriginTheme } from '@/lib/webDocumentHtml';
+import type { WebDocumentData } from '@/lib/webDocumentHtml';
+import { isWebSourceType } from '@/lib/webSources';
+import { WebDocumentView } from './WebDocumentView';
 import { computeEntityAnchor, FILE_LEVEL_TYPES, pickFileLevelEntity, type EntityAnchor } from '@/lib/entityAnchors';
 import { computeUsageAnchor, type UsageReference } from '@/lib/usageAnchors';
 import { findStatementKeywords, keywordAtColumn, matchStatementEntities, readStatement, statementEntityTypes, type CobolStatement } from '@/lib/cobolStatements';
@@ -257,6 +258,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
   const [localFileContent, setLocalFileContent] = useState<string>("");
   const [localFileContentFormat, setLocalFileContentFormat] = useState<string>("text");
+  const [webDocument, setWebDocument] = useState<WebDocumentData | null>(null);
+  const [webDocumentError, setWebDocumentError] = useState<string | null>(null);
   const [localIsLoadingFile, setLocalIsLoadingFile] = useState<boolean>(false);
   const [showDocumentLineNumbers, setShowDocumentLineNumbers] = useState(false);
 
@@ -275,15 +278,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     };
   }, [isReferencesDropdownOpen, isReferencesModalMode, updateReferencesMenuPosition]);
 
-  const styleRevision = useGraphStyleRevision();
-  const webOriginContent = useMemo(
-    () => {
-      // Resolve iframe colors again after the parent applies the theme CSS.
-      void styleRevision;
-      return addWebAnchorScroll(addWebOriginTheme(sanitizeHtml(contentToUse), theme, selectedDoc?.type), selectedDoc?.urlAnchor);
-    },
-    [contentToUse, selectedDoc?.urlAnchor, selectedDoc?.type, theme, styleRevision],
-  );
+  const openKnownWebDocument = useCallback((url: string, sourceId: number) => {
+    void handleFileSelect(url, null, sourceId, true);
+  }, [handleFileSelect]);
   const referencesToUse = fileReferences !== undefined ? fileReferences : docRefs.items;
   const isLoadingRefsToUse = isLoadingReferences !== undefined ? isLoadingReferences : docRefs.isLoading;
   // Nur die selbst geladene Liste ist seitenweise; eine vom Elternbauteil gelieferte Liste ist vollständig.
@@ -433,6 +430,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
 
       setLocalIsLoadingFile(true);
       setLocalFileContent("");
+      setWebDocument(null);
+      setWebDocumentError(null);
       try {
         if (isDoc && selectedDoc && docId != null) {
           if (selectedDoc.indexedExcerpt) {
@@ -440,16 +439,16 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
             setLocalFileContentFormat("text");
             return;
           }
-          const isWeb = selectedDoc.isWebOrigin ||
-            (selectedDoc.type?.toLowerCase() === 'confluence' ||
-             selectedDoc.type?.toLowerCase() === 'jira' ||
-             selectedDoc.type?.toLowerCase() === 'jira');
-
-          if (isWeb) {
-            const res = await api.resolveWebOrigin(docId, selectedDoc.url || selectedDoc.name, theme);
-            if (cancelled) return;
-            setLocalFileContent(res.data.content);
-            setLocalFileContentFormat("html");
+          if (selectedDoc.isWebOrigin || isWebSourceType(selectedDoc.type)) {
+            try {
+              const res = await api.resolveWebOrigin(docId, selectedDoc.url || selectedDoc.name);
+              if (cancelled) return;
+              setWebDocument(res.data.document);
+            } catch (err) {
+              if (cancelled) return;
+              const detail = (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail;
+              setWebDocumentError(typeof detail === 'string' ? detail : '');
+            }
           } else {
             const res = await api.getKnowledgeSourceContent(docId, documentPath);
             if (cancelled) return;
@@ -489,7 +488,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     // fetched (see the branch above) — depending on the whole entity object
     // meant picking a *different* code object in the *same* file (a new
     // object reference, same source_id) re-fetched the file from scratch.
-  }, [selectedFile, selectedDoc, selectedEntity?.source_id, selectedProject, activeRightTab, theme]);
+  }, [selectedFile, selectedDoc, selectedEntity?.source_id, selectedProject, activeRightTab]);
 
 
 
@@ -1336,9 +1335,9 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   onOpenDoc={onDocFocus}
                 />
               )}
-              {activeRightTab === 'weborigin' && selectedDoc?.url && (
+              {activeRightTab === 'weborigin' && (webDocument?.url || selectedDoc?.url?.startsWith('http')) && (
                 <a
-                  href={selectedDoc.url}
+                  href={(webDocument?.url || selectedDoc?.url) ?? undefined}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-center gap-1 text-ds-indigo-400 hover:text-ds-indigo-300 font-semibold text-xs mr-2 transition-colors"
@@ -1501,7 +1500,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                                       // inside handlePanelFileSelect (O-091), and no longer routes here.
                                       if (onDocFocus && document.source_id) {
                                         const sourceType = document.source_type?.toLowerCase();
-                                        const isWebOrigin = sourceType === 'confluence' || sourceType === 'jira';
+                                        const isWebOrigin = isWebSourceType(sourceType);
                                         const documentPath = document.file_path || document.url || '';
                                         const viewerPath = isWebOrigin && document.url
                                           ? document.url
@@ -1895,13 +1894,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     )}>{selectedDoc.excerpt}</p>
                   </div>
                 )}
-                <div className="flex-1 overflow-hidden">
-                  <iframe
-                    srcDoc={webOriginContent}
-                    className={cn("w-full h-full border-none", theme === 'dark' ? "bg-ds-zinc-950" : "bg-ds-white")}
-                    title={selectedDoc.name || t('splitPane.webPreviewFallbackTitle')}
-                    sandbox="allow-popups allow-popups-to-escape-sandbox allow-scripts"
-                  />
+                <div className="min-h-0 flex-1 overflow-hidden">
+                  {webDocument ? (
+                    <WebDocumentView
+                      document={webDocument}
+                      theme={theme}
+                      anchor={selectedDoc.urlAnchor}
+                      onOpenKnown={openKnownWebDocument}
+                    />
+                  ) : webDocumentError !== null && (
+                    <p role="alert" className="flex items-center justify-center gap-1.5 p-6 text-center text-xs text-ds-red-400">
+                      <AlertTriangle className="h-3.5 w-3.5 shrink-0" aria-hidden />{webDocumentError || t('webDocument.loadError')}
+                    </p>
+                  )}
                 </div>
               </div>
             ) : activeRightTab === 'doc' && selectedDoc ? (

@@ -26,6 +26,7 @@ import io
 import asyncio
 from datetime import datetime
 from html.parser import HTMLParser
+from urllib.parse import urlparse
 
 import httpx
 
@@ -667,7 +668,8 @@ class ConfluenceConnector(BaseConnector):
 
         # URL aufbauen — Confluence liefert relative Links in _links.webui
         webui = page.get("_links", {}).get("webui", "")
-        if "/wiki" in page.get("_links", {}).get("base", ""):
+        # Nur der Pfad zählt: Viele Instanzen heißen selbst wiki.firma.de.
+        if urlparse(page.get("_links", {}).get("base", "")).path.rstrip("/").endswith("/wiki"):
             original_url = f"{base_url}/wiki{webui}"
         elif webui:
             original_url = f"{base_url}{webui}"

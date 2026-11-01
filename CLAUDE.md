@@ -99,6 +99,8 @@ Regeln dafür:
   und an Ort und Stelle in die Übersicht nachladen; Kanten-Grundgerüst der Übersicht (ab 1.000
   Dateikanten je Datei die 3 gewichtigsten); vorberechnete Dateikanten (`code_file_edges`, am
   Sync-Ende je Projekt neu berechnet); Gruppen-Knoten nach Kopplung (Louvain), Topics gehen vor.
+- **Expliziter Auftrag 01.11.2026:** Webansicht für Tickets und Wikiseiten neu aufgebaut: gemeinsames Format, Adapter je
+  System, Rückfall auf den Index (`docs/WEB_DOCUMENTS.md`). Muss für beliebige weitere Systeme adaptierbar bleiben.
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
