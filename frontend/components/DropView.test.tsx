@@ -160,6 +160,41 @@ describe('DropView', () => {
     await waitFor(() => expect(spy).toHaveBeenLastCalledWith(1, expect.objectContaining({ kinds: ['control', 'data'] })));
   });
 
+  it('zooms with the icons, resets to 100 percent and keeps the zoom without loading again', async () => {
+    const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
+    const { rerender } = render(view({ id: 1, name: 'create' }));
+    await screen.findByTestId('drop-node-2');
+    const calls = spy.mock.calls.length;
+    const zoomOf = () => screen.getByTestId('drop-pyramid').style.zoom;
+    expect(zoomOf()).toBe('1');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Verkleinern' }));
+    expect(zoomOf()).toBe('0.8');
+    fireEvent.click(screen.getByRole('button', { name: 'Vergrößern' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Vergrößern' }));
+    expect(zoomOf()).toBe('1.25');
+    expect(screen.getByRole('button', { name: 'Zoom auf 100 % zurücksetzen' }).textContent).toBe('125%');
+    fireEvent.click(screen.getByRole('button', { name: 'Zoom auf 100 % zurücksetzen' }));
+    expect(zoomOf()).toBe('1');
+    expect(spy.mock.calls.length).toBe(calls);
+
+    // Wie die übrigen Einstellungen übersteht der Zoom einen Fokuswechsel.
+    fireEvent.click(screen.getByRole('button', { name: 'Verkleinern' }));
+    rerender(view({ id: 9, name: 'other' }));
+    await waitFor(() => expect(spy).toHaveBeenLastCalledWith(9, expect.anything()));
+    expect(zoomOf()).toBe('0.8');
+  });
+
+  it('stops at the smallest level', async () => {
+    vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
+    renderView();
+    await screen.findByTestId('drop-node-2');
+    const out = screen.getByRole('button', { name: 'Verkleinern' }) as HTMLButtonElement;
+    for (let step = 0; step < 6; step += 1) fireEvent.click(out);
+    expect(screen.getByTestId('drop-pyramid').style.zoom).toBe('0.25');
+    expect(out.disabled).toBe(true);
+  });
+
   it('keeps a collapsed layer closed until the user expands it', async () => {
     const collapsed = { ...RESULT, stopped: 'collapsed', layers: [RESULT.layers[0], { layer: 1, count: 91, unresolved: 0, nodes: [], edges: [], collapsed: true }] };
     const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: collapsed } as never);

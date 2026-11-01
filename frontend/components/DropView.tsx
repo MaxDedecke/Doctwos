@@ -4,7 +4,7 @@ import type { CallFlowData } from '@/lib/callFlow';
 
 import { api } from '@/app/services/api';
 import {
-  DROP_DEFAULT_LAYERS, DROP_KINDS, DROP_MAX_LAYERS, citeLocation, connectorPath, flowToDrop, layerWidthPercent, sameLayerPath, toggleExpanded, toggleKind,
+  DROP_DEFAULT_LAYERS, DROP_KINDS, DROP_MAX_LAYERS, citeLocation, connectorPath, flowToDrop, layerWidthPercent, nextZoom, sameLayerPath, toggleExpanded, toggleKind, ZOOM_MAX, ZOOM_MIN,
   type DropDirection, type DropEdge, type DropKind, type DropNode, type DropOrientation, type DropResult,
 } from '@/lib/dropView';
 import { ANALYSIS_STATUS_COLOR_TOKEN, formatAnalysisStatusTooltip } from '@/lib/analysisStatus';
@@ -12,7 +12,7 @@ import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { dsColor } from '@/lib/designTokens';
 import { cn } from '@/lib/utils';
-import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronsUpDown, Columns3, FileCode, Layers, Loader2, Rows3, Target, Undo2, X, ExternalLink } from 'lucide-react';
+import { AlertTriangle, ArrowDown, ArrowLeft, ArrowRight, ArrowUp, ChevronsUpDown, Columns3, FileCode, Layers, Loader2, Maximize2, Rows3, Target, Undo2, X, ZoomIn, ZoomOut, ExternalLink } from 'lucide-react';
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ChangePackageAction } from './ChangePackageAction';
 import { InsightDraftAction } from './InsightDraftAction';
@@ -82,6 +82,9 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
   const [selectedEdgeKey, setSelectedEdgeKey] = useState<string | null>(null);
   const [history, setHistory] = useState<{ id: number; name: string }[]>([]);
   const canvasRef = useRef<HTMLDivElement | null>(null);
+  const scrollerRef = useRef<HTMLDivElement | null>(null);
+  const [zoom, setZoom] = useState(1);
+  const zoomCenter = useRef<{ x: number; y: number } | null>(null);
   const nodeRefs = useRef<Map<number, HTMLElement>>(new Map());
   const [connectors, setConnectors] = useState<Connector[]>([]);
 
@@ -201,6 +204,52 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
     </div>
   );
 
+  // Beim Zoomen bleibt die Mitte des Ausschnitts in der Mitte, sonst springt man bei großen Läufen aus dem Bild.
+  const changeZoom = (next: number) => {
+    const scroller = scrollerRef.current;
+    if (scroller && scroller.scrollWidth && scroller.scrollHeight) {
+      zoomCenter.current = {
+        x: (scroller.scrollLeft + scroller.clientWidth / 2) / scroller.scrollWidth,
+        y: (scroller.scrollTop + scroller.clientHeight / 2) / scroller.scrollHeight,
+      };
+    }
+    setZoom(next);
+  };
+  // Die größte Stufe, bei der nichts mehr übersteht. Sie wird gemessen, weil Ebenen beim Verkleinern anders umbrechen.
+  const fitToView = () => {
+    const scroller = scrollerRef.current;
+    const canvas = canvasRef.current;
+    if (!scroller || !canvas) return;
+    const fits = (candidate: number) => {
+      canvas.style.zoom = String(candidate);
+      return scroller.scrollWidth <= scroller.clientWidth && scroller.scrollHeight <= scroller.clientHeight;
+    };
+    let best = ZOOM_MIN;
+    if (fits(1)) {
+      best = 1;
+    } else {
+      let low = ZOOM_MIN;
+      let high = 1;
+      for (let step = 0; step < 7; step += 1) {
+        const middle = (low + high) / 2;
+        if (fits(middle)) low = middle; else high = middle;
+      }
+      best = Math.round(low * 100) / 100;
+    }
+    canvas.style.zoom = String(best);
+    zoomCenter.current = null;
+    setZoom(best);
+    scroller.scrollTo?.(0, 0);
+  };
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current;
+    const center = zoomCenter.current;
+    zoomCenter.current = null;
+    if (!scroller || !center) return;
+    scroller.scrollLeft = center.x * scroller.scrollWidth - scroller.clientWidth / 2;
+    scroller.scrollTop = center.y * scroller.scrollHeight - scroller.clientHeight / 2;
+  }, [zoom]);
+
   const selectedNode = selectedId != null ? result?.layers.flatMap(layer => layer.nodes).find(node => node.id === selectedId && !node.unresolved) : undefined;
   const actionRoot = result?.root ?? (focusedEntity ? { id: focusedEntity.id, name: focusedEntity.name } : null);
   const actions = actionRoot && (
@@ -242,6 +291,22 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
         onClick={switchOrientation} className="rounded border border-ds-zinc-600/50 p-1">
         {horizontal ? <Rows3 className="h-3.5 w-3.5" aria-hidden /> : <Columns3 className="h-3.5 w-3.5" aria-hidden />}
       </button>
+      {result && (
+        <div className="flex items-center gap-0.5" role="group" aria-label={t('dropView.zoom')}>
+          <button type="button" aria-label={t('dropView.zoomOut')} title={t('dropView.zoomOut')} disabled={zoom <= ZOOM_MIN} onClick={() => changeZoom(nextZoom(zoom, -1))} className="rounded border border-ds-zinc-600/50 p-1 disabled:opacity-40">
+            <ZoomOut className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          <button type="button" aria-label={t('dropView.zoomReset')} title={t('dropView.zoomReset')} onClick={() => changeZoom(1)} className="w-10 rounded py-0.5 text-center tabular-nums text-ds-zinc-500 hover:text-ds-indigo-400">
+            {Math.round(zoom * 100)}%
+          </button>
+          <button type="button" aria-label={t('dropView.zoomIn')} title={t('dropView.zoomIn')} disabled={zoom >= ZOOM_MAX} onClick={() => changeZoom(nextZoom(zoom, 1))} className="rounded border border-ds-zinc-600/50 p-1 disabled:opacity-40">
+            <ZoomIn className="h-3.5 w-3.5" aria-hidden />
+          </button>
+          <button type="button" aria-label={t('dropView.zoomFit')} title={t('dropView.zoomFit')} onClick={fitToView} className="ml-0.5 rounded border border-ds-zinc-600/50 p-1">
+            <Maximize2 className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        </div>
+      )}
       {!customFlow && DROP_KINDS.map(kind => (
         <button key={kind} type="button" aria-pressed={kinds.includes(kind)} onClick={() => { setKinds(toggleKind(kinds, kind)); setExpanded([]); }}
           className={cn('rounded-full border px-2 py-0.5', kinds.includes(kind) ? 'border-ds-indigo-500 text-ds-indigo-400' : 'border-ds-zinc-600/50 text-ds-zinc-500')}>
@@ -282,17 +347,24 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
     if (!canvas) { setConnectors([]); return; }
     const measure = () => {
       const base = canvas.getBoundingClientRect();
+      // Die Linien liegen im selben gezoomten Bereich wie die Knoten, gemessen wird aber am Bildschirm.
+      const scale = canvas.offsetWidth ? base.width / canvas.offsetWidth : 1;
+      const local = (box: DOMRect) => ({
+        left: (box.left - base.left) / scale, right: (box.right - base.left) / scale,
+        top: (box.top - base.top) / scale, bottom: (box.bottom - base.top) / scale,
+      });
+      const origin = { left: 0, top: 0 };
       const next: Connector[] = [];
       for (const edge of allEdges) {
         const a = nodeRefs.current.get(edge.from);
         const b = nodeRefs.current.get(edge.to);
         if (!a || !b) continue;
-        const boxA = a.getBoundingClientRect();
-        const boxB = b.getBoundingClientRect();
-        const path = edge.from === edge.to ? null : connectorPath(boxA, boxB, base, orientation);
+        const boxA = local(a.getBoundingClientRect());
+        const boxB = local(b.getBoundingClientRect());
+        const path = edge.from === edge.to ? null : connectorPath(boxA, boxB, origin, orientation);
         next.push({
           key: edgeKey(edge),
-          d: path?.d ?? sameLayerPath(boxA, boxB, base, orientation),
+          d: path?.d ?? sameLayerPath(boxA, boxB, origin, orientation),
           color: edgeColor(edge.type), from: edge.from, to: edge.to, reversed: path?.reversed ?? false, type: edge.type, back: edge.back,
         });
       }
@@ -303,7 +375,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
     const observer = new ResizeObserver(measure);
     observer.observe(canvas);
     return () => observer.disconnect();
-  }, [allEdges, expanded, result, orientation]);
+  }, [allEdges, expanded, result, orientation, zoom]);
 
   let body: React.ReactNode;
   if (startId == null && !customFlow) {
@@ -313,7 +385,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
   } else if (result) {
     const lastLayer = result.layers[result.layers.length - 1]?.layer ?? 0;
     body = (
-      <div ref={canvasRef} data-orientation={orientation} data-testid="drop-pyramid"
+      <div ref={canvasRef} data-orientation={orientation} data-testid="drop-pyramid" style={{ zoom }}
         className={cn('relative flex p-4', horizontal ? 'min-h-full w-max min-w-full flex-row items-center gap-16' : 'flex-col items-center gap-8')}>
         <svg className="pointer-events-none absolute inset-0 z-0 h-full w-full overflow-visible" data-testid="drop-connectors">
           <defs>
@@ -437,7 +509,7 @@ export function DropView({ theme, focusedEntity, projectId, onFileSelect, onOpen
       <div className="flex shrink-0 flex-wrap items-center gap-1 px-3 pt-2 text-[0.6875rem] font-semibold text-ds-zinc-500"><Layers className="h-3 w-3" aria-hidden />{t(customFlow ? 'dropView.titleFlow' : 'dropView.title')}{actions}</div>
       {flowBanner}
       {toolbar}
-      <div className="min-h-0 flex-1 overflow-auto">{body}</div>
+      <div ref={scrollerRef} className="min-h-0 flex-1 overflow-auto">{body}</div>
       {hasBackEdges && <p className="shrink-0 px-3 py-1 text-[0.625rem] text-ds-zinc-500">{t('dropView.backEdgeHint')}</p>}
       {edgeDetails}
     </div>

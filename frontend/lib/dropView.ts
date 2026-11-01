@@ -188,6 +188,16 @@ export function flowToDrop(flow: CallFlowData): DropResult {
   return { root: toNode(flow.root.id), direction: flow.direction === 'incoming' ? 'up' : 'down', kinds: [], layers, back_edges: backEdges, stopped: null, collapse_above: 0 };
 }
 
+const ZOOM_LEVELS = [0.25, 0.33, 0.5, 0.67, 0.8, 1, 1.25, 1.5, 2];
+export const ZOOM_MIN = ZOOM_LEVELS[0];
+export const ZOOM_MAX = ZOOM_LEVELS[ZOOM_LEVELS.length - 1];
+
+/** Nächste Zoomstufe; ein eingepasster Wert zwischen zwei Stufen springt auf die nächste in dieser Richtung. */
+export function nextZoom(zoom: number, direction: 1 | -1): number {
+  const candidates = direction > 0 ? ZOOM_LEVELS.filter(level => level > zoom) : ZOOM_LEVELS.filter(level => level < zoom).reverse();
+  return candidates[0] ?? zoom;
+}
+
 /** Breite einer Ebene in Prozent: oben schmal, nach unten breiter (Pyramide), nie über 100. */
 export function layerWidthPercent(layer: number, layers: number): number {
   if (layers <= 0) return 100;

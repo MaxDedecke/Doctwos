@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { CallFlowData } from './callFlow';
-import { citeLocation, connectorPath, flowToDrop, layerWidthPercent, sameLayerPath, toggleExpanded, toggleKind } from './dropView';
+import { citeLocation, connectorPath, flowToDrop, layerWidthPercent, nextZoom, sameLayerPath, toggleExpanded, toggleKind } from './dropView';
 
 describe('dropView', () => {
   it('keeps at least one edge kind and a fixed order', () => {
@@ -95,5 +95,16 @@ describe('flowToDrop', () => {
     const open = result.layers[1].nodes[0];
     expect(open).toMatchObject({ id: -10, unresolved: true, file_path: '' });
     expect(result.layers[1].edges[0]).toMatchObject({ from: 1, to: -10, cite: 'A.cbl:1' });
+  });
+});
+
+describe('nextZoom', () => {
+  it('walks the levels, stops at both ends and leaves a fitted value for the next level', () => {
+    expect(nextZoom(1, 1)).toBe(1.25);
+    expect(nextZoom(1, -1)).toBe(0.8);
+    expect(nextZoom(2, 1)).toBe(2);
+    expect(nextZoom(0.25, -1)).toBe(0.25);
+    expect(nextZoom(0.41, 1)).toBe(0.5);
+    expect(nextZoom(0.41, -1)).toBe(0.33);
   });
 });

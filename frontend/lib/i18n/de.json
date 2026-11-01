@@ -2096,6 +2096,11 @@
       "data": "Daten",
       "includes": "Einbindungen"
     },
+    "zoom": "Zoom",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "Zoom auf 100 % zurücksetzen",
+    "zoomFit": "Alles einpassen",
     "layoutHorizontal": "Ebenen nebeneinander anzeigen",
     "layoutVertical": "Ebenen untereinander anzeigen",
     "layers": "Ebenen",
