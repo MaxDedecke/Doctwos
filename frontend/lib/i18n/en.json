@@ -481,6 +481,9 @@
       "manualDocumentLabel": "Manual document"
     },
     "sourcesSetup": {
+      "gitlabProjectsRequired": "Enter GitLab project IDs or namespace/project paths.",
+      "gitlabIssuesHint": "Enter comma-separated project IDs or namespace/project paths. Comments are included; confidential issues and internal comments are excluded.",
+      "gitlabIssuesDescription": "Import GitLab issues including comments.",
       "uploadDocsTitle": "Upload documents",
       "folderWatchTitle": "Connect folder",
       "folderWatchDesc": "Enter the path where the folder is accessible inside the container (default: /watched). Doctus scans this folder every hour for new and changed files.",

@@ -516,7 +516,9 @@ def test_get_project_entities_scoped_to_project_and_filterable_by_type(
         # Über der Grenze keine Liste; je Datei und je Name geht es weiter.
         with patch("api.projects.MAX_PROJECT_ENTITY_LIST", 1):
             assert client.get(f"/projects/{test_project}/entities").status_code == 413
-            res = client.get(f"/projects/{test_project}/entities", params={"file_path": "ACCOUNT.cbl"})
+            res = client.get(
+                f"/projects/{test_project}/entities", params={"file_path": "ACCOUNT.cbl"}
+            )
             assert res.status_code == 200
             assert {e["name"] for e in res.json()} == {"ACCOUNT", "INIT-PARA"}
             res = client.get(f"/projects/{test_project}/entities", params={"names": "ACCOUNT"})

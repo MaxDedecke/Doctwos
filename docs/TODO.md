@@ -344,3 +344,7 @@ Ollama bleibt der standardmäßige, vorkonfigurierte Container für lokale Entwi
 - Nach Abschluss wird der Punkt aus dieser Datei entfernt; dauerhafte
   Architekturentscheidungen gehören in [ENTSCHEIDUNGEN.md](ENTSCHEIDUNGEN.md),
   fachliche Detailnachweise in die jeweils verlinkte Dokumentation.
+
+## Interner Java/Maven-Pilot (Auftrag 02.11.2026)
+
+Lieferparität Offline/Remote, konfigurierbares internes GitLab und GitLabIssues mit Kommentaren implementiert. Lokale technische Abnahme siehe `docs/PILOT_DEPLOYMENT.md`; die tatsächlichen internen Endpunkte, Zugriffsrechte, Zertifikate und fachlichen Pilotfragen bleiben vor Ort zu prüfen. Ältere On-Prem-Checklisten sind gegen diesen neuen Lieferstand abzugleichen.

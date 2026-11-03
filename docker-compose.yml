@@ -169,6 +169,9 @@ services:
       DEPLOYER_URL: http://deployer:9000
       DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:-}
       LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-false}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
@@ -181,6 +184,8 @@ services:
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
       CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      GIT_SSL_CAINFO: ${GIT_SSL_CAINFO:-/etc/ssl/certs/ca-certificates.crt}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
       FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
@@ -259,6 +264,9 @@ services:
       # Parse-Prozesse (parser/parse_pool.py; 0 = Thread-Parsing wie zuvor).
       EMBED_CONCURRENCY: ${EMBED_CONCURRENCY:-3}
       PARSE_WORKERS: ${PARSE_WORKERS:-3}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
@@ -271,6 +279,8 @@ services:
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
       CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      GIT_SSL_CAINFO: ${GIT_SSL_CAINFO:-/etc/ssl/certs/ca-certificates.crt}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
       FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
@@ -335,10 +345,15 @@ services:
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
       CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      GIT_SSL_CAINFO: ${GIT_SSL_CAINFO:-/etc/ssl/certs/ca-certificates.crt}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
       FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}

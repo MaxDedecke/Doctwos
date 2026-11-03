@@ -28,6 +28,7 @@ import httpx
 from fastapi import APIRouter, HTTPException
 
 from api.schemas import ConnectorBranchesRequest, ConnectorReposRequest, ConnectorTestRequest
+from api.gitlab import gitlab_base, gitlab_pages
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 
@@ -230,9 +231,9 @@ async def test_connector(req: ConnectorTestRequest):
                         "message": f"Bitbucket-Fehler ({resp.status_code}): {resp.text}",
                     }
 
-            elif req.type == "gitlab":
+            elif req.type in ("gitlab", "gitlabissues"):
                 headers["Private-Token"] = req.token
-                resp = await client.get("https://gitlab.com/api/v4/user", headers=headers)
+                resp = await client.get(f"{gitlab_base(req.url)}/api/v4/user", headers=headers)
                 if resp.status_code == 200:
                     return {
                         "success": True,
@@ -319,7 +320,7 @@ async def test_connector(req: ConnectorTestRequest):
 @router.post("/repos")
 async def get_connector_repos(req: ConnectorReposRequest):
     headers = {"User-Agent": _USER_AGENT}
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, verify=_http_verify(req.verify_ssl)) as client:
         try:
             if req.type == "github":
                 headers["Authorization"] = f"Bearer {req.token}"
@@ -386,23 +387,18 @@ async def get_connector_repos(req: ConnectorReposRequest):
                         )
                     return result
 
-            elif req.type == "gitlab":
+            elif req.type in ("gitlab", "gitlabissues"):
                 headers["Private-Token"] = req.token
-                resp = await client.get(
-                    "https://gitlab.com/api/v4/projects?membership=true&per_page=100",
-                    headers=headers,
+                projects = await gitlab_pages(
+                    client, f"{gitlab_base(req.url)}/api/v4/projects", headers, membership="true"
                 )
-                if resp.status_code != 200:
-                    raise HTTPException(
-                        status_code=resp.status_code, detail=f"GitLab API Fehler: {resp.text}"
-                    )
                 return [
                     {
-                        "name": r["name"],
-                        "full_name": r["path_with_namespace"],
-                        "clone_url": r["http_url_to_repo"],
+                        "name": item["name"],
+                        "full_name": item["path_with_namespace"],
+                        "clone_url": item["http_url_to_repo"],
                     }
-                    for r in resp.json()
+                    for item in projects
                 ]
 
             else:
@@ -418,7 +414,7 @@ async def get_connector_repos(req: ConnectorReposRequest):
 @router.post("/branches")
 async def get_connector_branches(req: ConnectorBranchesRequest):
     headers = {"User-Agent": _USER_AGENT}
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=30.0, verify=_http_verify(req.verify_ssl)) as client:
         try:
             if req.type == "github":
                 if req.token:
@@ -502,19 +498,16 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
                         [item["name"] for item in resp.json().get("values", [])], default_branch
                     )
 
-            elif req.type == "gitlab":
+            elif req.type in ("gitlab", "gitlabissues"):
                 if req.token:
                     headers["Private-Token"] = req.token
                 encoded_name = quote_plus(req.repo_name)
-                resp = await client.get(
-                    f"https://gitlab.com/api/v4/projects/{encoded_name}/repository/branches?per_page=100",
-                    headers=headers,
+                items = await gitlab_pages(
+                    client,
+                    f"{gitlab_base(req.url)}/api/v4/projects/{encoded_name}/repository/branches",
+                    headers,
                 )
-                if resp.status_code != 200:
-                    raise HTTPException(
-                        status_code=resp.status_code, detail=f"GitLab API Fehler: {resp.text}"
-                    )
-                return [item["name"] for item in resp.json()]
+                return [item["name"] for item in items]
 
             else:
                 raise HTTPException(status_code=400, detail="Ungültiger Connector-Typ.")

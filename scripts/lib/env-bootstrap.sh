@@ -79,7 +79,7 @@ sync_compose_file() {
     compose_files="$base_compose_file"
     if [ "$remote_inference" = "1" ] || [ "$remote_inference" = "true" ]; then
         echo "Remote inference mode selected — activating docker-compose.remote-inference.yml overlay."
-        echo "Local Ollama container is kept on standby in profile 'local-ollama' (ready to start ad-hoc at any time)."
+        echo "Local Ollama is disabled; remote-only bundles do not include its image or models."
         compose_files="$compose_files:docker-compose.remote-inference.yml"
     elif gpu_ready_for_docker; then
         echo "NVIDIA GPU + Container Toolkit detected — enabling GPU passthrough for Ollama (docker-compose.gpu.yml)."
@@ -100,18 +100,34 @@ sync_compose_file() {
 bootstrap_env() {
     repo_root="$1"
 
-    if [ -f "$repo_root/.env" ]; then
-        echo "Found existing .env — leaving it as is."
+    umask 077
+    if [ ! -f "$repo_root/.env" ]; then
+        echo "No .env found, creating one from .env.example..."
+        cp "$repo_root/.env.example" "$repo_root/.env"
+    fi
+    master_key=$(sed -n 's/^MASTER_ENCRYPTION_KEY=//p' "$repo_root/.env" | head -n 1)
+    session_key=$(sed -n 's/^SESSION_SECRET_KEY=//p' "$repo_root/.env" | head -n 1)
+    deployer_token=$(sed -n 's/^DEPLOYER_TOKEN=//p' "$repo_root/.env" | head -n 1)
+    if [ -n "$master_key" ] && [ -n "$session_key" ] && [ -n "$deployer_token" ]; then
+        echo "Found existing .env keys — preserving them."
         return
     fi
-
-    echo "No .env found, creating one from .env.example..."
-    cp "$repo_root/.env.example" "$repo_root/.env"
-
-    master_key=$(python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())" 2>/dev/null) \
-        || master_key=$(docker run --rm python:3.11-slim sh -c "pip install -q cryptography >/dev/null 2>&1 && python3 -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\"")
-    session_key=$(openssl rand -base64 32)
-    deployer_token=$(openssl rand -hex 32)
+    if [ -z "$master_key" ] && [ -f "$repo_root/data/postgres/PG_VERSION" ]; then
+        echo "Existing database without encryption key: restore the original .env; refusing to generate a replacement." >&2
+        exit 1
+    fi
+    image_version=${2:-$(sed -n 's/^DOCTUS_VERSION=//p' "$repo_root/.env" | head -n 1)}
+    if [ -z "$master_key" ]; then
+        master_key=$(docker run --rm --pull=never --network none --entrypoint python \
+            "doctus-backend-api:${image_version:-latest}" -c \
+            'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+    fi
+    [ -n "$session_key" ] || session_key=$(openssl rand -base64 32)
+    [ -n "$deployer_token" ] || deployer_token=$(openssl rand -hex 32)
+    # Older customer .env files may not yet contain all keys.
+    for key in MASTER_ENCRYPTION_KEY SESSION_SECRET_KEY DEPLOYER_TOKEN; do
+        grep -q "^${key}=" "$repo_root/.env" || printf '%s=\n' "$key" >> "$repo_root/.env"
+    done
 
     # Portable in-place edit (BSD/GNU sed differ on -i): write to a temp file, then replace.
     sed -e "s|^MASTER_ENCRYPTION_KEY=.*|MASTER_ENCRYPTION_KEY=${master_key}|" \
@@ -120,7 +136,7 @@ bootstrap_env() {
         "$repo_root/.env" > "$repo_root/.env.tmp"
     mv "$repo_root/.env.tmp" "$repo_root/.env"
 
-    echo "Generated MASTER_ENCRYPTION_KEY, SESSION_SECRET_KEY and DEPLOYER_TOKEN in .env."
+    echo "Generated missing keys in .env; existing keys preserved."
     echo "Review .env now and set API_URL/FRONTEND_URL before continuing."
 }
 

@@ -33,6 +33,7 @@ export const getConnectorMetadata = (typeName: string | undefined | null): Conne
         badgeColor: "bg-ds-blue-500/10 text-ds-blue-400 border-ds-blue-500/20",
         icon: <Database className="w-4 h-4" />
       };
+    case 'gitlabissues':
     case 'jira':
       return {
         glowColor: "rgba(139, 92, 246, 0.15)",

@@ -33,7 +33,7 @@ external acceptance work, and follow-up improvements are tracked in
 - GitHub, GitLab, Bitbucket, and generic Git repositories
 - Branch-isolated bare mirrors and worktrees for monorepos
 - Resumable file-level synchronization
-- Confluence, Jira, WebDAV, FolderWatch, and local upload sources
+- Confluence Server/Data Center, Jira, GitLab Issues with comments, WebDAV, FolderWatch, and local upload sources
 - OCR fallback for scanned documents
 
 ### Workspace
@@ -67,8 +67,12 @@ external acceptance work, and follow-up improvements are tracked in
 | Local AI | Ollama and BGE-M3; optional configured chat model |
 | Authentication | Local signed HTTP-only session cookies |
 
-The Compose stack contains seven services: `frontend`, `backend-api`,
-`parser-worker`, `parser-beat`, `db`, `redis`, and `ollama`.
+The standard Compose stack contains `frontend`, `backend-api`, `parser-worker`,
+`parser-beat`, `link-worker`, `db` and `redis`. Ollama and the local model deployer
+are optional profiles; remote inference can run without either service.
+
+For the internal Java/Maven pilot with self-managed GitLab, GitLab Issues and Confluence, see
+[the pilot deployment guide](docs/PILOT_DEPLOYMENT.md).
 
 ## Getting started
 

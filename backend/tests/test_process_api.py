@@ -1004,7 +1004,9 @@ def test_logging_and_simple_getter_calls_are_marked_as_helpers(
         )
 
     call("LOG.info", receiver="LOG", method_name="info", argument_count=1)
-    call("Objects.requireNonNull", receiver="Objects", method_name="requireNonNull", argument_count=1)
+    call(
+        "Objects.requireNonNull", receiver="Objects", method_name="requireNonNull", argument_count=1
+    )
     call("getName", short, method_name="getName", argument_count=0)
     call("getReport", long, method_name="getReport", argument_count=0)
     call("store", method_name="store", argument_count=2)
@@ -1165,4 +1167,3 @@ def test_shared_data_joins_dialog_and_batch_through_the_same_dataset(
     assert [row["label"] for row in shared(job)] == [dataset]
     assert shared(other) == []
     remove_source()
-

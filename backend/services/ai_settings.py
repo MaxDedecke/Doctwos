@@ -43,18 +43,21 @@ def ensure_profiles(db: Session, settings: AISettings) -> list[AIProfile]:
     if not cfg.BOOTSTRAP_LLM_ENDPOINT:
         # Standard-Stack ohne LLM-Container: erst ein Admin legt ein Profil an.
         return []
+    provider = cfg.BOOTSTRAP_LLM_PROVIDER
+    base_url = cfg.BOOTSTRAP_LLM_URL.rstrip("/")
     local = AIProfile(
-        name="Lokales Ollama",
-        kind="local",
-        provider="ollama",
-        protocol="ollama",
+        name="Ollama" if provider == "ollama" else "Remote Inference",
+        kind="local" if base_url == LOCAL_OLLAMA_URL else "remote",
+        provider=provider,
+        protocol="ollama" if provider == "ollama" else "openai_chat",
         llm_model=settings.llm_model or cfg.OLLAMA_LLM_MODEL,
-        llm_base_url=LOCAL_OLLAMA_URL,
-        llm_path="/api/chat",
-        embedding_provider="ollama",
+        llm_base_url=base_url,
+        llm_api_key=cfg.BOOTSTRAP_LLM_KEY or None,
+        llm_path="/api/chat" if provider == "ollama" else "/chat/completions",
+        embedding_provider=settings.embedding_provider,
         embedding_model=settings.embedding_model or cfg.OLLAMA_EMBED_MODEL,
-        embedding_base_url=LOCAL_OLLAMA_URL,
-        embedding_path="/api/embed",
+        embedding_base_url=settings.embedding_base_url,
+        embedding_path="/embeddings" if settings.embedding_provider == "openai" else "/api/embed",
         embedding_dimension=settings.embedding_dimension,
         embedding_context_length=settings.embedding_context_length,
         llm_context_length=settings.llm_context_length,

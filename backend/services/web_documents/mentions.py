@@ -31,7 +31,9 @@ _TOKEN_RE = re.compile(r"[A-Za-z_$][\w$-]*(?:[./#][A-Za-z_$][\w$-]*)*")
 _INNER_CAPITAL_RE = re.compile(r"[a-z0-9][A-Z]")
 _CODE_LIKE_UPPER_RE = re.compile(r"[A-Z][A-Z0-9]*(?:[-_][A-Z0-9]+)+|[A-Z]+[0-9][A-Z0-9]*")
 _TICKET_KEY_RE = re.compile(r"[A-Z][A-Z0-9_]*-\d+")
-_FILE_SUFFIX_RE = re.compile(r"\.(?:java|cbl|cob|cpy|jcl|proc|xml|xsd|sql|py|ts|tsx|js|sh|kt|groovy)$", re.I)
+_FILE_SUFFIX_RE = re.compile(
+    r"\.(?:java|cbl|cob|cpy|jcl|proc|xml|xsd|sql|py|ts|tsx|js|sh|kt|groovy)$", re.I
+)
 _PACKAGE_RE = re.compile(r"(?:[a-z_][a-z0-9_]*\.){2,}")
 
 
@@ -68,7 +70,9 @@ def scan_names(text: str) -> dict[str, _Named]:
         parts = re.split(r"[./#]", token)
         package = _PACKAGE_RE.match(token)
         for word in parts:
-            if not _is_distinctive(word) and not (package and word == parts[-1] and word[:1].isupper()):
+            if not _is_distinctive(word) and not (
+                package and word == parts[-1] and word[:1].isupper()
+            ):
                 continue
             if package:
                 # Ein fremdes Paket (etwa im Stacktrace) meint nicht das gleichnamige Objekt im Projekt.
@@ -126,7 +130,9 @@ def find_code_refs(
         # Aus Überladungen derselben Datei wird ein Eintrag; die Einheit geht ihren Routinen vor.
         rank = {"container": 0, "routine": 2}
         by_file: dict[str, object] = {}
-        for entity in sorted(entities, key=lambda e: (rank.get(role_of(e.type), 1), e.start_line or 0)):
+        for entity in sorted(
+            entities, key=lambda e: (rank.get(role_of(e.type), 1), e.start_line or 0)
+        ):
             by_file.setdefault(entity.file_path, entity)
         for entity in by_file.values():
             if entity.source_id not in visible:

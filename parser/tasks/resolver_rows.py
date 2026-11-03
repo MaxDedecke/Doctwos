@@ -53,6 +53,7 @@ class EntityRow:
         "name",
         "parent_id",
         "project_id",
+        "source_id",
         "qualified_name",
         "start_line",
         "type",
@@ -62,6 +63,7 @@ class EntityRow:
     def __init__(self, row, meta: dict):
         self.id = row.id
         self.project_id = row.project_id
+        self.source_id = getattr(row, "source_id", None)
         self.type = intern(row.type) if row.type else row.type
         self.name = share(row.name)
         self.qualified_name = share(row.qualified_name)
@@ -115,6 +117,7 @@ def load_entity_rows(
     query = db.query(
         CodeEntity.id,
         CodeEntity.project_id,
+        CodeEntity.source_id,
         CodeEntity.type,
         CodeEntity.name,
         CodeEntity.qualified_name,

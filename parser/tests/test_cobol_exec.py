@@ -179,9 +179,7 @@ CONTROL_FLOW_PROGRAM = (
 
 def _block_edges():
     result = parse_program(CONTROL_FLOW_PROGRAM, "SIGNON.CBL")
-    return result, {
-        edge.dst_name: edge for edge in result.edges if edge.type == "CONTAINS"
-    }
+    return result, {edge.dst_name: edge for edge in result.edges if edge.type == "CONTAINS"}
 
 
 def test_a_paragraph_contains_its_exec_blocks_under_their_condition():
@@ -250,10 +248,7 @@ def test_a_cics_file_held_in_a_variable_names_its_possible_values():
         "           END-EXEC.\n",
         "ADDTRN.CBL",
     )
-    edge = next(
-        item for item in result.edges if item.type == "USES" and item.dst_name == "WS-FILE"
-    )
+    edge = next(item for item in result.edges if item.type == "USES" and item.dst_name == "WS-FILE")
     assert edge.meta["operation"] == "WRITE"
     assert edge.meta["dynamic"] is True
     assert [item["name"] for item in edge.meta["candidate_targets"]] == ["TRANSACT"]
-

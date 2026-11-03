@@ -344,3 +344,20 @@ describe('GitSetupTab', () => {
     });
   });
 });
+
+
+describe('self-hosted GitLab', () => {
+  it('sends the configured instance to connection test and repository browsing', async () => {
+    vi.clearAllMocks(); settingsValue = createSettingsContextValue();
+    apiMocks.testConnector.mockResolvedValue(axiosResponse({success:true}));
+    apiMocks.getConnectorRepos.mockResolvedValue(axiosResponse([]));
+    render(<GitSetupTab targetProjectId={null} onDone={vi.fn()} />);
+    fireEvent.click(screen.getByText('GitLab'));
+    fireEvent.click(screen.getByText('common.next'));
+    fireEvent.change(screen.getByLabelText('GitLab Server URL'),{target:{value:'https://gitlab.intern/context'}});
+    fireEvent.change(screen.getByPlaceholderText('glpat-...'),{target:{value:'test-only'}});
+    fireEvent.click(screen.getByText('settings.gitSetup.step2.testConnection'));
+    await waitFor(() => expect(apiMocks.testConnector).toHaveBeenCalledWith(expect.objectContaining({type:'gitlab',url:'https://gitlab.intern/context',token:'test-only'})));
+    await waitFor(() => expect(apiMocks.getConnectorRepos).toHaveBeenCalledWith(expect.objectContaining({url:'https://gitlab.intern/context'})));
+  });
+});

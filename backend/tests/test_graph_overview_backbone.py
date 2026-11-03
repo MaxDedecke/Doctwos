@@ -221,7 +221,9 @@ def test_deleting_a_source_requests_a_rebuild(client, db_session, test_project, 
     assert remaining == 0
 
 
-def _crowded_entry_graph(db_session, test_project, test_team, *, kind, ext, hub_kind, hub_ext, hub_edge):
+def _crowded_entry_graph(
+    db_session, test_project, test_team, *, kind, ext, hub_kind, hub_ext, hub_edge
+):
     """ENTRY ruft NEXT1 und NEXT2 je einmal und nutzt vier Hub-Dateien je achtmal. Dieselben Hubs
     nutzen auch sechs andere Dateien, und auch NEXT1/NEXT2 hängen an drei Hubs: Nach Zahl der
     Einzelbeziehungen verdrängen die Hub-Kanten den Aufruf an beiden Enden."""
@@ -286,16 +288,28 @@ def _crowded_entry_graph(db_session, test_project, test_team, *, kind, ext, hub_
 @pytest.fixture
 def crowded_cobol(db_session, test_project, test_team):
     yield from _crowded_entry_graph(
-        db_session, test_project, test_team,
-        kind="program", ext="cbl", hub_kind="copybook", hub_ext="cpy", hub_edge="COPY",
+        db_session,
+        test_project,
+        test_team,
+        kind="program",
+        ext="cbl",
+        hub_kind="copybook",
+        hub_ext="cpy",
+        hub_edge="COPY",
     )
 
 
 @pytest.fixture
 def crowded_java(db_session, test_project, test_team):
     yield from _crowded_entry_graph(
-        db_session, test_project, test_team,
-        kind="class", ext="java", hub_kind="class", hub_ext="java", hub_edge="CALLS",
+        db_session,
+        test_project,
+        test_team,
+        kind="class",
+        ext="java",
+        hub_kind="class",
+        hub_ext="java",
+        hub_edge="CALLS",
     )
 
 

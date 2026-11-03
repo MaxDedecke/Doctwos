@@ -215,9 +215,7 @@ def parse_program(
             copybook_index,
             profile.copy_search_order if profile is not None else (),
         )
-        xref_edges, xref_errors = xref_mod.scan(
-            program, tokens, items, inherited_fields, timeline
-        )
+        xref_edges, xref_errors = xref_mod.scan(program, tokens, items, inherited_fields, timeline)
         errors.extend(xref_errors)
 
         fd_edges = data_division_mod.file_descriptor_edges(program, file_descriptors, items)

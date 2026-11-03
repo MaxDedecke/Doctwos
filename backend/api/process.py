@@ -205,7 +205,9 @@ def _member_role(entity: CodeEntity) -> str | None:
     return None
 
 
-def _add_entry_routines(db: Session, root: CodeEntity, projection: ProcessProjection, limit: int) -> None:
+def _add_entry_routines(
+    db: Session, root: CodeEntity, projection: ProcessProjection, limit: int
+) -> None:
     """Zeigt die Methoden und inneren Typen als Einstiege; hat eine Datei nur einen Typ, gleich dessen."""
     if root.type not in _ENTRY_LIST_ROOTS:
         return
@@ -233,7 +235,9 @@ def _add_entry_routines(db: Session, root: CodeEntity, projection: ProcessProjec
     if members is None:
         members = (
             db.query(CodeEntity)
-            .filter(*same_unit, CodeEntity.parent_id == parent_id, CodeEntity.type.in_(_MEMBER_TYPES))
+            .filter(
+                *same_unit, CodeEntity.parent_id == parent_id, CodeEntity.type.in_(_MEMBER_TYPES)
+            )
             .order_by(CodeEntity.start_line, CodeEntity.id)
             .limit(limit + 1)
             .all()
@@ -459,9 +463,17 @@ def _node_label(entity: CodeEntity) -> str:
         return entity.name
     meta = entity.meta_json or {}
     if entity.type == "sql_block":
-        words = ["SQL", meta.get("statement_type"), *(meta.get("tables") or [])[:_MAX_LABEL_RESOURCES]]
+        words = [
+            "SQL",
+            meta.get("statement_type"),
+            *(meta.get("tables") or [])[:_MAX_LABEL_RESOURCES],
+        ]
     else:
-        words = [meta.get("dialect"), meta.get("operation"), *(meta.get("resources") or [])[:_MAX_LABEL_RESOURCES]]
+        words = [
+            meta.get("dialect"),
+            meta.get("operation"),
+            *(meta.get("resources") or [])[:_MAX_LABEL_RESOURCES],
+        ]
     return " ".join(word for word in words if word) or entity.name
 
 

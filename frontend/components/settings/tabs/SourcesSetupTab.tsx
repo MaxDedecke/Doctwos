@@ -73,6 +73,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
     let typeCode = "";
     if (activeSourceType === "Confluence") typeCode = "confluence";
     else if (activeSourceType === "Jira Software") typeCode = "jira";
+    else if (activeSourceType === "GitLab Issues") typeCode = "gitlabissues";
     else return;
 
     if (!sourceUrl) {
@@ -84,6 +85,10 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
       return;
     }
 
+    if (typeCode === "gitlabissues" && (!sourceSpaces.trim() || sourceSpaces.split(",").some(s => s.trim().toUpperCase() === "ALL"))) {
+      showToast(t('settings.sourcesSetup.gitlabProjectsRequired'), "error");
+      return;
+    }
     setIsConnectingSource(true);
     try {
       const parsedSpaces = sourceSpaces
@@ -152,6 +157,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
     let typeCode = "";
     if (activeSourceType === "Confluence") typeCode = "confluence";
     else if (activeSourceType === "Jira Software") typeCode = "jira";
+    else if (activeSourceType === "GitLab Issues") typeCode = "gitlabissues";
     else {
       setIsTestingSourceConn(false);
       return;
@@ -444,6 +450,7 @@ export const SourcesSetupTab: React.FC<SourcesSetupTabProps> = ({ activeSourceTy
                 {t('settings.sourcesSetup.integrationSetupDesc', { type: activeSourceType })}
               </p>
               <div className="space-y-3">
+                {activeSourceType === "GitLab Issues" && <p className="text-xs text-ds-zinc-500">{t('settings.sourcesSetup.gitlabIssuesHint')}</p>}
                 <div className="space-y-1.5">
                   <label className="text-[0.625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.sourcesSetup.integrationNameLabel')}</label>
                   <input

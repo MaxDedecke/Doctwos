@@ -63,4 +63,3 @@ def test_yaml_alias_bomb_without_values_ends_quickly():
         levels.append(f"{name}: &{name} [" + ",".join([f"*{previous}"] * 9) + "]")
     result = parse_configuration("\n".join(levels) + "\n", "empty-dos.yaml")
     assert len(result.entities) == 1
-

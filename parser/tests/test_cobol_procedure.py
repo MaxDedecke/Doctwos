@@ -321,4 +321,3 @@ def test_a_paragraph_runs_on_unless_something_always_ends_it():
         "FOURTH-PARA": None,
         "FIFTH-PARA": None,
     }
-

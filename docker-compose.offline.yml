@@ -1,103 +1,95 @@
+# Generated service parity with docker-compose.yml; prebuilt images only.
 name: doctus
-
-# Standalone compose file for air-gapped customers: every image is pre-built
-# and `docker load`-ed by install-offline.sh, so there is no `build:` key and
-# no source on disk to bind-mount. See docs/DEPLOYMENT.md, "Air-Gapped /
-# Offline Installation", and scripts/build-offline-bundle.sh which produces
-# the bundle this file ships in.
-
-# Caps each container's own log file — Docker's json-file driver has no size
-# limit by default, and these containers run indefinitely on a customer's box.
-x-logging: &default-logging
+x-logging: &id001
   driver: json-file
   options:
-    max-size: "10m"
-    max-file: "3"
-
+    max-size: 10m
+    max-file: '3'
 services:
   db:
-    image: pgvector/pgvector:0.8.6-pg16-trixie@sha256:c8483555ce48101872f888c1df8a895ff689d6c7c7a5f7ac266475f9dfe89e0b
+    image: doctus-db:${DOCTUS_VERSION:-latest}
     container_name: doctus-db
     restart: always
-    logging: *default-logging
+    logging: *id001
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    # Loopback only (see docker-compose.yml for the rationale) — keep especially
-    # tight here: the offline bundle targets air-gapped, privacy-strict customers.
     ports:
-      - "127.0.0.1:5432:5432"
+    - 127.0.0.1:5432:5432
     volumes:
-      - ./data/postgres:/var/lib/postgresql/data
+    - ./data/postgres:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}
       interval: 30s
       timeout: 5s
       retries: 5
-
   redis:
-    # Valkey, not Redis: Redis is dual-licensed (RSALv2/SSPLv1) since 7.4 and no
-    # longer OSI open source. Valkey is the Linux Foundation's BSD-3-Clause fork,
-    # wire-compatible — same REDIS_URL, same client, no code changes needed.
-    image: valkey/valkey:8-alpine@sha256:77643d152547b446fc15cbafaff22004545663fcd40c6b28038ad283837baa75
+    image: doctus-redis:${DOCTUS_VERSION:-latest}
     container_name: doctus-redis
     restart: always
-    logging: *default-logging
-    # Loopback only — Valkey runs without auth (see docker-compose.yml).
+    logging: *id001
     ports:
-      - "127.0.0.1:6379:6379"
+    - 127.0.0.1:6379:6379
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test:
+      - CMD
+      - redis-cli
+      - ping
       interval: 30s
       timeout: 5s
       retries: 5
-
   ollama:
-    image: ollama/ollama:latest@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a
+    image: doctus-ollama:${DOCTUS_VERSION:-latest}
     container_name: doctus-ollama
     restart: always
-    logging: *default-logging
-    # Loopback only — Ollama has no auth (see docker-compose.yml).
+    logging: *id001
     ports:
-      - "127.0.0.1:11434:11434"
+    - 127.0.0.1:11434:11434
     environment:
-      OLLAMA_CONTEXT_LENGTH: "8192"
-      OLLAMA_MAX_LOADED_MODELS: "2"
-      OLLAMA_KEEP_ALIVE: "1m"
+      OLLAMA_CONTEXT_LENGTH: '8192'
+      OLLAMA_MAX_LOADED_MODELS: '2'
+      OLLAMA_KEEP_ALIVE: ${OLLAMA_KEEP_ALIVE:--1}
+      OLLAMA_FLASH_ATTENTION: ${OLLAMA_FLASH_ATTENTION:-1}
+      OLLAMA_KV_CACHE_TYPE: ${OLLAMA_KV_CACHE_TYPE:-q8_0}
     volumes:
-      - ./data/ollama:/root/.ollama
+    - ./data/ollama:/root/.ollama
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/localhost/11434'"]
+      test:
+      - CMD-SHELL
+      - bash -c 'exec 3<>/dev/tcp/localhost/11434'
       interval: 30s
       timeout: 5s
       retries: 5
-
   backend-api:
     image: doctus-backend-api:${DOCTUS_VERSION:-latest}
+    mem_limit: ${BACKEND_MEM_LIMIT:-3g}
     container_name: doctus-backend
     restart: always
-    logging: *default-logging
-    # Wait for healthy deps, not just created — backend runs `alembic upgrade
-    # head` on startup and fails against a not-yet-ready Postgres (see main
-    # docker-compose.yml for the full rationale).
+    logging: *id001
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-      ollama:
-        condition: service_healthy
     ports:
-      - "8000:8000"
+    - 8000:8000
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
       REDIS_URL: redis://redis:6379/0
+      KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES: ${KNOWLEDGE_GRAPH_OVERVIEW_MAX_NODES:-10000}
+      KNOWLEDGE_GRAPH_OVERVIEW_MAX_CODE_EDGES: ${KNOWLEDGE_GRAPH_OVERVIEW_MAX_CODE_EDGES:-100000}
       INFERENCE_MAX_CONCURRENCY: ${INFERENCE_MAX_CONCURRENCY:-4}
       INFERENCE_CHAT_RESERVE: ${INFERENCE_CHAT_RESERVE:-1}
       INFERENCE_BATCH_RESERVE: ${INFERENCE_BATCH_RESERVE:-1}
       INFERENCE_CHAT_WAIT_SECONDS: ${INFERENCE_CHAT_WAIT_SECONDS:-30}
       INFERENCE_BATCH_WAIT_SECONDS: ${INFERENCE_BATCH_WAIT_SECONDS:-900}
+      LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-true}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
       OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
@@ -110,6 +102,8 @@ services:
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
       CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      GIT_SSL_CAINFO: ${GIT_SSL_CAINFO:-/etc/ssl/certs/ca-certificates.crt}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
       FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
@@ -123,10 +117,10 @@ services:
       MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
+      FEATURES_CONFIG_PATH: ${FEATURES_CONFIG_PATH:-/config/features.json}
       LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
-      # SSO (E-12) — leer lässt Doctus beim reinen Passwort-Login, siehe
-      # docs/deployment-customer.md Abschnitt "Identity Provider".
+      ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
       OIDC_CLIENT_SECRET: ${OIDC_CLIENT_SECRET:-}
@@ -136,31 +130,30 @@ services:
       OIDC_ADMIN_ROLES: ${OIDC_ADMIN_ROLES:-}
       OIDC_TEAM_MAPPING: ${OIDC_TEAM_MAPPING:-}
     volumes:
-      - ./repos:/repos
-      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
-      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
-      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
-      - ./data/logs/backend-api:/var/log/doctus/backend-api
+    - ./repos:/repos
+    - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+    - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
+    - ./config:/config:ro
+    - ./data/logs/backend-api:/var/log/doctus/backend-api
     healthcheck:
-      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health', timeout=5)"]
+      test:
+      - CMD
+      - python3
+      - -c
+      - import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live', timeout=5)
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 15s
-
   parser-worker:
     image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
     container_name: doctus-parser
     restart: always
-    logging: *default-logging
-    # Also waits for backend-api (owns the Alembic migrations) so tasks never
-    # hit a not-yet-migrated schema on first boot — see main docker-compose.yml.
+    logging: *id001
     depends_on:
       db:
         condition: service_healthy
       redis:
-        condition: service_healthy
-      ollama:
         condition: service_healthy
       backend-api:
         condition: service_healthy
@@ -172,9 +165,14 @@ services:
       INFERENCE_BATCH_RESERVE: ${INFERENCE_BATCH_RESERVE:-1}
       INFERENCE_CHAT_WAIT_SECONDS: ${INFERENCE_CHAT_WAIT_SECONDS:-30}
       INFERENCE_BATCH_WAIT_SECONDS: ${INFERENCE_BATCH_WAIT_SECONDS:-900}
+      EMBED_CONCURRENCY: ${EMBED_CONCURRENCY:-3}
+      PARSE_WORKERS: ${PARSE_WORKERS:-3}
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
       OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
-      OLLAMA_EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
+      EMBED_MODEL: ${OLLAMA_EMBED_MODEL:-bge-m3}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-${OLLAMA_BASE_URL:-http://ollama:11434}}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-${OLLAMA_API_KEY:-}}
       EMBEDDING_PROVIDER: ${EMBEDDING_PROVIDER:-ollama}
@@ -182,57 +180,141 @@ services:
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-1024}
       EMBEDDING_CONTEXT_LENGTH: ${EMBEDDING_CONTEXT_LENGTH:-8100}
       OLLAMA_NUM_CTX: ${OLLAMA_NUM_CTX:-8192}
-      EMBED_BATCH_MAX_CHUNKS: ${EMBED_BATCH_MAX_CHUNKS:-20}
-      EMBED_BATCH_TIMEOUT: ${EMBED_BATCH_TIMEOUT:-120}
       MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
       CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      GIT_SSL_CAINFO: ${GIT_SSL_CAINFO:-/etc/ssl/certs/ca-certificates.crt}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
       FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       LLM_MODEL: ${LLM_MODEL:-disabled}
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
       LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
+      ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
+      LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-true}
     volumes:
-      - ./repos:/repos
-      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
-      # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
-      - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
-      - ./data/logs:/var/log/doctus
-    command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=celery"]
+    - ./repos:/repos
+    - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+    - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
+    - ./data/logs:/var/log/doctus
+    mem_limit: ${PARSER_MEM_LIMIT:-5g}
+    command:
+    - celery
+    - -A
+    - worker
+    - worker
+    - --loglevel=info
+    - --queues=celery
+    - --concurrency=${PARSER_CONCURRENCY:-4}
     healthcheck:
-      test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
+      test:
+      - CMD-SHELL
+      - celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK
       interval: 30s
       timeout: 15s
       retries: 5
       start_period: 20s
-
   link-worker:
     extends:
       service: parser-worker
     container_name: doctus-link-worker
-    command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=global_link_runs", "--concurrency=1"]
-
+    command:
+    - celery
+    - -A
+    - worker
+    - worker
+    - --loglevel=info
+    - --queues=global_link_runs
+    - --concurrency=1
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK
+      interval: 30s
+      timeout: 15s
+      retries: 5
+      start_period: 20s
+  parser-beat:
+    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
+    container_name: doctus-beat
+    restart: always
+    logging: *id001
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      backend-api:
+        condition: service_healthy
+    command:
+    - celery
+    - -A
+    - worker
+    - beat
+    - --loglevel=info
+    - --scheduler=celery.beat:PersistentScheduler
+    - --schedule=/tmp/celerybeat-schedule
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+      REDIS_URL: redis://redis:6379/0
+      LLM_PROVIDER: ${LLM_PROVIDER:-ollama}
+      LLM_BASE_URL: ${LLM_BASE_URL:-}
+      LLM_API_KEY: ${LLM_API_KEY:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-http://ollama:11434}
+      OLLAMA_API_KEY: ${OLLAMA_API_KEY:-}
+      MASTER_ENCRYPTION_KEY: ${MASTER_ENCRYPTION_KEY}
+      CUSTOM_CA_BUNDLE: /certs/custom-ca.pem
+      GIT_SSL_CAINFO: ${GIT_SSL_CAINFO:-/etc/ssl/certs/ca-certificates.crt}
+      SSL_CERT_FILE: ${SSL_CERT_FILE:-/etc/ssl/certs/ca-certificates.crt}
+      FOLDER_MAX_FILE_MB: ${FOLDER_MAX_FILE_MB:-200}
+      DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
+      LLM_MODEL: ${LLM_MODEL:-disabled}
+      LOG_FILE_PATH: /var/log/doctus/parser-beat/parser-beat.log
+      LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-true}
+      EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-${OLLAMA_BASE_URL:-http://ollama:11434}}
+    volumes:
+    - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+    - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
+    - ./data/logs/parser-beat:/var/log/doctus/parser-beat
+    healthcheck:
+      test:
+      - CMD
+      - python3
+      - healthcheck_beat.py
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
   frontend:
     image: doctus-frontend:${DOCTUS_VERSION:-latest}
     container_name: doctus-frontend
     restart: always
-    logging: *default-logging
+    logging: *id001
     depends_on:
       backend-api:
         condition: service_healthy
     ports:
-      - "3000:3000"
+    - 3000:3000
     environment:
       API_URL: ${API_URL}
       INTERNAL_API_URL: http://backend-api:8000
-      NEXT_TELEMETRY_DISABLED: "1"
-      HOSTNAME: "0.0.0.0"
+      NEXT_TELEMETRY_DISABLED: '1'
+      HOSTNAME: 0.0.0.0
     volumes:
-      - ./data/logs/frontend:/var/log/doctus/frontend
-    command: ["sh", "-c", "npm run start 2>&1 | tee -a /var/log/doctus/frontend/frontend.log"]
+    - ./data/logs/frontend:/var/log/doctus/frontend
+    command:
+    - sh
+    - -c
+    - npm run start 2>&1 | tee -a /var/log/doctus/frontend/frontend.log
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
+      test:
+      - CMD
+      - node
+      - -e
+      - 'require(''http'').get(''http://localhost:3000'', r => process.exit(r.statusCode < 500 ? 0 : 1)).on(''error'', () => process.exit(1))'
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 15s
+volumes: {}

@@ -16,7 +16,7 @@ if ! docker compose version >/dev/null 2>&1; then
 fi
 
 . "$repo_root/scripts/lib/env-bootstrap.sh"
-bootstrap_env "$repo_root"
+[ -f "$repo_root/.env" ] || (umask 077; cp "$repo_root/.env.example" "$repo_root/.env")
 sync_compose_file "$repo_root" "docker-compose.yml"
 
 cd "$repo_root"
@@ -38,6 +38,8 @@ esac
 if [ "$deployer_enabled" = 1 ]; then
     docker compose build deployer
 fi
+
+bootstrap_env "$repo_root"
 
 echo "Starting services (Alembic migrations run automatically on backend startup)..."
 startup_since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')

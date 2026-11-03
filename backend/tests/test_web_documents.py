@@ -117,7 +117,9 @@ def _issue(**fields):
 
 @respx.mock
 def test_ticket_uses_rendered_html_all_facts_and_marks_known_links(db_session, sources):
-    respx.get(f"{JIRA}/rest/api/2/issue/ABC-1").mock(return_value=httpx.Response(200, json=_issue()))
+    respx.get(f"{JIRA}/rest/api/2/issue/ABC-1").mock(
+        return_value=httpx.Response(200, json=_issue())
+    )
 
     result = web.resolve_web_document(db_session, USER, sources.jira, f"{JIRA}/browse/ABC-1", True)
 
@@ -202,7 +204,10 @@ def test_page_has_title_path_comments_attachments_and_links_across_sources(db_se
                 "size": 1,
                 "results": [
                     {
-                        "history": {"createdBy": {"displayName": "Eve"}, "createdDate": "2026-03-01"},
+                        "history": {
+                            "createdBy": {"displayName": "Eve"},
+                            "createdDate": "2026-03-01",
+                        },
                         "body": {"view": {"value": "<p>gut</p>"}},
                     }
                 ],
@@ -224,9 +229,9 @@ def test_page_has_title_path_comments_attachments_and_links_across_sources(db_se
         )
     )
 
-    doc = web.resolve_web_document(db_session, USER, sources.wiki, f"{WIKI}/display/ENG/Runbook", True)[
-        "document"
-    ]
+    doc = web.resolve_web_document(
+        db_session, USER, sources.wiki, f"{WIKI}/display/ENG/Runbook", True
+    )["document"]
 
     assert doc["title"] == "Runbook" and doc["kind"] == "page"
     assert doc["url"] == f"{WIKI}/display/ENG/Runbook"
@@ -273,7 +278,9 @@ def test_what_the_index_does_not_hold_is_never_fetched(db_session, sources, kind
 @respx.mock
 def test_foreign_host_is_rejected_without_a_request(db_session, sources):
     with pytest.raises(HTTPException):
-        web.resolve_web_document(db_session, USER, sources.jira, "https://evil.example/browse/ABC-1", True)
+        web.resolve_web_document(
+            db_session, USER, sources.jira, "https://evil.example/browse/ABC-1", True
+        )
     assert not respx.calls
 
 
@@ -300,11 +307,15 @@ def test_attachment_entry_shows_its_indexed_text_without_a_request(db_session, s
 @respx.mock
 def test_any_new_system_works_from_its_index_without_an_adapter(db_session, sources):
     row = sources.source("ServiceNow", "https://snow.example")
-    sources.chunk(row, "INC-1", "<b>Text</b>\n\nZweiter Absatz", title="INC-1", url="https://snow.example/i/1")
+    sources.chunk(
+        row, "INC-1", "<b>Text</b>\n\nZweiter Absatz", title="INC-1", url="https://snow.example/i/1"
+    )
     db_session.commit()
 
     assert isinstance(web_documents.adapter_for("ServiceNow"), WebAdapter)
-    doc = web.resolve_web_document(db_session, USER, row, "https://snow.example/i/1", True)["document"]
+    doc = web.resolve_web_document(db_session, USER, row, "https://snow.example/i/1", True)[
+        "document"
+    ]
 
     assert doc["notice"] == "index_only" and not respx.calls
     assert doc["body_html"] == "<p>&lt;b&gt;Text&lt;/b&gt;</p><p>Zweiter Absatz</p>"
@@ -323,7 +334,9 @@ def test_a_new_adapter_only_needs_a_registry_entry(db_session, sources, monkeypa
     sources.chunk(row, "INC-1", title="INC-1", url="https://snow.example/i/INC-1")
     db_session.commit()
 
-    doc = web.resolve_web_document(db_session, USER, row, "https://snow.example/i/INC-1", True)["document"]
+    doc = web.resolve_web_document(db_session, USER, row, "https://snow.example/i/INC-1", True)[
+        "document"
+    ]
 
     assert doc["title"] == "Live INC-1" and doc["kind"] == "incident"
 
@@ -394,10 +407,14 @@ def test_asset_route_needs_no_session_but_a_genuine_token(db_session, sources):
 
     respx.route(host="testserver").pass_through()
     respx.get(f"{WIKI}/a.svg").mock(
-        return_value=httpx.Response(200, content=b"<svg/>", headers={"content-type": "image/svg+xml"})
+        return_value=httpx.Response(
+            200, content=b"<svg/>", headers={"content-type": "image/svg+xml"}
+        )
     )
     respx.get(f"{WIKI}/plan.pdf").mock(
-        return_value=httpx.Response(200, content=b"%PDF", headers={"content-type": "application/pdf"})
+        return_value=httpx.Response(
+            200, content=b"%PDF", headers={"content-type": "application/pdf"}
+        )
     )
     client = TestClient(app)
     source_id = sources.wiki.id
@@ -413,7 +430,9 @@ def test_asset_route_needs_no_session_but_a_genuine_token(db_session, sources):
     assert client.get(web.asset_url(source_id, f"{WIKI}/plan.pdf")).status_code == 415
     download = client.get(web.asset_url(source_id, f"{WIKI}/plan.pdf", "plan ü.pdf"))
     assert download.status_code == 200
-    assert download.headers["content-disposition"] == "attachment; filename*=UTF-8''plan%20%C3%BC.pdf"
+    assert (
+        download.headers["content-disposition"] == "attachment; filename*=UTF-8''plan%20%C3%BC.pdf"
+    )
 
     # Die übrigen Wege der Quelle bleiben hinter der Anmeldung.
     assert client.get(f"/knowledge-sources/{source_id}/resolve?url=x").status_code == 401
@@ -500,7 +519,9 @@ def test_document_lists_mentioned_code_also_when_falling_back(db_session, source
             end_line=2,
         )
     )
-    sources.chunk(sources.jira, "ABC-3", "Fehler in IndexedWord", title="ABC-3", url=f"{JIRA}/browse/ABC-3")
+    sources.chunk(
+        sources.jira, "ABC-3", "Fehler in IndexedWord", title="ABC-3", url=f"{JIRA}/browse/ABC-3"
+    )
     db_session.commit()
     respx.get(url__startswith=f"{JIRA}/rest/").mock(side_effect=httpx.ConnectError("weg"))
 

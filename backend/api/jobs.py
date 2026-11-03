@@ -38,7 +38,15 @@ from services.link_builder_runs import (
 router = APIRouter(prefix="/jobs", tags=["jobs"])
 ACTIVE = {"pending", "running", "syncing", "parsing"}
 TERMINAL = {"completed", "failed", "cancelled"}
-SUPPORTED_SOURCE_TYPES = {"confluence", "jira", "folderwatch", "webdav", "git", "local"}
+SUPPORTED_SOURCE_TYPES = {
+    "confluence",
+    "jira",
+    "gitlabissues",
+    "folderwatch",
+    "webdav",
+    "git",
+    "local",
+}
 
 
 def _iso(value):

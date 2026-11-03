@@ -15,8 +15,8 @@ offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 
 ## Architekturprinzipien
 
-1. **On-Premise per Default, Cloud nur als Opt-in.** Ab Werk läuft alles lokal
-   über Ollama (`http://ollama:11434`). Cloud-LLM-Profile (OpenAI/Gemini/Anthropic)
+1. **On-Premise per Default, Cloud nur als Opt-in.** Der Standard-Stack startet ohne Modellserver. Lokales Ollama ist ein
+   explizites Profil; interne Remote-Endpunkte können unabhängig für Chat und Embeddings konfiguriert werden. Cloud-LLM-Profile (OpenAI/Gemini/Anthropic)
    sind ein ausdrückliches Opt-in pro Kunde, gated über `cloud_llm_allowed()` in
    `backend/core/config.py` — nie Default.
 2. **Strikt Open Source.** Nur MIT/BSD/Apache-2.0. Jede neue Abhängigkeit muss in
@@ -123,3 +123,7 @@ Regeln dafür:
    für das, was der Code ohnehin sagt.
 6. `User.password_hash` darf in keinem Serializer, Log oder Diagnose-Bundle
    auftauchen (F-005).
+
+## Auftrag 02.11.2026 — interne Pilot-Auslieferung
+
+Explizit beauftragt: Offline-/Remote-Deployment reparieren, selbst gehostetes GitLab konfigurierbar machen und GitLab Issues einschließlich Kommentaren importieren. Dies ist eine genehmigte Ausnahme vom Feature-Stopp. GitLabIssues ist eine eigene Wissensquelle; vertrauliche Issues und interne/vertrauliche Kommentare werden ausgeschlossen. Keine Maven-Plugins ausführen. Standard-Stack ohne lokalen LLM; Profile werden bei expliziten Endpunkten oder Legacy-Ollama angelegt.

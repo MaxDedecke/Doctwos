@@ -78,9 +78,9 @@ class ConfluenceAdapter(WebAdapter):
         links = page.get("_links") or {}
         site = ctx.base_url
         # Nur der Pfad zählt: Viele Instanzen heißen selbst wiki.firma.de.
-        if urlparse(links.get("base") or "").path.rstrip("/").endswith("/wiki") and not site.endswith(
+        if urlparse(links.get("base") or "").path.rstrip("/").endswith(
             "/wiki"
-        ):
+        ) and not site.endswith("/wiki"):
             site = f"{site}/wiki"
 
         version = page.get("version") or {}

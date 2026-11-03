@@ -157,6 +157,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
   };
 
   const availableConnectors = [
+    { name: "GitLab Issues", desc: t('settings.sourcesSetup.gitlabIssuesDescription'), typeKey: "gitlabissues", icon: <Layers className="w-5 h-5 text-ds-violet-400" />, featureKey: 'gitlab' as const },
     { name: "Git", desc: t('settings.sourcesTab.types.git.desc') || "Git-Repository mit Source-Code anbinden", typeKey: "git", icon: <GitBranch className="w-5 h-5 text-ds-indigo-400" />, featureKey: 'git' as const },
     { name: t('settings.sourcesTab.types.confluence.name'), desc: t('settings.sourcesTab.types.confluence.desc'), typeKey: "confluence", icon: <Database className="w-5 h-5 text-ds-blue-400" />, featureKey: 'confluence' as const },
     { name: t('settings.sourcesTab.types.jira.name'), desc: t('settings.sourcesTab.types.jira.desc'), typeKey: "jira", icon: <Layers className="w-5 h-5 text-ds-violet-400" />, featureKey: 'jira' as const },
@@ -581,7 +582,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
-          {availableConnectors.filter(src => src.featureKey === 'git' || features.connectors[src.featureKey]).map((src) => {
+          {availableConnectors.filter(src => src.featureKey === 'git' || (src.featureKey === 'gitlab' ? features.git?.gitlab : features.connectors[src.featureKey])).map((src) => {
             return (
               <button
                 key={src.typeKey}

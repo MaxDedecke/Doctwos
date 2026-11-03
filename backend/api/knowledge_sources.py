@@ -186,32 +186,9 @@ def create_knowledge_source(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    team_id = _resolve_team_id(source.project_id, db, user, source.team_id)
-    _check_knowledge_source_cap(source.project_id, db)
-    db_source = KnowledgeSource(
-        name=source.name,
-        type=source.type,
-        url=source.url,
-        username=source.username,
-        token=source.token,
-        project_id=source.project_id,
-        spaces=source.spaces,
-        sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
-        context_note=_validate_context_note(source.context_note),
-        embedding_model=_validate_embedding_model(source.embedding_model),
-        team_id=team_id,
-    )
-    db.add(db_source)
-    db.commit()
-    db.refresh(db_source)
+    from api.source_create import create_web_source
 
-    # Einheitlicher Task für alle Web-Connector-Typen (Git/Confluence/Jira/WebDAV)
-    if db_source.type and db_source.type.lower() in ("confluence", "jira", "webdav", "git"):
-        send_tracked_task(
-            db, db_source, "process_knowledge_source", [db_source.id], {"trace_id": get_trace_id()}
-        )
-
-    return serialize_source(db_source)
+    return create_web_source(source, db, user)
 
 
 @router.get("")
@@ -273,6 +250,7 @@ def sync_knowledge_source(
     if db_source.type and db_source.type.lower() in (
         "confluence",
         "jira",
+        "gitlabissues",
         "folderwatch",
         "webdav",
         "git",

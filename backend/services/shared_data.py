@@ -20,7 +20,12 @@ from doctus_models.language_profile import CONTAINER_TYPES, role_of
 MAX_RESOURCES = 200
 _CICS_READS = frozenset({"READ", "READNEXT", "READPREV", "STARTBR", "RESETBR", "ENDBR"})
 _CICS_WRITES = frozenset({"WRITE", "REWRITE", "DELETE", "UNLOCK"})
-_OPEN_ACCESS = {"INPUT": {"read"}, "OUTPUT": {"write"}, "EXTEND": {"write"}, "I-O": {"read", "write"}}
+_OPEN_ACCESS = {
+    "INPUT": {"read"},
+    "OUTPUT": {"write"},
+    "EXTEND": {"write"},
+    "I-O": {"read", "write"},
+}
 
 
 @dataclass(frozen=True)
@@ -186,7 +191,9 @@ def _sql_uses(db: Session, project_id: int) -> list[_Use]:
     return uses
 
 
-def _container_of(db: Session, entity: CodeEntity | None, cache: dict[int, int | None]) -> int | None:
+def _container_of(
+    db: Session, entity: CodeEntity | None, cache: dict[int, int | None]
+) -> int | None:
     """Die Einheit, die eine Routine enthält: das Programm bzw. die Klasse."""
     chain: list[int] = []
     result: int | None = None
@@ -372,7 +379,9 @@ def shared_data(db: Session, entity: CodeEntity) -> dict:
             }
             for item in merged.values()
         ]
-        users.sort(key=lambda user: (not user["is_focus"], user["access"] != "write", user["program"]))
+        users.sort(
+            key=lambda user: (not user["is_focus"], user["access"] != "write", user["program"])
+        )
         first = items[0]
         resources.append(
             {
@@ -394,7 +403,8 @@ def shared_data(db: Session, entity: CodeEntity) -> dict:
     return {
         "resources": resources[:MAX_RESOURCES],
         "unresolved": [
-            {"name": name, "cite": cite, "source_id": source_id} for name, cite, source_id in unresolved
+            {"name": name, "cite": cite, "source_id": source_id}
+            for name, cite, source_id in unresolved
         ],
         "truncated": len(resources) > MAX_RESOURCES,
     }

@@ -145,7 +145,8 @@ class ConnectorReposRequest(BaseModel):
     type: str
     username: Optional[str] = None
     token: str
-    url: Optional[str] = None  # Bitbucket Server/Data Center base URL
+    url: Optional[str] = None  # Self-hosted Bitbucket/GitLab base URL
+    verify_ssl: bool = True
 
 
 class ConnectorBranchesRequest(BaseModel):
@@ -153,7 +154,8 @@ class ConnectorBranchesRequest(BaseModel):
     username: Optional[str] = None
     token: Optional[str] = None
     repo_name: str
-    url: Optional[str] = None  # Bitbucket Server/Data Center base URL
+    url: Optional[str] = None  # Self-hosted Bitbucket/GitLab base URL
+    verify_ssl: bool = True
 
 
 class KnowledgeSourceCreate(BaseModel):

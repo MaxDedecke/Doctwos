@@ -2629,15 +2629,21 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     assert drop.drop(db_session, user_obj, project_id, unit, layers=2)["back_edges"] == []
     # Eine leere erste Ebene sagt, was es sonst gibt; ein Import trennt die Bibliothek von der offenen Lücke.
     lone = _method(project_id, "lone", "OTHER.lone", "src/Other.src", 20, 29, kind=routine_type)
-    user_of_lone = _method(project_id, "caller", "OTHER.caller", "src/Other.src", 40, 49, kind=routine_type)
-    unit_file = _method(project_id, "Other", "Other", "src/Other.src", 1, 90, kind="compilation_unit")
+    user_of_lone = _method(
+        project_id, "caller", "OTHER.caller", "src/Other.src", 40, 49, kind=routine_type
+    )
+    unit_file = _method(
+        project_id, "Other", "Other", "src/Other.src", 1, 90, kind="compilation_unit"
+    )
     db_session.add_all([lone, user_of_lone, unit_file])
     db_session.flush()
     _control(db_session, project_id, "READS", lone, other, 21)
     _control(db_session, project_id, edge_type, user_of_lone, lone, 41)
     _control(db_session, project_id, edge_type, lone, None, 22, "unresolved", None, "List.of")
     _control(db_session, project_id, edge_type, lone, None, 23, "unresolved", None, "Gone.call")
-    _control(db_session, project_id, "IMPORTS", unit_file, None, 1, "unresolved", None, "java.util.List")
+    _control(
+        db_session, project_id, "IMPORTS", unit_file, None, 1, "unresolved", None, "java.util.List"
+    )
     db_session.commit()
     for row in db_session.query(CodeEdge).filter(CodeEdge.dst_name == "List.of"):
         row.meta_json = {"receiver": "List"}
@@ -2657,7 +2663,9 @@ def test_drop_view_layers_directions_kinds_and_collapse(
     assert "provenance" not in down["layers"][1]["edges"][0]
 
 
-def _shared_entity(db_session, project_id, source_id, name, type_, file_path, parent=None, meta=None):
+def _shared_entity(
+    db_session, project_id, source_id, name, type_, file_path, parent=None, meta=None
+):
     row = CodeEntity(
         project_id=project_id,
         source_id=source_id,
@@ -2701,44 +2709,88 @@ def test_answer_context_names_who_shares_a_cobol_file_across_dialog_and_batch(
     user, _outsider, project_id, _foreign = mcp_project_context
     dataset = "AWS.TRANSACT.KSDS"
     online = _shared_entity(db_session, project_id, None, "COTRN02C", "program", "cbl/COTRN02C.cbl")
-    block = _shared_entity(db_session, project_id, None, "BLOCK@20", "exec_block", "cbl/COTRN02C.cbl", online)
-    resource = _shared_entity(db_session, project_id, None, "WS-FILE", "exec_resource", "cbl/COTRN02C.cbl", online)
-    known = _shared_entity(db_session, project_id, None, "WS-OPEN", "exec_resource", "cbl/COTRN02C.cbl", online)
-    _shared_entity(db_session, project_id, None, "TRANSACT", "cics_file", "csd/A.CSD", meta={"dataset": dataset})
+    block = _shared_entity(
+        db_session, project_id, None, "BLOCK@20", "exec_block", "cbl/COTRN02C.cbl", online
+    )
+    resource = _shared_entity(
+        db_session, project_id, None, "WS-FILE", "exec_resource", "cbl/COTRN02C.cbl", online
+    )
+    known = _shared_entity(
+        db_session, project_id, None, "WS-OPEN", "exec_resource", "cbl/COTRN02C.cbl", online
+    )
+    _shared_entity(
+        db_session,
+        project_id,
+        None,
+        "TRANSACT",
+        "cics_file",
+        "csd/A.CSD",
+        meta={"dataset": dataset},
+    )
     batch = _shared_entity(db_session, project_id, None, "CBTRN03C", "program", "cbl/CBTRN03C.cbl")
-    para = _shared_entity(db_session, project_id, None, "OPEN-PARA", "paragraph", "cbl/CBTRN03C.cbl", batch)
-    fd = _shared_entity(db_session, project_id, None, "TRAN-FILE", "file_fd", "cbl/CBTRN03C.cbl", batch)
+    para = _shared_entity(
+        db_session, project_id, None, "OPEN-PARA", "paragraph", "cbl/CBTRN03C.cbl", batch
+    )
+    fd = _shared_entity(
+        db_session, project_id, None, "TRAN-FILE", "file_fd", "cbl/CBTRN03C.cbl", batch
+    )
     target = _shared_entity(db_session, project_id, None, dataset, "jcl_dataset", "jcl/REP.jcl")
     cics = {"resource_kind": "DATASET", "operation": "WRITE", "dynamic": True}
-    _shared_edge(db_session, project_id, block, resource, "USES", 20, meta={**cics, "candidate_targets": [{"name": "TRANSACT"}]})
+    _shared_edge(
+        db_session,
+        project_id,
+        block,
+        resource,
+        "USES",
+        20,
+        meta={**cics, "candidate_targets": [{"name": "TRANSACT"}]},
+    )
     _shared_edge(db_session, project_id, block, known, "USES", 25, meta=cics)
     _shared_edge(db_session, project_id, fd, target, "ASSIGNED_DATASET", 2, dst_name=dataset)
     _shared_edge(db_session, project_id, para, fd, "USES", 31, meta={"open_mode": "INPUT"})
     db_session.commit()
 
     pack = build_answer_context(
-        db_session, user, project_id, symbols=["COTRN02C"],
-        question="Welche Programme lesen die Dateien von COTRN02C?", use_embeddings=False,
+        db_session,
+        user,
+        project_id,
+        symbols=["COTRN02C"],
+        question="Welche Programme lesen die Dateien von COTRN02C?",
+        use_embeddings=False,
     )
     block_out = pack["evidence"][0]["shared_files"]
     assert block_out["files"][0]["file"] == dataset
     users = {item["unit"]: item for item in block_out["files"][0]["users"]}
     assert users["COTRN02C"]["access"] == "write" and users["COTRN02C"]["focus"] is True
     assert users["COTRN02C"]["cite"] == "cbl/COTRN02C.cbl:20"
-    assert users["CBTRN03C"]["access"] == "read" and users["CBTRN03C"]["cite"] == "cbl/CBTRN03C.cbl:31"
+    assert (
+        users["CBTRN03C"]["access"] == "read" and users["CBTRN03C"]["cite"] == "cbl/CBTRN03C.cbl:31"
+    )
     assert block_out["unresolved"] == [{"name": "WS-OPEN", "cite": "cbl/COTRN02C.cbl:25"}]
 
     # Ohne passende Frage kostet der Baustein nichts.
     plain = build_answer_context(
-        db_session, user, project_id, symbols=["COTRN02C"], question="Was macht COTRN02C?", use_embeddings=False,
+        db_session,
+        user,
+        project_id,
+        symbols=["COTRN02C"],
+        question="Was macht COTRN02C?",
+        use_embeddings=False,
     )
     assert "shared_files" not in plain["evidence"][0]
 
     # Nach der Datei selbst gefragt braucht es keine besondere Formulierung.
     direct = build_answer_context(
-        db_session, user, project_id, symbols=[dataset], question=f"Was ist {dataset}?", use_embeddings=False,
+        db_session,
+        user,
+        project_id,
+        symbols=[dataset],
+        question=f"Was ist {dataset}?",
+        use_embeddings=False,
     )
-    assert {item["unit"] for item in direct["evidence"][0]["shared_files"]["files"][0]["users"]} == {
+    assert {
+        item["unit"] for item in direct["evidence"][0]["shared_files"]["files"][0]["users"]
+    } == {
         "COTRN02C",
         "CBTRN03C",
     }
@@ -2752,17 +2804,30 @@ def test_answer_context_names_who_shares_a_java_resource_file(
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
     first = _shared_entity(db_session, project_id, None, "PageA", "class", "src/PageA.java")
-    method = _shared_entity(db_session, project_id, None, "render", "method", "src/PageA.java", first)
+    method = _shared_entity(
+        db_session, project_id, None, "render", "method", "src/PageA.java", first
+    )
     second = _shared_entity(db_session, project_id, None, "PageB", "class", "src/PageB.java")
     other = _shared_entity(db_session, project_id, None, "load", "method", "src/PageB.java", second)
-    target = _shared_entity(db_session, project_id, None, "labels.properties", "properties_file", "res/labels.properties")
+    target = _shared_entity(
+        db_session,
+        project_id,
+        None,
+        "labels.properties",
+        "properties_file",
+        "res/labels.properties",
+    )
     _shared_edge(db_session, project_id, method, target, "USES_RESOURCE", 12)
     _shared_edge(db_session, project_id, other, target, "USES_RESOURCE", 34)
     db_session.commit()
 
     pack = build_answer_context(
-        db_session, user, project_id, symbols=["PageA"],
-        question="Welche Klassen nutzen dieselbe Ressource wie PageA?", use_embeddings=False,
+        db_session,
+        user,
+        project_id,
+        symbols=["PageA"],
+        question="Welche Klassen nutzen dieselbe Ressource wie PageA?",
+        use_embeddings=False,
     )
     files = pack["evidence"][0]["shared_files"]["files"]
     assert files[0]["file"] == "res/labels.properties"
@@ -2794,4 +2859,3 @@ def test_chat_sources_take_the_cites_of_shared_files():
         7,
     )
     assert {item["file"] for item in sources} == {"cbl/CBTRN02C.cbl", "cbl/COTRN02C.cbl"}
-

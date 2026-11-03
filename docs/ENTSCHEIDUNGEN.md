@@ -844,3 +844,7 @@ zeigt einen abgestürzten Lauf als abgebrochen (neu startbar) statt als laufend.
 **Grenzen.** Während eines Laufs sind Beziehungen zu geänderten Dateien bis zum Ende
 von Pass 2 unvollständig; das wird angezeigt, nicht verhindert. Eine atomare
 Umschaltung wird erst mit Pilotbedarf erneut bewertet.
+
+## Interner Pilot 02.11.2026 — Lieferparität und GitLab Issues
+
+Expliziter Auftrag: Offline-/Remote-Start reparieren, selbst gehostetes GitLab unterstützen, Issues einschließlich Kommentaren importieren. Offline enthält dieselben notwendigen Dienste wie der normale Stack, insbesondere Beat und Link-Worker; lokale Inferenz bleibt optional. Der Installer nutzt keine Paketdownloads und wartet auf gesunde Dienste. GitLabIssues scannt nur explizite Projekte und liest Kommentare jedes Mal vollständig; keine unsichere Delta-Annahme über Issue-Zeitstempel. Vertrauliche Issues, interne/vertrauliche Kommentare und Systemnotizen werden nicht indexiert. Die bestehende Webansicht nutzt den Index-Fallback. Details: `docs/PILOT_DEPLOYMENT.md`.

@@ -481,6 +481,9 @@
       "manualDocumentLabel": "Manuelles Dokument"
     },
     "sourcesSetup": {
+      "gitlabProjectsRequired": "GitLab-Projekte als IDs oder namespace/projekt angeben.",
+      "gitlabIssuesHint": "Projekte als IDs oder namespace/projekt, durch Komma getrennt. Kommentare werden mitimportiert. Vertrauliche Issues und interne Kommentare bleiben ausgeschlossen.",
+      "gitlabIssuesDescription": "GitLab Issues einschließlich Kommentaren importieren.",
       "uploadDocsTitle": "Dokumente hochladen",
       "folderWatchTitle": "Ordner verbinden",
       "folderWatchDesc": "Gib den Pfad an, unter dem der Ordner im Container erreichbar ist (standardmäßig /watched). Doctus scannt diesen Ordner stündlich auf neue und geänderte Dateien.",

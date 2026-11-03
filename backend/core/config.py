@@ -63,7 +63,14 @@ KNOWLEDGE_GRAPH_OVERVIEW_MAX_CODE_EDGES: int = _positive_int_env(
 # Legacy-Ollama-Dienst) legt beim ersten Start weiterhin ein Bootstrap-Profil an; ohne beides
 # gibt es kein Profil, bis ein Admin unter Einstellungen > KI eines anlegt.
 LEGACY_OLLAMA_SERVICE: bool = os.getenv("LEGACY_OLLAMA_SERVICE", "false").lower() in ("1", "true")
-BOOTSTRAP_LLM_ENDPOINT: bool = bool(os.getenv("OLLAMA_BASE_URL")) or LEGACY_OLLAMA_SERVICE
+BOOTSTRAP_LLM_ENDPOINT: bool = (
+    bool(os.getenv("LLM_BASE_URL") or os.getenv("OLLAMA_BASE_URL")) or LEGACY_OLLAMA_SERVICE
+)
+BOOTSTRAP_LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").lower()
+BOOTSTRAP_LLM_URL = (
+    os.getenv("LLM_BASE_URL") or os.getenv("OLLAMA_BASE_URL") or "http://ollama:11434"
+)
+BOOTSTRAP_LLM_KEY = os.getenv("LLM_API_KEY") or os.getenv("OLLAMA_API_KEY", "")
 BOOTSTRAP_EMBEDDING_ENDPOINT: bool = (
     bool(os.getenv("EMBEDDING_BASE_URL"))
     or bool(os.getenv("OLLAMA_BASE_URL"))

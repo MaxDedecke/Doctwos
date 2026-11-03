@@ -18,6 +18,7 @@ from connectors.base import BaseConnector
 from connectors.confluence import ConfluenceConnector
 from connectors.folder import FolderConnector
 from connectors.jira import JiraConnector
+from connectors.gitlab_issues import GitLabIssuesConnector
 from connectors.webdav import WebdavConnector
 from connectors.git import GitConnector
 
@@ -25,6 +26,7 @@ from connectors.git import GitConnector
 REGISTRY: dict[str, type[BaseConnector]] = {
     "Confluence": ConfluenceConnector,
     "Jira": JiraConnector,
+    "GitLabIssues": GitLabIssuesConnector,
     "FolderWatch": FolderConnector,
     "WebDAV": WebdavConnector,
     "Git": GitConnector,

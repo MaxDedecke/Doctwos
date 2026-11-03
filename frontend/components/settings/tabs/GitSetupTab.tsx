@@ -63,6 +63,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
   const [repoType, setRepoType] = useState("public"); // 'public' | 'github' | 'bitbucket' | 'gitlab'
   const [repoUsername, setRepoUsername] = useState("");
   const [repoToken, setRepoToken] = useState("");
+  const [gitlabServerUrl, setGitlabServerUrl] = useState("https://gitlab.com");
   const [bitbucketServerUrl, setBitbucketServerUrl] = useState("");
   const [newRepoName, setNewRepoName] = useState("");
   const [newRepoUrl, setNewRepoUrl] = useState("");
@@ -148,7 +149,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
           type: repoType,
           username: repoUsername || undefined,
           token: repoToken,
-          url: repoType === 'bitbucket' && bitbucketServerUrl ? bitbucketServerUrl : undefined,
+          url: repoType === 'gitlab' ? gitlabServerUrl : repoType === 'bitbucket' && bitbucketServerUrl ? bitbucketServerUrl : undefined,
         });
 
         if (res.data && res.data.success) {
@@ -161,7 +162,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               type: repoType,
               username: repoUsername || undefined,
               token: repoToken,
-              url: repoType === 'bitbucket' && bitbucketServerUrl ? bitbucketServerUrl : undefined,
+              url: repoType === 'gitlab' ? gitlabServerUrl : repoType === 'bitbucket' && bitbucketServerUrl ? bitbucketServerUrl : undefined,
             });
             setFetchedRepos(reposRes.data || []);
           } catch (err) {
@@ -203,7 +204,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         username: repoUsername || undefined,
         token: repoToken,
         repo_name: fullName,
-        url: repoType === 'bitbucket' && bitbucketServerUrl ? bitbucketServerUrl : undefined,
+        url: repoType === 'gitlab' ? gitlabServerUrl : repoType === 'bitbucket' && bitbucketServerUrl ? bitbucketServerUrl : undefined,
       });
       setFetchedBranches(res.data || []);
       if (res.data && res.data.length > 0) {
@@ -277,7 +278,7 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
         name: repoName,
         url: cloneUrl,
         branch: selectedBranchName || undefined,
-        username: repoType === 'public' ? null : repoUsername,
+        username: repoType === 'public' ? null : repoType === 'gitlab' ? (repoUsername || 'oauth2') : repoUsername,
         token: repoType === 'public' ? null : repoToken,
         project_id: targetProjectId,
         team_id: needsTeamGate ? selectedTeamId : undefined,
@@ -438,6 +439,14 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
               </p>
             </div>
 
+            {repoType === 'gitlab' && (
+              <label className="block text-xs text-ds-zinc-500">
+                GitLab Server URL
+                <input aria-label="GitLab Server URL" value={gitlabServerUrl}
+                  onChange={e => setGitlabServerUrl(e.target.value)} placeholder="https://gitlab.company.com"
+                  className="w-full border border-ds-zinc-500 rounded-lg px-3 py-2 bg-transparent" />
+              </label>
+            )}
             {repoType === 'public' ? (
               <div className="space-y-1.5">
                 <label className="text-[0.5625rem] font-bold text-ds-zinc-500 uppercase px-0.5">{t('settings.gitSetup.step2.cloneUrlLabel')}</label>
@@ -717,7 +726,15 @@ export const GitSetupTab: React.FC<GitSetupTabProps> = ({ targetProjectId, onDon
                 <GitBranch className="w-4 h-4 text-ds-indigo-500 shrink-0" />
                 <span className={theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"}>{t('settings.gitSetup.step4.repositoryLabel')}</span>
                 <span className="font-mono text-ds-zinc-500 truncate max-w-[200px]">
-                  {repoType === 'public' ? (newRepoUrl.split('/').pop()?.replace(/\.git$/, "") || newRepoUrl) : selectedRepoFullName}
+                  {repoType === 'gitlab' && (
+              <label className="block text-xs text-ds-zinc-500">
+                GitLab Server URL
+                <input aria-label="GitLab Server URL" value={gitlabServerUrl}
+                  onChange={e => setGitlabServerUrl(e.target.value)} placeholder="https://gitlab.company.com"
+                  className="w-full border border-ds-zinc-500 rounded-lg px-3 py-2 bg-transparent" />
+              </label>
+            )}
+            {repoType === 'public' ? (newRepoUrl.split('/').pop()?.replace(/\.git$/, "") || newRepoUrl) : selectedRepoFullName}
                 </span>
               </div>
 

@@ -96,4 +96,3 @@ def test_arguments_come_before_the_call_that_uses_them():
     )
     order = [edge.dst_name for edge in result.edges if edge.type in {"CALLS", "INSTANTIATES"}]
     assert order == ["load", "name", "Item", "store"]
-

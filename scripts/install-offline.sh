@@ -38,24 +38,33 @@ mkdir -p data/ollama
 tar xzf ollama-models.tar.gz -C data/ollama
 
 . scripts/lib/env-bootstrap.sh
-bootstrap_env "$bundle_dir"
+bundle_version=$(sed -n 's/^DOCTUS_VERSION=//p' .env.example | head -n 1)
+[ -n "$bundle_version" ] || { echo "Missing bundle version" >&2; exit 1; }
+bootstrap_env "$bundle_dir" "$bundle_version"
+grep -q '^DOCTUS_VERSION=' .env || echo 'DOCTUS_VERSION=' >> .env
+sed "s/^DOCTUS_VERSION=.*/DOCTUS_VERSION=$bundle_version/" .env > .env.tmp
+mv .env.tmp .env
 sync_compose_file "$bundle_dir" "docker-compose.offline.yml" "$remote_inference"
 
 if [ "$remote_inference" = "1" ]; then
     echo
     echo "NOTE: Remote inference active (docker-compose.remote-inference.yml)."
-    echo "Verify that OLLAMA_BASE_URL and EMBEDDING_BASE_URL in .env point to your remote Ollama host."
+    echo "Verify independent LLM_BASE_URL/LLM_PROVIDER and EMBEDDING_BASE_URL/EMBEDDING_PROVIDER/model settings in .env."
     echo "You can test connectivity with: ./test-remote-inference.sh"
-    echo "Local Ollama remains available in profile 'local-ollama' (run: docker compose --profile local-ollama up -d)."
+    echo "Local Ollama requires its image and model weights; these are not included in remote-only bundles."
     echo
 fi
 
+if grep -q '^POSTGRES_PASSWORD=change-me$' .env; then
+    echo "Set POSTGRES_PASSWORD in .env before starting the customer deployment." >&2
+    exit 1
+fi
 echo "==> Starting services (no build — images come from the loaded bundle)"
 # No -f here: sync_compose_file above set COMPOSE_FILE in .env to
 # docker-compose.offline.yml, plus docker-compose.gpu.yml when a GPU was
 # detected — docker compose picks both up from .env in this cwd.
 startup_since=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
-docker compose up -d
+docker compose up -d --pull never --wait --wait-timeout 180
 show_bootstrap_credentials "$startup_since"
 
 check_env_ready "$bundle_dir"

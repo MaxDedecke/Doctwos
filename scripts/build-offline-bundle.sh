@@ -10,6 +10,8 @@ repo_root=$(cd "$(dirname "$0")/.." && pwd)
 cd "$repo_root"
 
 DOCTUS_VERSION="${1:-$(git rev-parse --short HEAD 2>/dev/null || echo dev)}"
+remote_inference=0
+[ "${2:-}" != "--remote-inference" ] || remote_inference=1
 export DOCTUS_VERSION
 
 # Optional local LLM to bake into this bundle. Disabled for the CPU-only pilot
@@ -18,13 +20,15 @@ LLM_MODEL="${LLM_MODEL:-disabled}"
 
 # Baked into the backend image so GET /version reports what's actually
 # running, independent of the diagnostics bundle (docs/DEPLOYMENT.md).
-GIT_SHA="$DOCTUS_VERSION"
+GIT_SHA=$(git rev-parse HEAD 2>/dev/null || echo unknown)
 BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 export GIT_SHA BUILD_TIME
 
 bundle_dir="$repo_root/dist/doctus-offline-bundle-${DOCTUS_VERSION}"
 echo "Building offline bundle ${DOCTUS_VERSION} into ${bundle_dir}"
-rm -rf "$bundle_dir"
+case "$bundle_dir" in "$repo_root"/dist/doctus-offline-bundle-*) ;; *) echo "Invalid bundle path" >&2; exit 1 ;; esac
+case "$DOCTUS_VERSION" in *[!a-zA-Z0-9._-]*|'') echo "Invalid version" >&2; exit 1 ;; esac
+rm -rf -- "$bundle_dir"
 mkdir -p "$bundle_dir"
 
 export DOCKER_DEFAULT_PLATFORM="${DOCKER_DEFAULT_PLATFORM:-linux/amd64}"
@@ -35,10 +39,12 @@ docker compose build parser-worker
 docker compose build frontend
 
 echo "==> Pulling pinned base images (db, redis, ollama)"
-docker compose pull db redis ollama
+docker compose pull db redis
+models_dir=$(mktemp -d)
+if [ "$remote_inference" = 0 ]; then
+docker compose pull ollama
 
 echo "==> Pulling a clean set of Ollama models — not this host's live ./data/ollama, which may carry stale models"
-models_dir=$(mktemp -d)
 docker rm -f doctus-bundle-ollama >/dev/null 2>&1 || true
 ollama_image=$(docker compose config --images ollama)
 docker run -d --name doctus-bundle-ollama -v "$models_dir:/root/.ollama" "$ollama_image" >/dev/null
@@ -74,15 +80,41 @@ echo "==> Recording model provenance (see docs/OSS-CLEARING.md for license text)
 docker rm -f doctus-bundle-ollama >/dev/null 2>&1
 trap - EXIT
 
+else
+    echo "Remote-only bundle: no Ollama image or model downloads."
+    printf 'Remote inference only; no model weights included.\nBuilt: %s\n' "$BUILD_TIME" > "$bundle_dir/MODEL_MANIFEST.txt"
+    ollama_image=
+fi
+
+# docker load does not reliably preserve registry digest references on a fresh daemon.
+# Export named local aliases; record their pinned upstream provenance alongside the bundle.
+db_image=$(docker compose config --images db)
+redis_image=$(docker compose config --images redis)
+docker tag "$db_image" "doctus-db:${DOCTUS_VERSION}"
+docker tag "$redis_image" "doctus-redis:${DOCTUS_VERSION}"
+{
+    printf 'doctus-db:%s <= %s\n' "$DOCTUS_VERSION" "$db_image"
+    printf 'doctus-redis:%s <= %s\n' "$DOCTUS_VERSION" "$redis_image"
+    if [ -n "$ollama_image" ]; then
+        printf 'doctus-ollama:%s <= %s\n' "$DOCTUS_VERSION" "$ollama_image"
+    fi
+} > "$bundle_dir/IMAGE_MANIFEST.txt"
+if [ -n "$ollama_image" ]; then
+    docker tag "$ollama_image" "doctus-ollama:${DOCTUS_VERSION}"
+    ollama_image="doctus-ollama:${DOCTUS_VERSION}"
+fi
+
 echo "==> Saving images (this is the slow, large step — dominated by the Ollama base image)"
-docker save \
+set -- \
     "doctus-backend-api:${DOCTUS_VERSION}" \
     "doctus-parser-worker:${DOCTUS_VERSION}" \
     "doctus-frontend:${DOCTUS_VERSION}" \
-    "$(docker compose config --images db)" \
-    "$(docker compose config --images redis)" \
-    "$ollama_image" \
-    | gzip > "$bundle_dir/images.tar.gz"
+    "doctus-db:${DOCTUS_VERSION}" \
+    "doctus-redis:${DOCTUS_VERSION}" \
+    -o "$bundle_dir/images.tar"
+[ -z "$ollama_image" ] || set -- "$@" "$ollama_image"
+docker save "$@"
+gzip "$bundle_dir/images.tar"
 
 echo "==> Packing Ollama models"
 tar czf "$bundle_dir/ollama-models.tar.gz" -C "$models_dir" .
@@ -94,6 +126,12 @@ cp docker-compose.remote-inference.yml "$bundle_dir/"
 cp docker-compose.gpu.yml "$bundle_dir/"
 cp scripts/install-offline.sh "$bundle_dir/"
 cp scripts/test-remote-inference.sh "$bundle_dir/"
+cp scripts/check_confluence.py "$bundle_dir/"
+cp scripts/check_remote_inference.py "$bundle_dir/"
+cp docs/PILOT_DEPLOYMENT.md "$bundle_dir/"
+printf 'Version: %s\nCommit: %s\nBuilt: %s\n' "$DOCTUS_VERSION" "$GIT_SHA" "$BUILD_TIME" > "$bundle_dir/BUILD_MANIFEST.txt"
+if ! git diff --quiet; then echo "Includes uncommitted workspace changes" >> "$bundle_dir/BUILD_MANIFEST.txt"; fi
+cp -r config "$bundle_dir/"
 mkdir -p "$bundle_dir/scripts/lib"
 cp scripts/lib/env-bootstrap.sh "$bundle_dir/scripts/lib/"
 [ -f docs/DEPLOYMENT.md ] && cp docs/DEPLOYMENT.md "$bundle_dir/"

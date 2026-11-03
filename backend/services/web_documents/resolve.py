@@ -82,7 +82,9 @@ def _find_indexed(db: Session, source: KnowledgeSource, reference: str) -> tuple
     return (row[0], row[1] or {}) if row else None
 
 
-def _from_index(db: Session, source: KnowledgeSource, key: str, meta: dict, notice: str) -> WebDocument:
+def _from_index(
+    db: Session, source: KnowledgeSource, key: str, meta: dict, notice: str
+) -> WebDocument:
     rows = (
         db.query(DocumentChunk.content)
         .filter(
@@ -144,7 +146,9 @@ def _known_links(
                 DocumentChunk.source_id == other.id,
                 or_(
                     *(
-                        column.endswith(key[1:], autoescape=True) if key[0] == "*" else column == key
+                        column.endswith(key[1:], autoescape=True)
+                        if key[0] == "*"
+                        else column == key
                         for key in set(wanted.values())
                     )
                 ),
@@ -257,10 +261,14 @@ def resolve_web_document(
     db: Session, user: User, source: KnowledgeSource, reference: str, verify
 ) -> dict:
     if not is_web_source(source.type):
-        raise HTTPException(status_code=400, detail="Diese Quelle liefert Dateien, keine Webinhalte.")
+        raise HTTPException(
+            status_code=400, detail="Diese Quelle liefert Dateien, keine Webinhalte."
+        )
     found = _find_indexed(db, source, reference)
     if found is None:
-        raise HTTPException(status_code=404, detail="Dieser Eintrag gehört nicht zum Index der Quelle.")
+        raise HTTPException(
+            status_code=404, detail="Dieser Eintrag gehört nicht zum Index der Quelle."
+        )
     key, meta = found
 
     auth, headers = source_access(source)

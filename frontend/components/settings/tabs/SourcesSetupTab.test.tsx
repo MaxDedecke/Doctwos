@@ -424,3 +424,31 @@ describe('SourcesSetupTab', () => {
     });
   });
 });
+
+
+describe('GitLab Issues', () => {
+  beforeEach(() => { vi.clearAllMocks(); settingsValue = createSettingsContextValue(); });
+  it('requires explicit project selection', async () => {
+    render(<SourcesSetupTab {...baseProps} activeSourceType="GitLab Issues" />);
+    fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.integrationNamePlaceholder:GitLab Issues'), { target: { value: 'Pilot issues' } });
+    fireEvent.change(screen.getByPlaceholderText('https://company.atlassian.net'), { target: { value: 'https://gitlab.intern' } });
+    fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.tokenPlaceholder'), { target: { value: 'test-only' } });
+    fireEvent.click(screen.getByText('settings.sourcesSetup.connect'));
+    await waitFor(() => expect(settingsValue.showToast).toHaveBeenCalledWith('settings.sourcesSetup.gitlabProjectsRequired', 'error'));
+  });
+});
+
+
+describe('GitLab Issues payload', () => {
+  it('creates a project-scoped source with explicit GitLab project paths', async () => {
+    vi.clearAllMocks(); settingsValue = createSettingsContextValue();
+    apiMocks.createKnowledgeSource.mockResolvedValue(axiosResponse({id:99,type:'gitlabissues'}));
+    render(<SourcesSetupTab {...baseProps} activeSourceType="GitLab Issues" selectedSourceRepoId="7" />);
+    fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.integrationNamePlaceholder:GitLab Issues'), {target:{value:'Issues'}});
+    fireEvent.change(screen.getByPlaceholderText('https://company.atlassian.net'), {target:{value:'https://gitlab.intern/context'}});
+    fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.tokenPlaceholder'), {target:{value:'test-only'}});
+    fireEvent.change(screen.getByPlaceholderText('settings.sourcesSetup.spacesProjectKeysPlaceholder'), {target:{value:'team/project, 42'}});
+    fireEvent.click(screen.getByText('settings.sourcesSetup.connect'));
+    await waitFor(() => expect(apiMocks.createKnowledgeSource).toHaveBeenCalledWith(expect.objectContaining({type:'gitlabissues',url:'https://gitlab.intern/context',project_id:7,spaces:['team/project','42']})));
+  });
+});
