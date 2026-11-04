@@ -1794,6 +1794,7 @@
     "activeCount": "{{count}} aktive Jobs",
     "resume": "Wiederaufnehmen",
     "restart": "Neu anstoßen",
+    "continue": "Fortsetzen",
     "stop": "Stoppen",
     "remove": "Aus dem Job-Center entfernen",
     "actionFailed": "Job-Aktion konnte nicht ausgeführt werden.",
@@ -1804,6 +1805,7 @@
       "completed": "Abgeschlossen",
       "cancelled": "Abgebrochen",
       "budget_reached": "Budget erreicht (fortsetzbar)",
+      "continued": "Fortgesetzt",
       "syncing": "Synchronisierung",
       "parsing": "Verarbeitung"
     }

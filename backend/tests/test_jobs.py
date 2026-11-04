@@ -431,24 +431,37 @@ def test_admin_can_restart_and_resume_cancelled_link_builder_run(
     client, db_session, test_project, monkeypatch
 ):
     """O-315: Cancelled link builder runs can be resumed or restarted from JobCenter."""
+    stand = {"resume_after_id": 42, "processed_items": 200, "total_items": 1258, "max_items": 200}
     run = LinkBuilderRun(
         task_type="entity_links",
         project_id=test_project,
         status="cancelled",
         embedding_model="test-embed",
+        scope_json=dict(stand),
     )
-    db_session.add(run)
+    other = LinkBuilderRun(
+        task_type="entity_links",
+        project_id=test_project,
+        status="cancelled",
+        embedding_model="test-embed",
+    )
+    db_session.add_all([run, other])
     db_session.commit()
     db_session.refresh(run)
+    db_session.refresh(other)
+
+    def listed(record):
+        res = client.get(f"/jobs?project_id={test_project}")
+        assert res.status_code == 200
+        return next(j for j in res.json()["jobs"] if j["key"] == f"link_builder:{record.id}")
 
     # 1. Check capability flags in job listing
-    res = client.get(f"/jobs?project_id={test_project}")
-    assert res.status_code == 200
-    job = next(j for j in res.json()["jobs"] if j["key"] == f"link_builder:{run.id}")
+    job = listed(run)
     assert job["can_resume"] is True
     assert job["can_start"] is True
+    assert job["continued"] is False
 
-    # 2. Test restart (creates a new run)
+    # 2. Test restart (creates a new run that continues from the stored position)
     sent_tasks = []
     monkeypatch.setattr(
         jobs_api,
@@ -467,15 +480,22 @@ def test_admin_can_restart_and_resume_cancelled_link_builder_run(
     assert new_run is not None
     assert new_run.status == "pending"
     assert new_run.embedding_model == "test-embed"
+    assert new_run.scope_json == stand
     assert len(sent_tasks) == 1
     assert sent_tasks[0][0] == "compute_entity_links"
     assert sent_tasks[0][1] == [new_run.id, test_project]
 
-    db_session.delete(new_run)
+    # Der Stand ist übergeben: Vom alten Lauf aus darf niemand dieselben Entitäten noch einmal prüfen lassen.
+    job = listed(run)
+    assert job["continued"] is True
+    assert job["can_resume"] is False and job["can_start"] is False
+    assert client.post(f"/jobs/link_builder/{run.id}/start").status_code == 409
+    assert client.post(f"/jobs/link_builder/{run.id}/resume").status_code == 409
+    assert len(sent_tasks) == 1
 
-    # 3. Test resume of cancelled run
+    # 3. Test resume of another cancelled run
     sent_tasks.clear()
-    resume_res = client.post(f"/jobs/link_builder/{run.id}/resume")
+    resume_res = client.post(f"/jobs/link_builder/{other.id}/resume")
     assert resume_res.status_code == 200
     resumed_run_key = resume_res.json()["key"]
     resumed_run_id = int(resumed_run_key.split(":")[1])
@@ -485,7 +505,10 @@ def test_admin_can_restart_and_resume_cancelled_link_builder_run(
     assert resumed_run is not None
     assert resumed_run.status == "pending"
     assert len(sent_tasks) == 1
+    assert listed(other)["continued"] is True
 
+    db_session.delete(new_run)
     db_session.delete(resumed_run)
     db_session.delete(run)
+    db_session.delete(other)
     db_session.commit()

@@ -120,8 +120,9 @@ def _run_job(run: LinkBuilderRun, admin: bool = False, user_id: int | None = Non
         "error_message": run.error_message,
         "created_at": _iso(run.created_at),
         "finished_at": _iso(run.finished_at),
-        "can_resume": run.status in {"failed", "cancelled"},
-        "can_start": admin and run.status in {"failed", "cancelled"},
+        "continued": _continued(run),
+        "can_resume": run.status in {"failed", "cancelled"} and not _continued(run),
+        "can_start": admin and run.status in {"failed", "cancelled"} and not _continued(run),
         "can_delete": admin and run.status in TERMINAL,
         "can_stop": (admin or (user_id is not None and run.triggered_by_user_id == user_id))
         and run.status in ACTIVE,
@@ -220,6 +221,17 @@ def _queue_source(source: KnowledgeSource, db: Session) -> dict:
     return {"message": "Job gestartet", "key": f"source:{source.id}"}
 
 
+def _continued(run: LinkBuilderRun) -> bool:
+    return bool((run.scope_json or {}).get("continued_by"))
+
+
+def _mark_continued(previous: LinkBuilderRun, run: LinkBuilderRun, db: Session) -> None:
+    """Der Folgelauf übernimmt den Stand (``resume_after_id``); vom alten aus noch einmal zu starten,
+    würde dieselben Entitäten ein zweites Mal prüfen lassen."""
+    previous.scope_json = {**(previous.scope_json or {}), "continued_by": run.id}
+    db.commit()
+
+
 def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
     project_id = previous.project_id
     if previous.task_type == "knowledge_links":
@@ -248,6 +260,7 @@ def _queue_link_builder(previous: LinkBuilderRun, db: Session) -> dict:
     db.add(run)
     db.commit()
     db.refresh(run)
+    _mark_continued(previous, run, db)
     task = "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
     args = [run.id, run.project_id] if run.task_type == "entity_links" else [run.id]
     task_kwargs = {"trace_id": get_trace_id()}
@@ -311,6 +324,8 @@ def start_job(
             raise HTTPException(
                 409, "Nur fehlgeschlagene oder abgebrochene Jobs können neu angestoßen werden"
             )
+        if _continued(previous):
+            raise HTTPException(409, "Dieser Lauf wurde bereits fortgesetzt")
         return _queue_link_builder(previous, db)
 
     if kind == "diagnostics":
@@ -466,6 +481,8 @@ def resume_job(
             raise HTTPException(
                 409, "Nur fehlgeschlagene oder abgebrochene Jobs können wiederaufgenommen werden"
             )
+        if _continued(previous):
+            raise HTTPException(409, "Dieser Lauf wurde bereits fortgesetzt")
         project_ids = get_visible_project_ids(user, db)
         if previous.project_id is None and not is_admin(user):
             raise HTTPException(403, "Kein Zugriff auf diesen Job")
@@ -499,6 +516,7 @@ def resume_job(
         db.add(run)
         db.commit()
         db.refresh(run)
+        _mark_continued(previous, run, db)
         task = (
             "compute_entity_links" if run.task_type == "entity_links" else "compute_knowledge_links"
         )

@@ -30,7 +30,7 @@ vi.mock('@/app/services/api', () => ({
 
 type Job = {
   key: string; kind: string; id: number; label: string; status: string;
-  progress: number | null; progress_message?: string; error_message?: string;
+  progress: number | null; progress_message?: string; error_message?: string; continued?: boolean;
   can_resume: boolean; can_start?: boolean; can_delete?: boolean; can_stop?: boolean;
 };
 
@@ -114,6 +114,23 @@ describe('JobCenter', () => {
 
       expect(await screen.findByText('Budget erreicht (fortsetzbar)')).toBeTruthy();
       expect(screen.getAllByText('Abgebrochen')).toHaveLength(1);
+    });
+
+    it('bietet dem Admin am Budget Fortsetzen an und einen schon fortgesetzten Lauf nicht noch einmal', async () => {
+      const budget = 'Budget nach 200 von 1258 Entitäten erreicht; im Job Center fortsetzen.';
+      stubJobs([
+        makeJob({ key: 'link_builder:1', id: 1, kind: 'link_builder', status: 'cancelled', progress_message: budget, can_resume: true, can_start: true }),
+        makeJob({ key: 'link_builder:2', id: 2, kind: 'link_builder', status: 'cancelled', progress_message: budget, continued: true, can_resume: false, can_start: false }),
+      ]);
+      vi.mocked(api.startJob).mockResolvedValue(axiosResponse({}));
+
+      await openPanel({ currentUser: ADMIN });
+
+      expect(await screen.findByText('Fortgesetzt')).toBeTruthy();
+      expect(screen.getAllByText('Budget erreicht (fortsetzbar)')).toHaveLength(1);
+      expect(screen.queryByText('Neu anstoßen')).toBeNull();
+      fireEvent.click(screen.getByText('Fortsetzen'));
+      await waitFor(() => expect(api.startJob).toHaveBeenCalledWith('link_builder', 1));
     });
 
     it('meldet eine leere Liste als solche', async () => {

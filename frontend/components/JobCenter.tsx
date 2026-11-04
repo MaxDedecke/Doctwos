@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 type Job = {
   key: string; kind: string; id: number; label: string; status: string;
   progress: number | null; progress_message?: string; error_message?: string;
-  budget?: number | null;
+  budget?: number | null; continued?: boolean;
   created_at?: string; can_resume: boolean;
   can_start?: boolean; can_delete?: boolean; can_stop?: boolean;
 };
@@ -29,10 +29,12 @@ export function JobCenter({
   const { t } = useLanguage();
   // Ein Link-Lauf, der sein Budget erreicht hat, hält absichtlich an und lässt sich fortsetzen;
   // „Abgebrochen“ würde das als Fehlschlag oder Nutzerabbruch lesen lassen.
+  const atBudget = (job: Job) =>
+    job.kind === 'link_builder' && job.status === 'cancelled' && /^Budget nach /.test(job.progress_message ?? '');
   const statusLabel = (job: Job) =>
-    job.kind === 'link_builder' && job.status === 'cancelled' && /^Budget nach /.test(job.progress_message ?? '')
-      ? t('jobCenter.status.budget_reached')
-      : t(`jobCenter.status.${job.status}`);
+    job.continued ? t('jobCenter.status.continued')
+      : atBudget(job) ? t('jobCenter.status.budget_reached')
+        : t(`jobCenter.status.${job.status}`);
   const [open, setOpen] = useState(false);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeCount, setActiveCount] = useState(0);
@@ -162,7 +164,10 @@ export function JobCenter({
                 {expanded === job.key && <pre className="mt-2 whitespace-pre-wrap break-words rounded bg-ds-rose-950/20 p-2 text-[0.625rem] text-ds-rose-400">{job.error_message}</pre>}
                 <div className="mt-2 flex items-center gap-3">
                   {job.can_resume && !currentUser?.is_admin && <button disabled={resuming === job.key || starting === job.key} onClick={() => resume(job)} className="flex items-center gap-1.5 text-[0.625rem] font-semibold text-ds-indigo-500 disabled:opacity-50"><Play className="h-3 w-3" />{t("jobCenter.resume")}</button>}
-                  {currentUser?.is_admin && job.can_start && <button disabled={resuming === job.key || starting === job.key} onClick={() => start(job)} className="flex items-center gap-1.5 text-[0.625rem] font-semibold text-ds-indigo-500 disabled:opacity-50"><RefreshCw className={cn("h-3 w-3", starting === job.key && "animate-spin")} />{t("jobCenter.restart")}</button>}
+                  {currentUser?.is_admin && job.can_start && <button disabled={resuming === job.key || starting === job.key} onClick={() => start(job)} className="flex items-center gap-1.5 text-[0.625rem] font-semibold text-ds-indigo-500 disabled:opacity-50">{atBudget(job)
+                    // Am Budget macht der neue Lauf nach der zuletzt geprüften Entität weiter, statt von vorn zu beginnen.
+                    ? <><Play className={cn("h-3 w-3", starting === job.key && "animate-pulse")} />{t("jobCenter.continue")}</>
+                    : <><RefreshCw className={cn("h-3 w-3", starting === job.key && "animate-spin")} />{t("jobCenter.restart")}</>}</button>}
                   {job.can_stop && <button disabled={stopping === job.key} onClick={() => stop(job)} className="flex items-center gap-1.5 text-[0.625rem] font-semibold text-ds-amber-500 disabled:opacity-50"><Square className="h-3 w-3" />{t("jobCenter.stop")}</button>}
                 </div>
               </article>;
