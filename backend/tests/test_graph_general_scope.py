@@ -121,14 +121,14 @@ def test_general_graph_hides_project_documents_and_git_source_chunks(
     db_session.refresh(doc_chunk)
 
     try:
-        # Ein Projekt-Chunk erscheint erst, wenn ihn eine genehmigte Beziehung
-        # in den Graph aufnimmt.
+        # Im Projekt ist eine Seite einer Web-Quelle ein eigener Knoten, auch ohne Beziehung;
+        # ein Git-Chunk erscheint erst, wenn ihn eine genehmigte Beziehung in den Graph aufnimmt.
         scoped = client.get(
             "/graph", params={"project_id": test_project, "include_isolated": "true"}
         )
         assert scoped.status_code == 200
         assert "SCOPED.CBL" not in _doc_node_ids(scoped.json())
-        assert "Runbook" not in _doc_node_ids(scoped.json())
+        assert "Runbook" in _doc_node_ids(scoped.json())
 
         # "Allgemein" -- kein projektgebundener Chunk ist sichtbar.
         general = client.get("/graph", params={"include_isolated": "true"})

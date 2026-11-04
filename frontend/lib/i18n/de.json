@@ -1532,6 +1532,7 @@
       "notion_page": "Notion-Seite",
       "jira_issue": "Jira-Vorgang",
       "pdf_document": "PDF-Dokument",
+      "web_entry": "Web-Eintrag",
       "document": "Dokument"
     },
     "fromLabel": "Von",

@@ -19,6 +19,8 @@ export interface GraphNode {
   entity_ids?: number[];
   resource_type?: string;
   resource_id?: string | number | null;
+  /** Eintrag einer Web-Quelle (Issue, Seite); bleibt auch ohne Verbindung sichtbar. */
+  web_entry?: boolean;
   /** Total connections on the server; more than the loaded edges means some are not shown. */
   degree?: number;
   /** Group nodes (type 'group'): files grouped by coupling or a topic, expandable in place. */

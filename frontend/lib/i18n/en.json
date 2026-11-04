@@ -1532,6 +1532,7 @@
       "notion_page": "Notion page",
       "jira_issue": "Jira issue",
       "pdf_document": "PDF document",
+      "web_entry": "Web entry",
       "document": "Document"
     },
     "fromLabel": "From",

@@ -13,9 +13,10 @@ const endId = (end: EndRef) => (typeof end === 'object' ? end.id : end);
  *
  * "Nur verknüpfte" entfernt Knoten ohne jede Verbindung; ausgeblendete Nachbarn zählen dabei mit.
  * Erkenntnisse, Gruppen und der Inhalt aufgeklappter Gruppen bleiben auch ohne Verbindung: Sie sind
- * Teil des Bestands, den man auf- und zuklappt, auch wenn gerade keine Kante sichtbar ist.
+ * Teil des Bestands, den man auf- und zuklappt, auch wenn gerade keine Kante sichtbar ist. Ebenso
+ * Einträge der Web-Quellen (Issues, Seiten): Ein Ticket ohne Code-Bezug gehört trotzdem zum Projekt.
  */
-export function filterVisibleGraph<N extends { id: string; type?: string; group_parent?: string | null }, E extends { source: EndRef; target: EndRef }>(
+export function filterVisibleGraph<N extends { id: string; type?: string; group_parent?: string | null; web_entry?: boolean }, E extends { source: EndRef; target: EndRef }>(
   nodes: N[],
   edges: E[],
   options: { isNodeHidden: (node: N) => boolean; isEdgeHidden: (edge: E) => boolean; onlyLinked: boolean },
@@ -42,6 +43,6 @@ export function filterVisibleGraph<N extends { id: string; type?: string; group_
     connected.add(endId(edge.source));
     connected.add(endId(edge.target));
   }
-  const alwaysShown = (node: N) => (node.type === 'insight' || node.type === 'group' || !!node.group_parent) && solidIds.has(node.id);
+  const alwaysShown = (node: N) => (node.type === 'insight' || node.type === 'group' || !!node.group_parent || !!node.web_entry) && solidIds.has(node.id);
   return { nodes: candidates.filter(node => connected.has(node.id) || alwaysShown(node)), links, ghostIds };
 }

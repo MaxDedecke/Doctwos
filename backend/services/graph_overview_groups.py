@@ -369,12 +369,15 @@ def grouped_overview(
             }
         )
 
-    # Einzelknoten ohne Kante tragen nichts bei; Gruppen und Erkenntnisse bleiben immer.
+    # Einzelknoten ohne Kante tragen nichts bei; Gruppen, Erkenntnisse und Web-Einträge bleiben immer.
     connected = {e["source"] for e in out_edges} | {e["target"] for e in out_edges}
     result_nodes = [
         n
         for n in out_nodes.values()
-        if n["id"] in connected or n.get("type") in {"group", "insight"} or n.get("group_parent")
+        if n["id"] in connected
+        or n.get("type") in {"group", "insight"}
+        or n.get("group_parent")
+        or n.get("web_entry")
     ]
     # Echte Verbindungszahl: einzeln sichtbare Kanten plus die nur gebündelt sichtbaren. Das
     # Frontend zeigt die Differenz zu den einzeln geladenen Kanten als „+N“.

@@ -41,6 +41,8 @@ from services.graph_overview_groups import (
     grouping_available,
 )
 from services.graph_overview_links import append_overview_knowledge_links
+from services.graph_overview_web_entries import append_web_entries
+from services.web_documents import is_web_source
 from services.graph_overview_limits import (
     CODE_EDGES_PER_NODE_BUDGET as CODE_EDGES_PER_NODE_BUDGET,
     code_edge_budget as _code_edge_budget,
@@ -136,6 +138,9 @@ def _document_resource_type(
         return "jira_issue"
     if title.lower().endswith(".pdf"):
         return "pdf_document"
+    # Jedes weitere Web-System (GitLab Issues, ServiceNow …): ein Eintrag, keine Datei.
+    if is_web_source(source_type):
+        return "web_entry"
     return "document"
 
 
@@ -675,6 +680,8 @@ def get_graph(
         _ensure_entity_file_node,
         _doc_node,
     )
+    if project_id:
+        append_web_entries(db, user, project_id, nodes, _doc_node)
 
     from services.insight_graph import append_insight_graph
 
@@ -821,7 +828,7 @@ def _capped_overview(
         nodes = {
             nid: node
             for nid, node in nodes.items()
-            if degree[nid] > 0 or node.get("type") == "insight"
+            if degree[nid] > 0 or node.get("type") == "insight" or node.get("web_entry")
         }
 
     total_nodes = len(nodes)

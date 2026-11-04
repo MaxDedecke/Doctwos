@@ -20,6 +20,13 @@ describe('filterVisibleGraph', () => {
       .toEqual([groups[0]]);
   });
 
+  it('keeps an issue or page of a web source without edges, but not a plain unlinked document', () => {
+    const docs = [{ id: 'doc:issue', type: 'document', web_entry: true }, { id: 'doc:file', type: 'document' }];
+    const shown = (hidden: boolean) => filterVisibleGraph(docs, [], { isNodeHidden: () => hidden, isEdgeHidden: () => false, onlyLinked: true }).nodes;
+    expect(shown(false)).toEqual([docs[0]]);
+    expect(shown(true)).toEqual([]);
+  });
+
   it('keeps an insight without resolvable edges unless its type is hidden', () => {
     const insights = [{ id: 'insight:1', type: 'insight' }];
     expect(filterVisibleGraph(insights, [], { isNodeHidden: () => false, isEdgeHidden: () => false, onlyLinked: true }).nodes).toEqual(insights);
