@@ -41,6 +41,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { sanitizeHtml } from "@/lib/sanitize";
 import { cn } from "@/lib/utils";
 import type { WebDocumentData } from '@/lib/webDocumentHtml';
+import type { ChatPinnedFocus } from '@/lib/chatFocus';
 import { isWebSourceType } from '@/lib/webSources';
 import { WebDocumentView } from './WebDocumentView';
 import { computeEntityAnchor, FILE_LEVEL_TYPES, pickFileLevelEntity, type EntityAnchor } from '@/lib/entityAnchors';
@@ -155,6 +156,9 @@ interface SplitPaneWorkspaceProps {
   onNavigateBack?: () => void;
   selectedLine?: number | null;
   onDocFocus?: (filePath: string, sourceId: number | string | null, locator?: Partial<WorkspaceDocument>) => void;
+  /** Chat-Fokus auf das offene Dokument oder den Web-Eintrag, wie der Dateiname im Code-Editor. */
+  pinnedCode?: ChatPinnedFocus | null;
+  onFocusDocument?: (filePath: string, sourceId: number | string | null, label: string) => void;
   // How many panels are currently open in the workspace grid — lets the graph
   // view swap its detail sidebar for a space-saving bottom drawer once 3+ panels
   // are open (see KnowledgeGraphView's layoutMode prop).
@@ -201,6 +205,8 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
   onNavigateBack,
   selectedLine = null,
   onDocFocus,
+  pinnedCode = null,
+  onFocusDocument,
   layoutMode,
   agentGraphFocus
 }) => {
@@ -736,6 +742,22 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
     ((fileLevelEntity && selectedEntity.id === fileLevelEntity.id) ||
       (selectedEntity.file_path === selectedFile && selectedEntity.type && FILE_LEVEL_TYPES.has(selectedEntity.type)))
   );
+  const documentLabel = activeRightTab === 'weborigin' && webDocument
+    ? [webDocument.identifier, webDocument.title].filter(Boolean).join(' ')
+    : selectedDoc?.name?.split('#')[0].split('/').pop() || selectedDoc?.name || '';
+  const isDocumentFocused = Boolean(
+    selectedDoc && pinnedCode &&
+    pinnedCode.filepath === selectedDoc.name &&
+    String(pinnedCode.sourceId ?? '') === String(selectedDoc.id)
+  );
+  const focusDocument = () => {
+    if (selectedDoc && documentLabel) onFocusDocument?.(selectedDoc.name, selectedDoc.id, documentLabel);
+  };
+  // Beim Öffnen setzt die Navigation den Fokus ohne Titel ("1:0"); sobald der Eintrag geladen ist, trägt er seinen Namen.
+  useEffect(() => {
+    if (activeRightTab === 'weborigin' && webDocument && isDocumentFocused && !pinnedCode?.label) focusDocument();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [webDocument, isDocumentFocused]);
   const entityDecorationsRef = useRef<string[]>([]);
   const entityAnchorsRef = useRef<Array<{ ent: CodeEntity; anchor: EntityAnchor }>>([]);
   const usageAnchorsRef = useRef<Array<{ ent: CodeEntity; anchor: EntityAnchor }>>([]);
@@ -1279,13 +1301,23 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
               ) : (
                 <PathHoverCard path={selectedDoc?.name || ''} theme={theme}>
                   {(trigger) => (
-                    <span
+                    <button
                       {...trigger}
-                      tabIndex={0}
-                      className={cn("truncate font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}
+                      type="button"
+                      onClick={focusDocument}
+                      aria-pressed={isDocumentFocused}
+                      title={t('splitPane.focusDocumentTitle', { name: documentLabel })}
+                      className={cn(
+                        "truncate font-semibold text-left transition-colors cursor-pointer rounded px-1.5 py-0.5 -mx-1.5",
+                        isDocumentFocused
+                          ? (theme === 'dark' ? "text-ds-indigo-400 bg-ds-indigo-500/15" : "text-ds-indigo-600 bg-ds-indigo-50")
+                          : (theme === 'dark'
+                              ? "text-ds-zinc-300 hover:text-ds-zinc-100 hover:bg-ds-zinc-800/60"
+                              : "text-ds-zinc-700 hover:text-ds-zinc-900 hover:bg-ds-zinc-100")
+                      )}
                     >
-                      {selectedDoc?.name?.split('/').pop() || selectedDoc?.name || t('splitPane.documentFallback')}
-                    </span>
+                      {documentLabel || t('splitPane.documentFallback')}
+                    </button>
                   )}
                 </PathHoverCard>
               )}

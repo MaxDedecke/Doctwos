@@ -1231,6 +1231,7 @@
     "jumpToEntityMenuItem": "Jump to {{name}}",
     "fileFallbackType": "File",
     "fileObjectTitle": "File object {{name}} ({{type}}) – right-click to pin or look up",
+    "focusDocumentTitle": "Set {{name}} as chat focus",
     "askAboutEntityMenuItem": "Ask about {{name}}",
     "openReferencesMenuItem": "Open references",
     "exportCypherTitle": "Export as Cypher (Neo4j)",

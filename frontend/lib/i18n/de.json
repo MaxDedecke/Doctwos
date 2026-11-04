@@ -1231,6 +1231,7 @@
     "jumpToEntityMenuItem": "Zu {{name}} springen",
     "fileFallbackType": "Datei",
     "fileObjectTitle": "Dateiobjekt {{name}} ({{type}}) – Rechtsklick zum Anpinnen oder Nachschlagen",
+    "focusDocumentTitle": "{{name}} als Chat-Fokus setzen",
     "askAboutEntityMenuItem": "Etwas zu {{name}} fragen",
     "openReferencesMenuItem": "Referenzen öffnen",
     "exportCypherTitle": "Als Cypher exportieren (Neo4j)",

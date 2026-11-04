@@ -284,6 +284,8 @@ export function PanelContentRenderer({
       fileNavStack={fileNavStack}
       onNavigateBack={handleNavigateBack}
       onDocFocus={contentType === 'webview' ? undefined : handleDocFocusRequest}
+      pinnedCode={pinnedCode}
+      onFocusDocument={(filepath, sourceId, label) => setPinnedCode({ filepath, line: 0, label, sourceId })}
       layoutMode={contentType === 'graph' ? layoutMode : undefined}
       agentGraphFocus={selection.graphNeighborhood}
     />

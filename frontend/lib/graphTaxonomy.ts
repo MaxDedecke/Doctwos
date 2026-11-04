@@ -4,6 +4,7 @@
  * presentation policy: known labels/colors/icons plus deterministic fallbacks
  * for types introduced by a parser that the frontend does not know yet.
  */
+import { isWebSourceType } from './webSources';
 
 export type GraphIconKind = 'code' | 'document' | 'web';
 /** One distinct glyph per node category; `web`/`code` cover nodes that only fall back to `file`. */
@@ -84,6 +85,7 @@ export const NODE_TYPE_TAXONOMY: Record<string, GraphNodeTypeDefinition> = {
   jcl:        { labelDe: 'JCL (.jcl/.proc)', labelEn: 'JCL (.jcl/.proc)', color: 'rgb(var(--ds-warning-base))', icon: 'jcl' },
   confluence: { labelDe: 'Confluence', labelEn: 'Confluence', color: 'rgb(var(--ds-info-base))', icon: 'confluence' },
   jira:       { labelDe: 'Jira Software', labelEn: 'Jira Software', color: 'rgb(var(--ds-accent))', icon: 'jira' },
+  web:        { labelDe: 'Tickets & Webseiten', labelEn: 'Tickets & web pages', color: 'rgb(var(--ds-graph-b-base))', icon: 'web' },
   git:        { labelDe: 'Git / Code-Elemente', labelEn: 'Git / Code Elements', color: 'rgb(var(--ds-success-base))', icon: 'git' },
   file:       { labelDe: 'Datei', labelEn: 'File', color: 'rgb(var(--ds-danger-base))', icon: 'file' },
   txt:        { labelDe: 'Text-Dateien (.txt)', labelEn: 'Text Files (.txt)', color: 'rgb(var(--ds-neutral-500))', icon: 'txt' },
@@ -359,6 +361,8 @@ export function getGraphNodeCategory(node: GraphTaxonomyNode | null | undefined)
   if (source === 'confluence') return 'confluence';
   if (source === 'jira') return 'jira';
   if (source === 'git') return 'git';
+  // Jedes weitere Web-System (GitLab Issues, ServiceNow …) ohne eigenen Eintrag statt unter „Datei“.
+  if (nodeType === 'document' && isWebSourceType(source)) return 'web';
 
   const path = String(node.file_path || node.url || node.label || '').toLowerCase();
   if (/\.(cbl|cob|cobol)$/.test(path)) return 'cobol';

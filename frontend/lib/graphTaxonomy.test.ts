@@ -35,6 +35,9 @@ describe('graph taxonomy', () => {
     expect(getGraphNodeCategory({ type: 'entity', entity_type: 'copybook' })).toBe('copybook');
     expect(getGraphNodeCategory({ type: 'document', source_type: 'Git', file_path: 'A.java' })).toBe('git');
     expect(getGraphNodeCategory({ type: 'document', file_path: 'scanned-handbook.pdf' })).toBe('file');
+    // Web-Systeme ohne eigenen Eintrag sind keine Dateien.
+    expect(getGraphNodeCategory({ type: 'document', source_type: 'GitLabIssues', file_path: '1/issues/1' })).toBe('web');
+    expect(getGraphNodeCategory({ type: 'document', source_type: 'Local', file_path: 'notes' })).toBe('file');
     expect(getGraphNodeIconKind({ type: 'entity', entity_type: 'record' })).toBe('code');
     expect(getGraphNodeIconKind({ type: 'document', url: 'https://example.test/page' })).toBe('web');
   });

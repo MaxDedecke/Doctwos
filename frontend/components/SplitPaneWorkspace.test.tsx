@@ -553,6 +553,22 @@ describe('SplitPaneWorkspace', () => {
       expect(screen.queryByRole('button', { name: 'Ansehen' })).toBeNull();
     });
 
+    it('sets the chat focus on the open document by clicking its name, like the file name in the editor', () => {
+      const onFocusDocument = vi.fn();
+      const selectedDoc = { id: 7, name: 'docs/handbuch/Betrieb.md' };
+      const base = { activeRightTab: 'doc' as const, selectedFile: null, selectedDoc, fileContent: 'Text', onFocusDocument };
+      const { rerender } = renderWorkspace(base);
+
+      const name = screen.getByRole('button', { name: 'Betrieb.md' });
+      expect(name.getAttribute('aria-pressed')).toBe('false');
+      fireEvent.click(name);
+      expect(onFocusDocument).toHaveBeenCalledWith('docs/handbuch/Betrieb.md', 7, 'Betrieb.md');
+
+      const pinned = makeProps({ ...base, pinnedCode: { filepath: selectedDoc.name, line: 0, sourceId: 7, label: 'Betrieb.md' } });
+      rerender(<LanguageProvider><SplitPaneWorkspace {...pinned} /></LanguageProvider>);
+      expect(screen.getByRole('button', { name: 'Betrieb.md' }).getAttribute('aria-pressed')).toBe('true');
+    });
+
     it('shows only the file name in the header and offers the full path on hover, without a view action', async () => {
       renderWorkspace({ activeRightTab: 'code', selectedFile: 'src/app/ZAHLUNG.cbl', fileContent: 'A' });
 
