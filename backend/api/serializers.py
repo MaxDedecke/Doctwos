@@ -158,6 +158,9 @@ def serialize_link(
         # ohne Chunk-Bezug, dann bleibt die Navigation dorthin aus.
         "doc_source_id": chunk.source_id if chunk else None,
         "doc_location": doc_location(chunk),
+        # Ein automatischer Vorschlag ohne Abschnitt: Ein Re-Index hat ihn entfernt, die Begründung lässt sich
+        # nicht mehr nachprüfen. Der nächste Link-Lauf bewertet die Entity neu (link_builder._orphaned_links).
+        "section_missing": link.chunk_id is None and link.created_by == "auto",
         "source_type": link.source_type,
         "score": link.score,
         "link_type": link.link_type,

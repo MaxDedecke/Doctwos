@@ -21,6 +21,8 @@ export interface EntityDocLink {
   doc_source_id?: number | string | null;
   // Abschnitt/Seite/Zeilen der verknüpften Dokumentstelle (nur bei Verknüpfungen mit Chunk).
   doc_location?: DocLocation | null;
+  /** Automatischer Vorschlag, dessen Abschnitt ein Re-Index entfernt hat. */
+  section_missing?: boolean;
   source_type: string | null;
   score: number | null;
   link_type: string;

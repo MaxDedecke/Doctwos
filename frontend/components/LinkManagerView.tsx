@@ -22,6 +22,7 @@ import {
   Loader2,
   Sparkles,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
@@ -67,6 +68,8 @@ interface UnifiedSide {
   codeRef?: CodeRef | null;
   docSourceId?: number | string | null;
   location?: DocLocation | null;
+  /** Der bewertete Abschnitt wurde bei einem Re-Index entfernt; die Begründung ist nicht nachprüfbar. */
+  sectionMissing?: boolean;
 }
 
 interface UnifiedLink {
@@ -687,7 +690,7 @@ function ProjectLinkManagerView({
           ? { file_path: l.entity.file_path, line: l.entity.start_line ?? null, source_id: l.entity.source_id ?? null }
           : null,
       },
-      right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url, docSourceId: l.doc_source_id ?? null, location: l.doc_location ?? null },
+      right: { label: l.doc_title, sourceType: l.source_type, url: l.doc_url, docSourceId: l.doc_source_id ?? null, location: l.doc_location ?? null, sectionMissing: l.section_missing ?? false },
       score: l.score,
       linkType: l.link_type,
       direction: l.direction,
@@ -848,6 +851,12 @@ function ProjectLinkManagerView({
         <p data-testid="link-doc-location" title={formatDocLocation(side.location, t)}
           className={cn('pl-5 font-mono text-[0.625rem] truncate', cardMuted)}>
           {formatDocLocation(side.location, t)}
+        </p>
+      )}
+      {side.sectionMissing && (
+        <p data-testid="link-section-missing" title={t('linkManagerView.sectionMissingHint')}
+          className="pl-5 flex items-center gap-1 text-[0.625rem] text-ds-amber-500">
+          <AlertTriangle className="w-3 h-3 shrink-0" />{t('linkManagerView.sectionMissing')}
         </p>
       )}
     </div>

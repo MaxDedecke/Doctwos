@@ -1578,6 +1578,8 @@
     "newChatTitle": "New chat"
   },
   "linkManagerView": {
+    "sectionMissing": "Section no longer available",
+    "sectionMissingHint": "The document was re-indexed and the reviewed section no longer exists. The next link run reviews this code entity against the current sections and replaces the suggestion.",
     "location": {
       "page": "Page {{page}}",
       "lines": "Lines {{from}}–{{to}}",

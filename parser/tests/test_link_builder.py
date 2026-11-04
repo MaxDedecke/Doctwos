@@ -145,10 +145,14 @@ def test_pass_keyword_ignores_git_code_chunks_but_keeps_git_documentation(db_ses
         db_session.commit()
         db_session.refresh(entity)
 
-        result = _pass_keyword(entity, project_id, db_session)
+        import tasks.link_builder as link_builder
 
-        assert "docs/payroll.adoc" in result
-        assert "src/PayrollRunner.java" not in result
+        # Beide Wege der Stichwortsuche: Abfrage je Entität und der einmal entschlüsselte Korpus des Laufs.
+        for corpus in (None, link_builder.KeywordCorpus(db_session, project_id)):
+            result = _pass_keyword(entity, project_id, db_session, corpus=corpus)
+
+            assert "docs/payroll.adoc" in result
+            assert "src/PayrollRunner.java" not in result
     finally:
         db_session.query(DocumentChunk).filter(DocumentChunk.source_id == git_source_id).delete()
         db_session.query(CodeEntity).filter(CodeEntity.source_id == git_source_id).delete()
@@ -287,6 +291,72 @@ def _review_with(monkeypatch, response):
 
 
 _REASON = "Die README nennt das Programm ausdrücklich und beschreibt dessen Zweck; die genaue Rolle des Feldes bleibt unklar."
+
+
+def _review_section_and_code(monkeypatch, section, code):
+    import asyncio
+    from types import SimpleNamespace
+
+    import tasks.link_builder as link_builder
+
+    async def fake_chat_json(prompt, model, **kwargs):
+        return {
+            "index": 0,
+            "confidence": 90,
+            "section": section,
+            "code": code,
+            "uncertain": "Das Beispiel zeigt kein `attributeDeltas`.",
+        }
+
+    monkeypatch.setattr(link_builder, "get_chat_json", fake_chat_json)
+    entity = SimpleNamespace(
+        type="class",
+        name="AbstractPushResultHandler",
+        qualified_name="org.example.AbstractPushResultHandler",
+        file_path="AbstractPushResultHandler.java",
+    )
+    chunk = SimpleNamespace(
+        content="at org.example.AbstractPushResultHandler.doHandle(AbstractPushResultHandler.java:499)",
+        metadata_json={"title": "SYNCOPE-1896"},
+        file_path="SYNCOPE-1896",
+        start_line=17,
+        end_line=25,
+    )
+    context = "public Result doHandle(Any any) { return getSearchCond(any); }"
+    return asyncio.run(
+        link_builder._llm_review(
+            entity, [(chunk, 0.8, "keyword")], min_confidence=50, entity_context=context
+        )
+    )[0][3]
+
+
+def test_llm_review_reason_names_section_and_code_apart(monkeypatch):
+    reason = _review_section_and_code(
+        monkeypatch,
+        "Der Stacktrace nennt `AbstractPushResultHandler.doHandle()`.",
+        "`getSearchCond()` wird in `doHandle` aufgerufen.",
+    )
+
+    # Belegt: doHandle() steht als doHandle(… .java:499) im Abschnitt, getSearchCond() im Code; „Ungewiss“
+    # nennt gerade, was fehlt, und wird nicht geprüft.
+    assert reason == (
+        "Im Abschnitt: Der Stacktrace nennt `AbstractPushResultHandler.doHandle()`.\n"
+        "Im Code: `getSearchCond()` wird in `doHandle` aufgerufen.\n"
+        "Ungewiss: Das Beispiel zeigt kein `attributeDeltas`."
+    )
+
+
+def test_llm_review_marks_a_quote_the_section_does_not_contain(monkeypatch):
+    reason = _review_section_and_code(
+        monkeypatch,
+        "Der Abschnitt beschreibt `getSearchCond()`.",
+        "Die Klasse ruft `PushJobDelegate.push()` auf.",
+    )
+
+    assert reason.startswith(
+        "[Zitat nicht in der genannten Quelle gefunden: `getSearchCond()`, `PushJobDelegate.push()`] "
+        "Im Abschnitt: "
+    )
 
 
 def test_llm_review_accepts_bare_object_for_single_candidate(monkeypatch):

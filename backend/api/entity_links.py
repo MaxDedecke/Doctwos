@@ -39,6 +39,7 @@ from doctus_models.database import (
 from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
+from doctus_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
 from services.job_control import send_tracked_task
@@ -571,10 +572,11 @@ async def llm_review_link(
         f"Entity: [{entity.type}] {entity.name} in Datei '{entity.file_path}'\n\n"
         f"Codeauszug: {code_excerpt}\n\n"
         f"Dokument [{link.source_type or '—'}] '{link.doc_title}':\n{(chunk.content or '')[:900]}\n\n"
-        "Nenne die konkrete Verbindung zwischen Code und Dokument, je ein belegendes Detail aus beiden Seiten sowie offene Unsicherheit. Keine bloße Ähnlichkeitsaussage.\n"
+        "Nenne die konkrete Verbindung zwischen Code und Dokument, je ein belegendes Detail aus beiden Seiten sowie offene Unsicherheit. "
+        f"{REASON_RULE_PROMPT}\n"
         "Antworte NUR mit einem JSON-Objekt der Form "
         '{"confidence": <Ganzzahl 0-100, wie sicher du bezüglich der Relevanz bist>, '
-        '"reason": "<konkrete Begründung auf Deutsch, 2-4 Sätze>"}.'
+        f"{REASON_FIELDS_PROMPT}}}."
     )
 
     try:
@@ -593,7 +595,16 @@ async def llm_review_link(
     confidence = data.get("confidence")
     if not isinstance(confidence, (int, float)):
         raise HTTPException(status_code=502, detail="LLM lieferte keine gültige Konfidenz")
-    reason = str(data.get("reason") or "").strip()
+    reason = compose_reason(
+        data,
+        (chunk.content, link.doc_title, chunk.file_path),
+        (
+            code_chunk.content if code_chunk else None,
+            entity.name,
+            entity.qualified_name,
+            entity.file_path,
+        ),
+    )
     if len(reason) < 40:
         raise HTTPException(status_code=502, detail="LLM lieferte keine ausreichende Begründung")
 

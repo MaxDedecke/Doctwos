@@ -1578,6 +1578,8 @@
     "newChatTitle": "Neuer Chat"
   },
   "linkManagerView": {
+    "sectionMissing": "Abschnitt nicht mehr vorhanden",
+    "sectionMissingHint": "Das Dokument wurde neu eingelesen; den bewerteten Abschnitt gibt es nicht mehr. Der nächste Link-Lauf bewertet diese Code-Entität gegen die aktuellen Abschnitte neu und ersetzt den Vorschlag.",
     "location": {
       "page": "Seite {{page}}",
       "lines": "Zeilen {{from}}–{{to}}",

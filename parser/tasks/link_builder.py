@@ -47,6 +47,7 @@ from doctus_models.database import (
     LinkBuilderDirtyItem,
     LinkBuilderRun,
 )
+from doctus_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
 from ollama_client import get_embedding, get_embeddings_batch, get_chat_json, ensure_model_pulled
 from core import config
 from core.doc_resolution import DOC_ENTITY_TYPES
@@ -524,6 +525,9 @@ class KeywordCorpus:
                 DocumentChunk.project_id == project_id,
                 DocumentChunk.source_id.isnot(None),
                 _embedding_model_filter(selected_model),
+                # Ohne diesen Filter kamen Quellcode-Abschnitte über die Stichwortsuche doch als Kandidaten
+                # (Syncope, Lauf 158: 59 von 104 Vorschlägen zeigten auf .java/.groovy/.xml).
+                _documentation_filter(),
             )
             .order_by(DocumentChunk.id)
             .yield_per(500)
@@ -695,6 +699,17 @@ def _document_names_field(entity: CodeEntity, content: str, entity_context: str 
     return any(name.casefold() in excerpt_names for name in _CODE_NAME.findall(text))
 
 
+def _verified_reason(
+    review: dict, chunk: DocumentChunk, entity: CodeEntity, entity_context: str | None
+) -> str:
+    meta = chunk.metadata_json or {}
+    return compose_reason(
+        review,
+        (chunk.content, meta.get("title"), chunk.file_path),
+        (entity_context, entity.name, entity.qualified_name, entity.file_path),
+    )
+
+
 async def _llm_review(
     entity: CodeEntity,
     top_pages: list[tuple[DocumentChunk, float, str]],
@@ -768,9 +783,10 @@ async def _llm_review_once(
         "  {\n"
         '    "index": 0,\n'
         '    "confidence": <Ganzzahl 0-100, deine eigene Einschätzung der Relevanz; vergib nicht für alle Kandidaten denselben Wert>,\n'
-        '    "reason": "Erkläre in 2-4 Sätzen, welche konkrete Stelle der Entity mit welchem Detail des Dokuments verbunden ist und was ungewiss bleibt. Keine bloße Ähnlichkeitsaussage."\n'
+        f"    {REASON_FIELDS_PROMPT}\n"
         "  }\n"
         "]\n"
+        f"{REASON_RULE_PROMPT}\n"
     )
 
     try:
@@ -810,10 +826,10 @@ async def _llm_review_once(
                 continue
             if confidence < min_confidence:
                 continue
-            reason = str(r.get("reason") or "").strip()
+            chunk, _, link_type = top_pages[idx]
+            reason = _verified_reason(r, chunk, entity, entity_context)
             if len(reason) < 40:
                 raise ValueError("LLM lieferte für einen Kandidaten keine konkrete Begründung")
-            chunk, _, link_type = top_pages[idx]
             reviewed.append((chunk, confidence / 100.0, link_type, reason))
         return reviewed
     except Exception as e:
@@ -851,8 +867,32 @@ def _stamp_link_snapshot(
     link.chunk_link_revision = chunk.link_revision or 0
 
 
+_AUTO_LINK_TYPES = ("semantic", "keyword", "syntactic")
+
+
 def _is_auto_link(link: EntityDocLink) -> bool:
-    return link.created_by == "auto" and link.link_type in {"semantic", "keyword", "syntactic"}
+    return link.created_by == "auto" and link.link_type in _AUTO_LINK_TYPES
+
+
+def _orphaned_links(db, project_id: int):
+    """Offene automatische Vorschläge, deren Abschnitt ein Re-Index entfernt hat (siehe chunk_reindex.py)."""
+    return db.query(EntityDocLink).filter(
+        EntityDocLink.project_id == project_id,
+        EntityDocLink.chunk_id.is_(None),
+        EntityDocLink.status == "pending",
+        EntityDocLink.created_by == "auto",
+        EntityDocLink.link_type.in_(_AUTO_LINK_TYPES),
+    )
+
+
+def _orphaned_entity_ids(db, project_id: int) -> set[int]:
+    return {
+        entity_id
+        for (entity_id,) in _orphaned_links(db, project_id)
+        .with_entities(EntityDocLink.entity_id)
+        .distinct()
+        if entity_id is not None
+    }
 
 
 def _undecided_pages(db, entity: CodeEntity, top_pages: list) -> list:
@@ -1086,6 +1126,10 @@ async def compute_entity_links_async(
         )
         bootstrap = not dirty_items and not has_previous_run
         dirty_entity_ids = {item.entity_id for item in dirty_items if item.entity_id is not None}
+        # Vorschläge, deren Abschnitt ein Re-Index entfernt hat (chunk_id NULL), lassen sich weder anzeigen noch
+        # über den Abschnitt ersetzen; ihre Entity wird gegen die aktuellen Abschnitte neu bewertet.
+        orphaned_entity_ids = _orphaned_entity_ids(db, project_id)
+        dirty_entity_ids |= orphaned_entity_ids
         dirty_chunk_ids = {item.chunk_id for item in dirty_items if item.chunk_id is not None}
         if bootstrap:
             entities = all_entities
@@ -1254,6 +1298,12 @@ async def compute_entity_links_async(
                         f"[LinkBuilder] Run {run_id} wurde während der Berechnung abgebrochen."
                     )
                     return
+                if entity.id in orphaned_entity_ids:
+                    for link in _orphaned_links(db, project_id).filter(
+                        EntityDocLink.entity_id == entity.id
+                    ):
+                        db.delete(link)
+                    db.flush()
                 # Veraltete automatische Vorschläge nur dieser Entity ersetzen; ein begrenzter oder
                 # fehlgeschlagener Lauf lässt die Links unberührter Entities stehen.
                 if not bootstrap and (entity.id in dirty_entity_ids or dirty_chunk_ids):

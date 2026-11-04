@@ -729,6 +729,63 @@ def test_llm_review_updates_score_and_context_but_not_status(
         db_session.commit()
 
 
+def test_llm_review_names_section_and_code_apart_and_marks_unbacked_quotes(
+    client, db_session, test_project, source_entity_chunk, monkeypatch
+):
+    source, entity, chunk = source_entity_chunk
+    link = _make_link(db_session, test_project, entity, chunk, status="pending")
+
+    async def fake(prompt, **kwargs):
+        assert '"section"' in prompt and '"code"' in prompt
+        return {
+            "confidence": 80,
+            "section": "Das Handbuch beschreibt die `Kontoführung` und `ZINS-BERECHNUNG`.",
+            "code": "Der Paragraph `ACCOUNT-PARA` führt das Konto.",
+            "uncertain": "Ob Zinsen dazugehören, bleibt offen.",
+        }
+
+    monkeypatch.setattr(entity_links_api, "ask_llm_json_for_profile", fake)
+    try:
+        res = client.post(f"/entity-doc-links/{link.id}/llm-review")
+        assert res.status_code == 200
+        assert res.json()["context"] == (
+            "[Zitat nicht in der genannten Quelle gefunden: `ZINS-BERECHNUNG`] "
+            "Im Abschnitt: Das Handbuch beschreibt die `Kontoführung` und `ZINS-BERECHNUNG`.\n"
+            "Im Code: Der Paragraph `ACCOUNT-PARA` führt das Konto.\n"
+            "Ungewiss: Ob Zinsen dazugehören, bleibt offen."
+        )
+    finally:
+        db_session.query(EntityDocLink).filter(EntityDocLink.id == link.id).delete()
+        db_session.commit()
+
+
+def test_recommendations_flag_suggestions_whose_section_a_reindex_removed(
+    client, db_session, test_project, source_entity_chunk
+):
+    source, entity, chunk = source_entity_chunk
+    links = {
+        "orphan": _make_link(db_session, test_project, entity, None, link_type="keyword"),
+        "manual": _make_link(
+            db_session, test_project, entity, None, link_type="manual", created_by="manual"
+        ),
+        "live": _make_link(db_session, test_project, entity, chunk),
+    }
+    try:
+        res = client.get(f"/projects/{test_project}/link-recommendations")
+        assert res.status_code == 200
+        flags = {item["id"]: item["section_missing"] for item in res.json()["links"]}
+        assert {name: flags[link.id] for name, link in links.items()} == {
+            "orphan": True,
+            "manual": False,
+            "live": False,
+        }
+    finally:
+        db_session.query(EntityDocLink).filter(
+            EntityDocLink.id.in_([link.id for link in links.values()])
+        ).delete(synchronize_session=False)
+        db_session.commit()
+
+
 def test_llm_review_rejects_manual_link_without_chunk(
     client, db_session, test_project, source_entity_chunk
 ):

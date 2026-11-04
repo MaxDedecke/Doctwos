@@ -74,6 +74,7 @@ from core.projects import (
 )
 from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
+from services.web_documents import is_web_source
 from services.web_documents.resolve import (
     ASSET_MAX_AGE_SECONDS,
     ASSET_MAX_BYTES,
@@ -518,6 +519,39 @@ def get_knowledge_source_files(
     return {"files": sorted(files), "file_status": file_status, "scan_summary": scan_summary}
 
 
+def _within(root: str, path: str) -> str:
+    """Pfad unterhalb von ``root``; ``..`` und Symlinks aus der Wurzel heraus enden als „nicht gefunden“."""
+    base = os.path.realpath(root)
+    resolved = os.path.realpath(os.path.join(base, path))
+    if resolved != base and not resolved.startswith(base.rstrip(os.sep) + os.sep):
+        raise HTTPException(status_code=404, detail="Datei existiert nicht auf dem Server")
+    return resolved
+
+
+def _source_file_path(db_source: KnowledgeSource, path: Optional[str]) -> str:
+    """Datei einer Quelle auf dem Server. Ein übergebener Pfad bleibt in der Wurzel seiner Quelle.
+
+    Früher galt er bei Quellen ohne hinterlegten Pfad als beliebiger Serverpfad: Wer eine Web-Quelle sehen
+    durfte, konnte so jede lesbare Datei des Containers abrufen.
+    """
+    kind = (db_source.type or "").lower()
+    spaces = db_source.spaces if isinstance(db_source.spaces, dict) else {}
+    if kind == "git" and path:
+        # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id> (Bare-Mirror + Worktree, parser/git_utils.py).
+        return _within(os.path.join(REPOS_ROOT, "wt", f"ks_{db_source.id}"), path)
+    if spaces.get("path"):
+        # "local"-Quelle: Die Datei liegt unter dem hinterlegten Pfad, unabhängig vom angeklickten
+        # Dateibaum-Eintrag (dessen Name für lokale Quellen nur der Anzeigename ist).
+        return os.path.join(UPLOADS_DIR, spaces["path"])
+    if kind == "folderwatch" and path:
+        return _within(WATCHED_ROOT, "/" + path if path.startswith("watched/") else path)
+    if is_web_source(db_source.type):
+        raise HTTPException(
+            status_code=400, detail="Einträge dieser Quelle öffnen sich in der Webansicht"
+        )
+    raise HTTPException(status_code=404, detail="Datei-Pfad nicht in Metadaten gefunden")
+
+
 @router.get("/{source_id}/content")
 def get_knowledge_source_content(
     source_id: int,
@@ -536,22 +570,7 @@ def get_knowledge_source_content(
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     assert_knowledge_source_visible(db_source, user, db)
 
-    path_name = (db_source.spaces or {}).get("path")
-    if db_source.type == "Git" and path:
-        # AP-3: Git-Quellen liegen als Worktree unter wt/ks_<id>, nicht mehr
-        # flach unter REPOS_ROOT (Bare-Mirror + Worktree, siehe parser/git_utils.py).
-        file_path = os.path.join(REPOS_ROOT, "wt", f"ks_{source_id}", path)
-    elif path_name:
-        # "local"-Quelle: einzelne Datei liegt unter dem in den Metadaten
-        # hinterlegten Pfad, unabhängig vom angeklickten Dateibaum-Eintrag
-        # (dessen Name für lokale Quellen nur der Anzeigename ist).
-        file_path = os.path.join(UPLOADS_DIR, path_name)
-    elif path:
-        if path.startswith("watched/"):
-            path = "/" + path
-        file_path = path
-    else:
-        raise HTTPException(status_code=404, detail="Datei-Pfad nicht in Metadaten gefunden")
+    file_path = _source_file_path(db_source, path)
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Datei existiert nicht auf dem Server")
@@ -623,15 +642,7 @@ def get_knowledge_source_raw(
         raise HTTPException(status_code=404, detail="Wissensquelle nicht gefunden")
     assert_knowledge_source_visible(db_source, user, db)
 
-    path_name = (db_source.spaces or {}).get("path")
-    if path_name:
-        file_path = os.path.join(UPLOADS_DIR, path_name)
-    elif path:
-        if path.startswith("watched/"):
-            path = "/" + path
-        file_path = path
-    else:
-        raise HTTPException(status_code=404, detail="Datei-Pfad nicht gefunden")
+    file_path = _source_file_path(db_source, path)
 
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Datei existiert nicht auf dem Server")
