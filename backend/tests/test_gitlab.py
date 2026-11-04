@@ -26,7 +26,7 @@ async def test_internal_gitlab_test_repos_and_branches_are_paginated(monkeypatch
             return httpx.Response(200, json={"id": 1})
         page = int(request.url.params["page"])
         data = (
-            [{"name": f"branch-{page}"}]
+            [{"name": f"branch-{page}", "default": page == 2}]
             if request.url.path.endswith("/branches")
             else [
                 {
@@ -51,7 +51,8 @@ async def test_internal_gitlab_test_repos_and_branches_are_paginated(monkeypatch
     result = await connectors.get_connector_branches(
         ConnectorBranchesRequest(**common, repo_name="team/sub/project")
     )
-    assert result == ["branch-1", "branch-2"]
+    # Der Wizard wählt den ersten Eintrag vor; der Standard-Branch steht hier erst auf Seite 2.
+    assert result == ["branch-2", "branch-1"]
     assert len(requests) == 5
 
 

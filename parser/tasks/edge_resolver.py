@@ -25,7 +25,7 @@ import posixpath
 from collections import defaultdict
 from pathlib import Path
 
-from sqlalchemy import or_
+from sqlalchemy import or_, text
 from sqlalchemy.orm import Session
 
 from cobol.copybook import strip_copybook_extension
@@ -834,6 +834,10 @@ def resolve_global_edges(db: Session, source_id: int) -> int:
     back to the DB-free resolver so all files in the source participate,
     including files skipped by an unchanged-content resume.
     """
+    # Eine neue source_id kennt die Planer-Statistik noch nicht (Schätzung: 1 Zeile). Die Auflöser
+    # filtern Kanten per Unterabfrage auf Entitäten derselben Quelle; mit dieser Schätzung wird daraus
+    # ein Nested Loop Kanten x Entitäten, der bei CardDemo über 10 Minuten ohne Fortschritt hing.
+    db.execute(text("ANALYZE code_entities, code_edges"))
     resolved = _resolve_cobol_edges(db, source_id)
     resolved += _resolve_java_edges(db, source_id)
     resolved += resolve_framework_edges(db, source_id)

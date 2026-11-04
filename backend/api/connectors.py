@@ -507,7 +507,10 @@ async def get_connector_branches(req: ConnectorBranchesRequest):
                     f"{gitlab_base(req.url)}/api/v4/projects/{encoded_name}/repository/branches",
                     headers,
                 )
-                return [item["name"] for item in items]
+                return _default_branch_first(
+                    [item["name"] for item in items],
+                    next((item["name"] for item in items if item.get("default")), None),
+                )
 
             else:
                 raise HTTPException(status_code=400, detail="Ungültiger Connector-Typ.")
