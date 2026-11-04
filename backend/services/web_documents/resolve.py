@@ -131,36 +131,53 @@ def _known_links(
         base = (other.url or "").rstrip("/")
         if not base or not is_web_source(other.type):
             continue
-        wanted = {}
+        wanted, by_url = {}, {}
         for url in urls:
             if url not in known and url.startswith(f"{base}/"):
-                key = adapter.index_key(url.split("#", 1)[0])
+                plain = url.split("#", 1)[0]
+                key = adapter.index_key(plain)
                 if key:
                     wanted[url] = key
-        if not wanted or not source_visible(db, user, other.id):
+                else:
+                    by_url[url] = plain
+        if not (wanted or by_url) or not source_visible(db, user, other.id):
             continue
         column = DocumentChunk.file_path
-        rows = (
-            db.query(column)
-            .filter(
-                DocumentChunk.source_id == other.id,
-                or_(
-                    *(
-                        column.endswith(key[1:], autoescape=True)
-                        if key[0] == "*"
-                        else column == key
-                        for key in set(wanted.values())
-                    )
-                ),
+        if wanted:
+            rows = (
+                db.query(column)
+                .filter(
+                    DocumentChunk.source_id == other.id,
+                    or_(
+                        *(
+                            column.endswith(key[1:], autoescape=True)
+                            if key[0] == "*"
+                            else column == key
+                            for key in set(wanted.values())
+                        )
+                    ),
+                )
+                .distinct()
+                .all()
             )
-            .distinct()
-            .all()
-        )
-        keys = [row[0] for row in rows]
-        for url, key in wanted.items():
-            found = any(k.endswith(key[1:]) for k in keys) if key[0] == "*" else key in keys
-            if found:
-                known[url] = other.id
+            keys = [row[0] for row in rows]
+            for url, key in wanted.items():
+                found = any(k.endswith(key[1:]) for k in keys) if key[0] == "*" else key in keys
+                if found:
+                    known[url] = other.id
+        if by_url:
+            # Die URL verrät keinen Schlüssel: gleiche Prüfung wie beim Öffnen, über die gespeicherte URL.
+            stored = DocumentChunk.metadata_json["url"].as_string()
+            rows = (
+                db.query(stored)
+                .filter(DocumentChunk.source_id == other.id, stored.in_(set(by_url.values())))
+                .distinct()
+                .all()
+            )
+            found_urls = {row[0] for row in rows}
+            for url, plain in by_url.items():
+                if plain in found_urls:
+                    known[url] = other.id
     return known
 
 

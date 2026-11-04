@@ -341,6 +341,121 @@ def test_a_new_adapter_only_needs_a_registry_entry(db_session, sources, monkeypa
     assert doc["title"] == "Live INC-1" and doc["kind"] == "incident"
 
 
+GITLAB = "https://gitlab.example/gitlab"
+GL_API = f"{GITLAB}/api/v4/projects/7"
+GL_WEB = f"{GITLAB}/team/app/-/work_items"
+
+
+def _gitlab(sources, db_session):
+    row = sources.source("GitLabIssues", GITLAB)
+    sources.chunk(
+        row, "7/issues/1", "Indexierter Issue-Text", title="#1: Absturz", url=f"{GL_WEB}/1"
+    )
+    sources.chunk(row, "7/issues/2", title="#2: Ursache", url=f"{GL_WEB}/2")
+    db_session.commit()
+    return row
+
+
+def _note(note_id, body, **flags):
+    return {
+        "id": note_id,
+        "body": body,
+        "author": {"name": "Ada"},
+        "created_at": "2026-11-01",
+        **flags,
+    }
+
+
+@respx.mock
+def test_gitlab_issue_is_rendered_live_with_the_same_exclusions_as_the_import(db_session, sources):
+    row = _gitlab(sources, db_session)
+    respx.get(f"{GL_API}/issues/1").mock(
+        return_value=httpx.Response(
+            200,
+            json={
+                "iid": 1,
+                "title": "Absturz",
+                "state": "opened",
+                "issue_type": "issue",
+                "labels": ["bug"],
+                "milestone": {"title": "Pilot"},
+                "assignees": [{"name": "Bob"}],
+                "author": {"name": "Ada"},
+                "created_at": "2026-11-01T10:00:00Z",
+                "description": "Im Programm `COSGN00C`:\n\n```cobol\nPERFORM X\n```",
+                "web_url": f"{GL_WEB}/1",
+                "references": {"short": "#1"},
+                "confidential": False,
+            },
+        )
+    )
+    respx.get(GL_API).mock(
+        return_value=httpx.Response(
+            200, json={"path_with_namespace": "team/app", "name_with_namespace": "Team / App"}
+        )
+    )
+    first = [_note(n, f"Kommentar {n}") for n in range(1, 99)]
+    first += [_note(99, "closed", system=True), _note(100, "geheim", internal=True)]
+    notes = respx.get(f"{GL_API}/issues/1/notes")
+    notes.side_effect = [
+        httpx.Response(200, json=first),
+        httpx.Response(200, json=[_note(101, "**letzter**"), _note(102, "x", confidential=True)]),
+    ]
+    respx.get(f"{GL_API}/issues/1/links").mock(
+        return_value=httpx.Response(
+            200,
+            json=[
+                {
+                    "iid": 2,
+                    "title": "Ursache",
+                    "state": "closed",
+                    "link_type": "blocks",
+                    "web_url": f"{GL_WEB}/2",
+                    "references": {"full": "team/app#2"},
+                },
+                {
+                    "iid": 3,
+                    "title": "Vertraulicher Titel",
+                    "confidential": True,
+                    "web_url": f"{GL_WEB}/3",
+                },
+            ],
+        )
+    )
+
+    doc = web.resolve_web_document(db_session, USER, row, f"{GL_WEB}/1", True)["document"]
+
+    assert doc["origin"] == "live" and doc["identifier"] == "#1" and doc["kind"] == "ticket"
+    facts = {fact["key"]: fact["values"] for fact in doc["facts"]}
+    assert facts["status"] == ["Open"] and facts["milestone"] == ["Pilot"]
+    assert facts["assignee"] == ["Bob"] and facts["author"] == ["Ada"]
+    assert [crumb["title"] for crumb in doc["breadcrumbs"]] == ["Team", "App"]
+    assert doc["breadcrumbs"][1]["url"] == f"{GITLAB}/team/app"
+    assert "<code>COSGN00C</code>" in doc["body_html"] and "<pre><code" in doc["body_html"]
+    bodies = [comment["body_html"] for comment in doc["comments"]]
+    assert len(bodies) == 99 and doc["comments_total"] == 99
+    assert bodies[-1] == "<p><strong>letzter</strong></p>"
+    assert not any("closed" in b or "geheim" in b or ">x<" in b for b in bodies)
+    # Das verknüpfte Issue liegt im Index und öffnet in Doctus; das vertrauliche erscheint gar nicht.
+    assert [
+        (r["identifier"], r["relation"], r["status"], r["source_id"]) for r in doc["related"]
+    ] == [("team/app#2", "blocks", "Closed", row.id)]
+    assert respx.calls[0].request.headers["authorization"] == "Bearer geheim"
+
+
+@respx.mock
+def test_gitlab_issue_that_became_confidential_shows_only_the_index(db_session, sources):
+    row = _gitlab(sources, db_session)
+    respx.get(f"{GL_API}/issues/1").mock(
+        return_value=httpx.Response(200, json={"iid": 1, "title": "Neu", "confidential": True})
+    )
+
+    doc = web.resolve_web_document(db_session, USER, row, "7/issues/1", True)["document"]
+
+    assert doc["origin"] == "index" and doc["notice"] == "index_only"
+    assert "Indexierter Issue-Text" in doc["body_html"] and len(respx.calls) == 1
+
+
 def test_file_sources_are_not_web_sources(db_session, sources):
     for kind in ("Git", "Local", "FolderWatch", "WebDAV"):
         assert not web_documents.is_web_source(kind)

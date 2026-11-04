@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from services.web_documents.base import WebAdapter
 from services.web_documents.confluence import ConfluenceAdapter
+from services.web_documents.gitlab_issues import GitLabIssuesAdapter
 from services.web_documents.jira import JiraAdapter
 
 # Quellen, die Dateien liefern und im Dokument- oder Code-Viewer landen. Alles andere ist ein Web-System;
@@ -12,7 +13,11 @@ FILE_SOURCE_TYPES = {"git", "local", "folderwatch", "webdav"}
 
 # Ein neues System braucht hier einen Eintrag nur für die volle Darstellung; ohne ihn zeigt der Grundfall
 # den indexierten Text.
-ADAPTERS: dict[str, WebAdapter] = {"jira": JiraAdapter(), "confluence": ConfluenceAdapter()}
+ADAPTERS: dict[str, WebAdapter] = {
+    "jira": JiraAdapter(),
+    "confluence": ConfluenceAdapter(),
+    "gitlabissues": GitLabIssuesAdapter(),
+}
 _FALLBACK = WebAdapter()
 
 

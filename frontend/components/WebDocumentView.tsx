@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 
 const TRANSLATED_FACTS = new Set([
   'type', 'status', 'priority', 'resolution', 'assignee', 'reporter', 'labels', 'components', 'fix_versions', 'affects_versions',
-  'due', 'created', 'updated', 'space', 'version', 'modified_by', 'author',
+  'due', 'created', 'updated', 'space', 'version', 'modified_by', 'author', 'milestone', 'closed',
 ]);
 const TRANSLATED_RELATIONS = new Set(['parent', 'subtask']);
 

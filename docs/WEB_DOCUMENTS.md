@@ -11,7 +11,8 @@ ist für alle gleich. Code: `backend/services/web_documents/`, `frontend/compone
 2. **Adapter** für die volle Darstellung: Unterklasse von `WebAdapter` in `backend/services/web_documents/<system>.py`,
    Eintrag in `ADAPTERS`.
    - `index_key(url)`: Index-Schlüssel aus einer URL, ohne Netzzugriff. Führendes `*` heißt: Nur das Ende zählt.
-     Davon hängt ab, ob Links auf diesen Eintrag in Doctus öffnen.
+     Davon hängt ab, ob Links auf diesen Eintrag in Doctus öffnen. Verrät die URL den Schlüssel nicht (`None`, etwa
+     GitLab: Schlüssel mit Projekt-ID, URL mit Pfad), gilt die beim Import gespeicherte URL des Eintrags.
    - `fetch(ctx, key, meta)`: das `WebDocument` live abrufen, über `ctx.get_json`. Nicht darstellbar: `NotRenderable`.
 3. **Übersetzungen** nur, wenn neue `Fact.key` übersetzt erscheinen sollen (`webDocument.facts`, `TRANSLATED_FACTS`).
    Ohne Eintrag erscheint `Fact.label`.

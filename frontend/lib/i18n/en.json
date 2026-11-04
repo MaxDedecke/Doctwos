@@ -2090,7 +2090,9 @@
       "space": "Space",
       "version": "Version",
       "modified_by": "Modified by",
-      "author": "Author"
+      "author": "Author",
+      "milestone": "Milestone",
+      "closed": "Closed"
     }
   },
   "dropView": {
