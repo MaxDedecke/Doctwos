@@ -68,6 +68,7 @@ from api import (
     source_profile,
     connectors,
     entity_links,
+    link_runs,
     system,
     knowledge_links,
     topics,
@@ -139,6 +140,7 @@ app.include_router(knowledge_sources.web_asset_router)
 app.include_router(source_profile.router, dependencies=_authenticated)
 app.include_router(connectors.router, dependencies=_authenticated)
 app.include_router(entity_links.router, dependencies=_authenticated)
+app.include_router(link_runs.router, dependencies=_authenticated)
 app.include_router(knowledge_links.router, dependencies=_authenticated)
 app.include_router(topics.router, dependencies=[Depends(require_admin)])
 app.include_router(diagnostics.router, dependencies=[Depends(require_admin)])

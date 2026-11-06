@@ -1,9 +1,9 @@
 """Umfang eines Entity-Link-Laufs: welche Code-Entitäten gegen welche Dokumentation geprüft werden.
 
 Ein Lauf ohne Einschränkung folgt der Dirty-Queue (einmaliger Backfill, danach nur Geändertes). Ein
-eingeschränkter Lauf (``scope_json["filter"]``) prüft dagegen zwei feste Mengen gegeneinander: alle
-Code-Entitäten der gewählten Typen gegen die Dokumentation der gewählten Wissensquellen. Er lässt die
-Dirty-Queue unberührt und zählt nicht als Backfill, denn er hat nur einen Ausschnitt geprüft.
+eingeschränkter Lauf (``scope_json["sets"]``, siehe ``doctus_models.link_sets``) prüft dagegen zwei feste
+Mengen gegeneinander: Menge A (Code) gegen Menge B (Dokumentation). Er lässt die Dirty-Queue unberührt und
+zählt nicht als Backfill, denn er hat nur einen Ausschnitt geprüft.
 """
 
 from __future__ import annotations
@@ -12,20 +12,13 @@ import logging
 import os
 from dataclasses import dataclass, field
 
-from sqlalchemy import or_, select
+from sqlalchemy import or_
 
 from core import config
-from doctus_models.database import (
-    CodeEntity,
-    DocumentChunk,
-    KnowledgeSource,
-    LinkBuilderDirtyItem,
-    LinkBuilderRun,
-)
+from doctus_models.database import CodeEntity, DocumentChunk, LinkBuilderDirtyItem, LinkBuilderRun
+from doctus_models.link_sets import DOCS, LinkSet, RunSets, code_scope, docs_scope
 
 logger = logging.getLogger(__name__)
-
-_DOC_LANGUAGES = ("asciidoc", "markdown", "text")
 
 
 def embedding_model_filter(model: str):
@@ -34,63 +27,21 @@ def embedding_model_filter(model: str):
     return DocumentChunk.embedding_model == model
 
 
-def documentation_filter():
-    """Nur Dokumentation ist Kandidat: Inhalte nicht-Git-Quellen sowie Doku-Dateien in Git-Quellen.
-
-    Quellcode-Abschnitte einer Git-Quelle sind der Code selbst; Code-zu-Code-Beziehungen gehören in den
-    Aufrufgraphen (gleiche Regel wie api/entity_links.py::search_doc_chunks).
-    """
-    non_git = DocumentChunk.source_id.in_(
-        select(KnowledgeSource.id).where(KnowledgeSource.type != "Git")
-    )
-    doc_language = DocumentChunk.metadata_json["language"].as_string().in_(_DOC_LANGUAGES)
-    return or_(non_git, doc_language)
-
-
 def doc_chunk_conditions(
-    project_id: int, embedding_model: str | None, doc_source_ids: frozenset[int] | None = None
+    project_id: int, embedding_model: str | None, docs_set: LinkSet | None = None
 ) -> list:
-    """Filter der Dokumentationsseite eines Laufs; ``doc_source_ids`` schränkt auf diese Quellen ein."""
-    conditions = [
-        DocumentChunk.project_id == project_id,
-        DocumentChunk.source_id.isnot(None),
+    """Filter der Dokumentationsseite eines Laufs; ``docs_set`` schränkt auf Menge B ein."""
+    return [
+        *docs_scope(project_id, docs_set or LinkSet.everything_of(DOCS)),
         embedding_model_filter(embedding_model or config.EMBED_MODEL),
-        documentation_filter(),
     ]
-    if doc_source_ids:
-        conditions.append(DocumentChunk.source_id.in_(sorted(doc_source_ids)))
-    return conditions
 
 
-@dataclass(frozen=True)
-class LinkRunScope:
-    """Einschränkung eines Laufs; leer heißt: alle Code-Entitäten und alle Dokumentation."""
-
-    entity_types: frozenset[str] = frozenset()
-    doc_source_ids: frozenset[int] = frozenset()
-
-    @property
-    def targeted(self) -> bool:
-        return bool(self.entity_types or self.doc_source_ids)
-
-    @classmethod
-    def from_scope(cls, scope: dict | None) -> "LinkRunScope":
-        raw = (scope or {}).get("filter") or {}
-        if not isinstance(raw, dict):
-            return cls()
-        types = frozenset(
-            str(value).strip() for value in raw.get("entity_types") or [] if str(value).strip()
-        )
-        source_ids: set[int] = set()
-        for value in raw.get("doc_source_ids") or []:
-            try:
-                source_ids.add(int(value))
-            except (TypeError, ValueError):
-                continue
-        return cls(types, frozenset(source_ids))
-
-    def includes(self, entity: CodeEntity) -> bool:
-        return not self.entity_types or entity.type in self.entity_types
+def selected_entity_ids(db, project_id: int, code_set: LinkSet) -> set[int]:
+    return {
+        entity_id
+        for (entity_id,) in db.query(CodeEntity.id).filter(*code_scope(project_id, code_set))
+    }
 
 
 # Obergrenze für den Arbeitsspeicher-Korpus des Keyword-Passes (Zeichen kleingeschriebenen Chunk-Texts).
@@ -111,7 +62,7 @@ class KeywordCorpus:
         db,
         project_id: int,
         embedding_model: str | None = None,
-        doc_source_ids: frozenset[int] | None = None,
+        docs_set: LinkSet | None = None,
     ):
         self.items: list[tuple[int, str]] | None = []
         total = 0
@@ -119,7 +70,7 @@ class KeywordCorpus:
         # (Syncope, Lauf 158: 59 von 104 Vorschlägen zeigten auf .java/.groovy/.xml).
         rows = (
             db.query(DocumentChunk.id, DocumentChunk.content)
-            .filter(*doc_chunk_conditions(project_id, embedding_model, doc_source_ids))
+            .filter(*doc_chunk_conditions(project_id, embedding_model, docs_set))
             .order_by(DocumentChunk.id)
             .yield_per(500)
         )
@@ -156,7 +107,7 @@ def _had_full_run(db, project_id: int, run_id: int) -> bool:
         LinkBuilderRun.status == "completed",
         LinkBuilderRun.id != run_id,
     )
-    return any(not LinkRunScope.from_scope(scope).targeted for (scope,) in rows)
+    return any(not (scope or {}).get("sets") for (scope,) in rows)
 
 
 def select_run_entities(
@@ -164,15 +115,15 @@ def select_run_entities(
     project_id: int,
     run_id: int,
     all_entities: list[CodeEntity],
-    run_scope: LinkRunScope,
+    run_sets: RunSets,
     orphaned_entity_ids: set[int],
 ) -> RunSelection:
-    if run_scope.targeted:
-        # Zwei feste Mengen gegeneinander: jede gewählte Entity gegen die gesamte gewählte Dokumentation.
-        entities = [entity for entity in all_entities if run_scope.includes(entity)]
+    if run_sets.targeted:
+        # Zwei feste Mengen gegeneinander: jede Entity aus A gegen die gesamte Dokumentation aus B.
+        wanted = selected_entity_ids(db, project_id, run_sets.a)
+        entities = [entity for entity in all_entities if entity.id in wanted]
         logger.info(
-            f"[LinkBuilder] Projekt {project_id}: eingeschränkter Lauf ({len(entities)} Entities, "
-            f"Typen {sorted(run_scope.entity_types) or 'alle'}, Quellen {sorted(run_scope.doc_source_ids) or 'alle'})…"
+            f"[LinkBuilder] Projekt {project_id}: eingeschränkter Lauf ({len(entities)} Entities)…"
         )
         return RunSelection(entities=entities, bootstrap=True)
 

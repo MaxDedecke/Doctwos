@@ -21,6 +21,7 @@ from doctus_models.database import (
     KnowledgeSource,
     LinkBuilderRun,
 )
+from doctus_models.link_sets import LinkSet, RunSets, docs_scope
 from ollama_client import get_chat_json
 from core import config
 from sqlalchemy import or_, and_
@@ -88,6 +89,21 @@ async def _llm_review_pair(
         raise RuntimeError(f"LLM-Prüfung für Cross-Source-Kandidat fehlgeschlagen: {e}") from e
 
 
+def _knowledge_sets(scope: dict, source_ids: list[int] | None) -> tuple[LinkSet, LinkSet] | None:
+    """Menge A und B eines Dokument↔Dokument-Laufs. Ältere Läufe tragen nur ``source_ids``: dann dieselben
+    Quellen auf beiden Seiten. ``ValueError`` bei unlesbaren Mengen, ``None`` ohne Scope."""
+    if scope.get("sets"):
+        run_sets = RunSets.from_scope(scope, "docs_docs")
+        if run_sets.pairing.task_type != "knowledge_links":
+            raise ValueError("Mengen gehören nicht zu einem Dokument↔Dokument-Lauf")
+        return run_sets.a, run_sets.b
+    ids = sorted(set(source_ids or scope.get("source_ids") or []))
+    if len(ids) < 2:
+        return None
+    legacy = LinkSet.from_json({"kind": "docs", "mode": "custom", "facets": {"source": ids}})
+    return legacy, legacy
+
+
 async def compute_knowledge_links_async(
     run_id: int,
     min_confidence: int | None = None,
@@ -125,16 +141,22 @@ async def compute_knowledge_links_async(
 
     scope = run.scope_json or {}
     selected_project_id = project_id or scope.get("project_id") or run.project_id
-    selected_source_ids = sorted(set(source_ids or scope.get("source_ids") or []))
-    if not selected_project_id or len(selected_source_ids) < 2:
+    try:
+        sets = _knowledge_sets(scope, source_ids)
+    except ValueError as error:
+        sets, scope_error = None, str(error)
+    else:
+        scope_error = "Cross-Source-Lauf ohne verpflichtenden Projekt- und Quellen-Scope."
+    if not selected_project_id or sets is None:
         run.status = "failed"
-        run.error_message = "Cross-Source-Lauf ohne verpflichtenden Projekt- und Quellen-Scope."
+        run.error_message = scope_error
         run.finished_at = datetime.now(timezone.utc)
         db.commit()
         db.close()
         return
+    set_a, set_b = sets
     run.project_id = selected_project_id
-    run.scope_json = {**scope, "project_id": selected_project_id, "source_ids": selected_source_ids}
+    run.scope_json = {**scope, "project_id": selected_project_id}
 
     selected_embedding_model = (
         embedding_model or run.embedding_model or config.EMBED_MODEL
@@ -153,8 +175,7 @@ async def compute_knowledge_links_async(
         chunks = (
             db.query(DocumentChunk)
             .filter(
-                DocumentChunk.project_id == selected_project_id,
-                DocumentChunk.source_id.in_(selected_source_ids),
+                *docs_scope(selected_project_id, set_a),
                 DocumentChunk.embedding.isnot(None),
                 model_filter,
             )
@@ -191,8 +212,7 @@ async def compute_knowledge_links_async(
 
             # Query for similar chunks
             query = db.query(DocumentChunk, dist_expr.label("dist")).filter(
-                DocumentChunk.project_id == selected_project_id,
-                DocumentChunk.source_id.in_(selected_source_ids),
+                *docs_scope(selected_project_id, set_b),
                 DocumentChunk.id != chunk.id,
                 DocumentChunk.embedding.isnot(None),
                 model_filter,

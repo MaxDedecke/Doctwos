@@ -38,24 +38,50 @@ Ansichten: [vier Panels](evidence/link-manager-layout-2026-10-27/four-panels.png
 [Analyse-Dialog](evidence/link-manager-layout-2026-10-27/analysis-dialog.png),
 [größere englische Schrift / helles Theme](evidence/link-manager-layout-2026-10-27/english-large-text.png).
 
-## Eingeschränkter Lauf: zwei Mengen gegeneinander (Auftrag 06.11.2026)
+## Analyse-Arbeitsfläche: Menge A gegen Menge B (Auftrag 06.11.2026)
 
-Der Analyse-Dialog grenzt einen Code↔Doc-Lauf auf zwei Mengen ein: Code-Entitäten
-gewählter Typen und Dokumentation gewählter Wissensquellen, etwa COBOL-Programme und
-Sections gegen ein PDF-Handbuch oder Jira. Die Typen stehen je Sprache gruppiert
-(`services/link_run_scope.py::language_of_type`: Sprachprofil, sonst Typ-Zuordnung, sonst
-„Weitere“), mit Anzahl; je Sprache lassen sich alle Typen an- und abwählen. Quellen
-erscheinen nur, wenn sie Dokumentation tragen (bei Git nur AsciiDoc/Markdown/Text).
-Ohne Auswahl gilt die ganze Seite.
+„Analyse starten“ öffnet eine bildschirmbreite Arbeitsfläche (ersetzt den früheren
+Analyse-Dialog). Oben wählt man die Analyseart, darunter stehen Menge A, Menge B und die
+Laufeinstellungen nebeneinander; die Fußzeile zeigt laufend die Aufwandsschätzung. Die
+frühere Bestätigung per Browser-Dialog entfällt, weil die Schätzung vor dem Start sichtbar ist.
 
-- API: `GET /projects/{id}/link-recommendations/scope-options` (Typen je Sprache,
-  Quellen mit Abschnittszahl, Auswahl des letzten von einer Person gestarteten Laufs);
-  `estimate` und `compute` nehmen `entity_types` und `doc_source_ids` (wiederholbar).
-  Dokumentations-Typen und projektfremde Quellen werden mit 422 abgelehnt.
-- Die Auswahl steht in `LinkBuilderRun.scope_json["filter"]`; Fortsetzen im Job Center
-  übernimmt sie. Der Dialog schlägt je Projekt die Auswahl des letzten Laufs vor.
-- Ein eingeschränkter Lauf prüft alle gewählten Entitäten gegen die gesamte gewählte
-  Dokumentation, nicht nur Geändertes. Er arbeitet die Änderungs-Warteschlange nicht ab
-  und zählt nicht als Erstlauf: Ein späterer Lauf ohne Einschränkung macht den Backfill
-  bzw. den inkrementellen Lauf wie zuvor (`parser/tasks/link_run_scope.py`).
-- Budget und erweiterte Optionen (u. a. Kandidaten je Modellaufruf) gelten unverändert.
+**Mengen.** Jede Menge hat eine Art (Code oder Dokumentation) und ist entweder „Alle“ oder
+eine „Eigene Auswahl“. Eine eigene Auswahl ist die Vereinigung aus
+- Filtern (Facetten): Werte eines Filters gelten mit ODER, verschiedene Filter mit UND
+  (Code: Typ je Sprache, Repository; Dokumentation: Wissensquelle, gruppiert nach Quelltyp);
+- einzeln gesuchten und hinzugefügten Objekten (Code-Entitäten, Dokumente = Quelle + Datei/Seite/Ticket).
+
+Sie darf leer beginnen; gestartet wird erst, wenn beide Mengen etwas enthalten. Jede Menge
+zeigt ihre Größe und eine Stichprobe. Filter mit nur einem Wert werden ausgeblendet.
+
+**Analysearten.** Code ↔ Dokumentation (Entity-Links, alle Nutzer) und Dokumentation ↔
+Dokumentation (Knowledge-Links, nur Administratoren; ersetzt die frühere Quellen-Auswahl
+„Cross-Source“). Code ↔ Code bietet die Arbeitsfläche nicht an; das ist der Aufrufgraph.
+Code ↔ Dokumentation mit „Alle“ auf beiden Seiten bleibt der inkrementelle Lauf über die
+Änderungs-Warteschlange (einmaliger Erstlauf, danach nur Geändertes). Jede Einschränkung macht
+daraus einen gezielten Lauf: Er prüft jedes Objekt aus A gegen die ganze Menge B, lässt die
+Warteschlange unberührt und zählt nicht als Erstlauf. Dokumentation ↔ Dokumentation prüft
+jeden Abschnitt aus A gegen Abschnitte aus B aus anderen Quellen; beide Seiten enthalten nur
+Dokumentation (bei Git nur AsciiDoc/Markdown/Text).
+
+**Speicherung.** Die Mengen stehen in `LinkBuilderRun.scope_json["sets"]`
+(`{"pairing", "a", "b"}`), das Fortsetzen im Job Center übernimmt sie. Die Arbeitsfläche schlägt
+je Projekt und Analyseart die Auswahl des letzten von einer Person gestarteten Laufs vor.
+Unlesbare Mengen lassen den Lauf fehlschlagen, statt still den ganzen Bestand zu prüfen.
+
+**API** (`backend/api/link_runs.py`): `GET /projects/{id}/link-runs/options` (Analysearten,
+Facetten mit Anzahlen, letzte Auswahl), `GET …/search?kind=code|docs&q=`, `POST …/preview`,
+`POST …/estimate`, `POST /projects/{id}/link-runs` (Start). Die Einzel-Endpunkte
+`/link-recommendations/compute` und `/knowledge-links/compute` bleiben unverändert erhalten.
+
+### Erweitern
+
+Das Mengenformat ist sprach- und quellenneutral (`packages/doctus-models/doctus_models/link_sets.py`).
+Neue Sprachen und Quelltypen erscheinen ohne Codeänderung als neue Gruppe; bekannte Namen
+bekommen nur einen Übersetzungseintrag (`linkManagerView.workspace.languages|sourceTypes`).
+- Neue Facette: Bedingung in `link_sets.FACETS`, Werte in `services/link_set_options.py::_FACET_VALUES`,
+  Bezeichnung `linkManagerView.workspace.facets.<art>.<name>`.
+- Neue Objektart: Schlüsselfelder in `link_sets.ITEM_KINDS`, Bedingung in `_ITEM_CONDITIONS`,
+  Suche/Stichprobe in `link_set_options._SEARCH`/`_SAMPLE`, Schlüssel in `frontend/lib/linkSets.ts::ITEM_KEY_FIELDS`.
+- Neue Typzuordnung zu einer Sprache: `link_set_options._TYPE_LANGUAGES` (sonst Sprachprofil bzw. Präfix).
+- Neue Analyseart: Eintrag in `link_sets.PAIRINGS` und ein Lauf, der A und B über `set_condition` liest.

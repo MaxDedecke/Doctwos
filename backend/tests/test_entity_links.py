@@ -21,6 +21,7 @@ from unittest.mock import patch
 import pytest
 
 import api.entity_links as entity_links_api
+import services.link_run_start as link_run_start
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from tests.conftest import make_fake_llm_json
 from doctus_models.database import (
@@ -378,7 +379,7 @@ def test_trigger_link_computation_dispatches_task_and_creates_run(client, db_ses
     def fake_send_tracked_task(db, record, task_name, args, kwargs=None):
         calls.append((task_name, args, kwargs))
 
-    with patch.object(entity_links_api, "send_tracked_task", side_effect=fake_send_tracked_task):
+    with patch.object(link_run_start, "send_tracked_task", side_effect=fake_send_tracked_task):
         res = client.post(
             f"/projects/{test_project}/link-recommendations/compute",
             params={"min_confidence": 70},
@@ -412,7 +413,7 @@ def test_trigger_link_computation_preserves_pending_and_reviewed_links(
     approved_id = _make_link(db_session, test_project, entity, other_one, status="approved").id
     rejected_id = _make_link(db_session, test_project, entity, other_two, status="rejected").id
 
-    with patch.object(entity_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
+    with patch.object(link_run_start, "send_tracked_task", side_effect=lambda *a, **k: None):
         res = client.post(f"/projects/{test_project}/link-recommendations/compute")
     assert res.status_code == 200
 
@@ -446,7 +447,7 @@ def test_trigger_link_computation_records_validated_run_parameters(
     client, db_session, test_project
 ):
     """O-183: Nur gesetzte Parameter landen im Lauf; Werte außerhalb der Grenzen werden abgewiesen."""
-    with patch.object(entity_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
+    with patch.object(link_run_start, "send_tracked_task", side_effect=lambda *a, **k: None):
         too_many = client.post(
             f"/projects/{test_project}/link-recommendations/compute",
             params={"review_concurrency": 99},
@@ -509,7 +510,7 @@ def test_trigger_link_computation_deduplicates_when_run_is_active(client, db_ses
 
     sent = []
     with patch.object(
-        entity_links_api, "send_tracked_task", side_effect=lambda *a, **k: sent.append(a)
+        link_run_start, "send_tracked_task", side_effect=lambda *a, **k: sent.append(a)
     ):
         res = client.post(f"/projects/{test_project}/link-recommendations/compute")
 

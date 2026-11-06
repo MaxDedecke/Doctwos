@@ -1,4 +1,4 @@
-"""Eingeschränkter Link-Lauf: nur Code-Entitäten gewählter Typen gegen Dokumentation gewählter Quellen."""
+"""Eingeschränkte Link-Läufe: Menge A gegen Menge B (``doctus_models.link_sets``)."""
 
 import uuid
 
@@ -11,22 +11,29 @@ from doctus_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,
+    KnowledgeLink,
     KnowledgeSource,
     LinkBuilderDirtyItem,
     LinkBuilderRun,
 )
-from tasks.link_run_scope import LinkRunScope, select_run_entities
+from doctus_models.link_sets import RunSets
+from tasks import cross_link_builder
+from tasks.link_run_scope import select_run_entities
 
 
-def test_scope_reads_types_and_sources_and_ignores_junk():
-    scope = LinkRunScope.from_scope(
-        {"filter": {"entity_types": ["program", " section ", ""], "doc_source_ids": [3, "4", "x"]}}
-    )
-    assert scope.entity_types == {"program", "section"}
-    assert scope.doc_source_ids == {3, 4}
-    assert scope.targeted
-    assert not LinkRunScope.from_scope({"filter": "kaputt"}).targeted
-    assert not LinkRunScope.from_scope(None).targeted
+def test_sets_of_a_stored_run_are_read_and_broken_ones_fail_loudly():
+    assert not RunSets.from_scope(None).targeted
+    assert not RunSets.from_scope({"params": {}}).targeted
+    stored = {
+        "sets": {
+            "pairing": "code_docs",
+            "a": {"kind": "code", "mode": "custom", "facets": {"entity_type": ["program"]}},
+        }
+    }
+    run_sets = RunSets.from_scope(stored)
+    assert run_sets.targeted and run_sets.b.everything
+    with pytest.raises(ValueError):
+        RunSets.from_scope({"sets": {"pairing": "code_docs", "a": {"kind": "code", "mode": "?"}}})
 
 
 @pytest.fixture
@@ -86,9 +93,15 @@ def workspace():
         status="pending",
         scope_json={
             "project_id": project_id,
-            "filter": {"entity_types": ["program", "section"], "doc_source_ids": [handbook.id]},
+            "sets": {
+                "pairing": "code_docs",
+                # Typ-Facette plus ein über die Suche hinzugefügtes Objekt (der Paragraph fällt sonst heraus).
+                "a": {"kind": "code", "mode": "custom", "facets": {"entity_type": ["program"]}},
+                "b": {"kind": "docs", "mode": "custom", "facets": {"source": [handbook.id]}},
+            },
         },
     )
+    run.scope_json["sets"]["a"]["items"] = [{"kind": "entity", "id": entities["section"].id}]
     db.add_all([dirty, run])
     db.commit()
     try:
@@ -96,6 +109,7 @@ def workspace():
     finally:
         db.rollback()
         db.query(EntityDocLink).filter(EntityDocLink.project_id == project_id).delete()
+        db.query(KnowledgeLink).filter(KnowledgeLink.project_id == project_id).delete()
         db.query(LinkBuilderDirtyItem).filter(
             LinkBuilderDirtyItem.project_id == project_id
         ).delete()
@@ -157,8 +171,62 @@ def test_a_targeted_run_does_not_replace_the_backfill(workspace):
     db.commit()
 
     selection = select_run_entities(
-        db, project_id, run_id + 1, list(entities.values()), LinkRunScope(), set()
+        db, project_id, run_id + 1, list(entities.values()), RunSets.from_scope(None), set()
     )
 
     assert selection.bootstrap
     assert len(selection.entities) == 3
+
+
+@pytest.mark.anyio
+async def test_document_run_checks_set_a_against_set_b_only(workspace, monkeypatch):
+    db, project_id, _entities, chunks, _run_id, _dirty_id = workspace
+    for chunk in chunks.values():
+        chunk.embedding = [1.0] + [0.0] * 1023
+    handbook, tickets = chunks["handbuch"], chunks["tickets"]
+    run = LinkBuilderRun(
+        project_id=project_id,
+        task_type="knowledge_links",
+        status="pending",
+        scope_json={
+            "project_id": project_id,
+            "sets": {
+                "pairing": "docs_docs",
+                "a": {
+                    "kind": "docs",
+                    "mode": "custom",
+                    "items": [
+                        {
+                            "kind": "document",
+                            "source_id": handbook.source_id,
+                            "file_path": handbook.file_path,
+                        }
+                    ],
+                },
+                "b": {"kind": "docs", "mode": "custom", "facets": {"source": [tickets.source_id]}},
+            },
+        },
+    )
+    db.add(run)
+    db.commit()
+    reviewed = []
+
+    async def review(prompt, model, **kwargs):
+        reviewed.append(prompt)
+        return {
+            "confidence": 90,
+            "keep": True,
+            "reason": "Beide Texte beschreiben dieselbe Gehaltsberechnung durch PAYCALC.",
+        }
+
+    monkeypatch.setattr(cross_link_builder, "get_chat_json", review)
+
+    await cross_link_builder.compute_knowledge_links_async(run.id)
+
+    db.expire_all()
+    assert db.get(LinkBuilderRun, run.id).status == "completed"
+    links = db.query(KnowledgeLink).filter(KnowledgeLink.project_id == project_id).all()
+    assert [(link.source_a_chunk_id, link.source_b_chunk_id) for link in links] == [
+        (handbook.id, tickets.id)
+    ]
+    assert len(reviewed) == 1

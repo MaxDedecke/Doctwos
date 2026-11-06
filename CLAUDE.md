@@ -103,8 +103,9 @@ Regeln dafür:
   System, Rückfall auf den Index (`docs/WEB_DOCUMENTS.md`). Muss für beliebige weitere Systeme adaptierbar bleiben.
 - **Expliziter Auftrag 02.11.2026:** Im Text genannten Code im Web Viewer zeigen, leere Starts der Abhängigkeiten- und
   Ablauf-View beheben, Testschalter in der Abhängigkeiten-View.
-- **Expliziter Auftrag 06.11.2026:** Link-Manager – Code↔Doc-Läufe auf zwei Mengen eingrenzbar
-  (Code-Typen je Sprache, Wissensquellen mit Dokumentation), Auswahl je Projekt (`docs/LINK_MANAGER_LAYOUT.md`).
+- **Expliziter Auftrag 06.11.2026:** Link-Manager – Analyse-Arbeitsfläche (bildschirmbreiter Dialog): Menge A gegen
+  Menge B aus Filtern (Typ je Sprache, Repository, Wissensquelle) und einzeln gesuchten Objekten, auch leer beginnend;
+  erweiterbar für weitere Sprachen und Quelltypen (`doctus_models/link_sets.py`, `docs/LINK_MANAGER_LAYOUT.md`).
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im

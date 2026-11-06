@@ -51,12 +51,8 @@ from ollama_client import get_embedding, get_embeddings_batch, get_chat_json, en
 from core import config
 from core.doc_resolution import DOC_ENTITY_TYPES
 from chunk_reindex import content_fingerprint
-from tasks.link_run_scope import (
-    KeywordCorpus,
-    LinkRunScope,
-    doc_chunk_conditions,
-    select_run_entities,
-)
+from doctus_models.link_sets import LinkSet, RunSets
+from tasks.link_run_scope import KeywordCorpus, doc_chunk_conditions, select_run_entities
 import httpx
 import redis
 from celery import current_app
@@ -333,7 +329,7 @@ async def _pass_semantic(
     top_k: int | None = None,
     min_score: float | None = None,
     per_chunk: bool = False,
-    doc_source_ids: frozenset[int] | None = None,
+    docs_set: LinkSet | None = None,
 ) -> dict[str, tuple]:
     """Pass 1: cosine similarity between entity context and doc chunk embeddings.
 
@@ -350,7 +346,7 @@ async def _pass_semantic(
 
     dist_expr = DocumentChunk.embedding.cosine_distance(embedding)
     query = db.query(DocumentChunk, dist_expr.label("dist")).filter(
-        *doc_chunk_conditions(project_id, selected_model, doc_source_ids),
+        *doc_chunk_conditions(project_id, selected_model, docs_set),
         DocumentChunk.embedding_dimension == len(embedding),
     )
     if candidate_chunk_ids is not None:
@@ -493,7 +489,7 @@ def _pass_keyword(
     min_score: float | None = None,
     per_chunk: bool = False,
     selection: str = "best",
-    doc_source_ids: frozenset[int] | None = None,
+    docs_set: LinkSet | None = None,
 ) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
@@ -544,7 +540,7 @@ def _pass_keyword(
         return result
 
     query = db.query(DocumentChunk).filter(
-        *doc_chunk_conditions(project_id, embedding_model, doc_source_ids)
+        *doc_chunk_conditions(project_id, embedding_model, docs_set)
     )
     if candidate_chunk_ids is not None:
         query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
@@ -1015,20 +1011,16 @@ async def compute_entity_links_async(
             if entity.id is not None
         }
 
-        run_scope = LinkRunScope.from_scope(run.scope_json)
+        run_sets = RunSets.from_scope(run.scope_json)
         doc_count = (
             db.query(DocumentChunk)
-            .filter(
-                *doc_chunk_conditions(
-                    project_id, selected_embedding_model, run_scope.doc_source_ids
-                )
-            )
+            .filter(*doc_chunk_conditions(project_id, selected_embedding_model, run_sets.b))
             .count()
         )
         if doc_count == 0:
             message = (
-                "Keine Dokumentation in den gewählten Wissensquellen."
-                if run_scope.doc_source_ids
+                "Keine Dokumentation in Menge B."
+                if not run_sets.b.everything
                 else "Keine Wissensquellen — bitte Confluence/Notion synchronisieren."
             )
             logger.info(f"[LinkBuilder] Projekt {project_id}: {message}")
@@ -1040,7 +1032,7 @@ async def compute_entity_links_async(
 
         orphaned_entity_ids = _orphaned_entity_ids(db, project_id)
         selection = select_run_entities(
-            db, project_id, run_id, all_entities, run_scope, orphaned_entity_ids
+            db, project_id, run_id, all_entities, run_sets, orphaned_entity_ids
         )
         entities, bootstrap = selection.entities, selection.bootstrap
         dirty_items, queue_ids = selection.dirty_items, selection.queue_ids
@@ -1072,8 +1064,8 @@ async def compute_entity_links_async(
         if not entities:
             run.status = "completed"
             run.progress_message = (
-                "Keine Code-Entitäten der gewählten Typen."
-                if run_scope.targeted
+                "Keine Code-Entitäten in Menge A."
+                if run_sets.targeted
                 else "Keine neuen oder geänderten Link-Kandidaten."
             )
             run.finished_at = datetime.now(timezone.utc)
@@ -1091,9 +1083,7 @@ async def compute_entity_links_async(
         ] = {}
 
         await ensure_model_pulled(selected_embedding_model)
-        keyword_corpus = KeywordCorpus(
-            db, project_id, selected_embedding_model, run_scope.doc_source_ids
-        )
+        keyword_corpus = KeywordCorpus(db, project_id, selected_embedding_model, run_sets.b)
         # Offene Queue-Einträge je Entity einmal indexieren (vorher je Entity eine Abfrage je Eintrag: quadratisch).
         dirty_by_entity: dict[int, list[int]] = {}
         for item in dirty_items:
@@ -1142,7 +1132,7 @@ async def compute_entity_links_async(
                     top_k=params.top_k_semantic,
                     min_score=params.min_score_semantic,
                     per_chunk=params.dedupe_by_chunk,
-                    doc_source_ids=run_scope.doc_source_ids,
+                    docs_set=run_sets.b,
                 )
                 keyword = _pass_keyword(
                     entity,
@@ -1155,7 +1145,7 @@ async def compute_entity_links_async(
                     min_score=params.min_score_keyword,
                     per_chunk=params.dedupe_by_chunk,
                     selection=params.keyword_selection,
-                    doc_source_ids=run_scope.doc_source_ids,
+                    docs_set=run_sets.b,
                 )
                 top_pages = _exclude_own_source(
                     entity,

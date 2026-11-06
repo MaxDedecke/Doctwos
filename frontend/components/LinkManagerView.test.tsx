@@ -24,7 +24,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { LinkManagerView } from './LinkManagerView';
-import type { LinkScopeOptions } from '@/lib/linkRunScope';
+import type { LinkSetItem, WorkspaceOptions } from '@/lib/linkSets';
 
 vi.mock('./TopicsPanel', () => ({ TopicsPanel: () => <div data-testid="topics-panel" /> }));
 
@@ -85,7 +85,29 @@ interface Routes {
   projectSources?: Array<{ id: number; name: string }>;
   entityEstimate?: { entities_to_scan: number; estimated_llm_reviews_max: number; estimated_embedding_calls_max: number };
   knowledgeEstimate?: { chunk_count: number; estimated_llm_reviews_max: number };
-  scopeOptions?: LinkScopeOptions;
+  workspaceOptions?: WorkspaceOptions;
+  searchItems?: LinkSetItem[];
+}
+
+function workspaceOptions(last: WorkspaceOptions['last'] = { code_docs: null, docs_docs: null }): WorkspaceOptions {
+  return {
+    project_id: 3,
+    pairings: [
+      { key: 'code_docs', a: 'code', b: 'docs', task_type: 'entity_links' },
+      { key: 'docs_docs', a: 'docs', b: 'docs', task_type: 'knowledge_links' },
+    ],
+    kinds: {
+      code: { total: 65, facets: [{ name: 'entity_type', groups: [
+        { key: 'cobol', count: 60, values: [{ value: 'paragraph', count: 50 }, { value: 'section', count: 8 }, { value: 'program', count: 2 }] },
+        { key: 'java', count: 5, values: [{ value: 'method', count: 5 }] },
+      ] }] },
+      docs: { total: 10, facets: [{ name: 'source', groups: [
+        { key: 'Local', count: 4, values: [{ value: '9', label: 'Handbuch.pdf', count: 4 }] },
+        { key: 'Jira', count: 6, values: [{ value: '11', label: 'Jira PROJ', count: 6 }] },
+      ] }] },
+    },
+    last,
+  };
 }
 
 /** fetch-Stub, der die Endpunkte der Ansicht nach URL + Methode beantwortet. */
@@ -98,8 +120,14 @@ function stubFetch(routes: Routes = {}) {
     if (method === 'DELETE') return json({}, true);
     if (url.includes('/llm-review')) return json(routes.llmReview ?? { score: 0.95, context: 'LLM-Begründung' }, routes.llmReviewOk !== false);
     if (method === 'POST' && url.includes('/compute')) return json({ started: true, run_id: 1 });
+    if (url.includes('/link-runs/options')) return json(routes.workspaceOptions ?? workspaceOptions());
+    if (url.includes('/link-runs/search')) return json({ items: routes.searchItems ?? [] });
+    if (method === 'POST' && url.includes('/link-runs/preview')) return json({ count: 3, sample: [] });
+    if (method === 'POST' && url.includes('/link-runs/estimate')) {
+      return json({ pairing: 'code_docs', task_type: 'entity_links', targeted: true, is_bootstrap: false, a_count: 3, b_count: 6, reviews_max: 3, embedding_calls_max: 3, has_active_run: false });
+    }
+    if (method === 'POST' && url.endsWith('/link-runs')) return json({ run_id: 1, pairing: 'code_docs' });
     if (method === 'POST') return json(routes.postOk === false ? { detail: routes.postError ?? 'Serverfehler' } : {}, routes.postOk !== false);
-    if (url.includes('/link-recommendations/scope-options')) return json(routes.scopeOptions ?? { languages: [], doc_sources: [], last_filter: null });
     if (url.includes('/link-recommendations/estimate')) return json(routes.entityEstimate ?? { entities_to_scan: 12, estimated_llm_reviews_max: 12, estimated_embedding_calls_max: 12 });
     if (url.includes('/knowledge-links/estimate')) return json(routes.knowledgeEstimate ?? { chunk_count: 4, estimated_llm_reviews_max: 20 });
 
@@ -151,7 +179,6 @@ describe('LinkManagerView', () => {
   beforeEach(() => {
     localStorage.clear();
     vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(600);
-    vi.stubGlobal('confirm', vi.fn(() => true));
   });
 
   afterEach(() => {
@@ -317,73 +344,92 @@ describe('LinkManagerView', () => {
       unmount();
 
       renderView();
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));      expect(((await screen.findByLabelText('Mindest-Wahrscheinlichkeit')) as HTMLInputElement).value).toBe('60');
-    });
-
-    it('startet die automatische Suche mit der eingestellten Mindest-Wahrscheinlichkeit', async () => {
-      const fetchMock = stubFetch();
-
-      renderView({ currentUser: { is_admin: true } });
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));      fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
-
       fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
-
-      await waitFor(() => expect(calls(fetchMock, '/compute', 'POST').some(u => u.includes('min_confidence=70'))).toBe(true));
-      expect(calls(fetchMock, '/knowledge-links/compute', 'POST').some(u =>
-        u.includes('project_id=3') && u.includes('source_ids=7') && u.includes('source_ids=9')
-      )).toBe(true);
-      expect(screen.getByText(/Suche gestartet/)).toBeTruthy();
+      expect(((await screen.findByLabelText('Mindest-Wahrscheinlichkeit')) as HTMLInputElement).value).toBe('60');
     });
 
-    it('gibt die erweiterten Lauf-Optionen nur gesetzt und begrenzt an den Entity-Lauf weiter', async () => {
+    it('startet einen Lauf mit Einstellungen und nur gesetzten, begrenzten erweiterten Optionen', async () => {
       const fetchMock = stubFetch();
 
-      renderView({ currentUser: { is_admin: true } });
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));      fireEvent.change(await screen.findByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
+      renderView();
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
+      fireEvent.change(screen.getByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
       fireEvent.change(screen.getByLabelText('Mindest-Score vor der Bewertung'), { target: { value: '0.8' } });
       fireEvent.click(screen.getByLabelText('Jeden Abschnitt einzeln bewerten (statt einer Seite)'));
+      const start = await screen.findByRole('button', { name: 'Lauf starten' });
+      await waitFor(() => expect(screen.getByTestId('link-run-estimate').textContent).toContain('Prüft 3'));
 
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      fireEvent.click(start);
 
-      await waitFor(() => expect(calls(fetchMock, '/compute', 'POST').length).toBeGreaterThan(0));
-      const entityRun = calls(fetchMock, '/compute', 'POST').find(u => u.includes('/link-recommendations/compute'))!;
-      expect(entityRun).toContain('review_concurrency=8');
-      expect(entityRun).toContain('merge_threshold=0.8');
-      expect(entityRun).toContain('dedupe_by_chunk=true');
-      expect(entityRun).not.toContain('top_k_semantic');
-      // Der Cross-Source-Lauf kennt diese Optionen nicht.
-      expect(calls(fetchMock, '/knowledge-links/compute', 'POST').every(u => !u.includes('review_concurrency'))).toBe(true);
+      await waitFor(() => expect(calls(fetchMock, '/link-runs', 'POST').some(u => u.endsWith('/link-runs'))).toBe(true));
+      const body = bodyOf(fetchMock, '/link-runs', 'POST');
+      expect(body.pairing).toBe('code_docs');
+      expect(body.min_confidence).toBe(70);
+      expect(body.a).toEqual({ kind: 'code', mode: 'all', facets: {}, items: [] });
+      expect(body.params).toEqual({ review_concurrency: 8, merge_threshold: 0.8, dedupe_by_chunk: true });
+      expect(await screen.findByText(/Suche gestartet/)).toBeTruthy();
+      await waitFor(() => expect(screen.queryByTestId('link-run-workspace')).toBeNull());
     });
 
-    it('grenzt den Entity-Lauf auf gewählte Code-Typen und Doku-Quellen ein und schlägt die letzte Auswahl vor', async () => {
+    it('baut eine eigene Menge aus Typen und gesuchten Objekten und startet erst, wenn beide Mengen etwas enthalten', async () => {
       const fetchMock = stubFetch({
-        scopeOptions: {
-          languages: [
-            { language: 'cobol', count: 60, types: [{ type: 'paragraph', count: 50 }, { type: 'section', count: 8 }, { type: 'program', count: 2 }] },
-            { language: 'java', count: 5, types: [{ type: 'method', count: 5 }] },
-          ],
-          doc_sources: [{ id: 9, name: 'Handbuch.pdf', type: 'Local', chunk_count: 4 }, { id: 11, name: 'Jira PROJ', type: 'Jira', chunk_count: 6 }],
-          last_filter: { entity_types: ['program'], doc_source_ids: [] },
-        },
+        searchItems: [{ kind: 'entity', id: 41, label: 'PAYCALC-MAIN', detail: 'PAYCALC.cbl:12', entity_type: 'section', group: 'cobol' }],
       });
 
       renderView();
       fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
-      const picker = await screen.findByTestId('link-run-scope');
-      await waitFor(() => expect((within(picker).getByRole('checkbox', { name: /Programm/ }) as HTMLInputElement).checked).toBe(true));
-      fireEvent.click(within(picker).getByRole('checkbox', { name: /Section/ }));
-      fireEvent.click(within(picker).getByRole('checkbox', { name: /Jira PROJ/ }));
-      expect(within(picker).getByText('Code (10 Entitäten)')).toBeTruthy();
-      expect(within(picker).getByText('Dokumentation (6 Abschnitte)')).toBeTruthy();
+      const setA = await screen.findByTestId('link-set-a');
+      const setB = screen.getByTestId('link-set-b');
+      fireEvent.click(within(setA).getByRole('radio', { name: /Eigene Auswahl/ }));
+      fireEvent.click(within(setA).getByRole('checkbox', { name: /Programm/ }));
+      fireEvent.change(within(setA).getByRole('searchbox'), { target: { value: 'PAY' } });
+      fireEvent.click(await within(setA).findByRole('button', { name: 'Hinzufügen: PAYCALC-MAIN' }));
+      expect(within(within(setA).getByTestId('link-set-items-a')).getByText('PAYCALC-MAIN')).toBeTruthy();
 
-      fireEvent.click(within(screen.getByTestId('link-analysis-dialog')).getByRole('button', { name: 'Analyse starten' }));
+      // Eine eigene Auswahl darf leer beginnen; gestartet wird sie erst mit Inhalt.
+      fireEvent.click(within(setB).getByRole('radio', { name: /Eigene Auswahl/ }));
+      expect(screen.getByTestId('link-run-estimate').textContent).toContain('Menge B ist leer');
+      expect((screen.getByRole('button', { name: 'Lauf starten' }) as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(within(setB).getByRole('checkbox', { name: /Jira PROJ/ }));
 
-      await waitFor(() => expect(calls(fetchMock, '/link-recommendations/compute', 'POST')).toHaveLength(1));
-      const run = new URL(calls(fetchMock, '/link-recommendations/compute', 'POST')[0], 'http://x');
-      expect(run.searchParams.getAll('entity_types')).toEqual(['program', 'section']);
-      expect(run.searchParams.getAll('doc_source_ids')).toEqual(['11']);
-      const estimate = calls(fetchMock, '/link-recommendations/estimate')[0];
-      expect(estimate).toContain('entity_types=program');
+      fireEvent.click(screen.getByRole('button', { name: 'Lauf starten' }));
+
+      await waitFor(() => expect(calls(fetchMock, '/link-runs', 'POST').some(u => u.endsWith('/link-runs'))).toBe(true));
+      const body = bodyOf(fetchMock, '/link-runs', 'POST') as { a: Record<string, unknown>; b: Record<string, unknown> };
+      expect(body.a).toEqual({
+        kind: 'code', mode: 'custom', facets: { entity_type: ['program'] },
+        items: [{ kind: 'entity', id: 41, label: 'PAYCALC-MAIN', detail: 'Section · PAYCALC.cbl:12' }],
+      });
+      expect(body.b).toEqual({ kind: 'docs', mode: 'custom', facets: { source: ['11'] }, items: [] });
+      const search = new URL(calls(fetchMock, '/link-runs/search')[0], 'http://x');
+      expect(Object.fromEntries(search.searchParams)).toMatchObject({ kind: 'code', q: 'PAY' });
+    });
+
+    it('schlägt die Auswahl des letzten Laufs vor und kann auf Dokument↔Dokument wechseln', async () => {
+      const fetchMock = stubFetch({
+        workspaceOptions: workspaceOptions({
+          code_docs: {
+            pairing: 'code_docs',
+            a: { kind: 'code', mode: 'custom', facets: { entity_type: ['section'] }, items: [] },
+            b: { kind: 'docs', mode: 'all', facets: {}, items: [] },
+          },
+          docs_docs: null,
+        }),
+      });
+
+      renderView({ currentUser: { is_admin: true } });
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      const setA = await screen.findByTestId('link-set-a');
+      expect((within(setA).getByRole('checkbox', { name: /Section/ }) as HTMLInputElement).checked).toBe(true);
+
+      fireEvent.click(screen.getByRole('radio', { name: 'Dokumentation ↔ Dokumentation' }));
+      expect(within(screen.getByTestId('link-set-a')).getByRole('heading').textContent).toBe('Menge A · Dokumentation');
+      expect(screen.queryByTestId('link-run-options')).toBeNull();
+      fireEvent.click(await screen.findByRole('button', { name: 'Lauf starten' }));
+
+      await waitFor(() => expect(calls(fetchMock, '/link-runs', 'POST').some(u => u.endsWith('/link-runs'))).toBe(true));
+      expect(bodyOf(fetchMock, '/link-runs', 'POST').pairing).toBe('docs_docs');
     });
 
     it('zeigt den Topics-Bereich nur Admins', async () => {
@@ -673,31 +719,20 @@ describe('LinkManagerView', () => {
   });
 
   describe('Analyse-Dialog und Beziehungsarten', () => {
-    it('öffnet die Konfiguration ohne Lauf und gibt den Fokus beim Abbrechen zurück', async () => {
+    it('öffnet die Arbeitsfläche ohne Lauf und gibt den Fokus beim Abbrechen zurück', async () => {
       const fetchMock = stubFetch();
       renderView();
       expect(screen.queryByLabelText('Mindest-Wahrscheinlichkeit')).toBeNull();
       const trigger = screen.getByRole('button', { name: 'Analyse starten' });
       fireEvent.click(trigger);
-      expect(await screen.findByRole('dialog', { name: 'Analyse konfigurieren' })).toBeTruthy();
-      fireEvent.change(screen.getByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '65' } });
-      expect(calls(fetchMock, '/compute', 'POST')).toHaveLength(0);
+      expect(await screen.findByRole('dialog', { name: 'Analyse-Arbeitsfläche' })).toBeTruthy();
+      fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '65' } });
+      expect(calls(fetchMock, '/link-runs', 'POST').filter(u => u.endsWith('/link-runs'))).toHaveLength(0);
       fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));
       await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
       expect(document.activeElement).toBe(trigger);
       fireEvent.click(trigger);
-      expect((screen.getByLabelText('Mindest-Wahrscheinlichkeit') as HTMLInputElement).value).toBe('65');
-    });
-
-    it('startet bei abgelehnter Aufwandsschätzung keinen Lauf', async () => {
-      const fetchMock = stubFetch();
-      vi.mocked(window.confirm).mockReturnValue(false);
-      renderView();
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
-      fireEvent.click(within(screen.getByRole('dialog')).getByRole('button', { name: 'Analyse starten' }));
-      await waitFor(() => expect(window.confirm).toHaveBeenCalled());
-      expect(calls(fetchMock, '/compute', 'POST')).toHaveLength(0);
-      expect(screen.getByRole('dialog')).toBeTruthy();
+      expect(((await screen.findByLabelText('Mindest-Wahrscheinlichkeit')) as HTMLInputElement).value).toBe('65');
     });
 
     it('filtert Code-Code, gemischte Links in beiden Richtungen und reine Dokumente unabhängig vom API-Ursprung', async () => {

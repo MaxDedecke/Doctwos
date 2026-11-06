@@ -14,17 +14,13 @@ from doctus_models.database import (
 )
 from api.schemas import KnowledgeLinkCreate, KnowledgeLinkUpdate, LlmReviewRequest
 from api.serializers import doc_location, serialize_knowledge_link
-from core.tracing import get_trace_id
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, is_admin
 from core.projects import assert_project_visible, get_visible_project_ids
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
-from services.job_control import send_tracked_task
-from services.link_builder_runs import (
-    find_active_knowledge_link_run,
-    reconcile_knowledge_link_runs,
-)
+from services.link_builder_runs import reconcile_knowledge_link_runs
+from services.link_run_start import queue_knowledge_link_run
 from services.link_project_scope import (
     assert_link_project,
     assert_link_sides_in_project,
@@ -692,62 +688,15 @@ def trigger_knowledge_link_computation(
             status_code=400, detail="Mindestens eine Wissensquelle gehört nicht zum Projektkontext"
         )
 
-    # Repair stale entries before checking for a live duplicate. The project
-    # row lock serializes concurrent enqueue requests for this scope.
-    reconcile_knowledge_link_runs(db)
-    project = db.query(Project).filter(Project.id == project_id).with_for_update().first()
-    if not project:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    scope = {
-        "project_id": project_id,
-        "source_ids": selected_source_ids,
-        "queue": "global_link_runs",
-        "confirmed": True,
-        "max_items": max_items,
-        "min_confidence": min_confidence,
-    }
-    existing = find_active_knowledge_link_run(db, project_id, scope)
-    if existing is not None:
-        db.commit()
-        return {
-            "message": "Für diesen Scope läuft bereits ein Job",
-            "run_id": existing.id,
-            "scope": existing.scope_json,
-            "deduplicated": True,
-        }
-
-    run = LinkBuilderRun(
-        task_type="knowledge_links",
-        project_id=project_id,
-        status="pending",
-        embedding_model=embedding_model.strip() if embedding_model else None,
-        scope_json=scope,
-        triggered_by_user_id=user.id,
-    )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
-
-    send_tracked_task(
+    return queue_knowledge_link_run(
         db,
-        run,
-        "compute_knowledge_links",
-        [run.id],
-        {
-            "trace_id": get_trace_id(),
-            "min_confidence": min_confidence,
-            "embedding_model": run.embedding_model or cfg.OLLAMA_EMBED_MODEL,
-            "project_id": project_id,
-            "source_ids": selected_source_ids,
-        },
-        queue="global_link_runs",
+        user,
+        project_id,
+        min_confidence=min_confidence,
+        embedding_model=embedding_model,
+        max_items=max_items,
+        source_ids=selected_source_ids,
     )
-    return {
-        "message": "Cross-Source Analyse gestartet",
-        "run_id": run.id,
-        "scope": run.scope_json,
-        "deduplicated": False,
-    }
 
 
 @router.get("/runs")

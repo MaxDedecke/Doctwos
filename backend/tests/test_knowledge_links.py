@@ -29,6 +29,7 @@ from unittest.mock import patch
 import pytest
 
 import api.knowledge_links as knowledge_links_api
+import services.link_run_start as link_run_start
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from doctus_models.database import (
     AIProfile,
@@ -562,7 +563,7 @@ def test_trigger_computation_dispatches_task_and_creates_run(client, db_session,
     def fake_send_tracked_task(db, record, task_name, args, kwargs=None, **options):
         calls.append((task_name, args, kwargs))
 
-    with patch.object(knowledge_links_api, "send_tracked_task", side_effect=fake_send_tracked_task):
+    with patch.object(link_run_start, "send_tracked_task", side_effect=fake_send_tracked_task):
         res = client.post(
             "/knowledge-links/compute",
             params={
@@ -619,7 +620,7 @@ def test_trigger_computation_reuses_active_run_for_same_project_scope(
     db_session.refresh(active)
     sent = []
     monkeypatch.setattr(
-        knowledge_links_api,
+        link_run_start,
         "send_tracked_task",
         lambda *args, **kwargs: sent.append((args, kwargs)),
     )
@@ -674,7 +675,7 @@ def test_trigger_computation_preserves_pending_and_reviewed_links(client, db_ses
     approved_id = _make_link(db_session, chunk_a, chunk_b, status="approved").id
     rejected_id = _make_link(db_session, chunk_a, chunk_b, status="rejected").id
 
-    with patch.object(knowledge_links_api, "send_tracked_task", side_effect=lambda *a, **k: None):
+    with patch.object(link_run_start, "send_tracked_task", side_effect=lambda *a, **k: None):
         res = client.post(
             "/knowledge-links/compute",
             params={

@@ -28,15 +28,10 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { TopicsPanel } from './TopicsPanel';
 import { LinkManagerToolbar, LinkManagerFilters } from './LinkManagerControls';
-import { LinkAnalysisDialog } from './LinkAnalysisDialog';
+import { LinkRunWorkspace } from './LinkRunWorkspace';
 import { isCodeLinkSide, knowledgeRelationshipKind, type LinkKindFilter, type LinkRelationshipKind } from '@/lib/linkRelationshipKind';
-import type { KnowledgeSource } from '@/types/domain';
 import type { CodeRef, LinkCounts } from '@/lib/linkManagerTypes';
 import { useProjectLinks } from '@/hooks/useProjectLinks';
-import { linkRunOptionsQuery, type LinkRunOptions } from '@/lib/linkRunOptions';
-import { linkRunScopeQuery } from '@/lib/linkRunScope';
-import { confirmLinkRun } from '@/lib/linkRunEstimate';
-import { useLinkRunScope } from '@/hooks/useLinkRunScope';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -90,20 +85,6 @@ interface UnifiedLink {
   createdBy: string;
 }
 
-// ── Min-confidence setting ──────────────────────────────────────────────────
-// Mirrors parser/tasks/link_builder.py + cross_link_builder.py LLM_MIN_CONFIDENCE
-// (35) — the user's last-used value is remembered per browser (same pattern as
-// the active-profile-id below), not persisted server-side, since it configures
-// the *next* search run rather than a standing project setting.
-const MIN_CONFIDENCE_STORAGE_KEY = 'doctus-link-min-confidence';
-const MIN_CONFIDENCE_DEFAULT = 35;
-
-function readStoredMinConfidence(): number {
-  if (typeof window === 'undefined') return MIN_CONFIDENCE_DEFAULT;
-  const parsed = parseInt(localStorage.getItem(MIN_CONFIDENCE_STORAGE_KEY) ?? '', 10);
-  return Number.isFinite(parsed) && parsed >= 0 && parsed <= 100 ? parsed : MIN_CONFIDENCE_DEFAULT;
-}
-
 // score is stored as a 0..1 float and rounded for display (ScoreBadge: Math.round(score * 100)).
 // Guard against float noise (e.g. 0.999999...) so "100%" candidates are still caught.
 const PERFECT_SCORE_THRESHOLD = 0.995;
@@ -152,16 +133,11 @@ function ProjectLinkManagerView({
   const [tab, setTab] = useState<TabStatus>('pending');
   const [kindFilter, setKindFilter] = useState<KindFilter>('all');
   const [minScore, setMinScore] = useState(0);
-  const [minConfidence, setMinConfidence] = useState<number>(readStoredMinConfidence);
-  const [maxItems, setMaxItems] = useState(200);
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const analysisTriggerRef = useRef<HTMLButtonElement>(null);
-  const [runOptions, setRunOptions] = useState<LinkRunOptions>({});
   const [search, setSearch] = useState('');
   const [isComputing, setIsComputing] = useState(false);
   const [isAcceptingAll, setIsAcceptingAll] = useState(false);
-  const [projectSources, setProjectSources] = useState<KnowledgeSource[]>([]);
-  const [selectedScopeSourceIds, setSelectedScopeSourceIds] = useState<number[]>([]);
   const [reviewingLinkIds, setReviewingLinkIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState<{ type: 'info' | 'success' | 'empty'; text: string } | null>(null);
   const [showManualForm, setShowManualForm] = useState(false);
@@ -195,7 +171,6 @@ function ProjectLinkManagerView({
   const [contextDraft, setContextDraft] = useState('');
 
   const projectId = selectedProject?.id;
-  const runScope = useLinkRunScope(projectId, analysisOpen);
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
 
@@ -256,33 +231,6 @@ function ProjectLinkManagerView({
     knowledgeLinks, knowledgeCounts, setKnowledgeLinks, setKnowledgeCounts,
     isLoading, fetchEntityLinks, fetchKnowledgeLinks, isActive,
   } = useProjectLinks(projectId, tab, minScore, segment === 'links');
-
-  // O-177: Cross-source analysis is always visibly scoped to the selected
-  // project and an explicit set of its knowledge sources. Selecting all
-  // sources is a convenience, never a global fallback.
-  useEffect(() => {
-    let cancelled = false;
-    if (!projectId) {
-      setProjectSources([]);
-      setSelectedScopeSourceIds([]);
-      return () => { cancelled = true; };
-    }
-    api.fetch(`${API_URL}/projects/${projectId}/knowledge-sources`)
-      .then(response => response.json())
-      .then((data: KnowledgeSource[]) => {
-        if (cancelled) return;
-        const sources = (Array.isArray(data) ? data : []).filter(source => Number.isFinite(Number(source.id)));
-        setProjectSources(sources);
-        setSelectedScopeSourceIds(sources.map(source => Number(source.id)));
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setProjectSources([]);
-          setSelectedScopeSourceIds([]);
-        }
-      });
-    return () => { cancelled = true; };
-  }, [projectId]);
 
   useEffect(() => {
     if (projectId && manualKind === 'entity' && entities.length === 0 && oversizedProjectId !== projectId) {
@@ -362,60 +310,14 @@ function ProjectLinkManagerView({
 
   // ── Actions ───────────────────────────────────────────────────────────────
 
-  const handleMinConfidenceChange = (value: number) => {
-    const clamped = Math.min(100, Math.max(0, Math.round(value)));
-    setMinConfidence(clamped);
-    localStorage.setItem(MIN_CONFIDENCE_STORAGE_KEY, String(clamped));
-  };
-
-  const triggerAutoLink = async () => {
-    if (isComputing) return;
-    if (!projectId) {
-      setMessage({ type: 'empty', text: t('linkManagerView.computeMessages.scopeRequired') });
-      return;
-    }
-    const hasKnowledgeScope = isAdmin && selectedScopeSourceIds.length >= 2;
-    const limit = Math.max(1, Math.min(5000, Math.round(maxItems) || 200));
-    const runScopeQuery = linkRunScopeQuery(runScope.scope);
-    const decision = await confirmLinkRun({ projectId, knowledgeSourceIds: hasKnowledgeScope ? selectedScopeSourceIds : [], runScopeQuery, limit, t, isActive });
-    if (decision === 'failed') setMessage({ type: 'empty', text: t('linkManagerView.budget.estimateFailed') });
-    if (decision !== 'confirmed') return;
+  // Ein in der Arbeitsfläche gestarteter Lauf: Fortschritt zeigen und danach die neuen Vorschläge laden.
+  const watchRun = (runId: number) => {
+    if (!projectId) return;
+    const runIds = [runId];
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
-
-    const optionsQuery = [linkRunOptionsQuery(runOptions), runScopeQuery].filter(Boolean).join('&');
-    const confidenceParam = `min_confidence=${minConfidence}&max_items=${limit}${optionsQuery ? `&${optionsQuery}` : ''}`;
-    const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
-    const calls: Promise<Response>[] = [
-      api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/compute?${confidenceParam}&${embeddingParam}`, { method: 'POST' }),
-    ];
-    if (hasKnowledgeScope) {
-      const scopeParams = new URLSearchParams({
-        project_id: String(projectId),
-        min_confidence: String(minConfidence),
-        embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
-        confirm: 'true',
-        max_items: String(limit),
-      });
-      selectedScopeSourceIds.forEach(sourceId => scopeParams.append('source_ids', String(sourceId)));
-      calls.push(api.fetch(`${API_URL}/knowledge-links/compute?${scopeParams.toString()}`, { method: 'POST' }));
-    }
-    const started = await Promise.allSettled(calls);
-    if (!isActive()) return;
-    const runIds: number[] = [];
-    for (const result of started) {
-      if (result.status !== 'fulfilled' || !result.value.ok) continue;
-      const payload = await result.value.json();
-      if (typeof payload.run_id === 'number') runIds.push(payload.run_id);
-    }
-    if (runIds.length !== calls.length) {
-      setMessage({ type: 'empty', text: t('linkManagerView.budget.startFailed') });
-    }
-    if (runIds.length === 0) {
-      setIsComputing(false);
-      return;
-    }
+    if (timerRef.current) clearTimeout(timerRef.current);
 
     const poll = async () => {
       if (!isActive()) return;
@@ -440,7 +342,6 @@ function ProjectLinkManagerView({
       timerRef.current = setTimeout(poll, 3000);
     };
     timerRef.current = setTimeout(poll, 1000);
-    return true;
   };
 
   const updateLinkStatus = async (link: UnifiedLink, status: 'approved' | 'rejected') => {
@@ -854,17 +755,14 @@ function ProjectLinkManagerView({
           onAnalysis={() => { setMessage(null); setAnalysisOpen(true); }}
           onManual={() => setShowManualForm(value => !value)}
           onRefresh={() => { fetchEntityLinks(); fetchKnowledgeLinks(); }} />
-        <LinkAnalysisDialog open={analysisOpen} onClose={() => setAnalysisOpen(false)} isDark={isDark}
-          projectName={selectedProject?.name ?? ''} isAdmin={isAdmin} returnFocusRef={analysisTriggerRef}
-          minConfidence={minConfidence} onMinConfidence={handleMinConfidenceChange} maxItems={maxItems} onMaxItems={setMaxItems}
-          runOptions={runOptions} setRunOptions={setRunOptions} sources={projectSources} runScope={runScope}
-          scopeIds={selectedScopeSourceIds} setScopeIds={setSelectedScopeSourceIds}
+        {projectId && <LinkRunWorkspace key={projectId} open={analysisOpen} onClose={() => setAnalysisOpen(false)} isDark={isDark}
+          projectId={projectId} projectName={selectedProject?.name ?? ''} returnFocusRef={analysisTriggerRef}
+          embeddingModel={activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL} onStarted={watchRun}
           profiles={llmProfiles} activeProfileId={activeProfileId} onProfile={setActiveProfileId ? value => {
             setActiveProfileId(value);
             const profile = llmProfiles.find(item => item.id === value);
             if (profile) showToast?.(t('chatView.modelSwitchedToast', { name: profile.name }), 'success');
-          } : undefined}
-          onStart={triggerAutoLink} error={message?.type === 'empty' ? message.text : undefined} />
+          } : undefined} />}
 
         {/* ── Topics segment (admin-only, mirrors backend require_admin on /topics) ── */}
         {segment === 'topics' && isAdmin && projectId && <TopicsPanel theme={theme} projectId={projectId} />}

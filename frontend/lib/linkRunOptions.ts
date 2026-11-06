@@ -1,5 +1,6 @@
 // Optionen eines Entity-Link-Laufs (O-183). Grenzen und Standardwerte spiegeln `LinkRunParams` im Parser und die
-// Query-Parameter von `POST /projects/{id}/link-recommendations/compute`; die API prüft sie ein zweites Mal.
+// Query-Parameter von `POST /projects/{id}/link-recommendations/compute` bzw. `params` von `POST /projects/{id}/link-runs`;
+// die API prüft sie ein zweites Mal.
 
 export type LinkRunOptionKey =
   | 'reviewConcurrency'
@@ -38,15 +39,18 @@ export function clampRunOption(field: LinkRunOptionField, value: number): number
   return Math.min(field.max, Math.max(field.min, value));
 }
 
-/** Query-Anteil für den Compute-Aufruf: nur gesetzte Werte, auf die Grenzen begrenzt, sonst gilt der Server-Standard. */
-export function linkRunOptionsQuery(options: LinkRunOptions): string {
-  const params = new URLSearchParams();
+/** Nur gesetzte Werte unter den Parameternamen der API, auf die Grenzen begrenzt; sonst gilt der Server-Standard. */
+export function linkRunOptionsParams(options: LinkRunOptions): Record<string, number | boolean> {
+  const params: Record<string, number | boolean> = {};
   for (const field of LINK_RUN_OPTION_FIELDS) {
     const value = options[field.key];
-    if (typeof value === 'number' && Number.isFinite(value)) {
-      params.set(field.param, String(clampRunOption(field, value)));
-    }
+    if (typeof value === 'number' && Number.isFinite(value)) params[field.param] = clampRunOption(field, value);
   }
-  if (options.dedupeByChunk) params.set('dedupe_by_chunk', 'true');
-  return params.toString();
+  if (options.dedupeByChunk) params.dedupe_by_chunk = true;
+  return params;
+}
+
+/** Query-Anteil für den Compute-Aufruf. */
+export function linkRunOptionsQuery(options: LinkRunOptions): string {
+  return new URLSearchParams(Object.entries(linkRunOptionsParams(options)).map(([name, value]) => [name, String(value)])).toString();
 }

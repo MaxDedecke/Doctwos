@@ -24,7 +24,6 @@ from sqlalchemy.orm import Session
 import core.config as cfg
 from api.schemas import LinkStatusUpdate, LlmReviewRequest, ManualLinkCreate
 from api.serializers import serialize_link
-from core.tracing import get_trace_id
 from core.db_setup import get_db
 from doctus_models.database import (
     CodeEntity,
@@ -42,13 +41,7 @@ from core.projects import assert_project_visible
 from doctus_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
-from services.job_control import send_tracked_task
-from services.link_run_scope import (
-    had_full_run,
-    normalize_filter,
-    scope_options,
-    targeted_estimate,
-)
+from services.link_run_start import had_full_run, queue_entity_link_run
 
 
 def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
@@ -187,39 +180,18 @@ def create_manual_link(
     return serialize_link(link, entity)
 
 
-_ENTITY_TYPES_QUERY = Query(
-    None,
-    description="Nur Code-Entitäten dieser Typen prüfen (z. B. program, section); leer = alle.",
-)
-_DOC_SOURCES_QUERY = Query(
-    None, description="Nur Dokumentation dieser Wissensquellen des Projekts prüfen; leer = alle."
-)
-
-
-@router.get("/projects/{project_id}/link-recommendations/scope-options")
-def get_link_scope_options(
-    project_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
-):
-    """Wählbare Code-Typen je Sprache und Wissensquellen mit Dokumentation für einen eingeschränkten Lauf."""
-    _visible_project(project_id, user, db)
-    return scope_options(db, project_id)
-
-
 @router.get("/projects/{project_id}/link-recommendations/estimate")
 def estimate_link_computation_scope(
     project_id: int,
-    entity_types: Optional[list[str]] = _ENTITY_TYPES_QUERY,
-    doc_source_ids: Optional[list[int]] = _DOC_SOURCES_QUERY,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
     O-315: Liefert Kosten- und Umfangshinweise für den nächsten Entity-Link-Lauf
     (Code-Entities ↔ Dokument-Chunks). Prüft dirty items, Bootstrap-Bedarf
-    und ob bereits ein Lauf aktiv ist. Mit Einschränkung zählt es die beiden gewählten Mengen.
+    und ob bereits ein Lauf aktiv ist. Eingeschränkte Läufe schätzt ``POST /link-runs/estimate``.
     """
     _visible_project(project_id, user, db)
-    run_filter = normalize_filter(db, project_id, entity_types, doc_source_ids)
     active_run = (
         db.query(LinkBuilderRun)
         .filter(
@@ -234,9 +206,6 @@ def estimate_link_computation_scope(
         "has_active_run": active_run is not None,
         "active_run_id": active_run.id if active_run else None,
     }
-    if run_filter is not None:
-        return {"project_id": project_id, **targeted_estimate(db, project_id, run_filter), **active}
-
     entity_count = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).count()
     chunk_count = (
         db.query(DocumentChunk)
@@ -375,32 +344,10 @@ def trigger_link_computation(
         pattern="^(best|first)$",
         description="Stichwortsuche bei mehr Treffern als `top_k_keyword`: `best` = höchster Trefferanteil zuerst (Standard), `first` = die ersten Treffer nach Chunk-ID (früheres Verhalten).",
     ),
-    entity_types: Optional[list[str]] = _ENTITY_TYPES_QUERY,
-    doc_source_ids: Optional[list[int]] = _DOC_SOURCES_QUERY,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     _visible_project(project_id, user, db)
-    run_filter = normalize_filter(db, project_id, entity_types, doc_source_ids)
-
-    # O-315: Deduplizierung – Falls bereits ein aktiver Lauf für dieses Projekt existiert,
-    # diesen zurückgeben statt einen zweiten teuren Batch-Lauf zu starten.
-    active = (
-        db.query(LinkBuilderRun)
-        .filter(
-            LinkBuilderRun.project_id == project_id,
-            LinkBuilderRun.task_type == "entity_links",
-            LinkBuilderRun.status.in_(["pending", "running"]),
-        )
-        .first()
-    )
-    if active is not None:
-        return {
-            "message": "Für dieses Projekt läuft bereits eine Link-Berechnung",
-            "project_id": project_id,
-            "run_id": active.id,
-            "deduplicated": True,
-        }
 
     # O-180: Der Worker verarbeitet nur die persistente Dirty-Queue. Pending-
     # Vorschläge werden dort nur für tatsächlich geänderte Entity-/Chunk-
@@ -425,37 +372,15 @@ def trigger_link_computation(
         }.items()
         if value is not None
     }
-    run = LinkBuilderRun(
-        task_type="entity_links",
-        project_id=project_id,
-        status="pending",
-        embedding_model=embedding_model.strip() if embedding_model else None,
-        scope_json={
-            "project_id": project_id,
-            "min_confidence": min_confidence,
-            "embedding_model": embedding_model.strip() if embedding_model else None,
-            "max_items": max_items,
-            "params": run_params,
-            **({"filter": run_filter} if run_filter else {}),
-        },
-        triggered_by_user_id=user.id,
-    )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
-
-    send_tracked_task(
+    return queue_entity_link_run(
         db,
-        run,
-        "compute_entity_links",
-        [run.id, project_id],
-        {
-            "trace_id": get_trace_id(),
-            "min_confidence": min_confidence,
-            "embedding_model": run.embedding_model,
-        },
+        user,
+        project_id,
+        min_confidence=min_confidence,
+        embedding_model=embedding_model,
+        max_items=max_items,
+        params=run_params,
     )
-    return {"message": "Link computation started", "project_id": project_id, "run_id": run.id}
 
 
 @router.get("/projects/{project_id}/link-builder-runs")

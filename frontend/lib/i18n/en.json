@@ -1604,22 +1604,70 @@
     "acceptAllTooltip": "Approves all pending links with a 100% match at once, so you can focus on the less obvious ones.",
     "minConfidenceLabel": "Minimum probability",
     "minConfidenceTooltip": "Minimum probability (%): only candidates the LLM rates at least this confident are saved as a suggestion on the next run.",
-    "scopeLabel": "Scope ({{count}} sources)",
-    "scopeHint": "The cross-source run is limited to the selected project and at least two sources.",
-    "scopeNoSources": "No project sources available.",
-    "runScope": {
-      "title": "Narrow the sets: code ↔ documentation",
-      "hint": "Only the selected code types are checked against the documentation of the selected sources, e.g. COBOL programs and sections against a PDF manual or Jira. Without a selection the whole side applies. A narrowed run checks every selected entity, not only changed ones, and leaves the change queue untouched. The selection applies per project and is suggested next time.",
-      "loading": "Loading types and sources …",
-      "code": "Code ({{count}} entities)",
-      "docs": "Documentation ({{count}} sections)",
-      "allOfLanguage": "All types of {{language}}",
-      "noTypes": "No code entities in the project.",
-      "noSources": "No knowledge sources with documentation in the project.",
-      "targeted": "Narrowed run: only the selected sets.",
-      "unrestricted": "No restriction: all code entities against all documentation (incremental).",
-      "reset": "Clear selection",
-      "confirm": "Narrowed run: {{entities}} code entities against {{chunks}} document sections.",
+    "workspace": {
+      "title": "Analysis workspace",
+      "description": "Build two sets and check them against each other: everything of one kind or your own selection from filters and searched objects. The run reviews every object in set A against candidates from set B.",
+      "pairingLabel": "Kind of analysis",
+      "loading": "Loading workspace …",
+      "optionsFailed": "Could not load the selection options.",
+      "set": {
+        "a": "Set A",
+        "b": "Set B"
+      },
+      "kinds": {
+        "code": "Code",
+        "docs": "Documentation"
+      },
+      "modeLabel": "Scope of the set",
+      "modes": {
+        "all": "All ({{count}})",
+        "custom": "Own selection"
+      },
+      "modeHints": {
+        "all": "Everything of this kind in the project. Code↔documentation without a selection checks only new and changed items, as before.",
+        "custom": "Union of filters and added objects. May start empty."
+      },
+      "searchTitle": "Search and add objects",
+      "searchPlaceholder": {
+        "code": "Program, section, class, method …",
+        "docs": "Document, page, ticket …"
+      },
+      "searching": "Searching …",
+      "searchFailed": "The search failed.",
+      "noResults": "No results.",
+      "results": "{{count}} results",
+      "addAll": "Add all",
+      "add": "Add",
+      "remove": "Remove",
+      "filterTitle": "Select by attributes",
+      "filterHint": "Values of one filter combine with OR, different filters with AND. Added objects are always included.",
+      "facets": {
+        "code": {
+          "entity_type": "Type (per language)",
+          "source": "Repository"
+        },
+        "docs": {
+          "source": "Knowledge source",
+          "source_type": "Source type"
+        }
+      },
+      "allOf": "All of {{group}}",
+      "picked": "Added objects ({{count}})",
+      "pickedEmpty": "No objects added yet. Add single objects via search or select by attributes above.",
+      "clear": "Clear selection",
+      "chunks": "{{count}} sections",
+      "objectCount": "{{count}} objects",
+      "docCount": "{{count}} sections in {{documents}} documents",
+      "previewTitle": "Preview of the set",
+      "previewEmpty": "The set is empty.",
+      "settingsTitle": "Run settings",
+      "emptySet": "{{set}} is empty. Add objects or choose filters.",
+      "estimating": "Estimating effort …",
+      "estimateTargeted": "Checks {{a}} objects from set A against {{b}} sections from set B: up to {{reviews}} model reviews, budget per run {{budget}}.",
+      "estimateIncremental": "Incremental run: {{a}} changed code entities against the documentation, up to {{reviews}} model reviews, budget per run {{budget}}.",
+      "estimateBootstrap": "Full initial run: {{a}} code entities against {{b}} sections, up to {{reviews}} model reviews, budget per run {{budget}}.",
+      "activeRun": "A run is already active; it is shown instead of a new one.",
+      "start": "Start run",
       "languages": {
         "cobol": "COBOL",
         "java": "Java",
@@ -1628,6 +1676,13 @@
         "xml": "XML/WSDL/XSD",
         "sql": "SQL",
         "shell": "Shell",
+        "other": "Other"
+      },
+      "sourceTypes": {
+        "Local": "Uploads (PDF etc.)",
+        "Git": "Git repositories",
+        "GitLabIssues": "GitLab issues",
+        "FolderWatch": "Folders",
         "other": "Other"
       }
     },
@@ -1648,8 +1703,6 @@
     "budget": {
       "label": "Budget",
       "hint": "Maximum code entities or document sections per run (1–5000). Resume a limited run or stop an active run in Job Center.",
-      "confirm": "Estimated upper bound for this run:\nCode: {{entityCount}} of {{entityTotal}} entities, up to {{embeddingCalls}} embedding calls and {{llmCalls}} LLM reviews overall.\nCross-source: {{knowledgeCount}} document sections.\nBudget per run: {{limit}} items. Actual calls may be lower. Start?",
-      "estimateFailed": "Could not load the effort estimate. The run was not started.",
       "startFailed": "At least one link run could not be started. Active jobs appear in Job Center.",
       "progress": "Link computation: {{progress}}% of planned items checked.",
       "reached": "Run stopped or budget reached. Resume it in Job Center.",
@@ -1720,8 +1773,7 @@
     "computeMessages": {
       "started": "Search started — candidates are being scored in the background…",
       "newLinks": "{{count}} new link(s) found.",
-      "noneFound": "Search complete. No new links found.",
-      "scopeRequired": "Select a project and at least two knowledge sources for the scope."
+      "noneFound": "Search complete. No new links found."
     },
     "toast": {
       "approved": "Link to \"{{title}}\" confirmed.",
@@ -1734,8 +1786,6 @@
     },
     "analysis": {
       "open": "Start analysis",
-      "title": "Configure analysis",
-      "description": "Options for the next run. Review and confirm the estimated workload before starting.",
       "cancel": "Cancel",
       "close": "Close dialog"
     },
