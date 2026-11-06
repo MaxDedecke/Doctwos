@@ -1979,6 +1979,24 @@ class Cobol85Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by Cobol85Parser#dataAnyLengthClause.
+    def enterDataAnyLengthClause(self, ctx:Cobol85Parser.DataAnyLengthClauseContext):
+        pass
+
+    # Exit a parse tree produced by Cobol85Parser#dataAnyLengthClause.
+    def exitDataAnyLengthClause(self, ctx:Cobol85Parser.DataAnyLengthClauseContext):
+        pass
+
+
+    # Enter a parse tree produced by Cobol85Parser#dataBasedClause.
+    def enterDataBasedClause(self, ctx:Cobol85Parser.DataBasedClauseContext):
+        pass
+
+    # Exit a parse tree produced by Cobol85Parser#dataBasedClause.
+    def exitDataBasedClause(self, ctx:Cobol85Parser.DataBasedClauseContext):
+        pass
+
+
     # Enter a parse tree produced by Cobol85Parser#dataDescriptionEntryFormat2.
     def enterDataDescriptionEntryFormat2(self, ctx:Cobol85Parser.DataDescriptionEntryFormat2Context):
         pass
@@ -2780,6 +2798,15 @@ class Cobol85Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by Cobol85Parser#roundedPhrase.
+    def enterRoundedPhrase(self, ctx:Cobol85Parser.RoundedPhraseContext):
+        pass
+
+    # Exit a parse tree produced by Cobol85Parser#roundedPhrase.
+    def exitRoundedPhrase(self, ctx:Cobol85Parser.RoundedPhraseContext):
+        pass
+
+
     # Enter a parse tree produced by Cobol85Parser#continueStatement.
     def enterContinueStatement(self, ctx:Cobol85Parser.ContinueStatementContext):
         pass
@@ -3083,6 +3110,24 @@ class Cobol85Listener(ParseTreeListener):
 
     # Exit a parse tree produced by Cobol85Parser#exitStatement.
     def exitExitStatement(self, ctx:Cobol85Parser.ExitStatementContext):
+        pass
+
+
+    # Enter a parse tree produced by Cobol85Parser#allocateStatement.
+    def enterAllocateStatement(self, ctx:Cobol85Parser.AllocateStatementContext):
+        pass
+
+    # Exit a parse tree produced by Cobol85Parser#allocateStatement.
+    def exitAllocateStatement(self, ctx:Cobol85Parser.AllocateStatementContext):
+        pass
+
+
+    # Enter a parse tree produced by Cobol85Parser#freeStatement.
+    def enterFreeStatement(self, ctx:Cobol85Parser.FreeStatementContext):
+        pass
+
+    # Exit a parse tree produced by Cobol85Parser#freeStatement.
+    def exitFreeStatement(self, ctx:Cobol85Parser.FreeStatementContext):
         pass
 
 

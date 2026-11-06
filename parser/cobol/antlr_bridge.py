@@ -316,9 +316,10 @@ def mask_for_grammar(
                 j += 1
             if current_division == "PROCEDURE":
                 placeholder_text = "CONTINUE"
-                # Der Punkt gehört zur COPY-Anweisung. Steht danach ein Bereichsende oder ein weiterer Zweig, liegt das
-                # COPY in einem offenen IF/EVALUATE/PERFORM; als Satzende würde er den Block vorzeitig schließen.
-                dot = _ends_with_period(lines[j]) and not _continues_open_block(lines, j + 1)
+                # Der Punkt gehört zur COPY-Anweisung und beendet keinen Satz; als Satzende würde er ein offenes
+                # IF/EVALUATE/PERFORM vorzeitig schließen. Nötig ist er nur vor einem Paragraphen, einer Section
+                # oder dem Programmende, wo der Satz ohnehin enden muss.
+                dot = _ends_with_period(lines[j]) and _sentence_must_end(lines, j + 1)
             elif current_division == "DATA" and current_data_section == "FILE":
                 # FILE SECTION akzeptiert nur fileDescriptionEntry (FD ...), kein
                 # bare-01-Datenfeld — ein COPY hier steht praktisch immer für einen
@@ -354,16 +355,19 @@ def _ends_ibm_data_statement(line: LogicalLine) -> bool:
     return bool(_IBM_STATEMENT_END_RE.search(line.text)) or _ends_with_period(line)
 
 
-_OPEN_BLOCK_CONTINUATION_RE = re.compile(r"(?i)^(?:END-[A-Z]+|WHEN|ELSE)\b")
+_SENTENCE_END_FOLLOWS_RE = re.compile(
+    r"(?i)^(?:(?!(?:GOBACK|EXIT|CONTINUE|STOP|NEXT)\b)[A-Z0-9][A-Z0-9-]*\s*\.\s*$|[A-Z0-9][A-Z0-9-]*\s+SECTION\b|END\s+(?:PROGRAM|DECLARATIVES)\b"
+    r"|DECLARATIVES\b|IDENTIFICATION\s+DIVISION\b|ID\s+DIVISION\b)"
+)
 
 
-def _continues_open_block(lines: list[LogicalLine], start: int) -> bool:
-    """Beginnt die nächste Codezeile mit END-…, WHEN oder ELSE (dort wäre ein Satzende ungültig)?"""
+def _sentence_must_end(lines: list[LogicalLine], start: int) -> bool:
+    """Folgt ein Paragraphen- oder Section-Kopf, das Programmende oder nichts mehr?"""
     for line in lines[start:]:
         if line.is_comment or not line.text.strip():
             continue
-        return bool(_OPEN_BLOCK_CONTINUATION_RE.match(line.text.strip()))
-    return False
+        return bool(_SENTENCE_END_FOLLOWS_RE.match(line.text.strip()))
+    return True
 
 
 def _ends_with_period(line: LogicalLine) -> bool:
@@ -440,7 +444,7 @@ _NOT_A_NAME = frozenset(
     """UNTIL IF AND OR NOT WHEN WHILE THAN EQUAL TO BY FROM VARYING AFTER THEN ELSE ALSO GIVING
     RETURNING USING FUNCTION IS ARE OF IN ON INTO WITH TIMES DELIMITED SIZE SET MOVE ADD SUBTRACT
     MULTIPLY DIVIDE COMPUTE DISPLAY EVALUATE PERFORM CALL REFERENCE CONTENT VALUE GREATER LESS
-    EXCEPTION INVALID KEY AT END""".split()
+    EXCEPTION INVALID KEY AT END B-AND B-OR B-XOR B-NOT B-SHIFT-L B-SHIFT-R B-SHIFT-LC B-SHIFT-RC""".split()
 )
 _PROCEDURE_START = re.compile(r"(?im)^[^\n]*\bPROCEDURE\s+DIVISION\b")
 _WORD_BEFORE = re.compile(r"([A-Za-z0-9][A-Za-z0-9-]*)\s*$")

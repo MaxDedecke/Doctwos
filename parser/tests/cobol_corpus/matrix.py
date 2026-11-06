@@ -145,6 +145,19 @@ MATRIX: list[CompatCase] = [
         ),
     ),
     CompatCase(
+        "21_gnucobol_extensions",
+        "GnuCOBOL/Micro-Focus-Erweiterungen (USAGE ohne PIC, ANY LENGTH, BASED, ALLOCATE/FREE, OMITTED, Bit-Operatoren)",
+        "teilweise",
+        note=(
+            "BINARY-*/FLOAT-*/COMP-X/PROGRAM-POINTER, ANY LENGTH, BASED, OCCURS UNBOUNDED und "
+            "OCCURS konstante TIMES, VALUE LENGTH OF, IS [NOT] OMITTED, ALLOCATE/FREE, H'..'-Literal, "
+            "B-AND/B-OR/B-SHIFT-L, ROUNDED MODE, STRING ohne DELIMITED, TRIM(x, LEADING), WHEN < n und "
+            "WHEN = a OR = b, PERFORM UNTIL EXIT/FOREVER, SORT ohne Schlüssel. Geprüft: keine "
+            "Syntaxfehler, Felder mit USAGE und Hierarchie, kein Schein-PERFORM. Gegen GnuCOBOL nicht "
+            "übersetzt; kein Herstellercompiler-Abgleich."
+        ),
+    ),
+    CompatCase(
         "19_global_replace",
         "globales REPLACE/REPLACE OFF (O-136)",
         "teilweise",

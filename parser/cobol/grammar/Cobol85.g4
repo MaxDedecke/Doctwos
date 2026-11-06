@@ -1185,7 +1185,18 @@ dataDescriptionEntryFormat1
         | dataWithLowerBoundsClause
         | dataAlignedClause
         | dataRecordAreaClause
+        | dataAnyLengthClause
+        | dataBasedClause
     )* DOT_FS
+    ;
+
+// Doctus (GnuCOBOL/Micro Focus, COBOL 2002/2014): PIC X ANY LENGTH (LINKAGE) and BASED storage.
+dataAnyLengthClause
+    : ANY LENGTH
+    ;
+
+dataBasedClause
+    : BASED
     ;
 
 dataDescriptionEntryFormat2
@@ -1231,14 +1242,15 @@ dataJustifiedClause
     : (JUSTIFIED | JUST) RIGHT?
     ;
 
+// Doctus: OCCURS UNBOUNDED / OCCURS n TO UNBOUNDED (COBOL 2014, GnuCOBOL), OCCURS constant-name TIMES (level 78).
 dataOccursClause
-    : OCCURS integerLiteral dataOccursTo? TIMES? (DEPENDING ON? qualifiedDataName)? dataOccursSort* (
+    : OCCURS (integerLiteral dataOccursTo? | UNBOUNDED | cobolWord dataOccursTo?) TIMES? (DEPENDING ON? qualifiedDataName)? dataOccursSort* (
         INDEXED BY? LOCAL? indexName+
     )?
     ;
 
 dataOccursTo
-    : TO integerLiteral
+    : TO (integerLiteral | UNBOUNDED)
     ;
 
 dataOccursSort
@@ -1344,6 +1356,17 @@ dataUsageClause
         | PROCEDURE_POINTER
         | REAL
         | TASK
+        // Doctus: GnuCOBOL/Micro Focus/COBOL 2002 usages without PICTURE.
+        | (BINARY_CHAR | BINARY_SHORT | BINARY_LONG | BINARY_DOUBLE | BINARY_LONG_LONG | BINARY_C_LONG) (SIGNED | UNSIGNED)?
+        | FLOAT_SHORT
+        | FLOAT_LONG
+        | FLOAT_EXTENDED
+        | PROGRAM_POINTER
+        // Doctus: Micro Focus COMP-X/COMP-N.
+        | COMP_X
+        | COMPUTATIONAL_X
+        | COMP_N
+        | COMPUTATIONAL_N
     )
     ;
 
@@ -1362,6 +1385,8 @@ dataValueInterval
 dataValueIntervalFrom
     : literal
     | cobolWord
+    // Doctus: VALUE LENGTH OF item (GnuCOBOL constant expression).
+    | LENGTH OF? identifier
     ;
 
 dataValueIntervalTo
@@ -1447,6 +1472,8 @@ sentence
 statement
     : acceptStatement
     | addStatement
+    | allocateStatement
+    | freeStatement
     | alterStatement
     | callStatement
     | cancelStatement
@@ -1558,7 +1585,7 @@ addFrom
     ;
 
 addTo
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 addToGiving
@@ -1567,7 +1594,7 @@ addToGiving
     ;
 
 addGiving
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 // altered go to statement
@@ -1692,7 +1719,12 @@ computeStatement
     ;
 
 computeStore
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
+    ;
+
+// Doctus: ROUNDED MODE IS AWAY-FROM-ZERO|NEAREST-EVEN|TOWARD-LESSER|... (COBOL 2014).
+roundedPhrase
+    : ROUNDED (MODE IS? cobolWord)?
     ;
 
 // continue statement
@@ -1763,11 +1795,11 @@ divideGivingPhrase
     ;
 
 divideInto
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 divideGiving
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 divideRemainder
@@ -1816,6 +1848,8 @@ evaluateCondition
     | NOT? evaluateValue evaluateThrough?
     | condition
     | booleanLiteral
+    // Doctus: partial relation "WHEN < 90", also combined "WHEN = A OR = B" (GnuCOBOL, Micro Focus).
+    | relationalOperator arithmeticExpression ((OR | AND) relationalOperator? arithmeticExpression)*
     ;
 
 evaluateThrough
@@ -1870,6 +1904,15 @@ exhibitOperand
 // Doctus: EXIT PERFORM [CYCLE], EXIT PARAGRAPH and EXIT SECTION (COBOL 2002, IBM Enterprise COBOL, GnuCOBOL, Micro Focus).
 exitStatement
     : EXIT (PROGRAM | PERFORM CYCLE? | PARAGRAPH | SECTION)?
+    ;
+
+// Doctus: ALLOCATE/FREE (COBOL 2002, GnuCOBOL, Micro Focus, IBM Enterprise COBOL 6.4).
+allocateStatement
+    : ALLOCATE (arithmeticExpression CHARACTERS | identifier) INITIALIZED? (RETURNING identifier)?
+    ;
+
+freeStatement
+    : FREE identifier+
     ;
 
 // generate statement
@@ -2086,7 +2129,7 @@ multiplyRegular
     ;
 
 multiplyRegularOperand
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 multiplyGiving
@@ -2099,7 +2142,7 @@ multiplyGivingOperand
     ;
 
 multiplyGivingResult
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 // open statement
@@ -2150,14 +2193,17 @@ performType
     : performTimes
     | performUntil
     | performVarying
+    // Doctus: PERFORM FOREVER (Micro Focus, GnuCOBOL).
+    | FOREVER
     ;
 
 performTimes
     : (identifier | integerLiteral) TIMES
     ;
 
+// Doctus: PERFORM UNTIL EXIT is an endless loop (GnuCOBOL, Micro Focus).
 performUntil
-    : performTestClause? UNTIL condition
+    : performTestClause? UNTIL (EXIT | condition)
     ;
 
 performVarying
@@ -2382,8 +2428,9 @@ setByValue
 
 // sort statement
 
+// Doctus: SORT table without KEY phrase (COBOL 2002 table sort, GnuCOBOL, Micro Focus).
 sortStatement
-    : SORT fileName sortOnKeyClause+ sortDuplicatesPhrase? sortCollatingSequencePhrase? sortInputProcedurePhrase? sortUsing* sortOutputProcedurePhrase
+    : SORT fileName sortOnKeyClause* sortDuplicatesPhrase? sortCollatingSequencePhrase? sortInputProcedurePhrase? sortUsing* sortOutputProcedurePhrase
         ? sortGivingPhrase*
     ;
 
@@ -2466,8 +2513,9 @@ stringStatement
     : STRING stringSendingPhrase+ stringIntoPhrase stringWithPointerPhrase? onOverflowPhrase? notOnOverflowPhrase? END_STRING?
     ;
 
+// Doctus: DELIMITED BY is optional since COBOL 2014 (GnuCOBOL, Micro Focus).
 stringSendingPhrase
-    : stringSending+ (stringDelimitedByPhrase | stringForPhrase)
+    : stringSending+ (stringDelimitedByPhrase | stringForPhrase)?
     ;
 
 stringSending
@@ -2519,7 +2567,7 @@ subtractSubtrahend
     ;
 
 subtractMinuend
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 subtractMinuendGiving
@@ -2528,11 +2576,11 @@ subtractMinuendGiving
     ;
 
 subtractGiving
-    : identifier ROUNDED?
+    : identifier roundedPhrase?
     ;
 
 subtractMinuendCorresponding
-    : qualifiedDataName ROUNDED?
+    : qualifiedDataName roundedPhrase?
     ;
 
 // terminate statement
@@ -2710,12 +2758,13 @@ multDivs
     : powers multDiv*
     ;
 
+// Doctus: bitwise operators B-AND, B-OR, B-XOR, B-SHIFT-L/R/LC/RC (GnuCOBOL, Micro Focus).
 multDiv
-    : (ASTERISKCHAR | SLASHCHAR) powers
+    : (ASTERISKCHAR | SLASHCHAR | B_AND | B_OR | B_XOR | B_SHIFT_L | B_SHIFT_R | B_SHIFT_LC | B_SHIFT_RC) powers
     ;
 
 powers
-    : (PLUSCHAR | MINUSCHAR)? basis power*
+    : (PLUSCHAR | MINUSCHAR | B_NOT)? basis power*
     ;
 
 power
@@ -2757,6 +2806,8 @@ classCondition
         | ALPHABETIC_UPPER
         | DBCS
         | KANJI
+        // Doctus: IS [NOT] OMITTED (COBOL 2002, GnuCOBOL, Micro Focus).
+        | OMITTED
         | className
     )
     ;
@@ -2850,6 +2901,9 @@ subscript_
 
 argument
     : literal
+    // Doctus: FUNCTION TRIM(x, LEADING|TRAILING) (COBOL 2002, GnuCOBOL, Micro Focus).
+    | LEADING
+    | TRAILING
     | identifier
     | qualifiedDataName integerLiteral?
     | indexName integerLiteral?
@@ -3185,6 +3239,8 @@ booleanLiteral
 
 numericLiteral
     : NUMERICLITERAL
+    // Doctus: hexadecimal numeric literal H'FF' (GnuCOBOL, Micro Focus).
+    | HEXNUMERICLITERAL
     | ZERO
     | integerLiteral
     ;
@@ -5481,9 +5537,10 @@ NONNUMERICLITERAL
     | NULLTERMINATED
     ;
 
+// Doctus: lower-case hex digits (X"0a00") are valid in GnuCOBOL and Micro Focus.
 fragment HEXNUMBER
-    : X '"' [0-9A-F]+ '"'
-    | X '\'' [0-9A-F]+ '\''
+    : X '"' [0-9A-Fa-f]+ '"'
+    | X '\'' [0-9A-Fa-f]+ '\''
     ;
 
 fragment NULLTERMINATED
@@ -5521,6 +5578,134 @@ NUMERICLITERAL
     : (PLUSCHAR | MINUSCHAR)? [0-9]* (DOT | COMMACHAR) [0-9]+ (
         ('e' | 'E') (PLUSCHAR | MINUSCHAR)? [0-9]+
     )?
+    ;
+
+// Doctus: keywords of the GnuCOBOL/Micro Focus wave (before IDENTIFIER: equal-length matches take the first rule).
+// They are reserved there and deliberately not part of cobolWord: dataValueClause may omit VALUE, so a
+// cobolWord after a data name would be read as its value (01 X BASED.).
+ALLOCATE
+    : A L L O C A T E
+    ;
+
+BASED
+    : B A S E D
+    ;
+
+BINARY_CHAR
+    : B I N A R Y MINUSCHAR C H A R
+    ;
+
+BINARY_DOUBLE
+    : B I N A R Y MINUSCHAR D O U B L E
+    ;
+
+BINARY_LONG
+    : B I N A R Y MINUSCHAR L O N G
+    ;
+
+BINARY_LONG_LONG
+    : B I N A R Y MINUSCHAR L O N G MINUSCHAR L O N G
+    ;
+
+BINARY_C_LONG
+    : B I N A R Y MINUSCHAR C MINUSCHAR L O N G
+    ;
+
+BINARY_SHORT
+    : B I N A R Y MINUSCHAR S H O R T
+    ;
+
+B_AND
+    : B MINUSCHAR A N D
+    ;
+
+B_NOT
+    : B MINUSCHAR N O T
+    ;
+
+B_OR
+    : B MINUSCHAR O R
+    ;
+
+B_SHIFT_L
+    : B MINUSCHAR S H I F T MINUSCHAR L
+    ;
+
+B_SHIFT_LC
+    : B MINUSCHAR S H I F T MINUSCHAR L C
+    ;
+
+B_SHIFT_R
+    : B MINUSCHAR S H I F T MINUSCHAR R
+    ;
+
+B_SHIFT_RC
+    : B MINUSCHAR S H I F T MINUSCHAR R C
+    ;
+
+B_XOR
+    : B MINUSCHAR X O R
+    ;
+
+FLOAT_EXTENDED
+    : F L O A T MINUSCHAR E X T E N D E D
+    ;
+
+FLOAT_LONG
+    : F L O A T MINUSCHAR L O N G
+    ;
+
+FLOAT_SHORT
+    : F L O A T MINUSCHAR S H O R T
+    ;
+
+FOREVER
+    : F O R E V E R
+    ;
+
+COMP_X
+    : C O M P MINUSCHAR X
+    ;
+
+COMPUTATIONAL_X
+    : C O M P U T A T I O N A L MINUSCHAR X
+    ;
+
+COMP_N
+    : C O M P MINUSCHAR N
+    ;
+
+COMPUTATIONAL_N
+    : C O M P U T A T I O N A L MINUSCHAR N
+    ;
+
+HEXNUMERICLITERAL
+    : H '"' [0-9A-Fa-f]+ '"'
+    | H '\'' [0-9A-Fa-f]+ '\''
+    ;
+
+FREE
+    : F R E E
+    ;
+
+INITIALIZED
+    : I N I T I A L I Z E D
+    ;
+
+PROGRAM_POINTER
+    : P R O G R A M MINUSCHAR P O I N T E R
+    ;
+
+SIGNED
+    : S I G N E D
+    ;
+
+UNBOUNDED
+    : U N B O U N D E D
+    ;
+
+UNSIGNED
+    : U N S I G N E D
     ;
 
 IDENTIFIER

@@ -1,0 +1,1741 @@
+{
+  "program_name": "GNUEXT",
+  "path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+  "source_format": "fixed",
+  "variant_key": "default",
+  "entities": [
+    {
+      "type": "program",
+      "name": "GNUEXT",
+      "start_line": 1,
+      "end_line": 59,
+      "parent_name": null,
+      "qualified_name": "GNUEXT",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 1,
+            "end_line": 59
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "section",
+      "name": "WORKING-STORAGE",
+      "start_line": 4,
+      "end_line": 18,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WORKING-STORAGE",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 4,
+            "end_line": 18
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "section",
+      "name": "LINKAGE",
+      "start_line": 19,
+      "end_line": 21,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.LINKAGE",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 19,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "name": "MAIN-PARA",
+      "start_line": 23,
+      "end_line": 55,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.MAIN-PARA",
+      "meta": {
+        "exits": [
+          {
+            "statement": "GOBACK",
+            "line": 55
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 23,
+            "end_line": 55
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "paragraph",
+      "name": "SMALL-PARA",
+      "start_line": 56,
+      "end_line": 58,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.SMALL-PARA",
+      "meta": {
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 56,
+            "end_line": 58
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-COUNT",
+      "start_line": 6,
+      "end_line": 6,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-COUNT",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": "BINARY-LONG UNSIGNED",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "0",
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 6,
+            "end_line": 6
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-SMALL",
+      "start_line": 7,
+      "end_line": 7,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-SMALL",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": "BINARY-CHAR",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 7,
+            "end_line": 7
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-RATIO",
+      "start_line": 8,
+      "end_line": 8,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-RATIO",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": "FLOAT-LONG",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 8,
+            "end_line": 8
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-HANDLE",
+      "start_line": 9,
+      "end_line": 9,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-HANDLE",
+      "meta": {
+        "level": 1,
+        "picture": "X(4)",
+        "usage": "COMP-X",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 9,
+            "end_line": 9
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-CALLBACK",
+      "start_line": 10,
+      "end_line": 10,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-CALLBACK",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": "PROGRAM-POINTER",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 10,
+            "end_line": 10
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-MASK",
+      "start_line": 11,
+      "end_line": 11,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-MASK",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": "BINARY-SHORT SIGNED",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": "LENGTH OF WS-HANDLE",
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 11,
+            "end_line": 11
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-TABLE",
+      "start_line": 12,
+      "end_line": 12,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-TABLE",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": null,
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 12,
+            "end_line": 12
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-ENTRY",
+      "start_line": 13,
+      "end_line": 13,
+      "parent_name": "WS-TABLE",
+      "qualified_name": "GNUEXT.WS-TABLE.WS-ENTRY",
+      "meta": {
+        "level": 2,
+        "picture": null,
+        "usage": "BINARY-LONG",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 13,
+            "end_line": 13
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-DYN",
+      "start_line": 14,
+      "end_line": 14,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-DYN",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": null,
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 14,
+            "end_line": 14
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-DYN-BYTE",
+      "start_line": 15,
+      "end_line": 16,
+      "parent_name": "WS-DYN",
+      "qualified_name": "GNUEXT.WS-DYN.WS-DYN-BYTE",
+      "meta": {
+        "level": 2,
+        "picture": "X",
+        "usage": null,
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": "WS-COUNT",
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 15,
+            "end_line": 16
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-PTR",
+      "start_line": 17,
+      "end_line": 17,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-PTR",
+      "meta": {
+        "level": 1,
+        "picture": null,
+        "usage": "POINTER",
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 17,
+            "end_line": 17
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "WS-TEXT",
+      "start_line": 18,
+      "end_line": 18,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.WS-TEXT",
+      "meta": {
+        "level": 1,
+        "picture": "X(40)",
+        "usage": null,
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 18,
+            "end_line": 18
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "LK-NAME",
+      "start_line": 20,
+      "end_line": 20,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.LK-NAME",
+      "meta": {
+        "level": 1,
+        "picture": "X",
+        "usage": null,
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 20,
+            "end_line": 20
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "data_item",
+      "name": "LK-OPTIONAL",
+      "start_line": 21,
+      "end_line": 21,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.LK-OPTIONAL",
+      "meta": {
+        "level": 1,
+        "picture": "X(8)",
+        "usage": null,
+        "redefines": null,
+        "renames": null,
+        "renames_thru": null,
+        "occurs": null,
+        "occurs_depending_on": null,
+        "value": null,
+        "values": null,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 21,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "entry",
+      "name": "SMALL-CALLBACK",
+      "start_line": 57,
+      "end_line": 57,
+      "parent_name": "GNUEXT",
+      "qualified_name": "GNUEXT.SMALL-CALLBACK",
+      "meta": {
+        "paragraph": "SMALL-PARA",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 57,
+            "end_line": 57
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "type": "PERFORM",
+      "src_name": "MAIN-PARA",
+      "dst_name": "SMALL-PARA",
+      "resolution": "resolved",
+      "src_start_line": 38,
+      "src_end_line": 38,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_context": [
+          {
+            "type": "EVALUATE",
+            "branch": "WHEN"
+          }
+        ],
+        "control_path": [
+          {
+            "type": "EVALUATE",
+            "branch": "WHEN",
+            "subject": "WS-COUNT",
+            "when": "5"
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 38,
+            "end_line": 38
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "CALL",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WORKER",
+      "resolution": "unresolved",
+      "src_start_line": 51,
+      "src_end_line": 51,
+      "scope": null,
+      "meta": {
+        "program": "GNUEXT",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "FOREVER",
+            "text": ""
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 51,
+            "end_line": 51
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "",
+      "dst_name": "LK-NAME",
+      "resolution": "resolved",
+      "src_start_line": 22,
+      "src_end_line": 22,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 22,
+            "end_line": 22
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "",
+      "dst_name": "LK-OPTIONAL",
+      "resolution": "resolved",
+      "src_start_line": 22,
+      "src_end_line": 22,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 22,
+            "end_line": 22
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "LK-OPTIONAL",
+      "resolution": "resolved",
+      "src_start_line": 24,
+      "src_end_line": 24,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_context": [
+          {
+            "type": "IF",
+            "branch": "CONDITION"
+          }
+        ],
+        "operand_role": "condition",
+        "operation": "IF",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 24,
+            "end_line": 24
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "LK-OPTIONAL",
+      "resolution": "resolved",
+      "src_start_line": 25,
+      "src_end_line": 25,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_context": [
+          {
+            "type": "IF",
+            "branch": "THEN"
+          }
+        ],
+        "operand_role": "output",
+        "operation": "DISPLAY",
+        "control_path": [
+          {
+            "type": "IF",
+            "branch": "THEN",
+            "condition": "LK-OPTIONAL IS NOT OMITTED"
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 25,
+            "end_line": 25
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 27,
+      "src_end_line": 27,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 27,
+            "end_line": 27
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-PTR",
+      "resolution": "resolved",
+      "src_start_line": 27,
+      "src_end_line": 27,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 27,
+            "end_line": 27
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-DYN",
+      "resolution": "resolved",
+      "src_start_line": 28,
+      "src_end_line": 28,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 28,
+            "end_line": 28
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-MASK",
+      "resolution": "resolved",
+      "src_start_line": 29,
+      "src_end_line": 29,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "result",
+        "operation": "COMPUTE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 29,
+            "end_line": 29
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 29,
+      "src_end_line": 29,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "source",
+        "operation": "COMPUTE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 29,
+            "end_line": 29
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-MASK",
+      "resolution": "resolved",
+      "src_start_line": 30,
+      "src_end_line": 30,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "result",
+        "operation": "COMPUTE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 30,
+            "end_line": 30
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-MASK",
+      "resolution": "resolved",
+      "src_start_line": 30,
+      "src_end_line": 30,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "source",
+        "operation": "COMPUTE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 30,
+            "end_line": 30
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 30,
+      "src_end_line": 30,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "source",
+        "operation": "COMPUTE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 30,
+            "end_line": 30
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 31,
+      "src_end_line": 31,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 31,
+            "end_line": 31
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 31,
+      "src_end_line": 31,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 31,
+            "end_line": 31
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "LK-NAME",
+      "resolution": "resolved",
+      "src_start_line": 33,
+      "src_end_line": 33,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "source",
+        "operation": "STRING",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 33,
+            "end_line": 33
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-TEXT",
+      "resolution": "resolved",
+      "src_start_line": 34,
+      "src_end_line": 34,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "target",
+        "operation": "STRING",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 34,
+            "end_line": 34
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-HANDLE",
+      "resolution": "resolved",
+      "src_start_line": 35,
+      "src_end_line": 35,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "target",
+        "operation": "MOVE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 35,
+            "end_line": 35
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 36,
+      "src_end_line": 36,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_context": [
+          {
+            "type": "EVALUATE",
+            "branch": "SELECT"
+          }
+        ],
+        "operand_role": "condition",
+        "operation": "EVALUATE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 36,
+            "end_line": 36
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-ENTRY",
+      "resolution": "resolved",
+      "src_start_line": 42,
+      "src_end_line": 42,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_context": [
+          {
+            "type": "EVALUATE",
+            "branch": "BODY"
+          }
+        ],
+        "control_path": [
+          {
+            "type": "EVALUATE",
+            "branch": "WHEN",
+            "subject": "WS-COUNT",
+            "when": "OTHER"
+          }
+        ],
+        "parent": "WS-TABLE",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 42,
+            "end_line": 42
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 45,
+      "src_end_line": 45,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "target",
+        "operation": "ADD",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "UNTIL",
+            "text": ""
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 45,
+            "end_line": 45
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 45,
+      "src_end_line": 45,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "target",
+        "operation": "ADD",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "UNTIL",
+            "text": ""
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 45,
+            "end_line": 45
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "READS",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 46,
+      "src_end_line": 46,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_context": [
+          {
+            "type": "IF",
+            "branch": "CONDITION"
+          }
+        ],
+        "operand_role": "condition",
+        "operation": "IF",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "UNTIL",
+            "text": ""
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 46,
+            "end_line": 46
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-COUNT",
+      "resolution": "resolved",
+      "src_start_line": 51,
+      "src_end_line": 51,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "control_path": [
+          {
+            "type": "LOOP",
+            "kind": "FOREVER",
+            "text": ""
+          }
+        ],
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 51,
+            "end_line": 51
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "USES",
+      "src_name": "MAIN-PARA",
+      "dst_name": "WS-PTR",
+      "resolution": "resolved",
+      "src_start_line": 54,
+      "src_end_line": 54,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 54,
+            "end_line": 54
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "type": "WRITES",
+      "src_name": "SMALL-PARA",
+      "dst_name": "WS-CALLBACK",
+      "resolution": "resolved",
+      "src_start_line": 57,
+      "src_end_line": 57,
+      "scope": "GNUEXT",
+      "meta": {
+        "program": "GNUEXT",
+        "operand_role": "target",
+        "operation": "SET",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 57,
+            "end_line": 57
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
+  "chunks": [
+    {
+      "content": "       MAIN-PARA.\n           IF LK-OPTIONAL IS NOT OMITTED\n               DISPLAY LK-OPTIONAL\n           END-IF\n           ALLOCATE WS-COUNT CHARACTERS RETURNING WS-PTR\n           ALLOCATE WS-DYN INITIALIZED\n           COMPUTE WS-MASK = WS-COUNT B-AND H'FF'\n           COMPUTE WS-MASK = WS-MASK B-OR (WS-COUNT B-SHIFT-L 4)\n           DIVIDE WS-COUNT BY 3 GIVING WS-COUNT\n               ROUNDED MODE IS TOWARD-LESSER\n           STRING \"Name: \" FUNCTION TRIM(LK-NAME, LEADING)\n               INTO WS-TEXT\n           MOVE X\"0a0d\" TO WS-HANDLE\n           EVALUATE WS-COUNT\n               WHEN < 5\n                   PERFORM SMALL-PARA\n               WHEN = 5 OR = 6\n                   CONTINUE\n               WHEN OTHER\n                   SORT WS-ENTRY\n           END-EVALUATE\n           PERFORM UNTIL EXIT\n               ADD 1 TO WS-COUNT\n               IF WS-COUNT > 9\n                   EXIT PERFORM\n               END-IF\n           END-PERFORM\n           PERFORM FOREVER",
+      "start_line": 23,
+      "end_line": 50,
+      "meta": {
+        "program": "GNUEXT",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 23,
+        "end_line": 50,
+        "format": "fixed",
+        "part": 1,
+        "parts": 2,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 23,
+            "end_line": 50
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "content": "               CALL 'WORKER' USING OMITTED WS-COUNT\n               EXIT PERFORM\n           END-PERFORM\n           FREE WS-PTR\n           GOBACK.",
+      "start_line": 51,
+      "end_line": 55,
+      "meta": {
+        "program": "GNUEXT",
+        "section": null,
+        "paragraph": "MAIN-PARA",
+        "start_line": 51,
+        "end_line": 55,
+        "format": "fixed",
+        "part": 2,
+        "parts": 2,
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 51,
+            "end_line": 55
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "content": "       SMALL-PARA.\n           SET WS-CALLBACK TO ENTRY \"SMALL-CALLBACK\"\n           DISPLAY 'SMALL'.",
+      "start_line": 56,
+      "end_line": 58,
+      "meta": {
+        "program": "GNUEXT",
+        "section": null,
+        "paragraph": "SMALL-PARA",
+        "start_line": 56,
+        "end_line": 58,
+        "format": "fixed",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 56,
+            "end_line": 58
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    },
+    {
+      "content": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. GNUEXT IS RECURSIVE.\n       DATA DIVISION.\n       WORKING-STORAGE SECTION.\n       78 TABLE-CAPACITY       VALUE 10.\n       01 WS-COUNT             BINARY-LONG UNSIGNED VALUE 0.\n       01 WS-SMALL             BINARY-CHAR.\n       01 WS-RATIO             FLOAT-LONG.\n       01 WS-HANDLE            PIC X(4) USAGE COMP-X.\n       01 WS-CALLBACK          PROGRAM-POINTER.\n       01 WS-MASK   BINARY-SHORT SIGNED VALUE LENGTH OF WS-HANDLE.\n       01 WS-TABLE.\n          02 WS-ENTRY          OCCURS TABLE-CAPACITY TIMES BINARY-LONG.\n       01 WS-DYN               BASED.\n          02 WS-DYN-BYTE PIC X OCCURS UNBOUNDED\n                         DEPENDING ON WS-COUNT.\n       01 WS-PTR               USAGE POINTER.\n       01 WS-TEXT              PIC X(40).\n       LINKAGE SECTION.\n       01 LK-NAME              PIC X ANY LENGTH.\n       01 LK-OPTIONAL          PIC X(8).",
+      "start_line": 1,
+      "end_line": 21,
+      "meta": {
+        "program": "GNUEXT",
+        "format": "fixed",
+        "division": "declarations",
+        "evidence": {
+          "schema_version": 1,
+          "kind": "source",
+          "source": {
+            "file_path": "cobol_corpus/fixtures/21_gnucobol_extensions.cbl",
+            "start_line": 1,
+            "end_line": 21
+          },
+          "variant": {
+            "key": "default",
+            "compiler_family": null,
+            "compiler_version": null,
+            "source_format": null,
+            "resolved_from": {}
+          },
+          "condition": null
+        }
+      }
+    }
+  ],
+  "errors": [],
+  "diagnostics": [
+    {
+      "code": "SOURCE_FORMAT_HEURISTIC",
+      "severity": "info",
+      "phase": "profile",
+      "message": "Quellformat 'fixed' heuristisch erkannt, kein Buildprofil oder eine anfängliche SOURCE-FORMAT-Direktive hat es bestätigt (siehe O-121).",
+      "line": 0,
+      "column": 0,
+      "count": 1,
+      "profile": null
+    }
+  ]
+}

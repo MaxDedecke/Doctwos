@@ -1104,6 +1104,16 @@ class Cobol85Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by Cobol85Parser#dataAnyLengthClause.
+    def visitDataAnyLengthClause(self, ctx:Cobol85Parser.DataAnyLengthClauseContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by Cobol85Parser#dataBasedClause.
+    def visitDataBasedClause(self, ctx:Cobol85Parser.DataBasedClauseContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by Cobol85Parser#dataDescriptionEntryFormat2.
     def visitDataDescriptionEntryFormat2(self, ctx:Cobol85Parser.DataDescriptionEntryFormat2Context):
         return self.visitChildren(ctx)
@@ -1549,6 +1559,11 @@ class Cobol85Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by Cobol85Parser#roundedPhrase.
+    def visitRoundedPhrase(self, ctx:Cobol85Parser.RoundedPhraseContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by Cobol85Parser#continueStatement.
     def visitContinueStatement(self, ctx:Cobol85Parser.ContinueStatementContext):
         return self.visitChildren(ctx)
@@ -1716,6 +1731,16 @@ class Cobol85Visitor(ParseTreeVisitor):
 
     # Visit a parse tree produced by Cobol85Parser#exitStatement.
     def visitExitStatement(self, ctx:Cobol85Parser.ExitStatementContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by Cobol85Parser#allocateStatement.
+    def visitAllocateStatement(self, ctx:Cobol85Parser.AllocateStatementContext):
+        return self.visitChildren(ctx)
+
+
+    # Visit a parse tree produced by Cobol85Parser#freeStatement.
+    def visitFreeStatement(self, ctx:Cobol85Parser.FreeStatementContext):
         return self.visitChildren(ctx)
 
 

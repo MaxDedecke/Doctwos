@@ -109,7 +109,7 @@ Regeln dafür:
 
 - **Expliziter Auftrag 06.11.2026 (Dialekte):** COBOL-Parser Dialekt für Dialekt erweitern, zuerst Standard-Konstrukte,
   die auch IBM-Bestände betreffen (verschachtelte Programme, `EXIT PERFORM [CYCLE]/PARAGRAPH/SECTION`), danach
-  GnuCOBOL/Micro Focus. Grammatikänderungen in `parser/cobol/grammar/Cobol85.g4` sind mit `// Doctus:` markiert;
+  GnuCOBOL/Micro Focus (Stand: `docs/MAINFRAME_KOMPATIBILITAET.md`). Grammatikänderungen in `parser/cobol/grammar/Cobol85.g4` sind mit `// Doctus:` markiert;
   Neuerzeugung mit ANTLR 4.13.2 nur zur Entwicklungszeit (`parser/cobol/grammar/README.md`, E-11).
 
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.

@@ -62,6 +62,7 @@ _STATEMENT_DELIMITERS = {
     # Verbs / statement starters
     "ACCEPT",
     "ADD",
+    "ALLOCATE",
     "ALTER",
     "CALL",
     "CANCEL",
@@ -74,6 +75,7 @@ _STATEMENT_DELIMITERS = {
     "ENTRY",
     "EVALUATE",
     "EXIT",
+    "FREE",
     "GO",
     "GOBACK",
     "IF",

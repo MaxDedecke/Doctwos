@@ -67,8 +67,22 @@ Auftrag: Dialekt für Dialekt erweitern (`CLAUDE.md`). Prüfbestände: CardDemo 
 | COPY in offenen Blöcken | Ein `COPY` in der PROCEDURE DIVISION wurde für die Grammatik zu `CONTINUE.` mit Punkt. Der Punkt gehört aber zur COPY-Anweisung; folgt `END-…`, `WHEN` oder `ELSE`, schloss er den umgebenden IF/EVALUATE/PERFORM vorzeitig (betrifft auch IBM). Dort entfällt der Punkt jetzt. |
 | Ergebnis | CardDemo unverändert: 44/44 vollständig, keine Entität oder Kante anders. CobolCraft: vollständig 41 → 67 Dateien, 55 Programme, 45 Paragraphen und 391 Kanten mehr, nichts verloren, Scheinsections 3.197 → 1.032 Sections insgesamt. |
 
-Nächste Welle: GnuCOBOL/Micro Focus (`ANY LENGTH`, `BINARY-LONG`, `OMITTED`, `PERFORM UNTIL EXIT`, `STRING` ohne
-`DELIMITED`, `ALLOCATE`/`FREE`, Bit-Operatoren `B-AND`/`B-OR`).
+## Stand 06.11.2026: Dialekte, Welle 2 (GnuCOBOL/Micro Focus)
+
+Grammatik (`// Doctus` in `Cobol85.g4`), gemessen an CobolCraft:
+
+| Bereich | Erweiterung |
+|---|---|
+| Daten | USAGE ohne PICTURE: `BINARY-CHAR/SHORT/LONG/DOUBLE/LONG-LONG/C-LONG [SIGNED\|UNSIGNED]`, `FLOAT-SHORT/LONG/EXTENDED`, `PROGRAM-POINTER`, `COMP-X`/`COMP-N`; `PIC X ANY LENGTH`; `BASED`; `OCCURS UNBOUNDED`, `OCCURS n TO UNBOUNDED`, `OCCURS konstante TIMES`; `VALUE LENGTH OF feld` |
+| Anweisungen | `ALLOCATE … [CHARACTERS] [INITIALIZED] [RETURNING …]`, `FREE`; `PERFORM UNTIL EXIT`, `PERFORM FOREVER`; `STRING` ohne `DELIMITED BY`; `ROUNDED MODE IS …`; `SORT tabelle` ohne Schlüssel |
+| Bedingungen, Ausdrücke | `IS [NOT] OMITTED`; Teilbedingungen in EVALUATE (`WHEN < 90`, `WHEN = a OR = b`); `B-AND/B-OR/B-XOR/B-NOT/B-SHIFT-L/R/LC/RC`; `H'FF'`, `X"0a"` mit Kleinbuchstaben; `FUNCTION TRIM(x, LEADING)` |
+| COPY | Der Punkt eines `COPY` in der PROCEDURE DIVISION wird nur noch vor Paragraph, Section oder Programmende als Satzende behandelt (Welle 1 deckte nur `END-…`/`WHEN`/`ELSE` danach ab, nicht `IF` o. ä.). |
+
+Die neuen Schlüsselwörter sind in GnuCOBOL reserviert und bewusst nicht als Namen (`cobolWord`) zugelassen: Die
+VALUE-Klausel darf ohne das Wort `VALUE` stehen, ein als Name erlaubtes Wort nach einem Feldnamen würde sonst als
+dessen Wert gelesen (`01 X BASED.`).
+
+Ergebnis: Alle Programme unter `src/` von CobolCraft parsen ohne Syntaxfehler (vorher rund 100 betroffene Programme); vollständig erkannte Dateien 67 → 164, Syntaxfehler 1.234 → 70 (Rest in den Codegen-Vorlagen, keine vollständigen Programme). CardDemo unverändert, nichts verloren.
 
 Reproduzierbare Minimalprobe für O-124 (als Test-Fixture zu übernehmen):
 
