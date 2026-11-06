@@ -43,7 +43,6 @@ from doctus_models.database import (
     CodeEdge,
     DocumentChunk,
     EntityDocLink,
-    KnowledgeSource,
     LinkBuilderDirtyItem,
     LinkBuilderRun,
 )
@@ -52,10 +51,16 @@ from ollama_client import get_embedding, get_embeddings_batch, get_chat_json, en
 from core import config
 from core.doc_resolution import DOC_ENTITY_TYPES
 from chunk_reindex import content_fingerprint
+from tasks.link_run_scope import (
+    KeywordCorpus,
+    LinkRunScope,
+    doc_chunk_conditions,
+    select_run_entities,
+)
 import httpx
 import redis
 from celery import current_app
-from sqlalchemy import or_, select
+from sqlalchemy import or_
 
 logger = logging.getLogger(__name__)
 
@@ -84,28 +89,6 @@ ENTITY_CONTEXT_MAX_CHARS = 4200
 ENTITY_EXCERPT_MAX_CHARS = 2400
 ENTITY_EXCERPT_MAX_LINES = 60
 ENTITY_CONTEXT_EDGE_LIMIT = 8
-
-
-def _embedding_model_filter(model: str):
-    if model == config.EMBED_MODEL:
-        return or_(DocumentChunk.embedding_model == model, DocumentChunk.embedding_model.is_(None))
-    return DocumentChunk.embedding_model == model
-
-
-_DOC_LANGUAGES = ("asciidoc", "markdown", "text")
-
-
-def _documentation_filter():
-    """Nur Dokumentation ist Kandidat: Inhalte nicht-Git-Quellen sowie Doku-Dateien in Git-Quellen.
-
-    Quellcode-Abschnitte einer Git-Quelle sind der Code selbst; Code-zu-Code-Beziehungen gehören in den
-    Aufrufgraphen (gleiche Regel wie api/entity_links.py::search_doc_chunks).
-    """
-    non_git = DocumentChunk.source_id.in_(
-        select(KnowledgeSource.id).where(KnowledgeSource.type != "Git")
-    )
-    doc_language = DocumentChunk.metadata_json["language"].as_string().in_(_DOC_LANGUAGES)
-    return or_(non_git, doc_language)
 
 
 def _keywords_from_entity(entity: CodeEntity) -> list[str]:
@@ -350,13 +333,13 @@ async def _pass_semantic(
     top_k: int | None = None,
     min_score: float | None = None,
     per_chunk: bool = False,
+    doc_source_ids: frozenset[int] | None = None,
 ) -> dict[str, tuple]:
     """Pass 1: cosine similarity between entity context and doc chunk embeddings.
 
     ``embedding`` is the already computed vector of ``entity_context`` (see ``_embed_context_window``);
     without it the context is embedded here."""
     selected_model = embedding_model or config.EMBED_MODEL
-    model_filter = _embedding_model_filter(selected_model)
     context = entity_context or f"{entity.type}: {entity.name} in {entity.file_path}"
     if embedding is None:
         try:
@@ -367,10 +350,7 @@ async def _pass_semantic(
 
     dist_expr = DocumentChunk.embedding.cosine_distance(embedding)
     query = db.query(DocumentChunk, dist_expr.label("dist")).filter(
-        DocumentChunk.project_id == project_id,
-        DocumentChunk.source_id.isnot(None),
-        model_filter,
-        _documentation_filter(),
+        *doc_chunk_conditions(project_id, selected_model, doc_source_ids),
         DocumentChunk.embedding_dimension == len(embedding),
     )
     if candidate_chunk_ids is not None:
@@ -502,49 +482,6 @@ async def _embed_context_window(
     return dict(zip(ids, vectors)) if len(vectors) == len(ids) else {}
 
 
-# Obergrenze für den Arbeitsspeicher-Korpus des Keyword-Passes (Zeichen kleingeschriebenen Chunk-Texts).
-# Darüber bleibt es beim bisherigen Lesen je Entity, damit ein sehr großer Bestand den Worker nicht sprengt.
-KEYWORD_CORPUS_MAX_CHARS = int(os.getenv("LINK_KEYWORD_CORPUS_MAX_CHARS", str(400_000_000)))
-
-
-class KeywordCorpus:
-    """Kleingeschriebene Chunk-Texte eines Projekts, einmal je Lauf entschlüsselt.
-
-    DocumentChunk.content ist at rest verschlüsselt; ein SQL-Filter auf den Inhalt ist nicht möglich. Statt für
-    jede Entity alle Chunks erneut zu lesen und zu entschlüsseln (Kosten Entities x Chunks), liegt der Text
-    einmal im Speicher. Die Treffer bleiben gleich: Teilstring-Suche, Reihenfolge nach Chunk-ID.
-    """
-
-    def __init__(self, db, project_id: int, embedding_model: str | None = None):
-        selected_model = embedding_model or config.EMBED_MODEL
-        self.items: list[tuple[int, str]] | None = []
-        total = 0
-        rows = (
-            db.query(DocumentChunk.id, DocumentChunk.content)
-            .filter(
-                DocumentChunk.project_id == project_id,
-                DocumentChunk.source_id.isnot(None),
-                _embedding_model_filter(selected_model),
-                # Ohne diesen Filter kamen Quellcode-Abschnitte über die Stichwortsuche doch als Kandidaten
-                # (Syncope, Lauf 158: 59 von 104 Vorschlägen zeigten auf .java/.groovy/.xml).
-                _documentation_filter(),
-            )
-            .order_by(DocumentChunk.id)
-            .yield_per(500)
-        )
-        for chunk_id, content in rows:
-            text = (content or "").lower()
-            total += len(text)
-            if total > KEYWORD_CORPUS_MAX_CHARS:
-                self.items = None
-                logger.warning(
-                    "[LinkBuilder] Keyword-Korpus über %s Zeichen; lese je Entity",
-                    KEYWORD_CORPUS_MAX_CHARS,
-                )
-                return
-            self.items.append((chunk_id, text))
-
-
 def _pass_keyword(
     entity: CodeEntity,
     project_id: int,
@@ -556,6 +493,7 @@ def _pass_keyword(
     min_score: float | None = None,
     per_chunk: bool = False,
     selection: str = "best",
+    doc_source_ids: frozenset[int] | None = None,
 ) -> dict[str, tuple]:
     """Pass 2: token-based search — splits entity name/path and matches against chunk content.
 
@@ -563,8 +501,6 @@ def _pass_keyword(
     filter with SQL ILIKE -- candidates are fetched by the existing project_id/source_id scope
     and matched against the keywords in Python after decryption instead.
     """
-    selected_model = embedding_model or config.EMBED_MODEL
-    model_filter = _embedding_model_filter(selected_model)
     keywords = _keywords_from_entity(entity)
     if not keywords:
         return {}
@@ -608,10 +544,7 @@ def _pass_keyword(
         return result
 
     query = db.query(DocumentChunk).filter(
-        DocumentChunk.project_id == project_id,
-        DocumentChunk.source_id.isnot(None),
-        model_filter,
-        _documentation_filter(),
+        *doc_chunk_conditions(project_id, embedding_model, doc_source_ids)
     )
     if candidate_chunk_ids is not None:
         query = query.filter(DocumentChunk.id.in_(candidate_chunk_ids))
@@ -1082,75 +1015,36 @@ async def compute_entity_links_async(
             if entity.id is not None
         }
 
+        run_scope = LinkRunScope.from_scope(run.scope_json)
         doc_count = (
             db.query(DocumentChunk)
             .filter(
-                DocumentChunk.project_id == project_id,
-                DocumentChunk.source_id.isnot(None),
-                _embedding_model_filter(selected_embedding_model),
-                _documentation_filter(),
+                *doc_chunk_conditions(
+                    project_id, selected_embedding_model, run_scope.doc_source_ids
+                )
             )
             .count()
         )
         if doc_count == 0:
-            logger.info(
-                f"[LinkBuilder] Projekt {project_id}: keine Wissensquellen — bitte Confluence/Notion synchronisieren."
+            message = (
+                "Keine Dokumentation in den gewählten Wissensquellen."
+                if run_scope.doc_source_ids
+                else "Keine Wissensquellen — bitte Confluence/Notion synchronisieren."
             )
+            logger.info(f"[LinkBuilder] Projekt {project_id}: {message}")
             run.status = "completed"
-            run.progress_message = "Keine Wissensquellen — bitte Confluence/Notion synchronisieren."
+            run.progress_message = message
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
             return
 
-        dirty_items = (
-            db.query(LinkBuilderDirtyItem)
-            .filter(
-                LinkBuilderDirtyItem.project_id == project_id,
-                LinkBuilderDirtyItem.status == "pending",
-            )
-            .all()
-        )
-        # Existing installations have no queue rows yet. The first run is a
-        # one-time backfill; all later runs are driven exclusively by queue
-        # entries created by ingestion.
-        has_previous_run = (
-            db.query(LinkBuilderRun)
-            .filter(
-                LinkBuilderRun.project_id == project_id,
-                LinkBuilderRun.task_type == "entity_links",
-                LinkBuilderRun.status == "completed",
-                LinkBuilderRun.id != run_id,
-            )
-            .first()
-            is not None
-        )
-        bootstrap = not dirty_items and not has_previous_run
-        dirty_entity_ids = {item.entity_id for item in dirty_items if item.entity_id is not None}
-        # Vorschläge, deren Abschnitt ein Re-Index entfernt hat (chunk_id NULL), lassen sich weder anzeigen noch
-        # über den Abschnitt ersetzen; ihre Entity wird gegen die aktuellen Abschnitte neu bewertet.
         orphaned_entity_ids = _orphaned_entity_ids(db, project_id)
-        dirty_entity_ids |= orphaned_entity_ids
-        dirty_chunk_ids = {item.chunk_id for item in dirty_items if item.chunk_id is not None}
-        if bootstrap:
-            entities = all_entities
-            queue_ids: set[int] = set()
-            logger.info(
-                f"[LinkBuilder] Projekt {project_id}: einmaliger Backfill ({len(entities)} Entities, {doc_count} Chunks)…"
-            )
-        elif dirty_chunk_ids:
-            # A changed chunk may become relevant to any code entity, while an
-            # entity-only change can be limited to that entity below.
-            entities = all_entities
-            queue_ids = {item.id for item in dirty_items}
-            logger.info(
-                f"[LinkBuilder] Projekt {project_id}: inkrementeller Lauf ({len(dirty_entity_ids)} Entities, {len(dirty_chunk_ids)} Chunks)…"
-            )
-        else:
-            entities = [entity for entity in all_entities if entity.id in dirty_entity_ids]
-            queue_ids = {item.id for item in dirty_items}
-            logger.info(
-                f"[LinkBuilder] Projekt {project_id}: inkrementeller Lauf ({len(entities)} geänderte Entities)…"
-            )
+        selection = select_run_entities(
+            db, project_id, run_id, all_entities, run_scope, orphaned_entity_ids
+        )
+        entities, bootstrap = selection.entities, selection.bootstrap
+        dirty_items, queue_ids = selection.dirty_items, selection.queue_ids
+        dirty_entity_ids, dirty_chunk_ids = selection.dirty_entity_ids, selection.dirty_chunk_ids
 
         scope = dict(run.scope_json or {})
         resume_after_id = int(scope.get("resume_after_id") or 0)
@@ -1177,7 +1071,11 @@ async def compute_entity_links_async(
 
         if not entities:
             run.status = "completed"
-            run.progress_message = "Keine neuen oder geänderten Link-Kandidaten."
+            run.progress_message = (
+                "Keine Code-Entitäten der gewählten Typen."
+                if run_scope.targeted
+                else "Keine neuen oder geänderten Link-Kandidaten."
+            )
             run.finished_at = datetime.now(timezone.utc)
             db.commit()
             return
@@ -1193,7 +1091,9 @@ async def compute_entity_links_async(
         ] = {}
 
         await ensure_model_pulled(selected_embedding_model)
-        keyword_corpus = KeywordCorpus(db, project_id, selected_embedding_model)
+        keyword_corpus = KeywordCorpus(
+            db, project_id, selected_embedding_model, run_scope.doc_source_ids
+        )
         # Offene Queue-Einträge je Entity einmal indexieren (vorher je Entity eine Abfrage je Eintrag: quadratisch).
         dirty_by_entity: dict[int, list[int]] = {}
         for item in dirty_items:
@@ -1242,6 +1142,7 @@ async def compute_entity_links_async(
                     top_k=params.top_k_semantic,
                     min_score=params.min_score_semantic,
                     per_chunk=params.dedupe_by_chunk,
+                    doc_source_ids=run_scope.doc_source_ids,
                 )
                 keyword = _pass_keyword(
                     entity,
@@ -1254,6 +1155,7 @@ async def compute_entity_links_async(
                     min_score=params.min_score_keyword,
                     per_chunk=params.dedupe_by_chunk,
                     selection=params.keyword_selection,
+                    doc_source_ids=run_scope.doc_source_ids,
                 )
                 top_pages = _exclude_own_source(
                     entity,

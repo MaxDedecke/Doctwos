@@ -1607,6 +1607,30 @@
     "scopeLabel": "Scope ({{count}} sources)",
     "scopeHint": "The cross-source run is limited to the selected project and at least two sources.",
     "scopeNoSources": "No project sources available.",
+    "runScope": {
+      "title": "Narrow the sets: code ↔ documentation",
+      "hint": "Only the selected code types are checked against the documentation of the selected sources, e.g. COBOL programs and sections against a PDF manual or Jira. Without a selection the whole side applies. A narrowed run checks every selected entity, not only changed ones, and leaves the change queue untouched. The selection applies per project and is suggested next time.",
+      "loading": "Loading types and sources …",
+      "code": "Code ({{count}} entities)",
+      "docs": "Documentation ({{count}} sections)",
+      "allOfLanguage": "All types of {{language}}",
+      "noTypes": "No code entities in the project.",
+      "noSources": "No knowledge sources with documentation in the project.",
+      "targeted": "Narrowed run: only the selected sets.",
+      "unrestricted": "No restriction: all code entities against all documentation (incremental).",
+      "reset": "Clear selection",
+      "confirm": "Narrowed run: {{entities}} code entities against {{chunks}} document sections.",
+      "languages": {
+        "cobol": "COBOL",
+        "java": "Java",
+        "jcl": "JCL",
+        "maven": "Maven",
+        "xml": "XML/WSDL/XSD",
+        "sql": "SQL",
+        "shell": "Shell",
+        "other": "Other"
+      }
+    },
     "runOptions": {
       "label": "Advanced",
       "hint": "Options for this run. Empty fields use the server default (shown as placeholder).",

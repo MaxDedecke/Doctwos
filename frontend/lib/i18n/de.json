@@ -1607,6 +1607,30 @@
     "scopeLabel": "Scope ({{count}} Quellen)",
     "scopeHint": "Der Cross-Source-Lauf bleibt auf das ausgewählte Projekt und mindestens zwei Quellen begrenzt.",
     "scopeNoSources": "Keine Projektquellen verfügbar.",
+    "runScope": {
+      "title": "Mengen eingrenzen: Code ↔ Dokumentation",
+      "hint": "Nur die gewählten Code-Typen werden gegen die Dokumentation der gewählten Quellen geprüft, z. B. COBOL-Programme und Sections gegen ein PDF-Handbuch oder Jira. Ohne Auswahl gilt die ganze Seite. Ein eingeschränkter Lauf prüft alle gewählten Entitäten, nicht nur geänderte, und lässt die Änderungs-Warteschlange unberührt. Die Auswahl gilt je Projekt und wird beim nächsten Mal vorgeschlagen.",
+      "loading": "Typen und Quellen werden geladen …",
+      "code": "Code ({{count}} Entitäten)",
+      "docs": "Dokumentation ({{count}} Abschnitte)",
+      "allOfLanguage": "Alle Typen von {{language}}",
+      "noTypes": "Keine Code-Entitäten im Projekt.",
+      "noSources": "Keine Wissensquellen mit Dokumentation im Projekt.",
+      "targeted": "Eingeschränkter Lauf: nur die gewählten Mengen.",
+      "unrestricted": "Keine Einschränkung: alle Code-Entitäten gegen alle Dokumentation (inkrementell).",
+      "reset": "Auswahl aufheben",
+      "confirm": "Eingeschränkter Lauf: {{entities}} Code-Entitäten gegen {{chunks}} Dokument-Abschnitte.",
+      "languages": {
+        "cobol": "COBOL",
+        "java": "Java",
+        "jcl": "JCL",
+        "maven": "Maven",
+        "xml": "XML/WSDL/XSD",
+        "sql": "SQL",
+        "shell": "Shell",
+        "other": "Weitere"
+      }
+    },
     "runOptions": {
       "label": "Erweitert",
       "hint": "Optionen dieses Laufs. Leere Felder verwenden den Standard des Servers (Platzhalter).",

@@ -7,6 +7,8 @@ import { LINK_RUN_OPTION_FIELDS, clampRunOption, type LinkRunOptions } from '@/l
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { LinkRunScopePicker } from './LinkRunScopePicker';
+import type { LinkRunScope, LinkScopeOptions } from '@/lib/linkRunScope';
 
 interface Props {
   open: boolean; onClose: () => void; isDark: boolean; projectName: string; isAdmin: boolean;
@@ -15,6 +17,7 @@ interface Props {
   maxItems: number; onMaxItems: (value: number) => void;
   runOptions: LinkRunOptions; setRunOptions: Dispatch<SetStateAction<LinkRunOptions>>;
   sources: KnowledgeSource[]; scopeIds: number[]; setScopeIds: Dispatch<SetStateAction<number[]>>;
+  runScope: { options: LinkScopeOptions | null; scope: LinkRunScope; setScope: Dispatch<SetStateAction<LinkRunScope>> };
   profiles: LlmProfile[]; activeProfileId?: string; onProfile?: (value: string) => void;
   onStart: () => Promise<boolean | undefined>;
   error?: string;
@@ -98,6 +101,7 @@ export function LinkAnalysisDialog(props: Props) {
               </label>
             </div>
             <p className="text-xs leading-relaxed text-ds-zinc-500">{t('linkManagerView.budget.hint')}</p>
+            <LinkRunScopePicker options={props.runScope.options} scope={props.runScope.scope} setScope={props.runScope.setScope} />
             {props.isAdmin && <fieldset className="min-w-0 rounded-md border border-ds-zinc-500/25 p-3">
               <legend className="px-1 text-xs font-medium">{t('linkManagerView.scopeLabel', { count: scopeIds.length })}</legend>
               <p className="mb-3 text-xs leading-relaxed text-ds-zinc-500">{t('linkManagerView.scopeHint')}</p>

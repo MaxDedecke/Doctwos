@@ -535,7 +535,9 @@ def test_keyword_corpus_over_the_memory_cap_falls_back_to_the_scan(
         )
     )
     db_session.commit()
-    monkeypatch.setattr(link_builder, "KEYWORD_CORPUS_MAX_CHARS", 3)
+    import tasks.link_run_scope as link_run_scope
+
+    monkeypatch.setattr(link_run_scope, "KEYWORD_CORPUS_MAX_CHARS", 3)
     assert link_builder.KeywordCorpus(db_session, project_id).items is None
 
 

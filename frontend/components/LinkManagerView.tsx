@@ -34,6 +34,9 @@ import type { KnowledgeSource } from '@/types/domain';
 import type { CodeRef, LinkCounts } from '@/lib/linkManagerTypes';
 import { useProjectLinks } from '@/hooks/useProjectLinks';
 import { linkRunOptionsQuery, type LinkRunOptions } from '@/lib/linkRunOptions';
+import { linkRunScopeQuery } from '@/lib/linkRunScope';
+import { confirmLinkRun } from '@/lib/linkRunEstimate';
+import { useLinkRunScope } from '@/hooks/useLinkRunScope';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -192,6 +195,7 @@ function ProjectLinkManagerView({
   const [contextDraft, setContextDraft] = useState('');
 
   const projectId = selectedProject?.id;
+  const runScope = useLinkRunScope(projectId, analysisOpen);
 
   // ── Theme tokens ──────────────────────────────────────────────────────────
 
@@ -372,39 +376,15 @@ function ProjectLinkManagerView({
     }
     const hasKnowledgeScope = isAdmin && selectedScopeSourceIds.length >= 2;
     const limit = Math.max(1, Math.min(5000, Math.round(maxItems) || 200));
-    let entityEstimate: { entities_to_scan: number; estimated_llm_reviews_max: number; estimated_embedding_calls_max: number };
-    let knowledgeEstimate: { chunk_count: number; estimated_llm_reviews_max: number } | null = null;
-    try {
-      const entityResponse = await api.fetch(`${API_URL}/projects/${projectId}/link-recommendations/estimate`);
-      if (!entityResponse.ok) throw new Error(`HTTP ${entityResponse.status}`);
-      entityEstimate = await entityResponse.json();
-      if (hasKnowledgeScope) {
-        const scope = new URLSearchParams({ project_id: String(projectId) });
-        selectedScopeSourceIds.forEach(id => scope.append('source_ids', String(id)));
-        const response = await api.fetch(`${API_URL}/knowledge-links/estimate?${scope}`);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        knowledgeEstimate = await response.json();
-      }
-    } catch {
-      setMessage({ type: 'empty', text: t('linkManagerView.budget.estimateFailed') });
-      return;
-    }
-    const confirmMessage = t('linkManagerView.budget.confirm', {
-      entityCount: Math.min(limit, entityEstimate.entities_to_scan),
-      entityTotal: entityEstimate.entities_to_scan,
-      embeddingCalls: Math.min(limit, entityEstimate.estimated_embedding_calls_max),
-      llmCalls: Math.min(limit, entityEstimate.estimated_llm_reviews_max) + (knowledgeEstimate ? Math.min(limit, knowledgeEstimate.chunk_count) * 5 : 0),
-      knowledgeCount: knowledgeEstimate ? Math.min(limit, knowledgeEstimate.chunk_count) : 0,
-      limit,
-    });
-    if (!isActive()) return;
-    const confirmed = window.confirm(confirmMessage);
-    if (!confirmed) return;
+    const runScopeQuery = linkRunScopeQuery(runScope.scope);
+    const decision = await confirmLinkRun({ projectId, knowledgeSourceIds: hasKnowledgeScope ? selectedScopeSourceIds : [], runScopeQuery, limit, t, isActive });
+    if (decision === 'failed') setMessage({ type: 'empty', text: t('linkManagerView.budget.estimateFailed') });
+    if (decision !== 'confirmed') return;
     prevPendingRef.current = entityCounts.pending + knowledgeCounts.pending;
     setIsComputing(true);
     setMessage({ type: 'info', text: t('linkManagerView.computeMessages.started') });
 
-    const optionsQuery = linkRunOptionsQuery(runOptions);
+    const optionsQuery = [linkRunOptionsQuery(runOptions), runScopeQuery].filter(Boolean).join('&');
     const confidenceParam = `min_confidence=${minConfidence}&max_items=${limit}${optionsQuery ? `&${optionsQuery}` : ''}`;
     const embeddingParam = `embedding_model=${encodeURIComponent(activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL)}`;
     const calls: Promise<Response>[] = [
@@ -877,7 +857,7 @@ function ProjectLinkManagerView({
         <LinkAnalysisDialog open={analysisOpen} onClose={() => setAnalysisOpen(false)} isDark={isDark}
           projectName={selectedProject?.name ?? ''} isAdmin={isAdmin} returnFocusRef={analysisTriggerRef}
           minConfidence={minConfidence} onMinConfidence={handleMinConfidenceChange} maxItems={maxItems} onMaxItems={setMaxItems}
-          runOptions={runOptions} setRunOptions={setRunOptions} sources={projectSources}
+          runOptions={runOptions} setRunOptions={setRunOptions} sources={projectSources} runScope={runScope}
           scopeIds={selectedScopeSourceIds} setScopeIds={setSelectedScopeSourceIds}
           profiles={llmProfiles} activeProfileId={activeProfileId} onProfile={setActiveProfileId ? value => {
             setActiveProfileId(value);

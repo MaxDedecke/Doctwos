@@ -33,6 +33,9 @@ async function openManager(page: Page, baseURL: string, views: number, split = 5
       { id: 9, project_id: 1, name: 'Architecture and operations documentation', type: 'Local' },
     ];
     else if (url.pathname.endsWith('/content')) body = { content: `Content of ${url.searchParams.get('path')}`, format: 'text' };
+    else if (url.pathname.endsWith('/link-recommendations/scope-options')) body = {
+      languages: [{ language: 'cobol', count: 12, types: [{ type: 'paragraph', count: 8 }, { type: 'section', count: 3 }, { type: 'program', count: 1 }] }],
+      doc_sources: [{ id: 9, name: 'Handbuch.pdf', type: 'Local', chunk_count: 4 }], last_filter: null };
     else if (url.pathname.endsWith('/link-recommendations/estimate')) body = { entities_to_scan: 12, estimated_llm_reviews_max: 12, estimated_embedding_calls_max: 12 };
     else if (url.pathname === '/knowledge-links/estimate') body = { chunk_count: 4, estimated_llm_reviews_max: 20 };
     else if (url.pathname.endsWith('/compute')) body = { run_id: 100, started: true };

@@ -43,6 +43,12 @@ from doctus_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
 from services.job_control import send_tracked_task
+from services.link_run_scope import (
+    had_full_run,
+    normalize_filter,
+    scope_options,
+    targeted_estimate,
+)
 
 
 def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
@@ -71,6 +77,15 @@ def _serialize_link_builder_run(run: LinkBuilderRun) -> dict:
 router = APIRouter(tags=["entity_links"])
 
 
+def _visible_project(project_id: int, user: User, db: Session) -> Project:
+    proj = db.query(Project).filter(Project.id == project_id).first()
+    if not proj:
+        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
+    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
+    assert_project_visible(project_id, user, db)
+    return proj
+
+
 @router.get("/projects/{project_id}/link-recommendations")
 def get_link_recommendations(
     project_id: int,
@@ -79,11 +94,7 @@ def get_link_recommendations(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
 
     q = db.query(EntityDocLink).filter(EntityDocLink.project_id == project_id)
     if status:
@@ -135,11 +146,7 @@ def create_manual_link(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
 
     entity = (
         db.query(CodeEntity)
@@ -180,22 +187,55 @@ def create_manual_link(
     return serialize_link(link, entity)
 
 
+_ENTITY_TYPES_QUERY = Query(
+    None,
+    description="Nur Code-Entitäten dieser Typen prüfen (z. B. program, section); leer = alle.",
+)
+_DOC_SOURCES_QUERY = Query(
+    None, description="Nur Dokumentation dieser Wissensquellen des Projekts prüfen; leer = alle."
+)
+
+
+@router.get("/projects/{project_id}/link-recommendations/scope-options")
+def get_link_scope_options(
+    project_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """Wählbare Code-Typen je Sprache und Wissensquellen mit Dokumentation für einen eingeschränkten Lauf."""
+    _visible_project(project_id, user, db)
+    return scope_options(db, project_id)
+
+
 @router.get("/projects/{project_id}/link-recommendations/estimate")
 def estimate_link_computation_scope(
     project_id: int,
+    entity_types: Optional[list[str]] = _ENTITY_TYPES_QUERY,
+    doc_source_ids: Optional[list[int]] = _DOC_SOURCES_QUERY,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     """
     O-315: Liefert Kosten- und Umfangshinweise für den nächsten Entity-Link-Lauf
     (Code-Entities ↔ Dokument-Chunks). Prüft dirty items, Bootstrap-Bedarf
-    und ob bereits ein Lauf aktiv ist.
+    und ob bereits ein Lauf aktiv ist. Mit Einschränkung zählt es die beiden gewählten Mengen.
     """
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
+    run_filter = normalize_filter(db, project_id, entity_types, doc_source_ids)
+    active_run = (
+        db.query(LinkBuilderRun)
+        .filter(
+            LinkBuilderRun.project_id == project_id,
+            LinkBuilderRun.task_type == "entity_links",
+            LinkBuilderRun.status.in_(["pending", "running"]),
+        )
+        .order_by(LinkBuilderRun.created_at.desc())
+        .first()
+    )
+    active = {
+        "has_active_run": active_run is not None,
+        "active_run_id": active_run.id if active_run else None,
+    }
+    if run_filter is not None:
+        return {"project_id": project_id, **targeted_estimate(db, project_id, run_filter), **active}
 
     entity_count = db.query(CodeEntity).filter(CodeEntity.project_id == project_id).count()
     chunk_count = (
@@ -225,30 +265,10 @@ def estimate_link_computation_scope(
         .count()
     )
 
-    has_previous_run = (
-        db.query(LinkBuilderRun)
-        .filter(
-            LinkBuilderRun.project_id == project_id,
-            LinkBuilderRun.task_type == "entity_links",
-            LinkBuilderRun.status == "completed",
-        )
-        .first()
-        is not None
+    is_bootstrap = (not had_full_run(db, project_id)) and (
+        dirty_entities == 0 and dirty_chunks == 0
     )
-
-    is_bootstrap = (not has_previous_run) and (dirty_entities == 0 and dirty_chunks == 0)
     entities_to_scan = entity_count if (is_bootstrap or dirty_chunks > 0) else dirty_entities
-
-    active_run = (
-        db.query(LinkBuilderRun)
-        .filter(
-            LinkBuilderRun.project_id == project_id,
-            LinkBuilderRun.task_type == "entity_links",
-            LinkBuilderRun.status.in_(["pending", "running"]),
-        )
-        .order_by(LinkBuilderRun.created_at.desc())
-        .first()
-    )
 
     if entity_count == 0 or chunk_count == 0:
         cost_notice = "Keine Verknüpfung möglich: Projekt benötigt sowohl Code-Entities als auch Dokument-Chunks."
@@ -275,8 +295,7 @@ def estimate_link_computation_scope(
         "dirty_chunk_count": dirty_chunks,
         "is_bootstrap": is_bootstrap,
         "entities_to_scan": entities_to_scan,
-        "has_active_run": active_run is not None,
-        "active_run_id": active_run.id if active_run else None,
+        **active,
         "cost_notice": cost_notice,
         "estimated_llm_reviews_max": entities_to_scan,
         "estimated_embedding_calls_max": entities_to_scan,
@@ -356,14 +375,13 @@ def trigger_link_computation(
         pattern="^(best|first)$",
         description="Stichwortsuche bei mehr Treffern als `top_k_keyword`: `best` = höchster Trefferanteil zuerst (Standard), `first` = die ersten Treffer nach Chunk-ID (früheres Verhalten).",
     ),
+    entity_types: Optional[list[str]] = _ENTITY_TYPES_QUERY,
+    doc_source_ids: Optional[list[int]] = _DOC_SOURCES_QUERY,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
+    run_filter = normalize_filter(db, project_id, entity_types, doc_source_ids)
 
     # O-315: Deduplizierung – Falls bereits ein aktiver Lauf für dieses Projekt existiert,
     # diesen zurückgeben statt einen zweiten teuren Batch-Lauf zu starten.
@@ -418,6 +436,7 @@ def trigger_link_computation(
             "embedding_model": embedding_model.strip() if embedding_model else None,
             "max_items": max_items,
             "params": run_params,
+            **({"filter": run_filter} if run_filter else {}),
         },
         triggered_by_user_id=user.id,
     )
@@ -448,11 +467,7 @@ def list_link_builder_runs(
     recent first) — including runs that crashed or found 0 new links, so a
     silent failure stays distinguishable from a clean run that found nothing.
     """
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
 
     runs = (
         db.query(LinkBuilderRun)
@@ -641,11 +656,7 @@ def get_entity_links(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
 
     links = (
         db.query(EntityDocLink)
@@ -667,11 +678,7 @@ def search_doc_chunks(
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    proj = db.query(Project).filter(Project.id == project_id).first()
-    if not proj:
-        raise HTTPException(status_code=404, detail="Projekt nicht gefunden")
-    assert_team_visible(proj.team_id, user, db, "Projekt nicht gefunden")
-    assert_project_visible(project_id, user, db)
+    _visible_project(project_id, user, db)
 
     # Dokumente sind Inhalte nicht-Git-Quellen sowie Dokumentationsdateien in Git-Quellen (AsciiDoc,
     # Markdown/Text). Quellcode-Dateien einer Git-Quelle sind keine Dokumente und gehören in die

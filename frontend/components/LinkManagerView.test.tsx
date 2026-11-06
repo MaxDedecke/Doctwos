@@ -24,6 +24,7 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { LinkManagerView } from './LinkManagerView';
+import type { LinkScopeOptions } from '@/lib/linkRunScope';
 
 vi.mock('./TopicsPanel', () => ({ TopicsPanel: () => <div data-testid="topics-panel" /> }));
 
@@ -84,6 +85,7 @@ interface Routes {
   projectSources?: Array<{ id: number; name: string }>;
   entityEstimate?: { entities_to_scan: number; estimated_llm_reviews_max: number; estimated_embedding_calls_max: number };
   knowledgeEstimate?: { chunk_count: number; estimated_llm_reviews_max: number };
+  scopeOptions?: LinkScopeOptions;
 }
 
 /** fetch-Stub, der die Endpunkte der Ansicht nach URL + Methode beantwortet. */
@@ -97,6 +99,7 @@ function stubFetch(routes: Routes = {}) {
     if (url.includes('/llm-review')) return json(routes.llmReview ?? { score: 0.95, context: 'LLM-Begründung' }, routes.llmReviewOk !== false);
     if (method === 'POST' && url.includes('/compute')) return json({ started: true, run_id: 1 });
     if (method === 'POST') return json(routes.postOk === false ? { detail: routes.postError ?? 'Serverfehler' } : {}, routes.postOk !== false);
+    if (url.includes('/link-recommendations/scope-options')) return json(routes.scopeOptions ?? { languages: [], doc_sources: [], last_filter: null });
     if (url.includes('/link-recommendations/estimate')) return json(routes.entityEstimate ?? { entities_to_scan: 12, estimated_llm_reviews_max: 12, estimated_embedding_calls_max: 12 });
     if (url.includes('/knowledge-links/estimate')) return json(routes.knowledgeEstimate ?? { chunk_count: 4, estimated_llm_reviews_max: 20 });
 
@@ -350,6 +353,37 @@ describe('LinkManagerView', () => {
       expect(entityRun).not.toContain('top_k_semantic');
       // Der Cross-Source-Lauf kennt diese Optionen nicht.
       expect(calls(fetchMock, '/knowledge-links/compute', 'POST').every(u => !u.includes('review_concurrency'))).toBe(true);
+    });
+
+    it('grenzt den Entity-Lauf auf gewählte Code-Typen und Doku-Quellen ein und schlägt die letzte Auswahl vor', async () => {
+      const fetchMock = stubFetch({
+        scopeOptions: {
+          languages: [
+            { language: 'cobol', count: 60, types: [{ type: 'paragraph', count: 50 }, { type: 'section', count: 8 }, { type: 'program', count: 2 }] },
+            { language: 'java', count: 5, types: [{ type: 'method', count: 5 }] },
+          ],
+          doc_sources: [{ id: 9, name: 'Handbuch.pdf', type: 'Local', chunk_count: 4 }, { id: 11, name: 'Jira PROJ', type: 'Jira', chunk_count: 6 }],
+          last_filter: { entity_types: ['program'], doc_source_ids: [] },
+        },
+      });
+
+      renderView();
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      const picker = await screen.findByTestId('link-run-scope');
+      await waitFor(() => expect((within(picker).getByRole('checkbox', { name: /Programm/ }) as HTMLInputElement).checked).toBe(true));
+      fireEvent.click(within(picker).getByRole('checkbox', { name: /Section/ }));
+      fireEvent.click(within(picker).getByRole('checkbox', { name: /Jira PROJ/ }));
+      expect(within(picker).getByText('Code (10 Entitäten)')).toBeTruthy();
+      expect(within(picker).getByText('Dokumentation (6 Abschnitte)')).toBeTruthy();
+
+      fireEvent.click(within(screen.getByTestId('link-analysis-dialog')).getByRole('button', { name: 'Analyse starten' }));
+
+      await waitFor(() => expect(calls(fetchMock, '/link-recommendations/compute', 'POST')).toHaveLength(1));
+      const run = new URL(calls(fetchMock, '/link-recommendations/compute', 'POST')[0], 'http://x');
+      expect(run.searchParams.getAll('entity_types')).toEqual(['program', 'section']);
+      expect(run.searchParams.getAll('doc_source_ids')).toEqual(['11']);
+      const estimate = calls(fetchMock, '/link-recommendations/estimate')[0];
+      expect(estimate).toContain('entity_types=program');
     });
 
     it('zeigt den Topics-Bereich nur Admins', async () => {
