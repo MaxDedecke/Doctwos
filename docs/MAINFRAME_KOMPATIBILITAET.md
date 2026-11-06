@@ -84,6 +84,10 @@ dessen Wert gelesen (`01 X BASED.`).
 
 Ergebnis: Alle Programme unter `src/` von CobolCraft parsen ohne Syntaxfehler (vorher rund 100 betroffene Programme); vollständig erkannte Dateien 67 → 164, Syntaxfehler 1.234 → 70 (Rest in den Codegen-Vorlagen, keine vollständigen Programme). CardDemo unverändert, nichts verloren.
 
+BS2000-COBOL (Fujitsu COBOL2000) ist zurückgestellt (06.11.2026): Es gibt keinen öffentlichen Bestand als
+Messlatte (GitHub, Fujitsu-Beispiele, openUTM geprüft; Beispielprogramme liegen nur auf BS2000-Systemen). Wieder
+aufnehmen, sobald ein Pilotkunde anonymisierte Programme mit Copy-Elementen bereitstellt.
+
 Reproduzierbare Minimalprobe für O-124 (als Test-Fixture zu übernehmen):
 
 ```cobol
