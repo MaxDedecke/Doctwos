@@ -447,6 +447,30 @@ describe('Sidebar', () => {
       expect(screen.getByText('max@example.org')).toBeTruthy();
     });
 
+    it('öffnet per Klick auf den Nutzer einen Dialog mit den Benutzerinfos', async () => {
+      renderSidebar({
+        currentUser: {
+          name: 'Max Muster', username: 'mmuster', email: 'max@example.org', role: 'superuser', is_admin: true,
+          auth_provider: 'oidc', teams: [{ id: 1, name: 'Team Zahlungsverkehr' }],
+          created_at: '2026-10-01T08:00:00Z', last_login_at: null,
+        },
+      });
+
+      fireEvent.click(screen.getByTestId('sidebar-user'));
+
+      const dialog = await screen.findByRole('dialog', { name: 'Max Muster' });
+      expect(within(dialog).getByText('mmuster')).toBeTruthy();
+      expect(within(dialog).getByText('Administrator')).toBeTruthy();
+      expect(within(dialog).getByText('Single Sign-on (OIDC)')).toBeTruthy();
+      expect(within(dialog).getByText('Team Zahlungsverkehr')).toBeTruthy();
+      const created = new Intl.DateTimeFormat('de-DE', { dateStyle: 'medium', timeStyle: 'short' }).format(new Date('2026-10-01T08:00:00Z'));
+      expect(within(dialog).getByText(created)).toBeTruthy();
+      expect(within(dialog).getAllByText('nicht angegeben')).toHaveLength(1);
+
+      fireEvent.click(within(dialog).getAllByRole('button', { name: 'Schließen' })[0]);
+      await waitFor(() => expect(screen.queryByTestId('user-info-dialog')).toBeNull());
+    });
+
     it('fällt ohne Nutzerdaten auf die Standardbeschriftung zurück', () => {
       renderSidebar({ currentUser: null });
 

@@ -283,4 +283,8 @@ async def me(
         "is_admin": is_admin(user),
         "must_change_password": bool(user.must_change_password),
         "teams": user_teams,
+        # Für die Benutzerinfo in der Sidebar; Passwort-Hash und Sperrdaten bleiben draußen (F-005).
+        "auth_provider": "oidc" if user.oidc_subject else "local",
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+        "last_login_at": user.last_login_at.isoformat() if user.last_login_at else None,
     }

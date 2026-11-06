@@ -390,6 +390,8 @@ export interface User {
   is_active?: boolean;
   must_change_password?: boolean;
   teams?: Team[];
+  created_at?: string | null;
+  last_login_at?: string | null;
 }
 export interface Team { id: number; name: string }
 export interface SearchResult {

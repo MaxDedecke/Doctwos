@@ -112,6 +112,9 @@ Regeln dafür:
   GnuCOBOL/Micro Focus (Stand: `docs/MAINFRAME_KOMPATIBILITAET.md`). Grammatikänderungen in `parser/cobol/grammar/Cobol85.g4` sind mit `// Doctus:` markiert;
   Neuerzeugung mit ANTLR 4.13.2 nur zur Entwicklungszeit (`parser/cobol/grammar/README.md`, E-11).
 
+- **Expliziter Auftrag 06.11.2026 (Benutzerinfo):** Klick auf den Nutzer in der Sidebar öffnet einen kleinen Dialog mit
+  Benutzername, E-Mail, Rolle, Anmeldeart, Teams, letzter Anmeldung und Anlagedatum (`/auth/me` liefert die Felder).
+
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
   `parser`-Service, nie in einen Request-Handler.

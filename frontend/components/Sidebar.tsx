@@ -1,5 +1,5 @@
 "use client";
-import type { ChatSession, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { ChatSession, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
 import { api } from '@/app/services/api';
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { FileTreeList } from './sidebar/FileTreeList';
 import { SourceScanSummary, type SourceScanSummaryData } from './sidebar/SourceScanSummary';
 import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
+import { UserInfoDialog } from './UserInfoDialog';
 
 interface SidebarProps {
   theme: string;
@@ -45,7 +46,7 @@ interface SidebarProps {
   handleLogout: () => void;
   connectedSources: KnowledgeSource[];
   pinnedSourceIds: number[];
-  currentUser?: { name?: string | null; username?: string; email?: string | null; role?: string } | null;
+  currentUser?: Partial<User> | null;
 }
 
 export function Sidebar({
@@ -76,6 +77,7 @@ export function Sidebar({
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
   const [isFilesExpanded, setIsFilesExpanded] = useState(true);
+  const [userInfoOpen, setUserInfoOpen] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
   const [sourceFiles, setSourceFiles] = useState<Record<number, string[]>>({});
@@ -440,7 +442,17 @@ export function Sidebar({
               theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
             )}>
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                <button
+                  type="button"
+                  data-testid="sidebar-user"
+                  onClick={() => setUserInfoOpen(true)}
+                  aria-haspopup="dialog"
+                  title={t('sidebar.userInfo.open')}
+                  className={cn(
+                    "flex items-center gap-2.5 min-w-0 flex-1 -mx-1.5 px-1.5 py-1 rounded-lg text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-ring",
+                    theme === 'dark' ? "hover:bg-ds-zinc-800" : "hover:bg-ds-zinc-200/50"
+                  )}
+                >
                   {/* Avatar */}
                   <div className={cn(
                     "h-8 w-8 rounded-full overflow-hidden border shadow-md shrink-0",
@@ -464,7 +476,8 @@ export function Sidebar({
                       {currentUser?.email || t('sidebar.localSession')}
                     </p>
                   </div>
-                </div>
+                </button>
+                <UserInfoDialog user={currentUser} open={userInfoOpen} onOpenChange={setUserInfoOpen} />
 
                 {/* Log Out button */}
                 <Button

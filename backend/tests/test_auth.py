@@ -27,6 +27,14 @@ def test_auth_me_returns_user_info_with_valid_session(client):
     assert resp.json()["email"] == "fixture-user@example.com"
 
 
+def test_auth_me_describes_the_account_without_secrets(client):
+    data = client.get("/auth/me").json()
+    assert data["auth_provider"] == "local"
+    assert data["created_at"]
+    assert "last_login_at" in data
+    assert not {"password_hash", "failed_login_count", "locked_until", "oidc_subject"} & set(data)
+
+
 def test_protected_endpoint_with_deactivated_user_cookie_returns_401(
     unauthenticated_client, db_session
 ):
