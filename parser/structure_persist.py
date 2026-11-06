@@ -165,8 +165,12 @@ def persist_parse_result(
 
     by_qname: dict[str, CodeEntity] = {}
     seen_qnames: set[str] = set()
+    kept_qnames = {ent.qualified_name or ent.name for ent in result.entities}
+    # Nie einen gleich danach als veraltet gelöschten Datensatz als Eltern wählen: ON DELETE CASCADE nähme die
+    # behaltene Zeile mit, und Kanten dieser Datei zeigten ins Leere.
+    kept_existing = {name: row for name, row in existing.items() if name in kept_qnames}
 
-    for ent in result.entities:
+    for ent in _parents_first(result.entities):
         qname = ent.qualified_name or ent.name
         if qname in by_qname:
             # O-311: Duplikate innerhalb desselben Parse-Ergebnisses abfangen,
@@ -203,7 +207,7 @@ def persist_parse_result(
                 row.parent_id = _parent_id(
                     qname,
                     by_qname,
-                    existing,
+                    kept_existing,
                     parent_qualified_name=ent.parent_qualified_name,
                     legacy_parent_name=ent.parent_name,
                 )
@@ -303,6 +307,31 @@ def _remove_stale_entities(db, existing, seen_qnames, source_id, file_path, vari
             CodeEntity.variant_key == variant_key,
             CodeEntity.qualified_name.in_(stale_qnames),
         ).delete(synchronize_session=False)
+
+
+def _parents_first(entities: list) -> list:
+    """Eltern vor Kindern, damit ein neuer Elterndatensatz schon eine id hat (Parser liefern verschachtelte
+    Programme mitunter vor ihrem äußeren Programm). Sonst bleibt die Reihenfolge erhalten."""
+    by_qname = {}
+    for entity in entities:
+        by_qname.setdefault(entity.qualified_name or entity.name, entity)
+    ordered: list = []
+    placed: set[int] = set()
+
+    def place(entity, trail: set[str]) -> None:
+        if id(entity) in placed:
+            return
+        qname = entity.qualified_name or entity.name
+        parent = by_qname.get(entity.parent_qualified_name or "")
+        if parent is not None and parent is not entity and qname not in trail:
+            place(parent, trail | {qname})
+        if id(entity) not in placed:
+            placed.add(id(entity))
+            ordered.append(entity)
+
+    for entity in entities:
+        place(entity, set())
+    return ordered
 
 
 def _parent_id(

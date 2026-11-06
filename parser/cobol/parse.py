@@ -508,6 +508,13 @@ def _build_entities(
                 )
             )
 
+    # Kinder eines verschachtelten Programms bleiben am einfachen Programmnamen verankert (siehe oben), ihr
+    # Elternverweis muss aber das Programm selbst treffen ("AUSSEN.INNEN"), sonst fehlt die Hierarchie.
+    program_qname = _qualify(program.parent_name, program.name)
+    if program_qname != program.name:
+        for entity in entities:
+            if entity.type != "program" and entity.parent_qualified_name == program.name:
+                entity.parent_qualified_name = program_qname
     return entities
 
 
