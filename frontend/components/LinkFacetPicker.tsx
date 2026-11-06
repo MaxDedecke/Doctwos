@@ -1,6 +1,7 @@
-import { ChevronRight } from 'lucide-react';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Check } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import type { Facet, FacetGroup, FacetValue } from '@/lib/linkSets';
+import { cn } from '@/lib/utils';
 
 interface Props {
   facet: Facet;
@@ -10,66 +11,72 @@ interface Props {
   valueLabel: (value: FacetValue) => string;
   formatCount: (value: number) => string;
   allOfLabel: (group: string) => string;
+  moreLabel: (count: number) => string;
+  lessLabel: string;
+  chosenLabel: (count: number) => string;
   onToggle: (value: string, checked: boolean) => void;
   onGroup: (group: FacetGroup, checked: boolean) => void;
 }
 
+// Große Gruppen zeigen zuerst die häufigsten Werte; der Rest kommt auf Wunsch dazu (Werte sind nach Anzahl sortiert).
+const VISIBLE_VALUES = 18;
+
 function MixedCheckbox({ checked, mixed, label, onChange }: { checked: boolean; mixed: boolean; label: string; onChange: (value: boolean) => void }) {
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => { if (ref.current) ref.current.indeterminate = mixed; }, [mixed]);
-  return <input ref={ref} type="checkbox" aria-label={label} checked={checked}
-    onClick={event => event.stopPropagation()} onChange={event => onChange(event.target.checked)} />;
+  return <input ref={ref} type="checkbox" aria-label={label} checked={checked} className="h-3.5 w-3.5 accent-primary"
+    onChange={event => onChange(event.target.checked)} />;
 }
 
-// Kleine Facetten und Gruppen stehen offen; große bleiben zu, bis man sie öffnet oder darin etwas gewählt ist.
-const OPEN_FACET_VALUES = 30;
-const OPEN_GROUP_VALUES = 12;
-
-/** `<details>` mit eigenem Zustand (Anhaken darin klappt es nicht wieder zu) und sichtbarem Pfeil: ein `<summary>`
- *  mit `display: flex` verliert das Dreieck des Browsers und sähe sonst wie eine bloße Überschrift aus. */
-function Collapsible({ initiallyOpen, className, summaryClassName, summary, children, testId }: {
-  initiallyOpen: boolean; className: string; summaryClassName: string; summary: ReactNode; children: ReactNode; testId?: string;
-}) {
-  const [open, setOpen] = useState(initiallyOpen);
-  return <details data-testid={testId} open={open} onToggle={event => setOpen(event.currentTarget.open)} className={className}>
-    <summary className={`flex cursor-pointer list-none items-center gap-2 [&::-webkit-details-marker]:hidden ${summaryClassName}`}>
-      <ChevronRight aria-hidden className={`h-3.5 w-3.5 shrink-0 text-ds-zinc-500 transition-transform ${open ? 'rotate-90' : ''}`} />
-      {summary}
-    </summary>
-    {open && children}
-  </details>;
-}
-
-/** Eine Facette mit gruppierten Werten (Typen je Sprache, Quellen je Quelltyp); Gruppen lassen sich ganz wählen. */
-export function LinkFacetPicker({ facet, title, selected, groupLabel, valueLabel, formatCount, allOfLabel, onToggle, onGroup }: Props) {
-  const flat = facet.groups.length === 1;
-  const chosenTotal = selected.length;
-  const valueRow = (value: FacetValue) => <label key={value.value} className="flex min-w-0 items-center gap-2 py-0.5 text-xs">
-    <input type="checkbox" checked={selected.includes(value.value)} onChange={event => onToggle(value.value, event.target.checked)} />
-    <span className="min-w-0 flex-1 truncate" title={value.label ?? value.value}>{valueLabel(value)}</span>
-    <span className="shrink-0 tabular-nums text-ds-zinc-500">{formatCount(value.count)}</span>
+/** Ein Wert als umschaltbare Marke; darunter ein echtes Kontrollkästchen für Tastatur und Screenreader. */
+function ValueChip({ value, text, count, checked, onChange }: { value: string; text: string; count: string; checked: boolean; onChange: (checked: boolean) => void }) {
+  return <label title={text} data-value={value}
+    className={cn('inline-flex max-w-full cursor-pointer select-none items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors',
+      'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-ring',
+      checked ? 'border-primary bg-primary font-medium text-primary-foreground' : 'border-border text-foreground hover:border-primary/60 hover:bg-muted')}>
+    <input type="checkbox" className="sr-only" checked={checked} onChange={event => onChange(event.target.checked)} />
+    {checked && <Check aria-hidden className="h-3 w-3 shrink-0" />}
+    <span className="min-w-0 truncate">{text}</span>
+    <span className={cn('shrink-0 tabular-nums', checked ? 'text-primary-foreground/80' : 'text-muted-foreground')}>{count}</span>
   </label>;
+}
 
-  const valueTotal = facet.groups.reduce((sum, group) => sum + group.values.length, 0);
-  return <Collapsible testId={`facet-${facet.name}`} initiallyOpen={chosenTotal > 0 || valueTotal <= OPEN_FACET_VALUES}
-    className="rounded-md border border-ds-zinc-500/20" summaryClassName="px-3 py-2 text-xs font-medium" summary={<>
-      <span className="min-w-0 flex-1 truncate">{title}</span>
-      <span className="shrink-0 tabular-nums text-ds-zinc-500">{chosenTotal > 0 ? `${chosenTotal} / ${valueTotal}` : valueTotal}</span>
-    </>}>
-    <div className="max-h-72 space-y-1 overflow-y-auto px-3 pb-2">
-      {flat ? facet.groups[0].values.map(valueRow) : facet.groups.map(group => {
-        const chosen = group.values.filter(value => selected.includes(value.value)).length;
-        const label = groupLabel(group.key);
-        return <Collapsible key={group.key} initiallyOpen={chosen > 0 || group.values.length <= OPEN_GROUP_VALUES}
-          className="rounded border border-ds-zinc-500/15 px-2 py-1" summaryClassName="text-xs" summary={<>
-            <MixedCheckbox label={allOfLabel(label)} checked={chosen === group.values.length}
-              mixed={chosen > 0 && chosen < group.values.length} onChange={checked => onGroup(group, checked)} />
-            <span className="min-w-0 flex-1 truncate font-medium">{label}</span>
-            <span className="shrink-0 tabular-nums text-ds-zinc-500">{formatCount(group.count)}</span>
-          </>}>
-          <div className="mt-1 pb-1 pl-5">{group.values.map(valueRow)}</div>
-        </Collapsible>;
-      })}
+function FacetGroupBlock({ group, showHeader, props }: { group: FacetGroup; showHeader: boolean; props: Props }) {
+  const [expanded, setExpanded] = useState(false);
+  const chosen = group.values.filter(value => props.selected.includes(value.value)).length;
+  // Gewählte Werte bleiben auch eingeklappt sichtbar.
+  const visible = expanded ? group.values
+    : group.values.filter((value, index) => index < VISIBLE_VALUES || props.selected.includes(value.value));
+  const hidden = group.values.length - visible.length;
+  const label = props.groupLabel(group.key);
+  return <div className="space-y-2">
+    {showHeader && <div className="flex items-center gap-2 text-xs">
+      <MixedCheckbox label={props.allOfLabel(label)} checked={chosen === group.values.length}
+        mixed={chosen > 0 && chosen < group.values.length} onChange={checked => props.onGroup(group, checked)} />
+      <span className="font-medium">{label}</span>
+      <span className="tabular-nums text-muted-foreground">{props.formatCount(group.count)}</span>
+    </div>}
+    <div className={cn('flex flex-wrap gap-1.5', showHeader && 'pl-5')}>
+      {visible.map(value => <ValueChip key={value.value} value={value.value} text={props.valueLabel(value)}
+        count={props.formatCount(value.count)} checked={props.selected.includes(value.value)}
+        onChange={checked => props.onToggle(value.value, checked)} />)}
+      {group.values.length > VISIBLE_VALUES && <button type="button" onClick={() => setExpanded(value => !value)}
+        className="rounded-full px-2 py-1 text-xs text-primary underline-offset-2 hover:underline">
+        {expanded ? props.lessLabel : props.moreLabel(hidden)}
+      </button>}
     </div>
-  </Collapsible>;
+  </div>;
+}
+
+/** Eine Facette (Typ je Sprache, Repository, Wissensquelle) als Gruppen von Marken; Gruppen lassen sich ganz wählen. */
+export function LinkFacetPicker(props: Props) {
+  const { facet, title, selected } = props;
+  const showHeaders = facet.groups.length > 1;
+  return <fieldset data-testid={`facet-${facet.name}`} className="min-w-0 space-y-3">
+    <legend className="mb-2 flex w-full items-baseline gap-2 text-xs font-semibold">
+      <span>{title}</span>
+      {selected.length > 0 && <span className="font-normal text-muted-foreground">{props.chosenLabel(selected.length)}</span>}
+    </legend>
+    {facet.groups.map(group => <FacetGroupBlock key={group.key} group={group} showHeader={showHeaders} props={props} />)}
+  </fieldset>;
 }

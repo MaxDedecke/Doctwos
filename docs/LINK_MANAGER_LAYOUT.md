@@ -40,10 +40,20 @@ Ansichten: [vier Panels](evidence/link-manager-layout-2026-10-27/four-panels.png
 
 ## Analyse-Arbeitsfläche: Menge A gegen Menge B (Auftrag 06.11.2026)
 
-„Analyse starten“ öffnet eine bildschirmbreite Arbeitsfläche (ersetzt den früheren
-Analyse-Dialog). Oben wählt man die Analyseart, darunter stehen Menge A, Menge B und die
-Laufeinstellungen nebeneinander; die Fußzeile zeigt laufend die Aufwandsschätzung. Die
-frühere Bestätigung per Browser-Dialog entfällt, weil die Schätzung vor dem Start sichtbar ist.
+„Analyse starten“ öffnet die bildschirmbreite Arbeitsfläche „Analyse einrichten“ (ersetzt den
+früheren Analyse-Dialog). Aufbau, von oben nach unten:
+
+- **Übersichtskarten** Menge A ⇄ Menge B und „Lauf“: Jede Karte zeigt Größe und Zusammensetzung
+  (z. B. „44 Objekte · Typ: Programm“) und ist zugleich der Reiter, der darunter ihre
+  Arbeitsfläche öffnet (Pfeiltasten wechseln zwischen den Karten).
+- **Arbeitsfläche der gewählten Menge**: Umschalter „Alle | Eigene Auswahl“, darunter drei Spalten
+  „1 Nach Merkmalen auswählen“ (Marken je Gruppe, Gruppen ganz wählbar), „2 Einzelne Objekte
+  hinzufügen“ (Suche) und „Inhalt von Menge X“ (Anzahl, gewählte Merkmale und Objekte zum
+  Entfernen, Beispiele). Ab breiten Bildschirmen scrollt jede Spalte für sich, sonst die ganze
+  Fläche; es gibt nie eine Scrollfläche in einer zweiten.
+- **Lauf**: Modell, Mindest-Wahrscheinlichkeit, Budget, „Erweitert“.
+- **Fußzeile**: laufende Aufwandsschätzung und „Lauf starten“. Die frühere Bestätigung per
+  Browser-Dialog entfällt, weil die Schätzung vor dem Start sichtbar ist.
 
 **Mengen.** Jede Menge hat eine Art (Code oder Dokumentation) und ist entweder „Alle“ oder
 eine „Eigene Auswahl“. Eine eigene Auswahl ist die Vereinigung aus

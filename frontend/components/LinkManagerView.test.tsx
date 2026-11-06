@@ -162,6 +162,12 @@ function renderView(props: Partial<React.ComponentProps<typeof LinkManagerView>>
   return { ...view, showToast };
 }
 
+/** Öffnet die Arbeitsfläche und wechselt auf eine Karte (Menge A, Menge B oder Lauf). */
+async function openWorkspaceStep(name: RegExp) {
+  if (!screen.queryByTestId('link-run-workspace')) fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+  fireEvent.click(await screen.findByRole('tab', { name }));
+}
+
 /** Die URLs aller Aufrufe, die zu Methode und Fragment passen. */
 function calls(fetchMock: ReturnType<typeof stubFetch>, fragment: string, method = 'GET'): string[] {
   return fetchMock.mock.calls
@@ -332,7 +338,7 @@ describe('LinkManagerView', () => {
       stubFetch();
 
       const { unmount } = renderView();
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      await openWorkspaceStep(/^Lauf/);
       const input = await screen.findByLabelText('Mindest-Wahrscheinlichkeit');
       expect((input as HTMLInputElement).value).toBe('35');
 
@@ -344,7 +350,7 @@ describe('LinkManagerView', () => {
       unmount();
 
       renderView();
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      await openWorkspaceStep(/^Lauf/);
       expect(((await screen.findByLabelText('Mindest-Wahrscheinlichkeit')) as HTMLInputElement).value).toBe('60');
     });
 
@@ -352,8 +358,9 @@ describe('LinkManagerView', () => {
       const fetchMock = stubFetch();
 
       renderView();
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      await openWorkspaceStep(/^Lauf/);
       fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Erweitert' }));
       fireEvent.change(screen.getByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
       fireEvent.change(screen.getByLabelText('Mindest-Score vor der Bewertung'), { target: { value: '0.8' } });
       fireEvent.click(screen.getByLabelText('Jeden Abschnitt einzeln bewerten (statt einer Seite)'));
@@ -380,7 +387,6 @@ describe('LinkManagerView', () => {
       renderView();
       fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
       const setA = await screen.findByTestId('link-set-a');
-      const setB = screen.getByTestId('link-set-b');
       fireEvent.click(within(setA).getByRole('radio', { name: /Eigene Auswahl/ }));
       fireEvent.click(within(setA).getByRole('checkbox', { name: /Programm/ }));
       fireEvent.change(within(setA).getByRole('searchbox'), { target: { value: 'PAY' } });
@@ -388,7 +394,10 @@ describe('LinkManagerView', () => {
       expect(within(within(setA).getByTestId('link-set-items-a')).getByText('PAYCALC-MAIN')).toBeTruthy();
 
       // Eine eigene Auswahl darf leer beginnen; gestartet wird sie erst mit Inhalt.
+      await openWorkspaceStep(/^Menge B/);
+      const setB = await screen.findByTestId('link-set-b');
       fireEvent.click(within(setB).getByRole('radio', { name: /Eigene Auswahl/ }));
+      expect(screen.getByRole('tab', { name: /^Menge B/ }).textContent).toContain('Noch leer');
       expect(screen.getByTestId('link-run-estimate').textContent).toContain('Menge B ist leer');
       expect((screen.getByRole('button', { name: 'Lauf starten' }) as HTMLButtonElement).disabled).toBe(true);
       fireEvent.click(within(setB).getByRole('checkbox', { name: /Jira PROJ/ }));
@@ -414,7 +423,7 @@ describe('LinkManagerView', () => {
       const fetchMock = stubFetch({ workspaceOptions: options });
 
       renderView();
-      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      await openWorkspaceStep(/^Menge B/);
       const setB = await screen.findByTestId('link-set-b');
       fireEvent.click(within(setB).getByRole('radio', { name: /Eigene Auswahl/ }));
       expect(within(setB).getByText('Wissensquelle')).toBeTruthy();
@@ -443,7 +452,9 @@ describe('LinkManagerView', () => {
       expect((within(setA).getByRole('checkbox', { name: /Section/ }) as HTMLInputElement).checked).toBe(true);
 
       fireEvent.click(screen.getByRole('radio', { name: 'Dokumentation ↔ Dokumentation' }));
-      expect(within(screen.getByTestId('link-set-a')).getByRole('heading').textContent).toBe('Menge A · Dokumentation');
+      expect(screen.getByRole('tab', { name: /^Menge A · Dokumentation/ })).toBeTruthy();
+      await openWorkspaceStep(/^Lauf/);
+      expect(screen.getByTestId('link-run-settings')).toBeTruthy();
       expect(screen.queryByTestId('link-run-options')).toBeNull();
       fireEvent.click(await screen.findByRole('button', { name: 'Lauf starten' }));
 
@@ -744,7 +755,8 @@ describe('LinkManagerView', () => {
       expect(screen.queryByLabelText('Mindest-Wahrscheinlichkeit')).toBeNull();
       const trigger = screen.getByRole('button', { name: 'Analyse starten' });
       fireEvent.click(trigger);
-      expect(await screen.findByRole('dialog', { name: 'Analyse-Arbeitsfläche' })).toBeTruthy();
+      expect(await screen.findByRole('dialog', { name: 'Analyse einrichten' })).toBeTruthy();
+      fireEvent.click(await screen.findByRole('tab', { name: /^Lauf/ }));
       fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '65' } });
       expect(calls(fetchMock, '/link-runs', 'POST').filter(u => u.endsWith('/link-runs'))).toHaveLength(0);
       fireEvent.click(screen.getByRole('button', { name: 'Abbrechen' }));

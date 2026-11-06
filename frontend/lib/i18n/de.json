@@ -1605,9 +1605,10 @@
     "minConfidenceLabel": "Mindest-Wahrscheinlichkeit",
     "minConfidenceTooltip": "Mindest-Wahrscheinlichkeit (%): Nur Kandidaten, die das LLM mit mindestens dieser Sicherheit bewertet, werden beim nächsten Lauf als Vorschlag gespeichert.",
     "workspace": {
-      "title": "Analyse-Arbeitsfläche",
-      "description": "Stelle zwei Mengen zusammen und prüfe sie gegeneinander: alles einer Art oder eine eigene Auswahl aus Filtern und gesuchten Objekten. Der Lauf bewertet jedes Objekt aus Menge A gegen die Kandidaten aus Menge B.",
+      "title": "Analyse einrichten",
+      "subtitle": "Jedes Objekt aus Menge A wird gegen Menge B geprüft.",
       "pairingLabel": "Analyseart",
+      "tabsLabel": "Bestandteile der Analyse",
       "loading": "Arbeitsfläche wird geladen …",
       "optionsFailed": "Die Auswahlmöglichkeiten konnten nicht geladen werden.",
       "set": {
@@ -1618,29 +1619,29 @@
         "code": "Code",
         "docs": "Dokumentation"
       },
+      "checkedAgainst": "wird geprüft gegen",
+      "runCard": "Lauf",
+      "runCardDefault": "Aktives Modell",
+      "runSummary": "ab {{confidence}} % Wahrscheinlichkeit · Budget {{budget}}",
+      "summaryAll": "Alles dieser Art im Projekt",
+      "summaryEmpty": "Noch leer – Merkmale wählen oder Objekte hinzufügen",
+      "summaryItems": "{{count}} einzeln hinzugefügt",
       "modeLabel": "Umfang der Menge",
       "modes": {
         "all": "Alle ({{count}})",
         "custom": "Eigene Auswahl"
       },
       "modeHints": {
-        "all": "Alles dieser Art im Projekt. Code↔Dokumentation ohne Auswahl prüft wie bisher nur Neues und Geändertes.",
-        "custom": "Vereinigung aus Filtern und hinzugefügten Objekten. Darf leer beginnen."
+        "all": "Die Menge umfasst alles dieser Art im Projekt.",
+        "custom": "Merkmale und einzeln hinzugefügte Objekte ergeben zusammen die Menge."
       },
-      "searchTitle": "Objekte suchen und hinzufügen",
-      "searchPlaceholder": {
-        "code": "Programm, Section, Klasse, Methode …",
-        "docs": "Dokument, Seite, Ticket …"
-      },
-      "searching": "Suche läuft …",
-      "searchFailed": "Die Suche ist fehlgeschlagen.",
-      "noResults": "Keine Treffer.",
-      "results": "{{count}} Treffer",
-      "addAll": "Alle hinzufügen",
-      "add": "Hinzufügen",
-      "remove": "Entfernen",
+      "allContents": "Die Menge umfasst alle {{count}} Objekte der Art „{{kind}}“ im Projekt. Bei Code ↔ Dokumentation mit „Alle“ auf beiden Seiten prüft der Lauf nur Neues und Geändertes.",
+      "switchToCustom": "Eigene Auswahl zusammenstellen",
+      "sampleTitle": "Beispiele aus der Menge",
+      "previewEmpty": "Die Menge ist leer.",
       "filterTitle": "Nach Merkmalen auswählen",
-      "filterHint": "Werte eines Filters gelten mit ODER, verschiedene Filter mit UND. Hinzugefügte Objekte kommen immer dazu.",
+      "filterHint": "Ein Klick nimmt alles mit diesem Merkmal auf. Werte eines Merkmals gelten mit ODER, verschiedene Merkmale mit UND.",
+      "noFilters": "Für diese Art gibt es im Projekt keine Merkmale.",
       "facets": {
         "code": {
           "entity_type": "Typ (je Sprache)",
@@ -1652,16 +1653,36 @@
         }
       },
       "allOf": "Alle aus {{group}}",
-      "picked": "Hinzugefügte Objekte ({{count}})",
-      "pickedEmpty": "Noch keine Objekte hinzugefügt. Über die Suche einzelne Objekte aufnehmen oder oben nach Merkmalen auswählen.",
+      "moreValues": "+{{count}} weitere",
+      "fewerValues": "Weniger anzeigen",
+      "chosen": "{{count}} gewählt",
+      "searchTitle": "Einzelne Objekte hinzufügen",
+      "searchHint": "Suche nach Namen und nimm genau die Objekte auf, die du brauchst – auch ohne Merkmale.",
+      "searchPlaceholder": {
+        "code": "Programm, Section, Klasse, Methode …",
+        "docs": "Dokument, Seite, Ticket …"
+      },
+      "searching": "Suche läuft …",
+      "searchFailed": "Die Suche ist fehlgeschlagen.",
+      "noResults": "Keine Treffer.",
+      "results": "{{count}} Treffer",
+      "addAll": "Alle hinzufügen",
+      "add": "Hinzufügen",
+      "added": "Enthalten",
+      "remove": "Entfernen",
+      "contentsTitle": "Inhalt von {{set}}",
+      "contentsEmpty": "Noch leer. Wähle links Merkmale oder füge in der Mitte einzelne Objekte hinzu.",
+      "fromFilters": "Über Merkmale",
+      "removeFilter": "Merkmal entfernen",
+      "picked": "Einzeln hinzugefügt ({{count}})",
+      "showAllItems": "Alle {{count}} anzeigen",
+      "showSample": "Beispiele anzeigen",
+      "hideSample": "Beispiele ausblenden",
       "clear": "Auswahl leeren",
       "chunks": "{{count}} Abschnitte",
       "objectCount": "{{count}} Objekte",
       "docCount": "{{count}} Abschnitte in {{documents}} Dokumenten",
-      "previewTitle": "Vorschau der Menge",
-      "previewEmpty": "Die Menge ist leer.",
-      "settingsTitle": "Laufeinstellungen",
-      "emptySet": "{{set}} ist leer. Bitte Objekte hinzufügen oder Filter wählen.",
+      "emptySet": "{{set}} ist leer. Bitte Merkmale wählen oder Objekte hinzufügen.",
       "estimating": "Aufwand wird geschätzt …",
       "estimateTargeted": "Prüft {{a}} Objekte aus Menge A gegen {{b}} Abschnitte aus Menge B: bis zu {{reviews}} Modellprüfungen, Budget je Lauf {{budget}}.",
       "estimateIncremental": "Inkrementeller Lauf: {{a}} geänderte Code-Entitäten gegen die Dokumentation, bis zu {{reviews}} Modellprüfungen, Budget je Lauf {{budget}}.",
@@ -1684,7 +1705,9 @@
         "GitLabIssues": "GitLab Issues",
         "FolderWatch": "Ordner",
         "other": "Weitere"
-      }
+      },
+      "confidenceHint": "Nur Kandidaten, die das Modell mindestens so sicher bewertet, werden als Vorschlag gespeichert.",
+      "searchIdle": "Treffer erscheinen hier. Mit „Hinzufügen“ kommt ein Objekt in die Menge."
     },
     "runOptions": {
       "label": "Erweitert",
