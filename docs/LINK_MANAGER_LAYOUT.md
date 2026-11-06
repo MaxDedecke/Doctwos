@@ -52,7 +52,7 @@ eine „Eigene Auswahl“. Eine eigene Auswahl ist die Vereinigung aus
 - einzeln gesuchten und hinzugefügten Objekten (Code-Entitäten, Dokumente = Quelle + Datei/Seite/Ticket).
 
 Sie darf leer beginnen; gestartet wird erst, wenn beide Mengen etwas enthalten. Jede Menge
-zeigt ihre Größe und eine Stichprobe. Filter mit nur einem Wert werden ausgeblendet.
+zeigt ihre Größe und eine Stichprobe. Filter stehen vor der Suche und erscheinen, sobald sie einen Wert haben.
 
 **Analysearten.** Code ↔ Dokumentation (Entity-Links, alle Nutzer) und Dokumentation ↔
 Dokumentation (Knowledge-Links, nur Administratoren; ersetzt die frühere Quellen-Auswahl

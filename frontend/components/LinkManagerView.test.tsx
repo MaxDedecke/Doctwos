@@ -406,6 +406,25 @@ describe('LinkManagerView', () => {
       expect(Object.fromEntries(search.searchParams)).toMatchObject({ kind: 'code', q: 'PAY' });
     });
 
+    it('zeigt auch eine einzelne Wissensquelle zum Anhaken, nicht nur die Suche', async () => {
+      const options = workspaceOptions();
+      options.kinds.docs = { total: 1154, facets: [{ name: 'source', groups: [
+        { key: 'Git', count: 1154, values: [{ value: '7', label: 'aws-mainframe-modernization-carddemo', count: 1154 }] },
+      ] }] };
+      const fetchMock = stubFetch({ workspaceOptions: options });
+
+      renderView();
+      fireEvent.click(screen.getByRole('button', { name: 'Analyse starten' }));
+      const setB = await screen.findByTestId('link-set-b');
+      fireEvent.click(within(setB).getByRole('radio', { name: /Eigene Auswahl/ }));
+      expect(within(setB).getByText('Wissensquelle')).toBeTruthy();
+      fireEvent.click(within(setB).getByRole('checkbox', { name: /aws-mainframe-modernization-carddemo/ }));
+      fireEvent.click(screen.getByRole('button', { name: 'Lauf starten' }));
+
+      await waitFor(() => expect(calls(fetchMock, '/link-runs', 'POST').some(u => u.endsWith('/link-runs'))).toBe(true));
+      expect(bodyOf(fetchMock, '/link-runs', 'POST').b).toEqual({ kind: 'docs', mode: 'custom', facets: { source: ['7'] }, items: [] });
+    });
+
     it('schlägt die Auswahl des letzten Laufs vor und kann auf Dokument↔Dokument wechseln', async () => {
       const fetchMock = stubFetch({
         workspaceOptions: workspaceOptions({

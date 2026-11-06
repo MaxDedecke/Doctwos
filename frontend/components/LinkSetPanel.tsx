@@ -37,7 +37,8 @@ export function LinkSetPanel({ side, projectId, set, kindOptions, preview, onCha
     ? label(`linkManagerView.workspace.languages.${key}`, key)
     : label(`linkManagerView.workspace.sourceTypes.${key}`, key);
   const valueLabel = (facet: string) => (value: FacetValue) => (facet === 'entity_type' ? getEntityTypeLabel(value.value, language) : value.label ?? value.value);
-  const facets = (kindOptions?.facets ?? []).filter(facet => facet.groups.reduce((sum, group) => sum + group.values.length, 0) > 1);
+  // Auch ein Filter mit nur einem Wert bleibt sichtbar (z. B. die einzige Wissensquelle): Man soll sehen, was es gibt.
+  const facets = (kindOptions?.facets ?? []).filter(facet => facet.groups.some(group => group.values.length > 0));
 
   const describe = (item: LinkSetItem) => {
     const badge = item.entity_type ? getEntityTypeLabel(item.entity_type, language)
@@ -78,15 +79,6 @@ export function LinkSetPanel({ side, projectId, set, kindOptions, preview, onCha
       </div>
 
       {custom && <>
-        <div className="space-y-2">
-          <h4 className="text-xs font-medium">{t('linkManagerView.workspace.searchTitle')}</h4>
-          <LinkSetSearch projectId={projectId} kind={set.kind} inputClass={inputClass}
-            placeholder={label(`linkManagerView.workspace.searchPlaceholder.${set.kind}`, t('linkManagerView.workspace.searchTitle'))}
-            isAdded={item => hasItem(set, item)} describe={describe}
-            onAdd={items => onChange(current => items.reduce((next, item) => addItem(next, storedDetail(item)), current))}
-            onRemove={item => onChange(current => removeItem(current, item))} />
-        </div>
-
         {facets.length > 0 && <div className="space-y-2">
           <h4 className="text-xs font-medium">{t('linkManagerView.workspace.filterTitle')}</h4>
           {facets.map(facet => <LinkFacetPicker key={facet.name} facet={facet}
@@ -97,6 +89,15 @@ export function LinkSetPanel({ side, projectId, set, kindOptions, preview, onCha
             onGroup={(group, checked) => onChange(current => setFacetGroup(current, facet.name, group, checked))} />)}
           <p className="text-[0.625rem] leading-snug text-ds-zinc-500">{t('linkManagerView.workspace.filterHint')}</p>
         </div>}
+
+        <div className="space-y-2">
+          <h4 className="text-xs font-medium">{t('linkManagerView.workspace.searchTitle')}</h4>
+          <LinkSetSearch projectId={projectId} kind={set.kind} inputClass={inputClass}
+            placeholder={label(`linkManagerView.workspace.searchPlaceholder.${set.kind}`, t('linkManagerView.workspace.searchTitle'))}
+            isAdded={item => hasItem(set, item)} describe={describe}
+            onAdd={items => onChange(current => items.reduce((next, item) => addItem(next, storedDetail(item)), current))}
+            onRemove={item => onChange(current => removeItem(current, item))} />
+        </div>
 
         <div className="space-y-2">
           <div className="flex items-center gap-2">
