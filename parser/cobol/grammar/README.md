@@ -1,7 +1,9 @@
 # COBOL grammar sources
 
 These are the sources for the production parser in `../_antlr/`.
-They were moved unchanged from the historical ANTLR spike as part of O-065.
+They were moved unchanged from the historical ANTLR spike as part of O-065. Since
+06.11.2026 Doctus extends `Cobol85.g4` for further COBOL dialects; every change is marked with a
+`// Doctus:` comment (e.g. `EXIT PERFORM [CYCLE]`, `EXIT PARAGRAPH`, `EXIT SECTION`).
 
 - Upstream: `antlr/grammars-v4`, directory `cobol85/`
 - Pinned revision: `e1c222f3f0e7c1b2fec799e94e34fc388b03f887`
@@ -12,7 +14,9 @@ They were moved unchanged from the historical ANTLR spike as part of O-065.
 
 ## Regeneration
 
-Java is needed only on the development machine, never in the runtime image.
+Java is needed only on the development machine, never in the runtime image. Without a local
+Java, the official `eclipse-temurin:17-jre` image works (mount this directory, run the same commands).
+The generator reproduces the committed files byte for byte from an unchanged grammar.
 With the ANTLR 4.13.2 generator available locally, run from this directory:
 
 ```bash

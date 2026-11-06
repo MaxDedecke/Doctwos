@@ -321,3 +321,35 @@ def test_a_paragraph_runs_on_unless_something_always_ends_it():
         "FOURTH-PARA": None,
         "FIFTH-PARA": None,
     }
+
+
+def test_exit_perform_is_neither_a_call_nor_a_loop_but_perform_until_exit_keeps_its_call():
+    from cobol.parse import parse_program
+
+    text = """IDENTIFICATION DIVISION.
+PROGRAM-ID. EXITS.
+DATA DIVISION.
+WORKING-STORAGE SECTION.
+01 WS-X PIC 9.
+01 WS-Y PIC 9.
+PROCEDURE DIVISION.
+MAIN-PARA.
+    PERFORM UNTIL EXIT
+        PERFORM WORK-PARA
+        IF WS-X = 1
+            EXIT PERFORM CYCLE
+        END-IF
+        IF WS-X = 2
+            EXIT PERFORM
+        END-IF
+        MOVE 1 TO WS-Y
+    END-PERFORM
+    GOBACK.
+WORK-PARA.
+    DISPLAY 'W'.
+"""
+    result = parse_program(text, "exits.cbl")
+    performs = [(e.dst_name, e.src_start_line) for e in result.edges if e.type == "PERFORM"]
+    assert performs == [("WORK-PARA", 10)]
+    move = next(e for e in result.edges if e.type == "WRITES" and e.dst_name == "WS-Y")
+    assert [step["type"] for step in move.meta["control_path"]] == ["LOOP"]

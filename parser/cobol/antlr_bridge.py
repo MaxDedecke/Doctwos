@@ -316,7 +316,9 @@ def mask_for_grammar(
                 j += 1
             if current_division == "PROCEDURE":
                 placeholder_text = "CONTINUE"
-                dot = _ends_with_period(lines[j])
+                # Der Punkt gehört zur COPY-Anweisung. Steht danach ein Bereichsende oder ein weiterer Zweig, liegt das
+                # COPY in einem offenen IF/EVALUATE/PERFORM; als Satzende würde er den Block vorzeitig schließen.
+                dot = _ends_with_period(lines[j]) and not _continues_open_block(lines, j + 1)
             elif current_division == "DATA" and current_data_section == "FILE":
                 # FILE SECTION akzeptiert nur fileDescriptionEntry (FD ...), kein
                 # bare-01-Datenfeld — ein COPY hier steht praktisch immer für einen
@@ -350,6 +352,18 @@ _IBM_STATEMENT_MAX_LINES = 200
 
 def _ends_ibm_data_statement(line: LogicalLine) -> bool:
     return bool(_IBM_STATEMENT_END_RE.search(line.text)) or _ends_with_period(line)
+
+
+_OPEN_BLOCK_CONTINUATION_RE = re.compile(r"(?i)^(?:END-[A-Z]+|WHEN|ELSE)\b")
+
+
+def _continues_open_block(lines: list[LogicalLine], start: int) -> bool:
+    """Beginnt die nächste Codezeile mit END-…, WHEN oder ELSE (dort wäre ein Satzende ungültig)?"""
+    for line in lines[start:]:
+        if line.is_comment or not line.text.strip():
+            continue
+        return bool(_OPEN_BLOCK_CONTINUATION_RE.match(line.text.strip()))
+    return False
 
 
 def _ends_with_period(line: LogicalLine) -> bool:
@@ -525,6 +539,8 @@ def warmup() -> None:
 
 # Letzter Parse-Baum je Prozess (ein Eintrag: Dateien laufen nacheinander).
 _tree_cache: dict[str, tuple] = {}
+_TREE_CACHE_SIZE = 32
+_TREE_CACHE_CHARS = 4_000_000
 
 
 def build_tree(
@@ -599,8 +615,13 @@ def build_tree(
         # endgültige Diagnose gemeldet werden.
         tree, _, diagnostics = _parse(ascii_text, PredictionMode.LL)
     diagnostics = _bundle_repeats(diagnostics)
-    _tree_cache.clear()
+    # Je Datei mehrere Einheiten (units.py): einige Bäume vorhalten statt nur des letzten, begrenzt über die
+    # Textmenge, damit große Dateien den Worker-Speicher nicht füllen.
     _tree_cache[ascii_text] = (tree, diagnostics)
+    while len(_tree_cache) > 1 and (
+        len(_tree_cache) > _TREE_CACHE_SIZE or sum(map(len, _tree_cache)) > _TREE_CACHE_CHARS
+    ):
+        _tree_cache.pop(next(iter(_tree_cache)))
     return tree, text, list(diagnostics)
 
 

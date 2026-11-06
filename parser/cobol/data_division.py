@@ -38,6 +38,7 @@ import re
 from . import antlr_bridge
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
+from . import units as units_mod
 from .antlr_bridge import COPY_PLACEHOLDER_NAME, EXEC_PLACEHOLDER_NAME
 from .model import CobolProgram, DataItem, FileDescriptor, LogicalLine, ParseDiagnostic, ParsedEdge
 
@@ -65,7 +66,13 @@ def parse(
         if is_copybook
         else None
     )
-    tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines, header=header)
+    # Nur die eigene Übersetzungseinheit: ein Fehler in einem Nachbarprogramm bleibt dort (units.py).
+    lines = (
+        masked_lines
+        if is_copybook
+        else units_mod.containing(masked_lines, data_division.start_line)
+    )
+    tree, source_text, diagnostics = antlr_bridge.build_tree(lines, header=header)
     visitor = _DataDivisionVisitor(source_text)
     visitor.visit(tree)
 

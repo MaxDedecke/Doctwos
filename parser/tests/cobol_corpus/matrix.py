@@ -133,6 +133,18 @@ MATRIX: list[CompatCase] = [
         ),
     ),
     CompatCase(
+        "20_nested_programs_exit",
+        "verschachtelte Programme, EXIT PERFORM [CYCLE]/PARAGRAPH/SECTION",
+        "teilweise",
+        note=(
+            "Inneres Programm innerhalb des äußeren (END PROGRAM für beide), "
+            "EXIT-Varianten aus COBOL 2002 in IF-Zweigen und Schleifen. Geprüft: "
+            "keine Syntaxfehler, vollständige Abdeckung, kein Schein-PERFORM und "
+            "korrekter Kontrollpfad nach EXIT PERFORM. Ablaufsemantik der EXIT-"
+            "Varianten (Sprungziel) ist nicht modelliert; kein Herstellercompiler-Abgleich."
+        ),
+    ),
+    CompatCase(
         "19_global_replace",
         "globales REPLACE/REPLACE OFF (O-136)",
         "teilweise",

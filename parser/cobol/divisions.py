@@ -35,6 +35,7 @@ unten) — kein Golden-File-Unterschied für bestehende Fixtures.
 from __future__ import annotations
 
 from . import antlr_bridge
+from . import units as units_mod
 from . import lexer as lexer_mod
 from ._antlr.Cobol85Parser import Cobol85Parser
 from ._antlr.Cobol85Visitor import Cobol85Visitor
@@ -61,7 +62,6 @@ def scan(
     start_line = tokens[0].phys_line
     last_line = tokens[-1].phys_line
 
-    tree, source_text, diagnostics = antlr_bridge.build_tree(masked_lines)
     # Die Grammatik sieht maskierte mehrzeilige Anweisungen (EXEC ... END-EXEC) als
     # EINE Zeile; ihr Token trägt nur die Startzeile. Das Zeilenende kommt von hier.
     line_ends = {
@@ -69,8 +69,13 @@ def scan(
         for line in masked_lines
         if line.phys_end_line > line.phys_start_line
     }
-    visitor = _StructureVisitor(source_text, line_ends)
-    visitor.visit(tree)
+    visitor = _StructureVisitor("", line_ends)
+    diagnostics: list[ParseDiagnostic] = []
+    for unit in units_mod.split(masked_lines):
+        tree, source_text, unit_diagnostics = antlr_bridge.build_tree(unit)
+        diagnostics.extend(unit_diagnostics)
+        visitor.use_source(source_text)
+        visitor.visit(tree)
     programs = visitor.programs or [
         CobolProgram(name="", start_line=start_line, end_line=last_line)
     ]
@@ -133,6 +138,10 @@ class _StructureVisitor(Cobol85Visitor):
         self._stack: list[_ProgramFrame] = []
         self._source_text = source_text
         self._line_ends = line_ends or {}
+
+    def use_source(self, source_text: str) -> None:
+        """Grammatiktext der Übersetzungseinheit, deren Baum als Nächstes besucht wird."""
+        self._source_text = source_text
 
     def _end_line(self, token) -> int:
         line = _line(token)
@@ -206,6 +215,15 @@ class _StructureVisitor(Cobol85Visitor):
 
     def visitProcedureSection(self, ctx: Cobol85Parser.ProcedureSectionContext):  # noqa: N802
         header = ctx.procedureSectionHeader()
+        if _recovered_section_header(header):
+            # Eine unbekannte Anweisung (Dialekt) lässt ANTLRs Fehlerkorrektur ein fehlendes SECTION ergänzen und
+            # macht so aus beliebigen Wörtern Scheinsections. Ihre Paragraphen gehören zur letzten echten Section.
+            frame = self._stack[-1]
+            owner = next(
+                (s.name for s in reversed(frame.sections) if s.division == "PROCEDURE"), None
+            )
+            self._collect_paragraphs(ctx.paragraphs(), owner)
+            return None
         name = _clean_name(antlr_bridge.original_span(self._source_text, header.sectionName()))
         self._stack[-1].sections.append(
             Section(name, "PROCEDURE", _line(ctx.start), self._end_line(ctx.stop))
@@ -252,6 +270,15 @@ class _StructureVisitor(Cobol85Visitor):
 
     def _record_named_section(self, ctx, name: str, start_tok, stop_tok, division: str) -> None:
         self._stack[-1].sections.append(Section(name, division, _line(start_tok), _line(stop_tok)))
+
+
+def _recovered_section_header(header) -> bool:
+    """Kopf, den die Fehlerkorrektur erfunden hat: Ausnahme im Kopf oder ein ergänzter (nicht im Text stehender)
+    SECTION-Token, erkennbar am Tokenindex -1."""
+    if header is None or header.exception is not None:
+        return True
+    keyword = header.SECTION()
+    return keyword is None or keyword.getSymbol().tokenIndex < 0
 
 
 def _line(token) -> int:

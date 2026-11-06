@@ -53,6 +53,23 @@ Offen: Bedienoberfläche für Profil und Preflight, BMS-Parser (die 17 BMS-Datei
 `XML PARSE … PROCESSING PROCEDURE`, EBCDIC-Autoerkennung (O-330) und ein konfigurierbares
 Größenlimit (derzeit 2 MiB je Datei).
 
+## Stand 06.11.2026: Dialekte, Welle 1 (Standard-COBOL, auch IBM)
+
+Auftrag: Dialekt für Dialekt erweitern (`CLAUDE.md`). Prüfbestände: CardDemo (IBM, 44 Programme) und CobolCraft
+(GnuCOBOL, github.com/meyfa/CobolCraft, 206 Dateien). Gemessen mit `parse_program` je Datei, alter gegen neuen Stand.
+
+| Bereich | Stand |
+|---|---|
+| EXIT-Varianten | Grammatik kennt `EXIT PERFORM [CYCLE]`, `EXIT PARAGRAPH`, `EXIT SECTION` (`// Doctus:` in `Cobol85.g4`; `CYCLE`/`PARAGRAPH` bleiben als Namen erlaubt). Der Ablauf-Scanner las `EXIT PERFORM` als neue Schleife (falscher Kontrollpfad bis zum Absatzende) und `EXIT PERFORM CYCLE` als Aufruf eines Paragraphen „CYCLE“. |
+| Mehrere Programme je Datei | Jedes Programm der obersten Ebene wird für sich geparst (`cobol/units.py`); verschachtelte bleiben bei ihrem äußeren. Vorher verschluckte ein Syntaxfehler alle folgenden Programme der Datei (CobolCraft `blocks_loot_table.cob`: 5 statt 24 Programme). |
+| Scheinsections | Die Fehlerkorrektur ergänzte nach unbekannten Anweisungen ein fehlendes `SECTION` und machte Wörter wie `TRIM` oder Feldnamen zu Sections; diese werden verworfen, ihre Paragraphen hängen an der letzten echten Section. |
+| Abdeckung | Section-Kopfzeilen zwischen Paragraphen und der Bereich verschachtelter Programme zählen nicht mehr als „nicht erfasster Code“ (sie machten erkannte Dateien zu `partial`). |
+| COPY in offenen Blöcken | Ein `COPY` in der PROCEDURE DIVISION wurde für die Grammatik zu `CONTINUE.` mit Punkt. Der Punkt gehört aber zur COPY-Anweisung; folgt `END-…`, `WHEN` oder `ELSE`, schloss er den umgebenden IF/EVALUATE/PERFORM vorzeitig (betrifft auch IBM). Dort entfällt der Punkt jetzt. |
+| Ergebnis | CardDemo unverändert: 44/44 vollständig, keine Entität oder Kante anders. CobolCraft: vollständig 41 → 67 Dateien, 55 Programme, 45 Paragraphen und 391 Kanten mehr, nichts verloren, Scheinsections 3.197 → 1.032 Sections insgesamt. |
+
+Nächste Welle: GnuCOBOL/Micro Focus (`ANY LENGTH`, `BINARY-LONG`, `OMITTED`, `PERFORM UNTIL EXIT`, `STRING` ohne
+`DELIMITED`, `ALLOCATE`/`FREE`, Bit-Operatoren `B-AND`/`B-OR`).
+
 Reproduzierbare Minimalprobe für O-124 (als Test-Fixture zu übernehmen):
 
 ```cobol

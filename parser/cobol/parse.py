@@ -257,7 +257,11 @@ def parse_program(
             # Codebereiche nicht durch Paragraphenchunks abgedeckt sind,
             # diese als Fallback-Chunks erfassen, damit kein Quelltext still verloren geht.
             uncovered_chunks = _collect_uncovered_chunks(
-                program, program_chunks, source_lines, source_format
+                program,
+                program_chunks,
+                source_lines,
+                source_format,
+                nested_ranges=_nested_program_ranges(program, programs),
             )
             program_chunks.extend(uncovered_chunks)
             # O-384: Kopfbereich (IDENTIFICATION/ENVIRONMENT/DATA DIVISION) bis zum ersten Absatz, damit
@@ -779,6 +783,19 @@ def _drop_xref_edges_covered_by_io(
     return [edge for edge in xref_edges if id(edge) not in consumed]
 
 
+def _nested_program_ranges(
+    program: CobolProgram, programs: list[CobolProgram]
+) -> list[tuple[int, int]]:
+    """Zeilenbereiche der in `program` verschachtelten Programme (beliebig tief)."""
+    path = f"{program.parent_name}.{program.name}" if program.parent_name else program.name
+    return [
+        (other.start_line, other.end_line)
+        for other in programs
+        if other.parent_name
+        and (other.parent_name == path or other.parent_name.startswith(path + "."))
+    ]
+
+
 def _head_chunks(
     program: CobolProgram,
     source_lines: list[str],
@@ -819,73 +836,69 @@ def _collect_uncovered_chunks(
     source_lines: list[str],
     source_format: SourceFormat,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
+    nested_ranges: list[tuple[int, int]] | None = None,
 ) -> list[Chunk]:
+    """O-359: Codebereiche, die kein Paragraphenchunk abdeckt (Lücken zwischen Paragraphen, Rest nach dem letzten).
+
+    Nicht als Lücke zählen: Zeilen verschachtelter Programme (sie haben eigene Chunks), Section-Kopfzeilen der
+    PROCEDURE DIVISION und ein allein stehendes END PROGRAM."""
     if not program.paragraphs or not program_chunks:
         return []
 
-    uncovered: list[Chunk] = []
+    skipped: set[int] = set()
+    for first, last in nested_ranges or ():
+        skipped.update(range(first, last + 1))
+    section_heads = {s.start_line for s in program.sections if s.division == "PROCEDURE"}
 
-    # Gaps between paragraphs
-    sorted_paras = sorted(program.paragraphs, key=lambda p: p.start_line)
-    for i in range(len(sorted_paras) - 1):
-        gap_start = sorted_paras[i].end_line + 1
-        gap_end = sorted_paras[i + 1].start_line - 1
-        if gap_start <= gap_end:
-            if any(
-                _is_code_line(source_lines[ln - 1], source_format)
-                for ln in range(gap_start, gap_end + 1)
-                if ln - 1 < len(source_lines)
-            ):
-                for content, s, e in _pack_whole_file(
-                    source_lines, chunk_size, (gap_start, gap_end)
-                ):
-                    uncovered.append(
-                        Chunk(
-                            content=content,
-                            start_line=s,
-                            end_line=e,
-                            meta={
-                                "program": program.name,
-                                "format": source_format,
-                                "fallback": True,
-                                "partial": True,
-                                "unstructured": True,
-                            },
+    def meaningful(line_no: int) -> bool:
+        if line_no in section_heads or not 0 < line_no <= len(source_lines):
+            return False
+        line = source_lines[line_no - 1]
+        return _is_code_line(line, source_format) and not line.strip().upper().startswith(
+            "END PROGRAM"
+        )
+
+    def chunks_for(first: int, last: int) -> list[Chunk]:
+        found: list[Chunk] = []
+        run_start = None
+        for line_no in range(first, last + 2):
+            inside = line_no <= last and line_no not in skipped
+            if inside and run_start is None:
+                run_start = line_no
+            if not inside and run_start is not None:
+                run_end = line_no - 1
+                if any(meaningful(ln) for ln in range(run_start, run_end + 1)):
+                    for content, s, e in _pack_whole_file(
+                        source_lines, chunk_size, (run_start, run_end)
+                    ):
+                        found.append(
+                            Chunk(
+                                content=content,
+                                start_line=s,
+                                end_line=e,
+                                meta={
+                                    "program": program.name,
+                                    "format": source_format,
+                                    "fallback": True,
+                                    "partial": True,
+                                    "unstructured": True,
+                                },
+                            )
                         )
-                    )
+                run_start = None
+        return found
 
-    # Tail after the last paragraph
+    uncovered: list[Chunk] = []
+    sorted_paras = sorted(program.paragraphs, key=lambda p: p.start_line)
+    for before, after in zip(sorted_paras, sorted_paras[1:]):
+        if before.end_line + 1 <= after.start_line - 1:
+            uncovered.extend(chunks_for(before.end_line + 1, after.start_line - 1))
+
     max_chunk_end = max(c.end_line for c in program_chunks)
     proc_div = next((d for d in program.divisions if d.name == "PROCEDURE"), None)
     tail_limit = max(program.end_line, proc_div.end_line if proc_div else 0)
     if tail_limit > max_chunk_end:
-        tail_start = max_chunk_end + 1
-        tail_end = tail_limit
-        code_lines = [
-            source_lines[ln - 1]
-            for ln in range(tail_start, tail_end + 1)
-            if ln - 1 < len(source_lines) and _is_code_line(source_lines[ln - 1], source_format)
-        ]
-        # Avoid creating chunks for lone END PROGRAM statements or trailing blank/comments
-        if code_lines and any(
-            not cl.strip().upper().startswith("END PROGRAM") for cl in code_lines
-        ):
-            for content, s, e in _pack_whole_file(source_lines, chunk_size, (tail_start, tail_end)):
-                uncovered.append(
-                    Chunk(
-                        content=content,
-                        start_line=s,
-                        end_line=e,
-                        meta={
-                            "program": program.name,
-                            "format": source_format,
-                            "fallback": True,
-                            "partial": True,
-                            "unstructured": True,
-                        },
-                    )
-                )
-
+        uncovered.extend(chunks_for(max_chunk_end + 1, tail_limit))
     return uncovered
 
 

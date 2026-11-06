@@ -1867,8 +1867,9 @@ exhibitOperand
 
 // exit statement
 
+// Doctus: EXIT PERFORM [CYCLE], EXIT PARAGRAPH and EXIT SECTION (COBOL 2002, IBM Enterprise COBOL, GnuCOBOL, Micro Focus).
 exitStatement
-    : EXIT PROGRAM?
+    : EXIT (PROGRAM | PERFORM CYCLE? | PARAGRAPH | SECTION)?
     ;
 
 // generate statement
@@ -3068,6 +3069,7 @@ cobolWord
     | CONVENTION
     | CRUNCH
     | CURSOR
+    | CYCLE
     | DEFAULT
     | DEFAULT_DISPLAY
     | DEFINITION
@@ -3126,6 +3128,7 @@ cobolWord
     | ORDERLY
     | OVERLINE
     | OWN
+    | PARAGRAPH
     | PASSWORD
     | PORT
     | PRINTER
@@ -3689,6 +3692,10 @@ CURRENCY
 
 CURSOR
     : C U R S O R
+    ;
+
+CYCLE
+    : C Y C L E
     ;
 
 DATA
@@ -4621,6 +4628,10 @@ PAGE
 
 PAGE_COUNTER
     : P A G E MINUSCHAR C O U N T E R
+    ;
+
+PARAGRAPH
+    : P A R A G R A P H
     ;
 
 PASSWORD

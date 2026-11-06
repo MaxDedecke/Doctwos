@@ -107,6 +107,11 @@ Regeln dafür:
   Menge B aus Filtern (Typ je Sprache, Repository, Wissensquelle) und einzeln gesuchten Objekten, auch leer beginnend;
   erweiterbar für weitere Sprachen und Quelltypen (`doctus_models/link_sets.py`, `docs/LINK_MANAGER_LAYOUT.md`).
 
+- **Expliziter Auftrag 06.11.2026 (Dialekte):** COBOL-Parser Dialekt für Dialekt erweitern, zuerst Standard-Konstrukte,
+  die auch IBM-Bestände betreffen (verschachtelte Programme, `EXIT PERFORM [CYCLE]/PARAGRAPH/SECTION`), danach
+  GnuCOBOL/Micro Focus. Grammatikänderungen in `parser/cobol/grammar/Cobol85.g4` sind mit `// Doctus:` markiert;
+  Neuerzeugung mit ANTLR 4.13.2 nur zur Entwicklungszeit (`parser/cobol/grammar/README.md`, E-11).
+
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
   `parser`-Service, nie in einen Request-Handler.

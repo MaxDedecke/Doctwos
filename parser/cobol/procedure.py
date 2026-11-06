@@ -396,6 +396,23 @@ def scan(
             i += 1
             continue
 
+        if (
+            tok.kind == "WORD"
+            and canonical_identifier(tok.value) == "PERFORM"
+            and i > 0
+            and proc_tokens[i - 1].kind == "WORD"
+            and canonical_identifier(proc_tokens[i - 1].value) == "EXIT"
+            # „PERFORM UNTIL EXIT“ (Endlosschleife) ist keine EXIT-Anweisung; ein PERFORM danach ist ein Aufruf.
+            and not (
+                i > 1
+                and proc_tokens[i - 2].kind == "WORD"
+                and canonical_identifier(proc_tokens[i - 2].value) == "UNTIL"
+            )
+        ):
+            # EXIT PERFORM [CYCLE] verlässt die umschließende Schleife; es ist weder ein Aufruf noch eine neue Schleife.
+            i += 1
+            continue
+
         if tok.kind == "WORD" and canonical_identifier(tok.value) == "PERFORM":
             # Check for inline perform
             is_inline = False
