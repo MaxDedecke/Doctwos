@@ -30,7 +30,7 @@ from api.schemas import (
     ModelUpdateRequest,
 )
 from core.auth_dependency import get_current_user
-from core.inference_admission import InferenceAdmissionTimeout, admitted_post
+from doctus_models.inference_admission import InferenceAdmissionTimeout, admitted_post
 from core.inference_errors import VllmCapacityError, raise_for_inference_status
 from core.llm_providers import (
     DEFAULT_BASE_URLS,

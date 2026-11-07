@@ -12,7 +12,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from core.inference_admission import admitted_post
+from doctus_models.inference_admission import admitted_post
 from doctus_models.database import CodeEntity
 
 logger = logging.getLogger(__name__)

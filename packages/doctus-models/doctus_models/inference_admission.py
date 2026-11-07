@@ -1,9 +1,10 @@
 """Redis-coordinated admission control for shared model endpoints.
 
-Both the API and parser worker carry this small implementation because their
-Docker build contexts are separate. Keep the copies identical. Batch work and
-interactive chat reserve capacity from each other so neither can consume all
-slots on a shared endpoint.
+API and parser worker share this module through the models package, so both see the same slot count for an
+endpoint, including the limit an LLM profile publishes with :func:`set_endpoint_limit`. (Until 07.11.2026 each
+service carried its own copy; the parser's copy lacked the profile limit and admitted batch work against the
+global default while the API used the profile's value.) Batch work and interactive chat reserve capacity from
+each other so neither can consume all slots on a shared endpoint.
 """
 
 from __future__ import annotations
@@ -237,6 +238,13 @@ async def _max_for(pool_id: str) -> int:
         value = MAX_CONCURRENCY
     _limit_cache[pool_id] = (value, now)
     return value
+
+
+async def batch_slots(endpoint: str) -> int:
+    """Wie viele Batch-Anfragen ein Endpunkt gleichzeitig zulässt: Profil-Limit abzüglich Chat-Reserve.
+
+    Der Parser bemisst daran seine Embedding-Parallelität; mehr parallele Anfragen würden nur warten."""
+    return _class_settings("batch", await _max_for(_pool_id(endpoint)))[1]
 
 
 def _class_settings(kind: str, max_concurrency: int | None = None) -> tuple[int, int]:

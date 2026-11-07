@@ -7,7 +7,12 @@ import asyncio
 from typing import Dict, Optional
 
 from db import SessionLocal
-from core.inference_admission import admitted_post
+from doctus_models.inference_admission import (
+    MAX_CONCURRENCY,
+    CHAT_RESERVE,
+    admitted_post,
+    batch_slots,
+)
 from doctus_models.database import AIProfile, AISettings, EmbeddingProfile
 
 logger = logging.getLogger(__name__)
@@ -174,6 +179,14 @@ def _effective_embedding_settings(model: Optional[str] = None) -> dict:
         "dimension": settings["embedding_dimension"] if settings else EMBEDDING_DIMENSION,
         "context": settings["embedding_context_length"] if settings else EMBEDDING_CONTEXT_LENGTH,
     }
+
+
+async def embedding_batch_slots(model: Optional[str] = None) -> int:
+    """Freie Batch-Slots des Embedding-Endpunkts, mit dem Limit aus dem aktiven Profil."""
+    try:
+        return await batch_slots(_effective_embedding_settings(model)["base_url"])
+    except EmbeddingNotConfigured:
+        return max(1, MAX_CONCURRENCY - CHAT_RESERVE)
 
 
 def get_embedding_input_budget(model: Optional[str] = None) -> int:

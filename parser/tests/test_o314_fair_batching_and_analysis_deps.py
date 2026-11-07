@@ -11,7 +11,7 @@ from connectors.git import (
     GitConnector,
     _analysis_dependency_paths,
 )
-from core.inference_admission import (
+from doctus_models.inference_admission import (
     admission_wait_tracker,
     track_admission_wait,
 )
@@ -194,8 +194,10 @@ def test_embed_concurrency_clamps_to_admission_batch_reserve(monkeypatch):
     async def gpu(_model):
         return True
 
-    monkeypatch.setattr(base, "MAX_CONCURRENCY", 4)
-    monkeypatch.setattr(base, "CHAT_RESERVE", 1)
+    async def three_slots(_model):
+        return 3
+
+    monkeypatch.setattr(base, "embedding_batch_slots", three_slots)
     monkeypatch.setattr(base, "is_gpu_accelerated", gpu)
     monkeypatch.setattr(base.config, "DOC_CONCURRENCY", 0)
     connector = SimpleNamespace(embedding_model="bge-m3")
@@ -205,3 +207,27 @@ def test_embed_concurrency_clamps_to_admission_batch_reserve(monkeypatch):
 
     monkeypatch.setattr(base.config, "EMBED_CONCURRENCY", 2)
     assert asyncio.run(base.BaseConnector._doc_concurrency(connector)) == 2
+
+
+def test_embedding_slots_follow_the_limit_the_profile_published_for_the_endpoint(monkeypatch):
+    """Ein vLLM-Profil mit 8 Slots gibt dem Parser 7 Batch-Slots, nicht den globalen Standard."""
+    import ollama_client
+    from doctus_models import inference_admission as admission
+
+    seen = []
+
+    async def limit_of(pool_id):
+        seen.append(pool_id)
+        return 8
+
+    monkeypatch.setattr(admission, "_max_for", limit_of)
+    monkeypatch.setattr(admission, "MAX_CONCURRENCY", 4)
+    monkeypatch.setattr(admission, "CHAT_RESERVE", 1)
+    monkeypatch.setattr(
+        ollama_client,
+        "_effective_embedding_settings",
+        lambda model=None: {"base_url": "http://vllm.local:8000/v1"},
+    )
+
+    assert asyncio.run(ollama_client.embedding_batch_slots("bge-m3")) == 7
+    assert seen == [admission._pool_id("http://vllm.local:8000/v1/embeddings")]

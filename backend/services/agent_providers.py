@@ -20,7 +20,7 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Optional, Union
 
 import core.config as cfg
-from core.inference_admission import admitted_post, admitted_stream
+from doctus_models.inference_admission import admitted_post, admitted_stream
 from core.inference_errors import raise_for_inference_status
 from core.llm_providers import is_self_hosted_openai
 

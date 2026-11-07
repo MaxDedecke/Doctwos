@@ -44,7 +44,7 @@ import parse_pool
 from git_utils import MAX_READ_BYTES, SIZE_SKIP_REASON
 from core.model import ParseResult, classify_completeness
 from core.dependency_fingerprints import DependencyFingerprints, analysis_is_current
-from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
+from doctus_models.inference_admission import track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.failure_location import describe_failure
 from core.source_decoder import (
@@ -75,6 +75,7 @@ from doctus_models.database import (
 from insight_review import mark_source_insights_outdated
 from ollama_client import (
     EMBED_BATCH_MAX_CHUNKS,
+    embedding_batch_slots,
     ensure_model_pulled,
     get_embeddings_batch,
     get_embedding,
@@ -1566,10 +1567,9 @@ class GitConnector(BaseConnector):
             # O-071: CPU-only-Ollama rechnet Batches intern sequentiell --
             # EMBED_CONCURRENCY parallele Anfragen stauen sich dort nur und
             # laufen in Timeout/Fallback-Schleifen. GPU-Installationen
-            # O-314: Embedding-Nebenläufigkeit an die tatsächliche Admission-Batch-
-            # Kapazität anpassen (MAX_CONCURRENCY - CHAT_RESERVE), damit Batch-
-            # Anfragen keine Warteschlangen aufstauen.
-            available_batch_slots = max(1, MAX_CONCURRENCY - CHAT_RESERVE)
+            # O-314: Embedding-Nebenläufigkeit an die Batch-Slots des Endpunkts (Profil-Limit
+            # abzüglich Chat-Reserve) anpassen, damit Batch-Anfragen sich nicht aufstauen.
+            available_batch_slots = await embedding_batch_slots(self.embedding_model)
             if await is_gpu_accelerated(self.embedding_model):
                 embed_concurrency = min(config.EMBED_CONCURRENCY, available_batch_slots)
             else:

@@ -19,7 +19,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from core.inference_admission import admitted_post, admitted_stream
+from doctus_models.inference_admission import admitted_post, admitted_stream
 from core.inference_errors import raise_for_inference_status
 from doctus_models.database import (
     ChatMessage,

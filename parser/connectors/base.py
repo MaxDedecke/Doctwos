@@ -46,8 +46,8 @@ from core import config
 from db import SessionLocal, REDIS_URL
 from doctus_models.database import DocumentChunk, KnowledgeSource
 from insight_review import mark_source_insights_outdated
-from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY
 from ollama_client import (
+    embedding_batch_slots,
     ensure_model_pulled,
     get_embedding,
     get_embeddings_batch,
@@ -350,7 +350,7 @@ class BaseConnector(ABC):
         gedrosselt (dort rechnet der Server Batches ohnehin nacheinander), nie mehr als die freien Batch-Slots der
         Inferenz-Steuerung. ``DOC_CONCURRENCY`` > 0 legt den Wert fest.
         """
-        available = max(1, MAX_CONCURRENCY - CHAT_RESERVE)
+        available = await embedding_batch_slots(self.embedding_model)
         if config.DOC_CONCURRENCY > 0:
             return max(1, min(config.DOC_CONCURRENCY, available))
         try:

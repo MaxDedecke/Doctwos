@@ -469,7 +469,7 @@ async def test_documents_are_processed_in_parallel_up_to_the_limit(
     for i in range(8):
         (tmp_path / f"d{i}.txt").write_text(f"Dokument {i}")
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 3)
-    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 8)
+    monkeypatch.setattr("connectors.base.embedding_batch_slots", AsyncMock(return_value=7))
     running = 0
     peak = 0
 
@@ -500,8 +500,7 @@ async def test_documents_are_processed_in_parallel_up_to_the_limit(
 @pytest.mark.anyio
 async def test_concurrency_is_capped_by_the_free_batch_slots(db_session, test_source, monkeypatch):
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 10)
-    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 4)
-    monkeypatch.setattr("connectors.base.CHAT_RESERVE", 1)
+    monkeypatch.setattr("connectors.base.embedding_batch_slots", AsyncMock(return_value=3))
     connector = FolderConnector(test_source.id)
     assert await connector._doc_concurrency() == 3
 
@@ -513,7 +512,7 @@ async def test_automatic_concurrency_follows_the_gpu_and_never_exceeds_the_cpu_l
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 0)
     monkeypatch.setattr(parser_config, "EMBED_CONCURRENCY", 3)
     monkeypatch.setattr(parser_config, "EMBED_CONCURRENCY_CPU_ONLY", 2)
-    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 8)
+    monkeypatch.setattr("connectors.base.embedding_batch_slots", AsyncMock(return_value=7))
     connector = FolderConnector(test_source.id)
     for gpu, expected in ((True, 3), (False, 2)):
         monkeypatch.setattr("connectors.base.is_gpu_accelerated", AsyncMock(return_value=gpu))
@@ -531,7 +530,7 @@ async def test_one_failing_document_stops_the_sync_and_leaves_no_task_behind(
     for i in range(5):
         (tmp_path / f"d{i}.txt").write_text(f"Dokument {i}")
     monkeypatch.setattr(parser_config, "DOC_CONCURRENCY", 3)
-    monkeypatch.setattr("connectors.base.MAX_CONCURRENCY", 8)
+    monkeypatch.setattr("connectors.base.embedding_batch_slots", AsyncMock(return_value=7))
     import connectors.base as base_module
 
     real_reindex = base_module.reindex_chunks_preserving_links

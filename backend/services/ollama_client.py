@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.llm_providers import is_self_hosted_openai
-from core.inference_admission import admitted_post
+from doctus_models.inference_admission import admitted_post
 from core.inference_errors import raise_for_inference_status
 from doctus_models.database import DocumentChunk, KnowledgeSource
 
