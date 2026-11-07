@@ -119,6 +119,8 @@ def _spaces(source: KnowledgeSource) -> dict:
 
 
 def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
+    """Hinweise tragen `code` und, wo es eine Menge gibt, `count`; die Oberfläche übersetzt sie über den Code,
+    `message` ist die deutsche Fassung für API-Nutzer."""
     scan_rows = (
         db.query(
             SourceScanFile.file_path,
@@ -181,6 +183,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "ENCODING_FALLBACK",
+                "count": fallback,
                 "message": f"{fallback} Mainframe-Quelldatei(en) waren kein UTF-8 und wurden "
                 "als cp1252 gelesen. Weicht die tatsächliche Codepage ab, 'encoding' im Profil setzen.",
             }
@@ -189,6 +192,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "ENCODING_EBCDIC",
+                "count": ebcdic,
                 "message": f"{ebcdic} Quelldatei(en) wurden als EBCDIC erkannt; die Codepage wurde "
                 "nach Inhalt gewählt. Ist sie bekannt (z. B. CCSID-1141), 'encoding' im Profil setzen.",
             }
@@ -197,6 +201,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "NON_UTF8_SKIPPED",
+                "count": non_utf8_skipped,
                 "message": f"{non_utf8_skipped} Datei(en) wurden als nicht lesbar übersprungen "
                 "(weder UTF-8 noch erkennbar EBCDIC oder cp1252). Codepage im Profil angeben.",
             }
@@ -205,6 +210,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "SIZE_LIMIT",
+                "count": size_skipped,
                 "message": f"{size_skipped} Datei(en) überschreiten das Größenlimit und fehlen "
                 "in der Strukturanalyse.",
             }
@@ -213,6 +219,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "EXTENSIONLESS_AS_TEXT",
+                "count": extensionless_text,
                 "message": f"{extensionless_text} Datei(en) ohne Endung gelten als Text. Liegen "
                 "COBOL-Members darunter, 'language_paths' (Verzeichnis → cobol/copybook/jcl) setzen.",
             }
@@ -221,6 +228,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "COPYBOOK_AMBIGUOUS",
+                "count": len(copies["ambiguous"]),
                 "message": f"{len(copies['ambiguous'])} COPY-Name(n) haben mehrere Kandidaten und "
                 "bleiben deshalb offen. Mit 'copy_search_order' eine Bibliotheksreihenfolge festlegen.",
             }
@@ -229,6 +237,7 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         hints.append(
             {
                 "code": "PARSER_GAPS",
+                "count": len(gaps),
                 "message": "Die Grammatik meldet Fehler. Die häufigsten Muster stehen unter "
                 "'parser_gaps'; sie bestimmen, welche Anweisungen als Nächstes unterstützt werden.",
             }

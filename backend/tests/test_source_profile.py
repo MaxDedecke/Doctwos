@@ -181,6 +181,8 @@ def test_preflight_names_ebcdic_sources_and_accepts_bms_paths(
     report = client.get(f"/knowledge-sources/{source_id}/preflight").json()
     codes = {hint["code"] for hint in report["hints"]}
     assert "ENCODING_EBCDIC" in codes and "ENCODING_FALLBACK" not in codes
+    ebcdic_hint = next(hint for hint in report["hints"] if hint["code"] == "ENCODING_EBCDIC")
+    assert ebcdic_hint["count"] == 2
     assert report["files"]["encodings"] == {"cp273": 2}
 
     saved = client.put(

@@ -4,22 +4,29 @@ import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { createSettingsContextValue } from '@/test/settingsContext';
 import { SourceProfileDialog } from './SourceProfileDialog';
 
 vi.mock('@/app/services/api', () => ({
   api: { getPreflight: vi.fn(), getBuildProfile: vi.fn(), putBuildProfile: vi.fn() },
 }));
+let settingsValue = createSettingsContextValue();
+vi.mock('@/components/settings/SettingsContext', () => ({ useSettings: () => settingsValue }));
 
 const report = {
   source_id: 4,
   files: { total: 3, by_language: { cobol: { complete: 2, partial: 1 } }, encodings: { cp273: 3 } },
   parser_gaps: [{ pattern: "mismatched input 'GENERATE'", occurrences: 5, files: 1, example: 'app/A.cbl:18' }],
   copybooks: { ambiguous: [], missing: [{ name: 'DFHAID', references: 2, example_file: 'app/A.cbl' }], duplicate_copybook_names: 0 },
-  hints: [{ code: 'ENCODING_EBCDIC', message: '3 Quelldatei(en) wurden als EBCDIC erkannt.' }],
+  hints: [
+    { code: 'ENCODING_EBCDIC', count: 3, message: 'Serverfassung' },
+    { code: 'NEW_FROM_SERVER', message: 'Unbekannter Hinweis vom Server.' },
+  ],
 };
 const profile = { source_id: 4, build_profile: { source: { encoding: 'CCSID-1141' }, paths: {} }, language_paths: null };
 
-function open(canEdit: boolean) {
+function open(canEdit: boolean, theme: 'dark' | 'light' = 'dark') {
+  settingsValue = createSettingsContextValue({ theme });
   vi.mocked(api.getPreflight).mockResolvedValue(axiosResponse(report));
   vi.mocked(api.getBuildProfile).mockResolvedValue(axiosResponse(profile));
   render(<LanguageProvider><SourceProfileDialog source={{ id: 4, name: 'Kernbank' }} canEdit={canEdit} onClose={vi.fn()} /></LanguageProvider>);
@@ -30,17 +37,18 @@ describe('SourceProfileDialog', () => {
 
   it('zeigt Hinweise, Status je Sprache, Grammatiklücken und offene COPY-Namen', async () => {
     open(false);
-    expect(await screen.findByText('3 Quelldatei(en) wurden als EBCDIC erkannt.')).toBeTruthy();
+    expect(await screen.findByText(/^3 Quelldatei\(en\) wurden als EBCDIC erkannt/)).toBeTruthy();
+    expect(screen.getByText('Unbekannter Hinweis vom Server.')).toBeTruthy();
     expect(screen.getByText("mismatched input 'GENERATE'")).toBeTruthy();
     expect(screen.getByText('DFHAID')).toBeTruthy();
-    expect(screen.getByText(/cp273 3/)).toBeTruthy();
+    expect(screen.getByText('cp273 · 3')).toBeTruthy();
   });
 
   it('speichert ein geändertes Profil und meldet unlesbare Zeilen vor dem Senden', async () => {
     vi.mocked(api.putBuildProfile).mockResolvedValue(axiosResponse({ ...profile, build_profile: { source: { encoding: 'CCSID-1141', copy_search_order: ['copy/team'] }, paths: {} } }));
     open(true);
     fireEvent.click(await screen.findByRole('tab', { name: 'Buildprofil' }));
-    expect((screen.getByPlaceholderText('CCSID-1141') as HTMLInputElement).value).toBe('CCSID-1141');
+    expect((screen.getByLabelText('Codepage') as HTMLInputElement).value).toBe('CCSID-1141');
 
     fireEvent.change(screen.getByPlaceholderText('ENV=PROD'), { target: { value: 'ENV' } });
     fireEvent.click(screen.getByRole('button', { name: 'Speichern' }));
@@ -60,7 +68,17 @@ describe('SourceProfileDialog', () => {
   it('lässt Nicht-Administratoren nur lesen', async () => {
     open(false);
     fireEvent.click(await screen.findByRole('tab', { name: 'Buildprofil' }));
-    expect((screen.getByPlaceholderText('CCSID-1141') as HTMLInputElement).disabled).toBe(true);
+    expect((screen.getByLabelText('Codepage') as HTMLInputElement).disabled).toBe(true);
     expect((screen.getByRole('button', { name: 'Speichern' }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it.each(['dark', 'light'] as const)('folgt der Gestaltung der Einstellungen (%s)', async (theme) => {
+    open(true, theme);
+    await screen.findByText(/^3 Quelldatei\(en\) wurden als EBCDIC erkannt/);
+    const html = screen.getByTestId('source-profile-dialog').outerHTML;
+    expect(html).not.toContain('rounded-xl');
+    expect(html).toContain('text-xs font-bold uppercase tracking-wide');
+    expect(html).toContain(theme === 'dark' ? 'bg-ds-zinc-950/20' : 'bg-ds-zinc-50');
+    expect(html).not.toMatch(/(^|[\s"])text-white([\s"]|$)/);
   });
 });

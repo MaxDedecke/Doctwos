@@ -395,7 +395,6 @@
     },
     "sourceProfile": {
       "open": "Build profile and preflight",
-      "title": "Build profile and preflight · {{name}}",
       "description": "How the source was read, where analysis struggles, and the settings for the next sync.",
       "close": "Close",
       "tab": {
@@ -406,7 +405,7 @@
       "loadFailed": "The report or profile could not be loaded.",
       "hints": "Hints",
       "noHints": "Nothing stands out.",
-      "files": "Files ({{total}})",
+      "files": "Files by language",
       "language": "Language",
       "status": {
         "complete": "complete",
@@ -422,8 +421,6 @@
       "fileCount": "Files",
       "example": "Example",
       "openCopies": "Open COPY names",
-      "ambiguous": "ambiguous, {{count}} references",
-      "missing": "not found, {{count}} references",
       "profileIntro": "Applies from the next sync; affected files are then analysed again. Empty fields mean: detect from content.",
       "compilerFamily": "Compiler family",
       "compilerVersion": "Compiler version",
@@ -454,6 +451,32 @@
         "defines": "Conditional compilation: line “{{line}}” needs the form NAME=VALUE.",
         "language_paths": "Language by directory: line “{{line}}” needs the form prefix = language.",
         "paths_json": "Overrides by directory: not a valid JSON object."
+      },
+      "summaryFiles": "Files",
+      "summaryComplete": "Complete",
+      "summaryGaps": "Grammar patterns",
+      "summaryOpenCopies": "Open COPY names",
+      "noGaps": "No grammar errors reported.",
+      "noOpenCopies": "All COPY names are resolved.",
+      "groupCompiler": "Compiler",
+      "groupSource": "Source text",
+      "groupCopy": "Copybooks and conditional compilation",
+      "groupLanguage": "Language mapping",
+      "ambiguousBadge": "ambiguous",
+      "missingBadge": "missing",
+      "references": "{{count}} references",
+      "summaryCompleteCaption": "{{complete}} of {{total}} source files",
+      "eg": "e.g.",
+      "pathOverridesSummary": "Edit as JSON",
+      "hint": {
+        "PROFILE_MISSING": "No build profile set: the source format is only guessed. Set compiler family, source format and code page in the build profile.",
+        "ENCODING_FALLBACK": "{{count}} mainframe source file(s) were not UTF-8 and were read as cp1252. If the code page differs, set it in the build profile.",
+        "ENCODING_EBCDIC": "{{count}} source file(s) were recognised as EBCDIC; the code page was chosen by content. If it is known (e.g. CCSID-1141), set it in the build profile.",
+        "NON_UTF8_SKIPPED": "{{count}} file(s) were skipped: neither UTF-8 nor recognisable EBCDIC or cp1252. Set the code page in the build profile.",
+        "SIZE_LIMIT": "{{count}} file(s) exceed the size limit (GIT_MAX_FILE_MB) and are missing from the structure analysis.",
+        "EXTENSIONLESS_AS_TEXT": "{{count}} file(s) without an extension count as text. If they are mainframe members, map them under “Language by directory”.",
+        "COPYBOOK_AMBIGUOUS": "{{count}} COPY name(s) have several candidates and stay open. Set a library order with the COPY search order.",
+        "PARSER_GAPS": "The grammar reports {{count}} error pattern(s). They are listed below under “Most frequent grammar errors” and show which statements to support next."
       }
     },
     "sourcesTab": {

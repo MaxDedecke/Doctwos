@@ -395,7 +395,6 @@
     },
     "sourceProfile": {
       "open": "Buildprofil und Preflight",
-      "title": "Buildprofil und Preflight · {{name}}",
       "description": "Wie die Quelle gelesen wurde, wo die Analyse hakt, und die Einstellungen für den nächsten Sync.",
       "close": "Schließen",
       "tab": {
@@ -406,7 +405,7 @@
       "loadFailed": "Bericht oder Profil konnte nicht geladen werden.",
       "hints": "Hinweise",
       "noHints": "Keine Auffälligkeiten.",
-      "files": "Dateien ({{total}})",
+      "files": "Dateien je Sprache",
       "language": "Sprache",
       "status": {
         "complete": "vollständig",
@@ -422,8 +421,6 @@
       "fileCount": "Dateien",
       "example": "Beispiel",
       "openCopies": "Offene COPY-Namen",
-      "ambiguous": "mehrdeutig, {{count}} Verweise",
-      "missing": "nicht gefunden, {{count}} Verweise",
       "profileIntro": "Gilt ab dem nächsten Sync; betroffene Dateien werden dann neu analysiert. Leere Felder bedeuten: nach Inhalt erkennen.",
       "compilerFamily": "Compilerfamilie",
       "compilerVersion": "Compilerversion",
@@ -454,6 +451,32 @@
         "defines": "Bedingte Kompilierung: Zeile „{{line}}“ braucht die Form NAME=WERT.",
         "language_paths": "Sprache nach Verzeichnis: Zeile „{{line}}“ braucht die Form Präfix = Sprache.",
         "paths_json": "Abweichungen je Verzeichnis: kein gültiges JSON-Objekt."
+      },
+      "summaryFiles": "Dateien",
+      "summaryComplete": "Vollständig",
+      "summaryGaps": "Grammatikmuster",
+      "summaryOpenCopies": "Offene COPY-Namen",
+      "noGaps": "Keine Grammatikfehler gemeldet.",
+      "noOpenCopies": "Alle COPY-Namen sind aufgelöst.",
+      "groupCompiler": "Compiler",
+      "groupSource": "Quelltext",
+      "groupCopy": "Copybooks und bedingte Kompilierung",
+      "groupLanguage": "Sprachzuordnung",
+      "ambiguousBadge": "mehrdeutig",
+      "missingBadge": "fehlt",
+      "references": "{{count}} Verweise",
+      "summaryCompleteCaption": "{{complete}} von {{total}} Quelldateien",
+      "eg": "z. B.",
+      "pathOverridesSummary": "Als JSON bearbeiten",
+      "hint": {
+        "PROFILE_MISSING": "Kein Buildprofil gesetzt: Das Quellformat wird nur vermutet. Compilerfamilie, Quellformat und Codepage im Buildprofil angeben.",
+        "ENCODING_FALLBACK": "{{count}} Mainframe-Quelldatei(en) waren kein UTF-8 und wurden als cp1252 gelesen. Weicht die Codepage ab, sie im Buildprofil angeben.",
+        "ENCODING_EBCDIC": "{{count}} Quelldatei(en) wurden als EBCDIC erkannt, die Codepage nach Inhalt gewählt. Ist sie bekannt (z. B. CCSID-1141), im Buildprofil angeben.",
+        "NON_UTF8_SKIPPED": "{{count}} Datei(en) wurden übersprungen: weder UTF-8 noch erkennbar EBCDIC oder cp1252. Codepage im Buildprofil angeben.",
+        "SIZE_LIMIT": "{{count}} Datei(en) überschreiten das Größenlimit (GIT_MAX_FILE_MB) und fehlen in der Strukturanalyse.",
+        "EXTENSIONLESS_AS_TEXT": "{{count}} Datei(en) ohne Endung gelten als Text. Liegen Mainframe-Members darunter, unter „Sprache nach Verzeichnis“ zuordnen.",
+        "COPYBOOK_AMBIGUOUS": "{{count}} COPY-Name(n) haben mehrere Kandidaten und bleiben offen. Mit der COPY-Suchreihenfolge eine Bibliotheksreihenfolge festlegen.",
+        "PARSER_GAPS": "Die Grammatik meldet {{count}} Fehlermuster. Sie stehen unten unter „Häufigste Grammatikfehler“ und zeigen, welche Anweisungen als Nächstes unterstützt werden sollten."
       }
     },
     "sourcesTab": {

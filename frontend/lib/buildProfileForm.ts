@@ -28,7 +28,7 @@ export interface PreflightReport {
     missing: { name: string; references: number; example_file: string }[];
     duplicate_copybook_names: number;
   };
-  hints: { code: string; message: string }[];
+  hints: { code: string; message: string; count?: number }[];
 }
 
 export const SOURCE_FORMATS = ['fixed', 'free', 'variable', 'extended'] as const;
