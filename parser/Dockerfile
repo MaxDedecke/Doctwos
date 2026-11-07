@@ -56,6 +56,7 @@ COPY xslt/ xslt/
 COPY shell/ shell/
 COPY resources/ resources/
 COPY jcl/ jcl/
+COPY bms/ bms/
 COPY connectors/ connectors/
 COPY core/ core/
 COPY tasks/ tasks/
