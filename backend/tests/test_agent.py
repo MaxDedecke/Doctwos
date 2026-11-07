@@ -9,14 +9,12 @@ import httpx
 import pytest
 
 import core.config as cfg
-from agent import (
-    MAX_AGENT_TURNS,
+from agent import MAX_AGENT_TURNS, run_agent_loop
+from services.agent_repo_tools import find_repo_files, list_repo_files
+from services.agent_tool_results import (
     MAX_MCP_TOOL_RESULT_CHARS,
     _cap_tool_result,
     _tool_result_was_truncated,
-    find_repo_files,
-    list_repo_files,
-    run_agent_loop,
 )
 
 
@@ -47,7 +45,7 @@ def test_source_wide_file_lookup_reaches_deep_paths_and_omits_git_metadata(monke
     (tmp_path / ".git").mkdir()
     (tmp_path / ".git" / "config").write_text("private metadata", encoding="utf-8")
     monkeypatch.setattr(
-        "agent.get_repo_path",
+        "services.agent_repo_tools.get_repo_path",
         lambda _repo_id, file_path="": str(tmp_path / file_path) if file_path else str(tmp_path),
     )
 
@@ -221,7 +219,7 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
     captured = {}
 
     monkeypatch.setattr(
-        "agent.get_repo_path",
+        "services.agent_repo_tools.get_repo_path",
         lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path),
     )
 
@@ -283,11 +281,11 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
     captured = {}
 
     monkeypatch.setattr(
-        "agent.get_repo_path",
+        "services.agent_repo_tools.get_repo_path",
         lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path),
     )
     monkeypatch.setattr(
-        "agent.get_repo_entities",
+        "services.agent_repo_tools.get_repo_entities",
         lambda _project_id, _db, query="", limit=80, file_paths=None, entity_names=None: {
             "entities": [],
             "file_paths": file_paths,
@@ -352,11 +350,11 @@ async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkey
     target.write_text("class UserServiceImpl {}\n", encoding="utf-8")
     calls = {"count": 0}
     monkeypatch.setattr(
-        "agent.get_repo_path",
+        "services.agent_repo_tools.get_repo_path",
         lambda _repo_id, file_path="": str(tmp_path / file_path) if file_path else str(tmp_path),
     )
     monkeypatch.setattr(
-        "agent.get_repo_entities",
+        "services.agent_repo_tools.get_repo_entities",
         lambda *_args, **_kwargs: {
             "entities": [
                 {
@@ -796,7 +794,7 @@ async def test_every_provider_receives_the_bootstrap_evidence(monkeypatch, tmp_p
     """Das vorab gelesene Beleg-Werkzeug muss beim Modell ankommen, nicht nur in der UI."""
     (tmp_path / "config.sh").write_text("#!/bin/sh\nMODE=prod\n", encoding="utf-8")
     monkeypatch.setattr(
-        "agent.get_repo_path",
+        "services.agent_repo_tools.get_repo_path",
         lambda _repo_id, _file_path="": str(tmp_path / _file_path) if _file_path else str(tmp_path),
     )
     requests = []

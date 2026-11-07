@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-import agent as agent_module
+from services import agent_repo_tools as agent_module
 from services.chat_sources import validate_answer_sources
-from agent import find_repo_files
+from services.agent_repo_tools import find_repo_files
 
 
 CASES = json.loads((Path(__file__).parent / "fixtures" / "eval_ground_truth.json").read_text())

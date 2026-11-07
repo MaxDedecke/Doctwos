@@ -1219,7 +1219,7 @@ def build_pinned_context(
         elif repository_id:
             # Import here: agent imports runtime connector code and must not become a
             # dependency of service-module import during API startup.
-            from agent import get_repo_path
+            from services.agent_repo_tools import get_repo_path
 
             full_path = get_repo_path(repository_id, pinned_file)
             if full_path and os.path.exists(full_path):
