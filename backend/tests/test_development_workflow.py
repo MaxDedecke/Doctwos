@@ -1,3 +1,4 @@
+from pathlib import Path
 from datetime import datetime, timezone
 import subprocess
 
@@ -209,7 +210,7 @@ def test_unchanged_evidence_file_survives_source_sync(db_session, test_project, 
     from doctus_models.insight_evidence import snapshot_evidence
     import sys
 
-    sys.path.insert(0, "/parser")
+    sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "parser"))
     from insight_review import mark_source_insights_outdated
 
     author = db_session.query(User).first()

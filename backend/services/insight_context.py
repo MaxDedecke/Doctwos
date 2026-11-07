@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 from core.projects import assert_project_visible
 from doctus_models.database import Insight, CodeEntity
+from doctus_models.insight_versions import version_state
 
 
 def related_insights(db, project_id, nodes, limit=40):
@@ -32,7 +33,7 @@ def related_insights(db, project_id, nodes, limit=40):
     )
 
 
-def retrieve_insight_context(db, user, project_id, message, sources=None):
+def retrieve_insight_context(db, user, project_id, message, sources=None, source_id=None):
     if project_id is None:
         return ""
     assert_project_visible(project_id, user, db)
@@ -79,7 +80,10 @@ def retrieve_insight_context(db, user, project_id, message, sources=None):
     budget = 8000
     parts = []
     for insight in matches:
-        if not insight.evidence_json:
+        if not insight.evidence_json or version_state(db, insight, source_id=source_id) not in {
+            "current",
+            "project",
+        }:
             continue
         citation = f"[Insight:{insight.id}]"
         payload = escape(
@@ -90,6 +94,7 @@ def retrieve_insight_context(db, user, project_id, message, sources=None):
                     "title": insight.title,
                     "content": insight.content,
                     "status": insight.status,
+                    "version_bindings": insight.version_bindings,
                     "evidence": insight.evidence_json,
                 },
                 ensure_ascii=False,
@@ -112,6 +117,7 @@ def retrieve_insight_context(db, user, project_id, message, sources=None):
                     "content": insight.content,
                     "evidence": insight.evidence_json,
                     "status": insight.status,
+                    "version_bindings": insight.version_bindings,
                 }
             )
     if not parts:
@@ -137,3 +143,22 @@ def resolve_insight_sources(answer, candidates):
             seen.add(insight_id)
             result.append(dict(by_id[insight_id]))
     return result
+
+
+def related_insight_records(db, project_id, nodes):
+    return [
+        {
+            "id": insight.id,
+            "title": insight.title,
+            "content": insight.content,
+            "status": insight.status,
+            "revision": insight.revision,
+            "evidence": insight.evidence_json,
+            "version_bindings": insight.version_bindings,
+            "version_state": version_state(db, insight),
+            "verified_by_id": insight.verified_by_id,
+            "verified_at": insight.verified_at.isoformat() if insight.verified_at else None,
+            "outdated_at": insight.outdated_at.isoformat() if insight.outdated_at else None,
+        }
+        for insight in related_insights(db, project_id, nodes)
+    ]

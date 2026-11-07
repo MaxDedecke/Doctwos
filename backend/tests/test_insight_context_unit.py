@@ -14,8 +14,9 @@ class InsightContextTests(unittest.TestCase):
         self.assertEqual(retrieve_insight_context(db, object(), None, "Payment"), "")
         db.query.assert_not_called()
 
+    @patch("services.insight_context.version_state", return_value="project")
     @patch("services.insight_context.assert_project_visible")
-    def test_snapshot_and_budget(self, visible):
+    def test_snapshot_and_budget(self, visible, version):
         db = MagicMock()
         db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [
             SimpleNamespace(
@@ -23,6 +24,7 @@ class InsightContextTests(unittest.TestCase):
                 title="Payment",
                 content="x" * 9000,
                 status="verified",
+                version_bindings=None,
                 evidence_json=[{"file": "big.cbl"}],
             ),
             SimpleNamespace(
@@ -30,10 +32,16 @@ class InsightContextTests(unittest.TestCase):
                 title="Payment",
                 content="reviewed claim",
                 status="verified",
+                version_bindings=None,
                 evidence_json=[{"file": "PAY.cbl"}],
             ),
             SimpleNamespace(
-                id=3, title="Payment", content="no evidence", status="verified", evidence_json=[]
+                id=3,
+                title="Payment",
+                content="no evidence",
+                status="verified",
+                version_bindings=None,
+                evidence_json=[],
             ),
         ]
         insight_query = db.query.return_value
@@ -68,6 +76,7 @@ class InsightContextTests(unittest.TestCase):
                 title="Process",
                 content="Claim",
                 status="draft",
+                version_bindings=None,
                 evidence_json=[{"chat_message_id": 42}],
             )
         ]

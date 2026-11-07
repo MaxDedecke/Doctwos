@@ -340,7 +340,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                   </section>
                   {list(packageData.insights).length > 0 && <section className={sectionClass}>
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.insights')}</h3>
-                    {list(packageData.insights).map(item => <article key={String(item.id)} className="mb-3 text-xs"><strong>{text(item.title)}</strong> · {t(`insightReview.status.${text(item.status)}`)}<p className="whitespace-pre-wrap">{text(item.content)}</p><InsightEvidence evidence={list(item.evidence)} onOpenFile={(path, line, sourceId) => openCode(path, line, sourceId)} /></article>)}
+                    {list(packageData.insights).map(item => <article key={String(item.id)} className="mb-3 text-xs"><strong>{text(item.title)}</strong> · {t(`insightReview.status.${text(item.status)}`)}<p className="whitespace-pre-wrap">{text(item.content)}</p>{item.version_state != null && <p className="mt-1 text-ds-zinc-500">{t(`insightCommit.versionState.${text(item.version_state)}`)}</p>}<InsightEvidence evidence={list(item.version_bindings)} /><InsightEvidence evidence={list(item.evidence)} onOpenFile={(path, line, sourceId) => openCode(path, line, sourceId)} /></article>)}
                   </section>}
                   {packageData.build_evidence != null && <section className={sectionClass}><h3 className="text-xs font-semibold">{t('changePackage.buildArtifacts')}</h3><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(packageData.build_evidence, null, 2)}</pre></section>}
                   <section className={sectionClass}>

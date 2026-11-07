@@ -12,13 +12,22 @@ from core.projects import assert_project_visible, get_project_role
 from core.teams import is_admin
 from doctus_models.database import Insight, KnowledgeSource, User, DocumentChunk
 from doctus_models.insight_evidence import snapshot_evidence
+from doctus_models.insight_versions import capture_versions, version_state, versions_match
 
 
 router = APIRouter(prefix="/projects", tags=["insights"])
 
 
 def _serialize(insight: Insight, db=None) -> dict:
+    current_versions = (
+        capture_versions(db, insight.project_id, insight.evidence_json) if db is not None else []
+    )
     return {
+        "version_bindings": insight.version_bindings,
+        "current_versions": current_versions,
+        "version_state": version_state(db, insight, current_versions)
+        if db is not None
+        else "unknown",
         "current_sources": [
             {
                 "source_id": source.id,
@@ -123,6 +132,7 @@ def create_insight(
         content=body.content.strip(),
         origin_kind=body.origin_kind,
         evidence_json=evidence,
+        version_bindings=capture_versions(db, project_id, evidence, dependencies=True),
         status="draft",
         created_by_id=user.id,
     )
@@ -192,14 +202,37 @@ def verify_insight(
     db.refresh(insight, with_for_update=True)
     if body.expected_revision is not None and insight.revision != body.expected_revision:
         raise HTTPException(status_code=409, detail="Erkenntnis wurde zwischenzeitlich geändert")
-    if insight.status not in {"draft", "outdated"}:
+    needs_version_review = insight.status == "verified" and version_state(db, insight) not in {
+        "current",
+        "project",
+    }
+    if insight.status not in {"draft", "outdated"} and not needs_version_review:
         raise HTTPException(status_code=409, detail="Erkenntnis wurde bereits freigegeben")
     if insight.created_by_id == user.id and not is_admin(user):
         raise HTTPException(
             status_code=403, detail="Ersteller dürfen ihre eigene Erkenntnis nicht freigeben"
         )
 
+    try:
+        current_versions = capture_versions(
+            db, project_id, insight.evidence_json, dependencies=True, strict=True
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    if not current_versions and version_state(db, insight) == "unbound":
+        raise HTTPException(
+            status_code=409, detail="Belege sind keiner eindeutigen Quelle zugeordnet"
+        )
+    expected = body.expected_versions
+    if expected is None:
+        expected = insight.version_bindings
+    if current_versions and (expected is None or not versions_match(expected, current_versions)):
+        raise HTTPException(
+            status_code=409,
+            detail="Quellenstand hat sich geändert; bitte Commit und Analysekontext erneut prüfen",
+        )
     _record_review(insight, user, "verify")
+    insight.version_bindings = current_versions
     insight.evidence_json = _current_evidence(db, project_id, insight.evidence_json)
     insight.outdated_at = None
     insight.outdated_source_ids = []
@@ -219,6 +252,7 @@ def _record_review(insight, user, action):
             "action": action,
             "user_id": user.id,
             "created_by_id": insight.created_by_id,
+            "version_bindings": insight.version_bindings,
             "at": datetime.now(timezone.utc).isoformat(),
             "title": insight.title,
             "content": insight.content,
@@ -293,3 +327,47 @@ def review_insight(
     db.commit()
     db.refresh(insight)
     return _serialize(insight, db)
+
+
+@router.get("/{project_id}/insights/commit-sources")
+def commit_sources(
+    project_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    assert_project_visible(project_id, user, db)
+    return [
+        {
+            "id": source.id,
+            "name": source.name,
+            "branch": source.branch,
+            "indexed_commit": (source.sync_cursor or {}).get("last_commit"),
+            "sync_status": source.sync_status,
+        }
+        for source in db.query(KnowledgeSource)
+        .filter(
+            KnowledgeSource.project_id == project_id,
+            KnowledgeSource.type.ilike("git"),
+        )
+        .order_by(KnowledgeSource.id)
+        .all()
+    ]
+
+
+@router.get("/{project_id}/insights/commit-check")
+def inspect_commit_insights(
+    project_id: int,
+    source_id: int = Query(ge=1),
+    target_ref: str = Query(min_length=1, max_length=256),
+    after_id: int = Query(default=0, ge=0),
+    limit: int = Query(default=25, ge=1, le=25),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    from services.insight_commit_check import check_commit
+
+    assert_project_visible(project_id, user, db)
+    try:
+        return check_commit(db, project_id, source_id, target_ref, after_id=after_id, limit=limit)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

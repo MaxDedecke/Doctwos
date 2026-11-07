@@ -79,9 +79,22 @@ export const api = {
     createInsight: (projectId: number, data: { title: string; content: string; origin_kind: 'chat' | 'code' | 'process'; evidence: Array<Record<string, unknown>> }) =>
         axios.post(`${API_URL}/projects/${projectId}/insights`, data),
     getInsights: (projectId: number, status?: 'draft' | 'verified') =>
-        axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified' | 'outdated' | 'rejected'; revision?: number; review_history?: Array<Record<string, unknown>>; current_sources?: Array<Record<string, unknown>>; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null; outdated_at: string | null; outdated_source_ids: number[] }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
-    verifyInsight: (projectId: number, insightId: number, revision?: number) =>
-        axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/verify`, { confirm: true, expected_revision: revision }),
+        axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified' | 'outdated' | 'rejected'; revision?: number; review_history?: Array<Record<string, unknown>>; version_bindings?: Array<Record<string, unknown>> | null; current_versions?: Array<Record<string, unknown>>; version_state?: string; current_sources?: Array<Record<string, unknown>>; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null; outdated_at: string | null; outdated_source_ids: number[] }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
+    verifyInsight: (projectId: number, insightId: number, revision?: number, versions?: Array<Record<string, unknown>>) =>
+        axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/verify`, { confirm: true, expected_revision: revision, expected_versions: versions }),
+    getInsightCommitSources: (projectId: number) =>
+        axios.get<Array<{ id: number; name: string; branch: string | null; indexed_commit: string | null }>>(`${API_URL}/projects/${projectId}/insights/commit-sources`),
+    checkInsightCommit: (projectId: number, sourceId: number, targetRef: string, afterId = 0) =>
+        axios.get<{
+            source_id: number; branch: string | null; target_commit: string; target_indexed: boolean; next_cursor: number | null;
+            items: Array<{
+                id: number; title: string; content: string; status: string; revision: number; created_by_id: number; result: string; reason: string;
+                base_commit?: string; can_verify: boolean;
+                evidence: Array<Record<string, unknown>>; version_bindings: Array<Record<string, unknown>> | null;
+                current_versions: Array<Record<string, unknown>>;
+                files: Array<{ file: string; change: string; kind: string; diff?: { text: string; truncated: boolean } }>;
+            }>;
+        }>(`${API_URL}/projects/${projectId}/insights/commit-check`, { params: { source_id: sourceId, target_ref: targetRef, after_id: afterId } }),
     reviewInsight: (projectId: number, insightId: number, data: { action: 'revise' | 'reject'; expected_revision: number; title?: string; content?: string }) =>
         axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/review`, data),
     deleteInsight: (projectId: number, insightId: number) =>

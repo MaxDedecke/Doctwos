@@ -23,6 +23,7 @@ def append_insight_graph(db, project_ids, nodes, edges, ensure_file, doc_node):
             "content": insight.content,
             "status": insight.status,
             "evidence": insight.evidence_json or [],
+            "version_bindings": insight.version_bindings,
         }
         for index, evidence in enumerate(insight.evidence_json or []):
             target_id = None

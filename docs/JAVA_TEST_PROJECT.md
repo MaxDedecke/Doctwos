@@ -291,3 +291,72 @@ und zehn bestehende Warnungen. Migration 0045 wurde zusätzlich mit vorhandenem
 Index wiederholt sowie auf einer isolierten Testdatenbank zurück- und wieder
 vorwärts migriert. Regressionen prüfen die gemeinsame Indexdefinition und
 unveränderte ungelöste/dynamische Namensauflösung für Java und COBOL.
+
+## Versionsgebundene Erkenntnisse und Commit-Prüfung (07.11.2026)
+
+Jede neue Erkenntnis hält die Quellenstände ihrer Belege fest. Bei Git gehören
+Quell-ID, Repository-Identität, konfigurierter Branch, vollständiger Commit und
+Analysekontext dazu. Der Analysekontext umfasst Quellkonfiguration und die
+Analyse-Fingerprints der belegten Dateien. Ist kein Branch konfiguriert, bleibt
+die Bindung ausdrücklich commitbezogen. Eine Freigabe übernimmt diesen Stand
+erst nach Vergleich mit den vom Client angezeigten Versionsangaben.
+
+Historische Erkenntnisse erhalten durch Migration 0046 keine nachträglich
+geratene Versionsbindung. In Projekten mit Git-Quellen werden sie bis zur
+erneuten Prüfung aus dem automatischen Chat-Kontext ausgeschlossen.
+Projektwissen in Projekten ohne Git-Quellen behält seinen bisherigen Ablauf.
+Alte Belege mit Objekt-ID oder eindeutigem Dateipfad können bei ausdrücklicher
+Freigabe dem aktuellen Quellenstand zugeordnet werden. Mehrdeutige oder fehlende
+Belege bleiben ungeklärt.
+
+Das Retrieval prüft Commit, Branch, Repository und Analysekontext. Bei einem
+gewählten Git-Kontext werden Erkenntnisse anderer Git-Quellen ausgeschlossen.
+Ein neuer Commit sowie ein neuer Analysekontext können auch bei unveränderter
+Belegdatei eine erneute Prüfung erfordern. Freigegebene abgeleitete Erkenntnisse
+verfolgen zusätzlich die Revisionen ihrer referenzierten Erkenntnisse. Zyklen
+und mehr als vier Verweisebenen verhindern die Freigabe.
+
+Die bestehende Ansicht „Erkenntnisse prüfen“ enthält die Commit-Prüfung.
+Git-Quelle und neue Referenz auswählen und „Commit prüfen“ ausführen.
+Die Referenz wird gegen lokal verfügbare Git-Objekte auf einen vollständigen
+Commit aufgelöst. Pro Seite werden bis zu 25 Erkenntnisse untersucht.
+Der Bericht zeigt die Aussage, den Prüfstatus, Ausgangs- und Zielcommit sowie
+geänderte Belege und erfasste Abhängigkeitsdateien. Für bis zu drei geänderte
+Dateien erscheinen begrenzte Diff-Vorschauen. Weitere Seiten sind nachladbar.
+
+Die Prüfung unterscheidet geänderte Belege/Abhängigkeiten, unveränderte
+Belegdateien und nicht prüfbare Fälle. Sie verändert keine Erkenntnis und
+erteilt keine fachliche Freigabe. Ein Zielcommit kann vor seiner Indizierung
+untersucht werden. Freigeben ist erst für den vollständig indizierten Zielstand
+möglich. Dabei gelten weiterhin Vier-Augen-Regel, Admin-Ausnahme,
+Revisionsprüfung und Quellenversionsprüfung. Die Historie erhält die bisherige
+Aussage einschließlich ihrer Versionsbindung.
+
+Die erfassten Abhängigkeitsdateien stammen aus aufgelösten direkten
+Codebeziehungen im selben Repository zum Zeitpunkt der Bindung. Bis zu 100
+solche Pfade werden gespeichert. Dynamische Beziehungen, weitere Repositories
+und beliebige Laufzeiteffekte sind zusätzliche fachliche Prüffragen.
+„Belegdateien unverändert“ bezeichnet den Dateivergleich und bestätigt keine
+semantische Gültigkeit. Fehlende lokale Revisionen, fehlende Dateien und
+überschrittene Grenzen erscheinen als nicht prüfbar.
+
+Die lesenden APIs sind
+`GET /projects/{project_id}/insights/commit-sources` und
+`GET /projects/{project_id}/insights/commit-check` mit `source_id`,
+`target_ref`, optional `after_id` und `limit`.
+Die Freigabe übermittelt neben `expected_revision` die angezeigten
+`expected_versions`. Die APIs prüfen vor Zugriff die Projektberechtigung.
+Migration 0046 und gemeinsames Modellpaket 1.8.0 werden von Backend und Parser
+benötigt.
+
+Die Abnahme dieses Auftrags umfasst 903 bestandene Backend-Tests (1 Skip),
+854 Parser-Tests (7 Skips) und 1.104 Frontend-Tests. Echte temporäre Git-Repositories
+prüfen geänderte Abhängigkeiten, gelöschte Belege, Profilwechsel beim selben
+Commit, Main-/Release-Isolation, ungebundene Altbestände, seitenweise Abfragen,
+explizite Freigabe mit Versionskonflikt und die Weitergabe über Erkenntnisreferenzen.
+Java und COBOL verwenden denselben Vergleich. Ein leerer neuer Commit erfordert
+ebenfalls die ausdrückliche Freigabe seiner neuen Versionsbindung.
+Die Frontend-Tests prüfen außerdem verspätete Antworten nach Wechsel des
+Zielcommits, unindizierte Ziele und die Vier-Augen-Regel. TypeScript, Ruff,
+Formatprüfung, ESLint und Design-Token-Prüfung bestanden. Migration 0046 wurde
+auf einer isolierten Datenbank vorwärts und rückwärts geprüft.

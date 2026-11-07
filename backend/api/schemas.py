@@ -63,6 +63,7 @@ class InsightVerification(BaseModel):
 
     confirm: bool
     expected_revision: int | None = Field(default=None, ge=1)
+    expected_versions: List[Dict[str, Any]] | None = None
 
 
 class InsightReview(BaseModel):

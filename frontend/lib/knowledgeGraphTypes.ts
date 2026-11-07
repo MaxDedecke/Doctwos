@@ -5,6 +5,7 @@ export interface GraphNode {
   content?: string;
   status?: string;
   evidence?: Array<Record<string, unknown>>;
+  version_bindings?: Array<Record<string, unknown>> | null;
   entity_type?: string;
   language?: string;
   analysis_status?: 'partial' | 'text_fallback' | 'skipped' | 'error';

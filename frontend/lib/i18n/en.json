@@ -2411,5 +2411,54 @@
     "bindingsLimited": "Additional relationships are available in the references menu.",
     "relations": { "INJECTS": "Injects", "DISPATCHES_TO": "Calls selected target", "EXPOSES": "Exposes" },
     "relationsIncoming": { "INJECTS": "Used by", "DISPATCHES_TO": "Called by", "EXPOSES": "Exposed by" }
+  },
+  "insightCommit": {
+    "noBranch": "Branch unspecified",
+    "title": "Check commit against insights",
+    "source": "Git source and branch",
+    "selectSource": "Select source",
+    "target": "New commit or Git reference",
+    "check": "Check commit",
+    "loading": "Checking …",
+    "loadFailed": "Git sources could not be loaded.",
+    "checkFailed": "Commit check failed. Check the source and locally available Git reference.",
+    "approveFailed": "Approval failed. The source version or insight changed. Check again.",
+    "confirm": "Explicitly approve this insight for the displayed version {{commit}}?",
+    "scopeNote": "Compares captured evidence files and recorded dependencies. Domain validity requires review.",
+    "notIndexed": "This commit is not fully indexed. Approval becomes available after synchronization.",
+    "empty": "No insights in this source scope.",
+    "previewTruncated": "Diff preview is limited or unavailable for this file.",
+    "bindings": "Bound source versions",
+    "approve": "Approve for this source version",
+    "next": "More insights",
+    "result": {
+      "unknown": "Cannot assess",
+      "needs_review": "Review changes",
+      "evidence_unchanged": "Evidence files unchanged"
+    },
+    "reason": {
+      "unbound": "A reviewed version binding is missing.",
+      "base_unavailable": "The bound base revision is unavailable locally.",
+      "missing_or_unbounded_evidence": "Evidence paths are missing or exceed the check limit.",
+      "evidence_unavailable": "Git evidence is unavailable.",
+      "files_changed": "Evidence or recorded dependencies changed.",
+      "files_unchanged": "Compared files are unchanged.",
+      "version_changed": "Approval belongs to another source version.",
+      "dependency_limit": "Recorded dependencies exceed the check limit.",
+      "analysis_changed": "The analysis or profile context changed."
+    },
+    "fileKind": {
+      "evidence": "Evidence",
+      "dependency": "Dependency"
+    },
+    "versionState": {
+      "current": "Version binding matches the current index.",
+      "project": "Project knowledge without Git binding.",
+      "unbound": "Version binding missing – review the source version.",
+      "different_version": "Approval belongs to another commit or analysis context.",
+      "other_source": "Insight belongs to another Git source.",
+      "index_unavailable": "Source index is incomplete.",
+      "unknown": "Version unknown."
+    }
   }
 }

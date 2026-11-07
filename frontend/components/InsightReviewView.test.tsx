@@ -7,7 +7,7 @@ import { InsightReviewView } from './InsightReviewView';
 
 vi.mock('@/app/services/api', () => ({ api: {
   getInsights: vi.fn(), getProjectMembers: vi.fn(), getLinkRecommendations: vi.fn(),
-  reviewInsight: vi.fn(), verifyInsight: vi.fn(), deleteInsight: vi.fn(),
+  getInsightCommitSources: vi.fn(), checkInsightCommit: vi.fn(), reviewInsight: vi.fn(), verifyInsight: vi.fn(), deleteInsight: vi.fn(),
 } }));
 
 const insight = {
@@ -18,6 +18,7 @@ const insight = {
 };
 
 beforeEach(() => {
+  vi.mocked(api.getInsightCommitSources).mockResolvedValue(axiosResponse([]));
   vi.mocked(api.getInsights).mockResolvedValue(axiosResponse([insight]));
   vi.mocked(api.getProjectMembers).mockResolvedValue(axiosResponse([]));
   vi.mocked(api.getLinkRecommendations).mockResolvedValue(axiosResponse({ counts: { pending: 0, approved: 0, rejected: 0 } }) as Awaited<ReturnType<typeof api.getLinkRecommendations>>);
@@ -75,7 +76,7 @@ it('reapproves an outdated finding with its displayed revision', async () => {
   vi.mocked(api.verifyInsight).mockResolvedValue(axiosResponse({}));
   renderView();
   fireEvent.click(await screen.findByRole('button', { name: 'Freigeben' }));
-  await waitFor(() => expect(api.verifyInsight).toHaveBeenCalledWith(3, 10, 7));
+  await waitFor(() => expect(api.verifyInsight).toHaveBeenCalledWith(3, 10, 7, undefined));
 });
 
 it('edits the finding and submits a revision guarded draft', async () => {

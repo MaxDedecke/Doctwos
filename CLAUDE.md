@@ -148,3 +148,13 @@ Maven-/CI-Belege im Änderungspaket. Dieser Auftrag erlaubt die Erweiterung der
 vorhandenen Ansichten und API. Build-Belege kommen aus dem Kunden-Build und werden
 an dessen indizierten Commit gebunden. Maven-Plugins werden beim Import weiterhin
 nicht ausgeführt. Fachlicher Umfang und Grenzen stehen in `docs/JAVA_TEST_PROJECT.md`.
+
+## Auftrag 07.11.2026 — Versionsgebundene Erkenntnisse
+
+Explizit beauftragt sind die Bindung von Erkenntnissen an Quellenversionen und
+eine Ansicht zum Prüfen eines neuen Commits gegen diese Erkenntnisse.
+Die bestehende Erkenntnisansicht und ihre APIs dürfen dafür erweitert werden.
+Historische Freigaben bleiben ohne belegbare Versionsbindung ungebunden.
+Eine Commit-Prüfung erzeugt einen Vergleich; die fachliche Freigabe erfolgt
+ausdrücklich am vollständig indizierten Zielstand. Stand und Grenzen stehen in
+`docs/JAVA_TEST_PROJECT.md`.

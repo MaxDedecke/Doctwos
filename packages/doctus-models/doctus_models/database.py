@@ -189,6 +189,7 @@ class Insight(Base):
     outdated_source_ids = Column(JSON, nullable=True)
     revision = Column(Integer, nullable=False, default=1, server_default="1")
     review_history = Column(JSON, nullable=False, default=list, server_default="[]")
+    version_bindings = Column(JSON, nullable=True)
 
     project = relationship("Project", backref=backref("insights", passive_deletes=True))
     created_by = relationship("User", foreign_keys=[created_by_id])

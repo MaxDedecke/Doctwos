@@ -790,7 +790,9 @@ async def retrieve_chat_context(
     from services.insight_context import retrieve_insight_context
 
     insight_sources = []
-    context += retrieve_insight_context(db, user, project_id, message, sources=insight_sources)
+    context += retrieve_insight_context(
+        db, user, project_id, message, sources=insight_sources, source_id=focused_source_id
+    )
     prompt = build_chat_prompt(
         context=context,
         pinned_context=pinned_context,

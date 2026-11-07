@@ -5,5 +5,5 @@ import type { GraphNode } from '@/lib/knowledgeGraphTypes';
 export function InsightGraphDetails({ node }: { node: GraphNode }) {
   const { t } = useLanguage();
   if (node.type !== 'insight') return null;
-  return <div className="text-xs"><p>{t(`insightReview.status.${node.status}`)}</p><p className="mt-2 whitespace-pre-wrap">{node.content}</p><InsightEvidence evidence={node.evidence || []} /></div>;
+  return <div className="text-xs"><p>{t(`insightReview.status.${node.status}`)}</p><p className="mt-2 whitespace-pre-wrap">{node.content}</p><InsightEvidence evidence={node.evidence || []} />{node.version_bindings && <details className="mt-2"><summary>{t('insightCommit.bindings')}</summary><InsightEvidence evidence={node.version_bindings} /></details>}</div>;
 }

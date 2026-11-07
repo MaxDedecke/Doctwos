@@ -2411,5 +2411,54 @@
     "bindingsLimited": "Weitere Verbindungen stehen im Referenzen-Menü zur Verfügung.",
     "relations": { "INJECTS": "Injiziert", "DISPATCHES_TO": "Ruft ausgewähltes Ziel auf", "EXPOSES": "Stellt bereit" },
     "relationsIncoming": { "INJECTS": "Wird verwendet von", "DISPATCHES_TO": "Wird aufgerufen von", "EXPOSES": "Wird bereitgestellt von" }
+  },
+  "insightCommit": {
+    "noBranch": "Branch nicht hinterlegt",
+    "title": "Commit gegen Erkenntnisse prüfen",
+    "source": "Git-Quelle und Branch",
+    "selectSource": "Quelle wählen",
+    "target": "Neuer Commit oder Git-Referenz",
+    "check": "Commit prüfen",
+    "loading": "Wird geprüft …",
+    "loadFailed": "Git-Quellen konnten nicht geladen werden.",
+    "checkFailed": "Commit-Prüfung fehlgeschlagen. Quelle und lokal verfügbare Git-Referenz prüfen.",
+    "approveFailed": "Freigabe fehlgeschlagen. Quellenstand oder Erkenntnis wurde geändert. Bitte erneut prüfen.",
+    "confirm": "Erkenntnis für den angezeigten Stand {{commit}} ausdrücklich freigeben?",
+    "scopeNote": "Verglichen werden gespeicherte Belegdateien und erfasste Abhängigkeiten. Fachliche Gültigkeit erfordert eine Prüfung.",
+    "notIndexed": "Dieser Commit ist noch nicht vollständig indiziert. Eine Freigabe wird nach der Synchronisierung möglich.",
+    "empty": "Keine Erkenntnisse in diesem Quellenbereich.",
+    "previewTruncated": "Diff-Vorschau begrenzt oder für diese Datei nicht verfügbar.",
+    "bindings": "Gebundene Quellenstände",
+    "approve": "Für diesen Quellenstand freigeben",
+    "next": "Weitere Erkenntnisse",
+    "result": {
+      "unknown": "Nicht prüfbar",
+      "needs_review": "Änderungen prüfen",
+      "evidence_unchanged": "Belegdateien unverändert"
+    },
+    "reason": {
+      "unbound": "Eine geprüfte Versionsbindung fehlt.",
+      "base_unavailable": "Die gebundene Ausgangsrevision fehlt lokal.",
+      "missing_or_unbounded_evidence": "Belegpfade fehlen oder überschreiten das Prüflimit.",
+      "evidence_unavailable": "Ein Git-Beleg ist nicht verfügbar.",
+      "files_changed": "Belege oder erfasste Abhängigkeiten wurden geändert.",
+      "files_unchanged": "Die verglichenen Dateien sind unverändert.",
+      "version_changed": "Die Freigabe gehört zu einem anderen Quellenstand.",
+      "dependency_limit": "Erfasste Abhängigkeiten überschreiten das Prüflimit.",
+      "analysis_changed": "Der Analyse- oder Profilkontext hat sich geändert."
+    },
+    "fileKind": {
+      "evidence": "Beleg",
+      "dependency": "Abhängigkeit"
+    },
+    "versionState": {
+      "current": "Versionsbindung entspricht dem aktuellen Index.",
+      "project": "Projektwissen ohne Git-Bindung.",
+      "unbound": "Versionsbindung fehlt – Quellenstand erneut prüfen.",
+      "different_version": "Freigabe gehört zu einem anderen Commit oder Analysekontext.",
+      "other_source": "Erkenntnis gehört zu einer anderen Git-Quelle.",
+      "index_unavailable": "Quellenindex ist nicht vollständig verfügbar.",
+      "unknown": "Versionsstand unbekannt."
+    }
   }
 }

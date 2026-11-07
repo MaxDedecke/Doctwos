@@ -876,3 +876,19 @@ ID-Index vollständig durchlief. Migration 0045 baut nebenläufig und repariert
 einen nach Abbruch verbliebenen ungültigen Index bei Wiederholung. Das gemeinsame
 Modellpaket 1.7.1 enthält dieselbe Indexdefinition. Vorher-/Nachher-Messwerte
 und Grenzen stehen in `docs/JAVA_TEST_PROJECT.md`.
+
+## Auftrag 07.11.2026 — Versionsbindung und Commit-Prüfansicht
+
+Die neue Versionsbindung gehört zum freigegebenen Erkenntnisstand und wird in
+dessen Historie erhalten. Eine Migration darf alte Aussagen keinem heutigen
+Commit zuordnen. Erkenntnisse ohne belegbaren Git-Stand erscheinen im
+Codeprojekt als ungebunden. Der Chat verwendet nur zum gewählten Quellenkontext
+und zum vollständig indizierten Stand passende Freigaben.
+
+Die Commit-Prüfung bleibt ein begrenzter, lesender Vergleich lokaler Git-Objekte.
+Sie meldet Dateiveränderungen, erfasste Abhängigkeiten und Prüflücken und liefert
+Diff-Vorschauen. Die fachliche Freigabe bleibt ein ausdrücklicher Vorgang für
+den vollständig indizierten Zielstand. Aussagen können über Referenzen auf andere
+Erkenntnisse aufgebaut werden; deren Revisionen sind Teil des Analysekontexts.
+Das bestehende Quellen-, Berechtigungs- und Vier-Augen-Modell wird weiterverwendet.
+Details und Grenzen stehen in `docs/JAVA_TEST_PROJECT.md`.

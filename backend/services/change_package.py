@@ -21,7 +21,7 @@ from doctus_models.database import (
 )
 from services.change_impact import inspect_change_impact
 from services.change_diff import _diff_impact
-from services.insight_context import related_insights
+from services.insight_context import related_insight_records
 from services.provenance import build_provenance
 
 
@@ -862,20 +862,7 @@ def inspect_change_package(
         },
         "change_impact": impact,
         "affected_code": explained_nodes,
-        "insights": [
-            {
-                "id": i.id,
-                "title": i.title,
-                "content": i.content,
-                "status": i.status,
-                "revision": i.revision,
-                "evidence": i.evidence_json,
-                "verified_by_id": i.verified_by_id,
-                "verified_at": i.verified_at.isoformat() if i.verified_at else None,
-                "outdated_at": i.outdated_at.isoformat() if i.outdated_at else None,
-            }
-            for i in related_insights(db, project_id, nodes)
-        ],
+        "insights": related_insight_records(db, project_id, nodes),
         "linked_knowledge": linked_knowledge,
         "historical_issues": issue_history,
         "tests": tests,
