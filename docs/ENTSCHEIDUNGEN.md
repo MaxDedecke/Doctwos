@@ -892,3 +892,25 @@ den vollständig indizierten Zielstand. Aussagen können über Referenzen auf an
 Erkenntnisse aufgebaut werden; deren Revisionen sind Teil des Analysekontexts.
 Das bestehende Quellen-, Berechtigungs- und Vier-Augen-Modell wird weiterverwendet.
 Details und Grenzen stehen in `docs/JAVA_TEST_PROJECT.md`.
+
+## Automatische CI-Ergebnisse im Änderungspaket (07.11.2026)
+
+Die CI veröffentlicht abgeschlossene Jobs über eigene, quellengebundene Tokens.
+Token sind gehasht, befristet und widerrufbar. Browserzugänge und lesende
+MCP-Tokens erhalten dadurch keine zusätzlichen Schreibrechte. Aktuelle
+Projektberechtigung und aktives Konto des Token-Erstellers bleiben erforderlich.
+
+Berichte können vor dem Git-Sync eintreffen. Gespeichert werden normierte,
+unveränderliche Ergebnisse mit Commit, Branch, Repository, Pipeline, Job,
+Versuch und Variante. Eine kompakte Identitäts-Hashspalte sichert gleichzeitige
+Wiederholungen ab. Unterschiedliche Inhalte derselben Identität liefern
+einen Konflikt. Das Änderungspaket liest passende Ergebnisse zum aktuellen
+vollständig indizierten Commit; frühere Versuche ersetzen keine neueren.
+
+Der Runner erfasst mehrere Maven-Module sowie Surefire und Failsafe. Er entfernt
+vor einem neuen Lauf bekannte alte Reportdateien und erhält den Maven-Fehlercode
+nach Veröffentlichung. POM-Properties, Plugin-Konfiguration und Testlogs werden
+vor dem Upload verworfen. Fehlende Berichte erzeugen keine bestandenen Tests.
+Das gemeinsame ORM-Register liegt in `model_base.py`; die beiden neuen
+Featuretabellen liegen separat in `ci_models.py` und werden aus dem bisherigen
+`database`-Modul re-exportiert. Migration 0047 und Modellversion 1.9.0 sind nötig.

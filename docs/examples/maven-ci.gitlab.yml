@@ -1,0 +1,12 @@
+# DOCTUS_CI_RUNNER points at scripts/publish_maven_ci.py from the delivered
+# ci-runner directory or a checkout of the Doctus tools on this runner.
+maven-verify:
+  stage: test
+  tags: [java]
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  script:
+    - python3 "$DOCTUS_CI_RUNNER" --variant jdk21-default --java-version 21
+  variables:
+    MAVEN_PROFILES: ""
+  # Configure DOCTUS_URL, DOCTUS_SOURCE_ID and masked DOCTUS_CI_TOKEN in CI settings.

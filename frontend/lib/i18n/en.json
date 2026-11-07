@@ -2460,5 +2460,42 @@
       "index_unavailable": "Source index is incomplete.",
       "unknown": "Version unknown."
     }
+  },
+  "ciBuild": {
+    "results": "CI results for this commit",
+    "attempt": "Attempt",
+    "openPipeline": "Open pipeline",
+    "tests": "Tests",
+    "counts": "{{tests}} tests · {{failures}} failures · {{errors}} errors · {{skipped}} skipped",
+    "profiles": "Profiles",
+    "dependencies": "Dependencies",
+    "truncated": "The result display is limited.",
+    "incomplete": "Artifacts incomplete.",
+    "evidence": {
+      "missing": "No CI results are available for the indexed commit yet.",
+      "index_unavailable": "CI results will be matched after indexing completes."
+    },
+    "status": {
+      "success": "Build succeeded",
+      "failed": "Build failed",
+      "cancelled": "Build cancelled"
+    },
+    "testsStatus": {
+      "passed": "Passed",
+      "failed": "Failed",
+      "unknown": "No usable test results",
+      "incomplete": "Test results incomplete"
+    },
+    "connection": "Manage CI connection",
+    "connectionFailed": "CI connection could not be loaded or changed.",
+    "adminRequired": "Project admins manage CI connections.",
+    "setupHint": "Configure the Maven runner in your pipeline with DOCTUS_URL, DOCTUS_SOURCE_ID and the token as a CI secret. Tokens expire after 90 days.",
+    "source": "Git source",
+    "selectSource": "Select source",
+    "tokenName": "CI credential name",
+    "createToken": "Create CI token",
+    "secretOnce": "Save this token as a CI secret now. It is displayed only once.",
+    "revoke": "Revoke",
+    "revoked": "Revoked"
   }
 }

@@ -2460,5 +2460,42 @@
       "index_unavailable": "Quellenindex ist nicht vollständig verfügbar.",
       "unknown": "Versionsstand unbekannt."
     }
+  },
+  "ciBuild": {
+    "results": "CI-Ergebnisse für diesen Commit",
+    "attempt": "Versuch",
+    "openPipeline": "Pipeline öffnen",
+    "tests": "Tests",
+    "counts": "{{tests}} Tests · {{failures}} fehlgeschlagen · {{errors}} Fehler · {{skipped}} übersprungen",
+    "profiles": "Profile",
+    "dependencies": "Abhängigkeiten",
+    "truncated": "Die Ergebnisanzeige ist begrenzt.",
+    "incomplete": "Artefakte unvollständig.",
+    "evidence": {
+      "missing": "Für den indizierten Commit liegen noch keine CI-Ergebnisse vor.",
+      "index_unavailable": "CI-Ergebnisse werden nach vollständiger Indizierung zugeordnet."
+    },
+    "status": {
+      "success": "Build erfolgreich",
+      "failed": "Build fehlgeschlagen",
+      "cancelled": "Build abgebrochen"
+    },
+    "testsStatus": {
+      "passed": "Bestanden",
+      "failed": "Fehlgeschlagen",
+      "unknown": "Keine auswertbaren Testergebnisse",
+      "incomplete": "Testergebnisse unvollständig"
+    },
+    "connection": "CI-Anbindung verwalten",
+    "connectionFailed": "CI-Anbindung konnte nicht geladen oder geändert werden.",
+    "adminRequired": "Die CI-Anbindung wird von Projekt-Admins verwaltet.",
+    "setupHint": "Den Maven-Runner in der Pipeline mit DOCTUS_URL, DOCTUS_SOURCE_ID und dem Token als CI-Secret konfigurieren. Das Token läuft nach 90 Tagen ab.",
+    "source": "Git-Quelle",
+    "selectSource": "Quelle wählen",
+    "tokenName": "Name des CI-Zugangs",
+    "createToken": "CI-Token erstellen",
+    "secretOnce": "Token jetzt als CI-Secret sichern. Es wird nur einmal angezeigt.",
+    "revoke": "Widerrufen",
+    "revoked": "Widerrufen"
   }
 }

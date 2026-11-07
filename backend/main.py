@@ -82,6 +82,7 @@ from api import (
     callgraph,
     process,
     change_packages,
+    ci_builds,
     jobs,
     audit,
     feedback_diagnostics,
@@ -152,6 +153,7 @@ app.include_router(entities.router, dependencies=_authenticated)
 app.include_router(callgraph.router, dependencies=_authenticated)
 app.include_router(process.router, dependencies=_authenticated)
 app.include_router(change_packages.router, dependencies=_authenticated)
+app.include_router(ci_builds.router)
 app.include_router(jobs.router, dependencies=_authenticated)
 app.include_router(audit.router, dependencies=[Depends(require_admin)])
 app.include_router(feedback_diagnostics.router, dependencies=[Depends(require_admin)])

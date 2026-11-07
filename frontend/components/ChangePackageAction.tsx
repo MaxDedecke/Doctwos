@@ -1,5 +1,7 @@
 "use client";
 
+import { CIBuildConnection } from '@/components/CIBuildConnection';
+import { CIBuildResults } from '@/components/CIBuildResults';
 import { InsightEvidence } from '@/components/InsightEvidence';
 import { API_URL, api } from '@/app/services/api';
 import type { WorkspaceDocument } from '@/types/domain';
@@ -250,6 +252,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
             </header>
 
             <form onSubmit={runAnalysis} className={`border-b p-4 ${border}`}>
+              <CIBuildConnection key={projectId} projectId={projectId} theme={theme} />
               <label className="mb-3 block text-xs">{t('changePackage.buildArtifacts')}
                 <input type="file" accept=".json" onChange={async event => {
                   const file = event.target.files?.[0];
@@ -342,6 +345,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.insights')}</h3>
                     {list(packageData.insights).map(item => <article key={String(item.id)} className="mb-3 text-xs"><strong>{text(item.title)}</strong> · {t(`insightReview.status.${text(item.status)}`)}<p className="whitespace-pre-wrap">{text(item.content)}</p>{item.version_state != null && <p className="mt-1 text-ds-zinc-500">{t(`insightCommit.versionState.${text(item.version_state)}`)}</p>}<InsightEvidence evidence={list(item.version_bindings)} /><InsightEvidence evidence={list(item.evidence)} onOpenFile={(path, line, sourceId) => openCode(path, line, sourceId)} /></article>)}
                   </section>}
+                  {packageData.ci_builds != null && <CIBuildResults data={packageData.ci_builds} />}
                   {packageData.build_evidence != null && <section className={sectionClass}><h3 className="text-xs font-semibold">{t('changePackage.buildArtifacts')}</h3><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(packageData.build_evidence, null, 2)}</pre></section>}
                   <section className={sectionClass}>
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.affectedCode')} · {codeItems.length}</h3>

@@ -23,6 +23,7 @@ from services.change_impact import inspect_change_impact
 from services.change_diff import _diff_impact
 from services.insight_context import related_insight_records
 from services.provenance import build_provenance
+from services.ci_builds import matching_builds
 
 
 MAX_PACKAGE_LINKS = 40
@@ -862,6 +863,7 @@ def inspect_change_package(
         },
         "change_impact": impact,
         "affected_code": explained_nodes,
+        "ci_builds": matching_builds(db, project_id, impact, nodes),
         "insights": related_insight_records(db, project_id, nodes),
         "linked_knowledge": linked_knowledge,
         "historical_issues": issue_history,

@@ -14,7 +14,6 @@ from sqlalchemy import (
     Index,
     event,
 )
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from pgvector.sqlalchemy import Vector
@@ -22,8 +21,9 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
 from doctus_models.crypto_types import EncryptedCredential, EncryptedString
+from .ci_models import CIBuildRun as CIBuildRun, CIBuildToken as CIBuildToken
 
-Base = declarative_base()
+from .model_base import Base
 
 
 class User(Base):

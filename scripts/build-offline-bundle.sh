@@ -129,6 +129,13 @@ cp scripts/test-remote-inference.sh "$bundle_dir/"
 cp scripts/check_confluence.py "$bundle_dir/"
 cp scripts/check_remote_inference.py "$bundle_dir/"
 cp docs/PILOT_DEPLOYMENT.md "$bundle_dir/"
+cp docs/CI_INTEGRATION.md "$bundle_dir/"
+mkdir -p "$bundle_dir/ci-runner/scripts/lib" "$bundle_dir/ci-runner/packages/doctus-models/doctus_models" "$bundle_dir/ci-runner/examples"
+cp scripts/publish_maven_ci.py "$bundle_dir/ci-runner/scripts/"
+cp scripts/lib/maven_ci_artifacts.py "$bundle_dir/ci-runner/scripts/lib/"
+cp packages/doctus-models/doctus_models/__init__.py packages/doctus-models/doctus_models/ci_artifacts.py "$bundle_dir/ci-runner/packages/doctus-models/doctus_models/"
+cp docs/examples/maven-ci.github.yml docs/examples/maven-ci.gitlab.yml "$bundle_dir/ci-runner/examples/"
+
 printf 'Version: %s\nCommit: %s\nBuilt: %s\n' "$DOCTUS_VERSION" "$GIT_SHA" "$BUILD_TIME" > "$bundle_dir/BUILD_MANIFEST.txt"
 if ! git diff --quiet; then echo "Includes uncommitted workspace changes" >> "$bundle_dir/BUILD_MANIFEST.txt"; fi
 cp -r config "$bundle_dir/"

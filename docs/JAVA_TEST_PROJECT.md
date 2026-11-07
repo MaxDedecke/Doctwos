@@ -360,3 +360,20 @@ Die Frontend-Tests prüfen außerdem verspätete Antworten nach Wechsel des
 Zielcommits, unindizierte Ziele und die Vier-Augen-Regel. TypeScript, Ruff,
 Formatprüfung, ESLint und Design-Token-Prüfung bestanden. Migration 0046 wurde
 auf einer isolierten Datenbank vorwärts und rückwärts geprüft.
+
+## Automatische CI-Anbindung (07.11.2026)
+
+Das Änderungspaket übernimmt jetzt gespeicherte CI-Ergebnisse automatisch für
+den jeweiligen vollständig indizierten Commit. Die einmalige Einrichtung
+erfolgt unter „CI-Anbindung verwalten“. Runner, GitHub Action, GitLab-Beispiel,
+Berechtigungsmodell und Grenzen sind in `docs/CI_INTEGRATION.md` beschrieben.
+
+Regressionen in `backend/tests/test_ci_builds.py` prüfen frühe Uploads vor dem
+Sync, exakte Commit-Zuordnung, Wiederholung und Konflikt, parallele identische
+Uploads, verspätete frühere Versuche, Tokenablauf/Widerruf, deaktivierte Nutzer,
+Projektrollen und Quellenänderungen. Ein End-to-End-Test führt den echten
+Python-Runner mit simuliertem Maven gegen die HTTP-API aus. Er prüft mehrere
+Module, Surefire/Failsafe, Entfernung alter Reports, bereinigte POM-Daten und
+den unveränderten Fehlercode eines fehlgeschlagenen Maven-Laufs.
+Die Oberflächentests prüfen Tokenausgabe, Ausblenden des Secrets, Rollen sowie
+die getrennte Anzeige von Build- und Teststatus.

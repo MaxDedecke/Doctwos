@@ -63,6 +63,12 @@ axios.interceptors.response.use(
 
 export const api = {
     fetch: fetchWithSessionHandling,
+    getCITokens: (projectId: number) =>
+        axios.get<{ can_manage: boolean; sources: Array<{ id: number; name: string; branch: string | null }>; tokens: Array<{ id: number; name: string; source_id: number; prefix: string; expires_at: string; revoked_at: string | null }> }>(`${API_URL}/projects/${projectId}/ci-tokens`),
+    createCIToken: (projectId: number, data: { source_id: number; name: string }) =>
+        axios.post<{ token: string }>(`${API_URL}/projects/${projectId}/ci-tokens`, data),
+    revokeCIToken: (projectId: number, tokenId: number) =>
+        axios.delete(`${API_URL}/projects/${projectId}/ci-tokens/${tokenId}`),
     getMe: () => axios.get<User>(`${API_URL}/auth/me`),
     getMcpTokens: () => axios.get<Array<{ id: number; name: string; prefix: string; created_at: string; expires_at: string; revoked_at: string | null }>>(`${API_URL}/mcp-tokens`),
     createMcpToken: (name: string, expires_in_days: number) => axios.post<{ id: number; name: string; prefix: string; created_at: string; expires_at: string; revoked_at: null; token: string }>(`${API_URL}/mcp-tokens`, { name, expires_in_days }),

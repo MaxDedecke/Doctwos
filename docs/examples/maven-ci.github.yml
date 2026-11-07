@@ -1,0 +1,23 @@
+name: Maven with Doctus evidence
+on:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - uses: MaxDedecke/Doctwos/.github/actions/maven-doctus@develop
+        with:
+          url: ${{ vars.DOCTUS_URL }}
+          source-id: ${{ vars.DOCTUS_SOURCE_ID }}
+          token: ${{ secrets.DOCTUS_CI_TOKEN }}
+          variant: jdk21-default
+          java-version: '21'

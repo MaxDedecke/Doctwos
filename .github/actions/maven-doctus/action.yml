@@ -1,0 +1,33 @@
+name: Maven results for Doctus
+description: Run clean verify and publish commit-bound Maven and JUnit evidence.
+inputs:
+  url:
+    description: Doctus API base URL reachable from this runner
+    required: true
+  source-id:
+    description: Configured Doctus Git source ID
+    required: true
+  token:
+    description: Source-scoped Doctus CI token
+    required: true
+  profiles:
+    description: Comma-separated Maven profiles
+    default: ""
+  variant:
+    description: Stable matrix or build variant identifier
+    default: default
+  java-version:
+    description: Java version label for this build
+    default: ""
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        DOCTUS_URL: ${{ inputs.url }}
+        DOCTUS_SOURCE_ID: ${{ inputs.source-id }}
+        DOCTUS_CI_TOKEN: ${{ inputs.token }}
+        MAVEN_PROFILES: ${{ inputs.profiles }}
+        DOCTUS_CI_VARIANT: ${{ inputs.variant }}
+        JAVA_VERSION: ${{ inputs.java-version }}
+      run: python3 "${{ github.action_path }}/../../../scripts/publish_maven_ci.py"

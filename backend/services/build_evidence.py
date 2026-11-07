@@ -1,9 +1,9 @@
 """Read caller-supplied Maven/CI artifacts bound to an indexed commit."""
 
-import xml.etree.ElementTree as ET
 import json
 from pydantic import BaseModel, Field, field_validator
 from doctus_models.database import KnowledgeSource
+from doctus_models.ci_artifacts import xml_root as _xml
 
 
 class BuildEvidence(BaseModel):
@@ -22,15 +22,6 @@ class BuildEvidence(BaseModel):
         return value
 
 
-def _xml(value):
-    if "<!DOCTYPE" in value.upper() or "<!ENTITY" in value.upper():
-        raise ValueError("XML declarations with DTD/entities are unsupported")
-    try:
-        return ET.fromstring(value)
-    except ET.ParseError as exc:
-        raise ValueError("Malformed build artifact XML") from exc
-
-
 def summarize_build_evidence(db, project_id, body):
     source = db.query(KnowledgeSource).filter_by(id=body.source_id, project_id=project_id).first()
     if (
@@ -39,6 +30,10 @@ def summarize_build_evidence(db, project_id, body):
         or (source.sync_cursor or {}).get("last_commit") != body.commit
     ):
         raise ValueError("Build artifacts must match a completed indexed source commit")
+    return summarize_artifacts(body)
+
+
+def summarize_artifacts(body):
     pom = _xml(body.effective_pom)
     projects = [pom] if pom.tag.rsplit("}", 1)[-1] == "project" else list(pom)
     modules = []

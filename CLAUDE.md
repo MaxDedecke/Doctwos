@@ -158,3 +158,12 @@ Historische Freigaben bleiben ohne belegbare Versionsbindung ungebunden.
 Eine Commit-Prüfung erzeugt einen Vergleich; die fachliche Freigabe erfolgt
 ausdrücklich am vollständig indizierten Zielstand. Stand und Grenzen stehen in
 `docs/JAVA_TEST_PROJECT.md`.
+
+## Auftrag 07.11.2026 — automatische Maven-/CI-Anbindung
+
+Explizit beauftragt sind die automatische Übernahme von Maven- und Testergebnissen
+aus der CI, ihre dauerhafte Commit-Zuordnung und die automatische Anzeige im
+Änderungspaket. Die Pipeline führt Maven aus und veröffentlicht über einen
+quellengebundenen CI-Zugang. Der Import startet weiterhin keine Maven-Plugins.
+CI-Runner und Helfer gehören zum Offline-Bundle. Einrichtung und Datenvertrag
+stehen in `docs/CI_INTEGRATION.md`.
