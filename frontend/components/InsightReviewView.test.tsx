@@ -7,7 +7,7 @@ import { InsightReviewView } from './InsightReviewView';
 
 vi.mock('@/app/services/api', () => ({ api: {
   getInsights: vi.fn(), getProjectMembers: vi.fn(), getLinkRecommendations: vi.fn(),
-  verifyInsight: vi.fn(), deleteInsight: vi.fn(),
+  reviewInsight: vi.fn(), verifyInsight: vi.fn(), deleteInsight: vi.fn(),
 } }));
 
 const insight = {
@@ -68,4 +68,22 @@ it('also allows project admins to delete outdated insights', async () => {
   renderView(false);
   fireEvent.click(await screen.findByRole('button', { name: 'Löschen' }));
   await waitFor(() => expect(api.deleteInsight).toHaveBeenCalledWith(3, 10));
+});
+
+it('reapproves an outdated finding with its displayed revision', async () => {
+  vi.mocked(api.getInsights).mockResolvedValue(axiosResponse([{ ...insight, status: 'outdated', revision: 7 }]));
+  vi.mocked(api.verifyInsight).mockResolvedValue(axiosResponse({}));
+  renderView();
+  fireEvent.click(await screen.findByRole('button', { name: 'Freigeben' }));
+  await waitFor(() => expect(api.verifyInsight).toHaveBeenCalledWith(3, 10, 7));
+});
+
+it('edits the finding and submits a revision guarded draft', async () => {
+  vi.mocked(api.getInsights).mockResolvedValue(axiosResponse([{ ...insight, revision: 7 }]));
+  vi.mocked(api.reviewInsight).mockResolvedValue(axiosResponse({}));
+  renderView();
+  fireEvent.click(await screen.findByRole('button', { name: 'Überarbeiten' }));
+  fireEvent.change(screen.getByLabelText('Erkenntnis'), { target: { value: 'Die neue Regel gilt.' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Entwurf sichern' }));
+  await waitFor(() => expect(api.reviewInsight).toHaveBeenCalledWith(3, 10, expect.objectContaining({ action: 'revise', expected_revision: 7, content: 'Die neue Regel gilt.' })));
 });

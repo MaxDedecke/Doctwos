@@ -62,6 +62,14 @@ class InsightVerification(BaseModel):
     """Explicit confirmation avoids accidental approvals from a GET-like UI action."""
 
     confirm: bool
+    expected_revision: int | None = Field(default=None, ge=1)
+
+
+class InsightReview(BaseModel):
+    action: Literal["revise", "reject"]
+    expected_revision: int = Field(ge=1)
+    title: str | None = Field(default=None, min_length=1, max_length=240)
+    content: str | None = Field(default=None, min_length=1)
 
 
 class ChatRequest(BaseModel):

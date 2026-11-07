@@ -8,6 +8,7 @@ from core.db_setup import get_db
 from core.projects import assert_project_visible
 from core.teams import assert_team_visible
 from doctus_models.database import Project, User
+from services.build_evidence import BuildEvidence, summarize_build_evidence
 from services.change_package import inspect_change_package
 
 
@@ -63,4 +64,44 @@ def get_change_package(
     )
     if result.get("error"):
         raise HTTPException(status_code=400, detail=result["error"])
+    return result
+
+
+@router.post("/projects/{project_id}/change-package")
+def get_change_package_with_build(
+    project_id: int,
+    build: BuildEvidence,
+    entity_id: int | None = Query(default=None, ge=1),
+    file_path: str | None = Query(default=None, min_length=1, max_length=1000),
+    source_id: int | None = Query(default=None, ge=1),
+    base_ref: str | None = Query(default=None, min_length=1, max_length=256),
+    head_ref: str | None = Query(default=None, min_length=1, max_length=256),
+    direction: str = Query(default="incoming", pattern="^(incoming|outgoing|both)$"),
+    hops: int = Query(default=2, ge=0, le=3),
+    limit: int = Query(default=40, ge=10, le=80),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    # Use the same ACL and input checks as the read-only package endpoint.
+    result = get_change_package(
+        project_id,
+        entity_id,
+        file_path,
+        source_id,
+        base_ref,
+        head_ref,
+        direction,
+        hops,
+        limit,
+        db,
+        user,
+    )
+    if build.source_id not in {
+        item.get("source_id") for item in result.get("affected_code", [])
+    } and build.source_id != (result.get("target") or {}).get("source_id"):
+        raise HTTPException(status_code=422, detail="Build source differs from the package scope")
+    try:
+        result["build_evidence"] = summarize_build_evidence(db, project_id, build)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     return result

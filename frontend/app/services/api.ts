@@ -79,9 +79,11 @@ export const api = {
     createInsight: (projectId: number, data: { title: string; content: string; origin_kind: 'chat' | 'code' | 'process'; evidence: Array<Record<string, unknown>> }) =>
         axios.post(`${API_URL}/projects/${projectId}/insights`, data),
     getInsights: (projectId: number, status?: 'draft' | 'verified') =>
-        axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified' | 'outdated'; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null; outdated_at: string | null; outdated_source_ids: number[] }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
-    verifyInsight: (projectId: number, insightId: number) =>
-        axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/verify`, { confirm: true }),
+        axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified' | 'outdated' | 'rejected'; revision?: number; review_history?: Array<Record<string, unknown>>; current_sources?: Array<Record<string, unknown>>; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null; outdated_at: string | null; outdated_source_ids: number[] }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
+    verifyInsight: (projectId: number, insightId: number, revision?: number) =>
+        axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/verify`, { confirm: true, expected_revision: revision }),
+    reviewInsight: (projectId: number, insightId: number, data: { action: 'revise' | 'reject'; expected_revision: number; title?: string; content?: string }) =>
+        axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/review`, data),
     deleteInsight: (projectId: number, insightId: number) =>
         axios.delete(`${API_URL}/projects/${projectId}/insights/${insightId}`),
     getLinkRecommendations: (projectId: number) =>

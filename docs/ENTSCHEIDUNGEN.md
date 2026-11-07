@@ -848,3 +848,31 @@ Umschaltung wird erst mit Pilotbedarf erneut bewertet.
 ## Interner Pilot 02.11.2026 — Lieferparität und GitLab Issues
 
 Expliziter Auftrag: Offline-/Remote-Start reparieren, selbst gehostetes GitLab unterstützen, Issues einschließlich Kommentaren importieren. Offline enthält dieselben notwendigen Dienste wie der normale Stack, insbesondere Beat und Link-Worker; lokale Inferenz bleibt optional. Der Installer nutzt keine Paketdownloads und wartet auf gesunde Dienste. GitLabIssues scannt nur explizite Projekte und liest Kommentare jedes Mal vollständig; keine unsichere Delta-Annahme über Issue-Zeitstempel. Vertrauliche Issues, interne/vertrauliche Kommentare und Systemnotizen werden nicht indexiert. Die bestehende Webansicht nutzt den Index-Fallback. Details: `docs/PILOT_DEPLOYMENT.md`.
+
+## Entwicklungsablauf mit versionierten Erkenntnissen (07.11.2026)
+
+Beauftragt wurden die vier Punkte aus der lokalen Java-/Maven-Bewertung.
+Erkenntnisse werden über ihre konkreten Belegstellen in Änderungspakete aufgenommen.
+Überarbeitung und erneute Prüfung erhalten eine Historie am selben Eintrag,
+Revisionsprüfung und Datenbanksperre. Verwerfen schließt die Aussage aus dem
+Retrieval aus. Bestehende Belege ohne Dateifingerprint werden weiterhin bei
+Quellenänderungen zur Prüfung vorgelegt.
+
+Build-Belege werden optional vom Aufrufer mit Quell-ID und exaktem indiziertem
+Commit geliefert. Der vorhandene Änderungspaket-Endpunkt erhält dafür eine
+POST-Variante und die bestehende Oberfläche einen JSON-Dateieingang.
+Maven-Ausführung im Import sowie zusätzliche Services werden nicht eingeführt.
+Die Belege ergänzen das Paket. Eine Übernahme in den Java-Klassenpfad benötigt
+einen eigenen Parser-Vertrag. Der BOM-Auflöser prüft jetzt die angeforderte
+Version einschließlich geerbter Koordinaten.
+
+Regressionen liegen in `test_development_workflow.py`, den Erkenntnis- und
+Provenienztests, `test_java25_maven_workspace.py` und der Prüfansicht.
+
+Die lokale Performancekorrektur verwendet einen partiellen B-Tree-Index auf
+Projekt, normalisiertem Zielnamen und ID für ungelöste/dynamische Kanten ohne
+Zielobjekt. Der Ausführungsplan nutzt ihn für dieselbe Abfrage, die zuvor den
+ID-Index vollständig durchlief. Migration 0045 baut nebenläufig und repariert
+einen nach Abbruch verbliebenen ungültigen Index bei Wiederholung. Das gemeinsame
+Modellpaket 1.7.1 enthält dieselbe Indexdefinition. Vorher-/Nachher-Messwerte
+und Grenzen stehen in `docs/JAVA_TEST_PROJECT.md`.

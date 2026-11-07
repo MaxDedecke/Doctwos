@@ -157,3 +157,32 @@ def test_default_profile_is_local_to_its_pom_and_parent_coordinates_are_checked(
     )
     resolved = effective_models({"pom.xml": parent, "app/pom.xml": child})["app/pom.xml"]
     assert resolved["issues"] and "unexpected" not in resolved["properties"]
+
+
+def test_imported_bom_requires_requested_version():
+    models = {
+        "bom/pom.xml": read_model(
+            "<project><groupId>x</groupId><artifactId>bom</artifactId><version>1</version><dependencyManagement><dependencies><dependency><groupId>x</groupId><artifactId>core</artifactId><version>1.5</version></dependency></dependencies></dependencyManagement></project>"
+        ),
+        "app/pom.xml": read_model(
+            "<project><groupId>x</groupId><artifactId>app</artifactId><version>1</version><dependencyManagement><dependencies><dependency><groupId>x</groupId><artifactId>bom</artifactId><version>2</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement></project>"
+        ),
+    }
+    model = effective_models(models)["app/pom.xml"]
+    assert "x:core" not in model["management"]
+    assert model["issues"]
+
+
+def test_bom_version_selection_preserves_parent_resolution():
+    models = {
+        "parent/pom.xml": read_model(
+            "<project><groupId>x</groupId><artifactId>parent</artifactId><version>2</version></project>"
+        ),
+        "bom/pom.xml": read_model(
+            "<project><parent><groupId>x</groupId><artifactId>parent</artifactId><version>2</version><relativePath>../parent/pom.xml</relativePath></parent><artifactId>bom</artifactId></project>"
+        ),
+        "app/pom.xml": read_model(
+            "<project><groupId>x</groupId><artifactId>app</artifactId><version>1</version><dependencyManagement><dependencies><dependency><groupId>x</groupId><artifactId>bom</artifactId><version>2</version><type>pom</type><scope>import</scope></dependency></dependencies></dependencyManagement></project>"
+        ),
+    }
+    assert not effective_models(models)["app/pom.xml"]["issues"]

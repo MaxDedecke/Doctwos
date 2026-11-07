@@ -5,19 +5,48 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session
 
-from api.schemas import InsightCreate, InsightVerification
+from api.schemas import InsightCreate, InsightVerification, InsightReview
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
 from core.teams import is_admin
-from doctus_models.database import Insight, KnowledgeSource, User
+from doctus_models.database import Insight, KnowledgeSource, User, DocumentChunk
+from doctus_models.insight_evidence import snapshot_evidence
 
 
 router = APIRouter(prefix="/projects", tags=["insights"])
 
 
-def _serialize(insight: Insight) -> dict:
+def _serialize(insight: Insight, db=None) -> dict:
     return {
+        "current_sources": [
+            {
+                "source_id": source.id,
+                "last_synced_at": source.last_synced_at.isoformat()
+                if source.last_synced_at
+                else None,
+                "commit": (source.sync_cursor or {}).get("last_commit"),
+                "sync_status": source.sync_status,
+            }
+            for source in (
+                db.query(KnowledgeSource)
+                .filter(
+                    KnowledgeSource.project_id == insight.project_id,
+                    KnowledgeSource.id.in_(
+                        [
+                            e.get("source_id")
+                            for e in insight.evidence_json
+                            if e.get("source_id") is not None
+                        ]
+                    ),
+                )
+                .all()
+                if db is not None
+                else []
+            )
+        ],
+        "revision": insight.revision,
+        "review_history": insight.review_history or [],
         "id": insight.id,
         "project_id": insight.project_id,
         "title": insight.title,
@@ -65,15 +94,23 @@ def create_insight(
     sources = (
         {
             source.id: source
-            for source in db.query(KnowledgeSource).filter(KnowledgeSource.id.in_(source_ids)).all()
+            for source in db.query(KnowledgeSource)
+            .filter(KnowledgeSource.id.in_(source_ids), KnowledgeSource.project_id == project_id)
+            .all()
         }
         if source_ids
         else {}
     )
     evidence = []
-    for item in body.evidence:
+    for item in snapshot_evidence(db, project_id, body.evidence):
         snapshot = dict(item)
         source = sources.get(snapshot.get("source_id"))
+        if source is None and snapshot.get("source_id") is not None:
+            source = (
+                db.query(KnowledgeSource)
+                .filter_by(id=snapshot["source_id"], project_id=project_id)
+                .first()
+            )
         if source:
             snapshot["source_last_synced_at"] = (
                 source.last_synced_at.isoformat() if source.last_synced_at else None
@@ -92,7 +129,7 @@ def create_insight(
     db.add(insight)
     db.commit()
     db.refresh(insight)
-    return _serialize(insight)
+    return _serialize(insight, db)
 
 
 @router.delete("/{project_id}/insights/{insight_id}", status_code=204)
@@ -124,11 +161,11 @@ def list_insights(
     assert_project_visible(project_id, user, db)
     query = db.query(Insight).filter(Insight.project_id == project_id)
     if status is not None:
-        if status not in {"draft", "verified", "outdated"}:
+        if status not in {"draft", "verified", "outdated", "rejected"}:
             raise HTTPException(status_code=422, detail="Unbekannter Erkenntnisstatus")
         query = query.filter(Insight.status == status)
     return [
-        _serialize(insight)
+        _serialize(insight, db)
         for insight in query.order_by(Insight.created_at.desc(), Insight.id.desc()).all()
     ]
 
@@ -152,16 +189,107 @@ def verify_insight(
     )
     if not insight:
         raise HTTPException(status_code=404, detail="Erkenntnis nicht gefunden")
-    if insight.status != "draft":
+    db.refresh(insight, with_for_update=True)
+    if body.expected_revision is not None and insight.revision != body.expected_revision:
+        raise HTTPException(status_code=409, detail="Erkenntnis wurde zwischenzeitlich geändert")
+    if insight.status not in {"draft", "outdated"}:
         raise HTTPException(status_code=409, detail="Erkenntnis wurde bereits freigegeben")
     if insight.created_by_id == user.id and not is_admin(user):
         raise HTTPException(
             status_code=403, detail="Ersteller dürfen ihre eigene Erkenntnis nicht freigeben"
         )
 
+    _record_review(insight, user, "verify")
+    insight.evidence_json = _current_evidence(db, project_id, insight.evidence_json)
+    insight.outdated_at = None
+    insight.outdated_source_ids = []
     insight.status = "verified"
     insight.verified_by_id = user.id
     insight.verified_at = datetime.now(timezone.utc)
     db.commit()
     db.refresh(insight)
-    return _serialize(insight)
+    return _serialize(insight, db)
+
+
+def _record_review(insight, user, action):
+    insight.review_history = [
+        *(insight.review_history or []),
+        {
+            "revision": insight.revision,
+            "action": action,
+            "user_id": user.id,
+            "created_by_id": insight.created_by_id,
+            "at": datetime.now(timezone.utc).isoformat(),
+            "title": insight.title,
+            "content": insight.content,
+            "evidence": insight.evidence_json,
+            "status": insight.status,
+            "verified_by_id": insight.verified_by_id,
+            "verified_at": insight.verified_at.isoformat() if insight.verified_at else None,
+        },
+    ]
+    insight.revision += 1
+
+
+def _current_evidence(db, project_id, evidence):
+    result = []
+    for item in snapshot_evidence(db, project_id, evidence):
+        snapshot = dict(item)
+        source_id = snapshot.get("source_id")
+        if source_id is not None:
+            source = (
+                db.query(KnowledgeSource).filter_by(id=source_id, project_id=project_id).first()
+            )
+            if not source or source.sync_status != "completed":
+                raise HTTPException(
+                    status_code=409, detail="Belegquelle fehlt oder ist nicht synchronisiert"
+                )
+            if (
+                snapshot.get("file")
+                and not db.query(DocumentChunk.id)
+                .filter_by(project_id=project_id, source_id=source_id, file_path=snapshot["file"])
+                .first()
+            ):
+                raise HTTPException(status_code=409, detail="Belegdatei fehlt im aktuellen Index")
+            snapshot["source_last_synced_at"] = (
+                source.last_synced_at.isoformat() if source.last_synced_at else None
+            )
+        if source_id is not None:
+            snapshot["source_commit"] = (source.sync_cursor or {}).get("last_commit")
+        result.append(snapshot)
+    return result
+
+
+@router.post("/{project_id}/insights/{insight_id}/review")
+def review_insight(
+    project_id: int,
+    insight_id: int,
+    body: InsightReview,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    assert_project_visible(project_id, user, db)
+    _require_project_admin(project_id, user, db, "überarbeiten")
+    insight = (
+        db.query(Insight).filter_by(id=insight_id, project_id=project_id).with_for_update().first()
+    )
+    if not insight:
+        raise HTTPException(status_code=404, detail="Erkenntnis nicht gefunden")
+    if insight.revision != body.expected_revision:
+        raise HTTPException(status_code=409, detail="Erkenntnis wurde zwischenzeitlich geändert")
+    if body.action == "revise" and (
+        not body.title or not body.title.strip() or not body.content or not body.content.strip()
+    ):
+        raise HTTPException(status_code=422, detail="Titel und Aussage sind erforderlich")
+    _record_review(insight, user, body.action)
+    if body.action == "revise":
+        insight.title, insight.content = body.title.strip(), body.content.strip()
+        insight.created_by_id = user.id
+        insight.status = "draft"
+    else:
+        insight.status = "rejected"
+    insight.verified_by_id = None
+    insight.verified_at = None
+    db.commit()
+    db.refresh(insight)
+    return _serialize(insight, db)

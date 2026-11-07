@@ -13,10 +13,11 @@ type Insight = Awaited<ReturnType<typeof api.getInsights>>['data'][number];
 
 export function InsightReviewView({ selectedProject, currentUser, theme, onOpenFile }: { selectedProject: Project | null; currentUser: User | null; theme: string; onOpenFile?: (path: string, line: number | null, sourceId: number | null) => void }) {
   const { t } = useLanguage();
+  const [editing, setEditing] = useState<{ id: number; title: string; content: string } | null>(null);
   const [insights, setInsights] = useState<Insight[]>([]);
   const [members, setMembers] = useState<ProjectMember[]>([]);
   const [linkCounts, setLinkCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
-  const [filter, setFilter] = useState<'all' | 'outdated' | 'draft' | 'verified'>('all');
+  const [filter, setFilter] = useState<'all' | 'outdated' | 'draft' | 'verified' | 'rejected'>('all');
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -33,7 +34,7 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
         api.getLinkRecommendations(selectedProject.id),
       ]);
       setInsights([...insightResponse.data].sort((left, right) => {
-        const priority = { outdated: 0, draft: 1, verified: 2 };
+        const priority = { outdated: 0, draft: 1, verified: 2, rejected: 3 };
         return priority[left.status] - priority[right.status];
       }));
       setMembers(memberResponse.data);
@@ -54,14 +55,34 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
 
   if (!selectedProject) return <div className="p-5 text-sm text-ds-zinc-500">{t('insightReview.selectProject')}</div>;
   const canVerify = Boolean(currentUser?.is_admin || members.some(member => member.user_id === currentUser?.id && member.role === 'admin'));
-  const insightCounts = insights.reduce((counts, insight) => ({ ...counts, [insight.status]: counts[insight.status] + 1 }), { outdated: 0, draft: 0, verified: 0 });
+  const insightCounts = insights.reduce((counts, insight) => ({ ...counts, [insight.status]: counts[insight.status] + 1 }), { outdated: 0, draft: 0, verified: 0, rejected: 0 });
   const visibleInsights = filter === 'all' ? insights : insights.filter(insight => insight.status === filter);
 
   const verify = async (insight: Insight) => {
     setVerifying(insight.id);
     setError(null);
     try {
-      await api.verifyInsight(selectedProject.id, insight.id);
+      await api.verifyInsight(selectedProject.id, insight.id, insight.revision);
+      await load();
+    } catch {
+      setError(t('insightReview.verifyFailed'));
+    } finally {
+      setVerifying(null);
+    }
+  };
+
+  const review = async (insight: Insight, action: 'revise' | 'reject') => {
+    if (action === 'revise' && (!editing?.title.trim() || !editing.content.trim())) return;
+    if (action === 'reject' && !window.confirm(t('insightReview.rejectConfirm'))) return;
+    setVerifying(insight.id);
+    try {
+      await api.reviewInsight(selectedProject.id, insight.id, {
+        action,
+        expected_revision: insight.revision ?? 1,
+        title: editing?.title,
+        content: editing?.content,
+      });
+      setEditing(null);
       await load();
     } catch {
       setError(t('insightReview.verifyFailed'));
@@ -90,7 +111,7 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
       <button type="button" onClick={() => void load()} title={t('insightReview.refresh')} className="rounded border border-ds-zinc-700 p-1.5 text-ds-zinc-400"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></button>
     </div>
     <div className="mb-4 flex flex-wrap gap-1.5">
-      {(['all', 'outdated', 'draft', 'verified'] as const).map(status => <button key={status} type="button" onClick={() => setFilter(status)} className={cn('rounded border px-2 py-1 text-[0.625rem] font-semibold', filter === status ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>
+      {(['all', 'outdated', 'draft', 'verified', 'rejected'] as const).map(status => <button key={status} type="button" onClick={() => setFilter(status)} className={cn('rounded border px-2 py-1 text-[0.625rem] font-semibold', filter === status ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>
         {t(`insightReview.filter.${status}`)} · {status === 'all' ? insights.length : insightCounts[status]}
       </button>)}
     </div>
@@ -98,15 +119,41 @@ export function InsightReviewView({ selectedProject, currentUser, theme, onOpenF
     {error && <p className="mb-3 text-xs text-ds-red-500">{error}</p>}
     {!loading && insights.length === 0 && <p className="text-sm text-ds-zinc-500">{t('insightReview.empty')}</p>}
     <div className="space-y-3">{visibleInsights.map(insight => {
-      const canApproveThis = canVerify && insight.status === 'draft' && (currentUser?.is_admin || insight.created_by_id !== currentUser?.id);
+      const canApproveThis = canVerify && ['draft', 'outdated'].includes(insight.status) && (currentUser?.is_admin || insight.created_by_id !== currentUser?.id);
       return <article key={insight.id} className={cn('rounded-lg border p-3', isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/60' : 'border-ds-zinc-200 bg-ds-zinc-50')}>
         <div className="flex items-start justify-between gap-2"><div><h3 className="text-sm font-semibold">{insight.title}</h3><p className="mt-1 whitespace-pre-wrap text-xs">{insight.content}</p></div><span className={cn('rounded px-1.5 py-0.5 text-[0.625rem] font-bold', insight.status === 'verified' ? 'bg-ds-emerald-500/15 text-ds-emerald-500' : 'bg-ds-amber-500/15 text-ds-amber-500')}>{t(`insightReview.status.${insight.status}`)}</span></div>
         <div className="mt-2 flex items-center gap-1 text-[0.625rem] text-ds-zinc-500"><FileText className="h-3 w-3" />{t('insightReview.evidenceCount', { count: insight.evidence.length })} · {t(`insightReview.origin.${insight.origin_kind}`)}</div>
         <InsightEvidence evidence={insight.evidence} onOpenFile={onOpenFile} />
+        {insight.status === 'outdated' && insight.current_sources && <details className="mt-2 text-xs"><summary>{t('insightReview.currentSources')}</summary><InsightEvidence evidence={insight.current_sources} /></details>}
         <p className="mt-2 text-[0.625rem] text-ds-zinc-500">{t(insight.status === 'verified' ? 'insightReview.retrievalEnabled' : 'insightReview.retrievalExcluded')}</p>
         {insight.status === 'outdated' && <p className="mt-1 text-[0.625rem] text-ds-amber-500">{t('insightReview.sourceChanged', { count: insight.outdated_source_ids.length })}</p>}
         {insight.evidence.some(item => typeof item.source_last_synced_at === 'string') && <p className="mt-1 text-[0.625rem] text-ds-zinc-500">{t('insightReview.provenanceSnapshot')}</p>}
         {canApproveThis && <button type="button" disabled={verifying === insight.id || deleting === insight.id} onClick={() => void verify(insight)} className="mt-3 inline-flex items-center gap-1.5 rounded bg-ds-emerald-600 px-2 py-1 text-[0.625rem] font-semibold text-ds-white disabled:opacity-50"><>{verifying === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}</>{t('insightReview.verify')}</button>}
+        {canVerify && <span className="inline-flex gap-2">
+          <button type="button" disabled={verifying !== null} onClick={() => setEditing({ id: insight.id, title: insight.title, content: insight.content })} className="mt-3 ml-2 text-xs text-ds-indigo-400">{t('insightReview.revise')}</button>
+          {insight.status !== 'rejected' && <button type="button" disabled={verifying !== null} onClick={() => void review(insight, 'reject')} className="mt-3 text-xs text-ds-red-500">{t('insightReview.reject')}</button>}
+        </span>}
+        {editing?.id === insight.id && <form className="mt-3 space-y-2" onSubmit={event => { event.preventDefault(); void review(insight, 'revise'); }}>
+          <label className="block text-xs">{t('insightDraft.title')}<input value={editing.title} maxLength={240} onChange={event => setEditing({ ...editing, title: event.target.value })} className="block w-full rounded border border-ds-zinc-500 bg-transparent p-2" /></label>
+          <label className="block text-xs">{t('insightDraft.content')}<textarea value={editing.content} rows={5} onChange={event => setEditing({ ...editing, content: event.target.value })} className="block w-full rounded border border-ds-zinc-500 bg-transparent p-2" /></label>
+          <button type="submit" disabled={verifying !== null} className="mr-3 text-xs text-ds-indigo-400">{t('insightDraft.saveDraft')}</button>
+          <button type="button" onClick={() => setEditing(null)} className="text-xs">{t('common.cancel')}</button>
+        </form>}
+        {insight.review_history && insight.review_history.length > 0 && (
+          <details className="mt-2 text-xs">
+            <summary>{t('insightReview.history')}</summary>
+            {insight.review_history.map((entry, index) => (
+              <div key={index} className="mt-2 whitespace-pre-wrap">
+                {String(entry.at)} · {String(entry.action)} · {String(entry.title)}
+                <p>{String(entry.content)}</p>
+                <InsightEvidence
+                  evidence={Array.isArray(entry.evidence) ? entry.evidence as Array<Record<string, unknown>> : []}
+                  onOpenFile={onOpenFile}
+                />
+              </div>
+            ))}
+          </details>
+        )}
         {canVerify && <button type="button" disabled={deleting !== null || verifying === insight.id} onClick={() => void remove(insight)} className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded border border-ds-red-500/40 px-2 py-1 text-[0.625rem] font-semibold text-ds-red-500 disabled:opacity-50">{deleting === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}{t('insightReview.delete')}</button>}
       </article>;
     })}</div>

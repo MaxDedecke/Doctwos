@@ -1,5 +1,6 @@
 "use client";
 
+import { InsightEvidence } from '@/components/InsightEvidence';
 import { API_URL, api } from '@/app/services/api';
 import type { WorkspaceDocument } from '@/types/domain';
 import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
@@ -59,6 +60,7 @@ interface Props {
 
 export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOpenDoc }: Props) {
   const { t } = useLanguage();
+  const [buildArtifact, setBuildArtifact] = React.useState<RecordValue | null>(null);
   const [open, setOpen] = React.useState(false);
   const [description, setDescription] = React.useState('');
   const [direction, setDirection] = React.useState<'incoming' | 'outgoing' | 'both'>('both');
@@ -88,7 +90,7 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
         if (target.entityId) params.set('entity_id', String(target.entityId));
         if (target.filePath) params.set('file_path', target.filePath);
       }
-      const response = await api.fetch(`${API_URL}/projects/${projectId}/change-package?${params}`);
+      const response = await api.fetch(`${API_URL}/projects/${projectId}/change-package?${params}`, buildArtifact ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(buildArtifact) } : undefined);
       const data: unknown = await response.json();
       if (!response.ok) {
         throw new Error(text(record(data).detail, `HTTP ${response.status}`));
@@ -248,6 +250,20 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
             </header>
 
             <form onSubmit={runAnalysis} className={`border-b p-4 ${border}`}>
+              <label className="mb-3 block text-xs">{t('changePackage.buildArtifacts')}
+                <input type="file" accept=".json" onChange={async event => {
+                  const file = event.target.files?.[0];
+                  setBuildArtifact(null);
+                  if (!file) return;
+                  try {
+                    if (file.size > 3_000_000) throw new Error();
+                    const value: unknown = JSON.parse(await file.text());
+                    if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error();
+                    setBuildArtifact(value as RecordValue);
+                    setError(null);
+                  } catch { setError(t('changePackage.buildArtifactsError')); }
+                }} />
+              </label>
               <label htmlFor="change-package-description" className="mb-1.5 block text-xs font-semibold">{t('changePackage.descriptionLabel')}</label>
               <textarea
                 id="change-package-description"
@@ -315,12 +331,18 @@ export function ChangePackageAction({ projectId, target, theme, onOpenCode, onOp
                     <p className={`break-all text-[0.625rem] ${muted}`}>{text(impactTarget.base_commit)} → {text(impactTarget.head_commit)}</p>
                     <p className={`mt-1 text-[0.625rem] ${muted}`}>{t('changePackage.diffFiles', { count: Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.length : 0 })}</p>
                     <p className="mt-1 break-words text-xs">{Array.isArray(impactTarget.changed_files) ? impactTarget.changed_files.join(', ') : ''}</p>
+                    {Object.entries(record(impactTarget.changed_line_ranges)).map(([path, ranges]) => <p key={path} className="mt-1 break-words text-xs">{path} · {list(ranges).map(range => `${String(range.start_line)}–${String(range.end_line)}${range.deletion_anchor ? ' (−)' : ''}`).join(', ')}</p>)}
                     {Array.isArray(impactTarget.unindexed_files) && impactTarget.unindexed_files.length > 0 && <p className={`mt-1 text-[0.625rem] ${muted}`}>{t('changePackage.unindexedFiles')}: {impactTarget.unindexed_files.join(', ')}</p>}
                   </section>}
                   <section className="rounded-lg border border-ds-indigo-500/30 bg-ds-indigo-500/5 p-3">
                     <h3 className="mb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-ds-indigo-400">{t('changePackage.requestedChange')}</h3>
                     <p className="whitespace-pre-wrap text-xs">{description.trim()}</p>
                   </section>
+                  {list(packageData.insights).length > 0 && <section className={sectionClass}>
+                    <h3 className="mb-2 text-xs font-semibold">{t('changePackage.insights')}</h3>
+                    {list(packageData.insights).map(item => <article key={String(item.id)} className="mb-3 text-xs"><strong>{text(item.title)}</strong> · {t(`insightReview.status.${text(item.status)}`)}<p className="whitespace-pre-wrap">{text(item.content)}</p><InsightEvidence evidence={list(item.evidence)} onOpenFile={(path, line, sourceId) => openCode(path, line, sourceId)} /></article>)}
+                  </section>}
+                  {packageData.build_evidence != null && <section className={sectionClass}><h3 className="text-xs font-semibold">{t('changePackage.buildArtifacts')}</h3><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap text-xs">{JSON.stringify(packageData.build_evidence, null, 2)}</pre></section>}
                   <section className={sectionClass}>
                     <h3 className="mb-2 text-xs font-semibold">{t('changePackage.affectedCode')} · {codeItems.length}</h3>
                     {codeItems.length === 0 && <p className={`text-xs ${muted}`}>{t('changePackage.noIndexedImpact')}</p>}

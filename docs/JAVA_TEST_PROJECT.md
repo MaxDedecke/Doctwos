@@ -199,3 +199,95 @@ bestanden (5 Parser- und 2 Backend-Tests umgebungsbedingt übersprungen), außer
 TypeScript, Lint/Format, Modellabgleich und Design-Token-Prüfung. Neue Struktur-
 und Ableitungsdaten werden über den regulären Quellen-Sync im Worker erneuert;
 die angehobene Java-Parserversion invalidiert dabei die bisherigen Analyse-Fingerprints.
+
+## Entwicklungsablauf mit Erkenntnissen und Änderungspaketen (07.11.2026)
+
+Das Änderungspaket ergänzt Erkenntnisse, deren Codeobjekt oder Datei als Beleg zu
+einem betroffenen Objekt passt. Alle Prüfstatus werden angezeigt. Nur freigegebene,
+aktuelle Erkenntnisse gelangen in das Chat-Retrieval. Die Suche berücksichtigt
+zusätzlich Codeobjekte, die in der Frage genannt werden, und ihre Belegzuordnung.
+
+Die Prüfansicht kann eine Erkenntnis überarbeiten, verwerfen oder nach einer
+Quellenänderung erneut freigeben. Überarbeiten erzeugt einen Entwurf am selben
+Eintrag. Frühere Aussage, Belege, Prüfer und Prüfzeit bleiben in der Historie.
+Projekt-Admins brauchen für die Freigabe einen anderen Autor, globale Admins
+behalten ihre bisherige Ausnahme. Die API prüft die angezeigte Revision und
+serialisiert gleichzeitige Entscheidungen. Neu gespeicherte Dateibelege erhalten
+einen Fingerprint aus den indizierten Chunks. Ein unveränderter Fingerprint
+verhindert die Veraltungsmarkierung bei Änderungen anderer Dateien. Bei älteren
+Belegen ohne Fingerprint bleibt die konservative Quellenprüfung wirksam.
+
+Git-Diffs ordnen geänderte Head-Zeilen den kleinsten überlappenden Routinen zu.
+Deklarationen außerhalb einer Routine verwenden das kleinste überlappende
+Codeobjekt. Reine Löschungen werden mit ihrem Head-Anker ausgewiesen. Ihre
+historischen Aufrufer erfordern einen Index der früheren Revision.
+Die vorhandenen Grenzen und Kürzungshinweise gelten weiter.
+
+Optional lässt sich im Änderungspaket eine JSON-Datei mit Build-Belegen auswählen.
+Die gleichen Query-Parameter können mit einem POST an
+`/projects/{project_id}/change-package` und diesem JSON-Body verwendet werden.
+
+```json
+{
+  "source_id": 8,
+  "commit": "0123456789012345678901234567890123456789",
+  "effective_pom": "<project><groupId>example</groupId><artifactId>app</artifactId><version>1</version></project>",
+  "dependency_tree": {
+    "groupId": "example",
+    "artifactId": "app",
+    "version": "1",
+    "children": []
+  },
+  "active_profiles": ["integration"],
+  "junit_xml": "<testsuite><testcase name=\"createsOwner\"/></testsuite>"
+}
+```
+
+Das effektive POM stammt aus dem Maven-Build, der Dependency-Tree aus dem
+JSON-Ausgabeformat von `dependency:tree`, der Testbericht aus Surefire/Failsafe.
+Für Reaktoren kann das effektive POM einen `projects`-Wurzelknoten enthalten.
+Die JSON-Datei bündelt die Textinhalte dieser Artefakte. Quell-ID und vollständiger
+Commit müssen zu einer abgeschlossenen indizierten Quelle des Pakets passen.
+Die Angaben werden als vom Aufrufer gelieferte Build-Belege angezeigt.
+Doctus führt beim Import keine Maven-Plugins aus. Die Artefakte werden je Abfrage
+ausgewertet und verändern weder den statischen Graphen noch das Parser-Profil.
+
+Migrationen `0044_insight_revisions`, `0045_unresolved_reference_index` und gemeinsames Modellpaket 1.7.1 werden für
+Backend und Parser benötigt. Die Migration erfolgt über den vorhandenen
+Backend-Startablauf. Nach einem Update müssen beide Images neu gebaut werden.
+
+Lokale Prüfung am 07.11.2026 nach Umsetzung ergab 893 bestandene Backend-Tests
+(1 Skip), 854 Parser-Tests (7 Skips) und 1.100 Frontend-Tests. TypeScript, ESLint
+für die geänderten Oberflächen, Ruff und die Formatprüfung bestanden.
+Backend, Frontend, Parser-, Link- und Beat-Worker wurden neu gebaut beziehungsweise
+mit dem gemeinsamen neuen Image gestartet. Migration 0044 ist angewendet, alle
+acht Container melden healthy. Die lesende Live-Prüfung liefert Erkenntnis 10
+(outdated) im Syncope-Paket und acht geänderte Objekte aus vier Dateien im
+Petclinic-Diff 0d064b0 → 500158f. Vor Migration 0045 war die Suche nach ungelösten Zielnamen
+im Syncope-Graphen langsam; ein Lauf dauerte 25,9 Sekunden. Petclinic
+benötigte 2,2 Sekunden. Diese Einzelläufe belegen keinen allgemeinen Durchsatz.
+
+
+Die Nachmessung nach Migration 0045 verwendet denselben Syncope-Startpunkt
+(CodeEntity 81904, incoming, 1 Hop, 20 Knoten). Das vollständige Paket benötigt
+in drei lokalen Läufen 209, 76 und 73 ms. Es liefert weiterhin vier Codeobjekte
+und Erkenntnis 10 mit Status outdated. Die SQL-Teilabfrage benötigte vor der
+Migration 11.308 ms und filterte 3.531.143 Kanten. Mit dem partiellen Index
+`ix_code_edges_unresolved_project_name` benötigt sie 0,106 ms Ausführungszeit.
+Der Index umfasst im gemessenen Bestand 102 MB. Diese lokalen Läufe sind
+keine Durchsatz- oder Kaltstartgarantie.
+
+Migration 0045 baut den Index auf Projekt, lower(dst_name) und ID für ungelöste
+oder dynamische Kanten ohne Zielobjekt nebenläufig auf. Ein unterbrochener
+Indexaufbau wird beim nächsten Versuch durch Entfernen des ungültigen Index
+und erneuten Aufbau repariert. Die Filter und Auflösungsstatus der fachlichen
+Abfrage bleiben erhalten. Die Git-Diff-Auswertung liegt in `services/change_diff.py`,
+damit das bestehende große Änderungspaket-Modul durch die Erweiterung schrumpft.
+
+Vor dem Commit der Performancekorrektur bestanden 895 Backend-Tests (2 Skips),
+854 Parser-Tests (7 Skips) und 1.100 Frontend-Tests. TypeScript, Ruff,
+Formatprüfung und Design-Token-Prüfung bestanden. ESLint meldete keine Fehler
+und zehn bestehende Warnungen. Migration 0045 wurde zusätzlich mit vorhandenem
+Index wiederholt sowie auf einer isolierten Testdatenbank zurück- und wieder
+vorwärts migriert. Regressionen prüfen die gemeinsame Indexdefinition und
+unveränderte ungelöste/dynamische Namensauflösung für Java und COBOL.

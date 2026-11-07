@@ -139,3 +139,12 @@ Regeln dafür:
 ## Auftrag 02.11.2026 — interne Pilot-Auslieferung
 
 Explizit beauftragt: Offline-/Remote-Deployment reparieren, selbst gehostetes GitLab konfigurierbar machen und GitLab Issues einschließlich Kommentaren importieren. Dies ist eine genehmigte Ausnahme vom Feature-Stopp. GitLabIssues ist eine eigene Wissensquelle; vertrauliche Issues und interne/vertrauliche Kommentare werden ausgeschlossen. Keine Maven-Plugins ausführen. Standard-Stack ohne lokalen LLM; Profile werden bei expliziten Endpunkten oder Legacy-Ollama angelegt.
+
+## Auftrag 07.11.2026 — Java-/Maven-Entwicklungsablauf
+
+Explizit beauftragt sind Erkenntnisse in Änderungspaketen, versionierte
+Überarbeitung und erneute Freigabe, Zuordnung von Git-Diff-Zeilen zu Routinen und
+Maven-/CI-Belege im Änderungspaket. Dieser Auftrag erlaubt die Erweiterung der
+vorhandenen Ansichten und API. Build-Belege kommen aus dem Kunden-Build und werden
+an dessen indizierten Commit gebunden. Maven-Plugins werden beim Import weiterhin
+nicht ausgeführt. Fachlicher Umfang und Grenzen stehen in `docs/JAVA_TEST_PROJECT.md`.

@@ -186,7 +186,8 @@ def effective_models(models, *, active_profiles=(), properties=None):
                     p
                     for p, m in models.items()
                     if m.get("artifactId") == dep["artifactId"]
-                    and m.get("groupId") == dep["groupId"]
+                    and effective(p, (*stack, path)).get("groupId") == dep["groupId"]
+                    and effective(p, (*stack, path)).get("version") == dep["version"]
                 ]
                 if len(matches) == 1:
                     management.update(effective(matches[0], (*stack, path)).get("management", {}))

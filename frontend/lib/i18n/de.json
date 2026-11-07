@@ -2142,11 +2142,31 @@
     "provenanceSnapshot": "Der Beleg enthält den beim Speichern erfassten Quellenstand.",
     "pendingLinks": "{{count}} neue Link-Vorschläge im Link Manager",
     "rejectedLinks": "{{count}} abgelehnte Links",
-    "filter": { "all": "Alle", "outdated": "Erneut prüfen", "draft": "Entwürfe", "verified": "Freigegeben" },
-    "status": { "draft": "Entwurf", "verified": "Freigegeben", "outdated": "Erneut prüfen" },
+    "filter": {
+      "all": "Alle",
+      "outdated": "Erneut prüfen",
+      "draft": "Entwürfe",
+      "verified": "Freigegeben",
+      "rejected": "Verworfen"
+    },
+    "status": {
+      "draft": "Entwurf",
+      "verified": "Freigegeben",
+      "outdated": "Erneut prüfen",
+      "rejected": "Verworfen"
+    },
     "retrievalEnabled": "Für passende Fragen im Projekt als freigegebener LLM-Kontext verfügbar.",
     "retrievalExcluded": "Nicht im LLM-Retrieval: nur freigegebene, aktuelle Erkenntnisse werden verwendet.",
-    "origin": { "chat": "Chat", "code": "Code", "process": "Prozess" }
+    "origin": {
+      "chat": "Chat",
+      "code": "Code",
+      "process": "Prozess"
+    },
+    "revise": "Überarbeiten",
+    "reject": "Verwerfen",
+    "rejectConfirm": "Erkenntnis verwerfen?",
+    "history": "Frühere Prüfungen",
+    "currentSources": "Aktueller Quellenstand"
   },
   "provenance": {
     "kindLabel": "Aussagetyp",
@@ -2246,7 +2266,10 @@
     "unknownAreas": "Unbekannte Bereiche und Analysegrenzen",
     "responsibility": "CODEOWNERS-Hinweise (keine bestätigte fachliche Zuständigkeit)",
     "unknownOwner": "Zuständigkeit unbekannt",
-    "unknownOwnerFiles": "Für {{count}} Datei(en) konnte keine CODEOWNERS-Zuordnung ermittelt werden."
+    "unknownOwnerFiles": "Für {{count}} Datei(en) konnte keine CODEOWNERS-Zuordnung ermittelt werden.",
+    "insights": "Zugehörige Erkenntnisse",
+    "buildArtifacts": "Maven-/CI-Belege (JSON, optional)",
+    "buildArtifactsError": "Ungültige JSON-Datei oder Datei größer als 3 MB."
   },
   "sourceNetworkGraph": {
     "title": "Quellen-Netzwerk",

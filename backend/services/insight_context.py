@@ -4,10 +4,32 @@ import json
 import re
 from xml.sax.saxutils import escape
 
-from sqlalchemy import or_
+from sqlalchemy import or_, cast
+from sqlalchemy.dialects.postgresql import JSONB
 
 from core.projects import assert_project_visible
-from doctus_models.database import Insight
+from doctus_models.database import Insight, CodeEntity
+
+
+def related_insights(db, project_id, nodes, limit=40):
+    """Match actual evidence locators within the project, including stale findings."""
+    selectors = []
+    evidence = cast(Insight.evidence_json, JSONB)
+    for node in nodes:
+        selectors.append(evidence.contains([{"entity_id": node["id"]}]))
+        if node.get("file_path") and node.get("source_id") is not None:
+            selectors.append(
+                evidence.contains([{"file": node["file_path"], "source_id": node["source_id"]}])
+            )
+    if not selectors:
+        return []
+    return (
+        db.query(Insight)
+        .filter(Insight.project_id == project_id, or_(*selectors))
+        .order_by(Insight.id.desc())
+        .limit(limit)
+        .all()
+    )
 
 
 def retrieve_insight_context(db, user, project_id, message, sources=None):
@@ -34,6 +56,26 @@ def retrieve_insight_context(db, user, project_id, message, sources=None):
         .limit(5)
         .all()
     )
+    # A class or file named in the question can retrieve a finding whose prose
+    # uses different words, through its evidence locator.
+    entities = (
+        db.query(CodeEntity)
+        .filter(
+            CodeEntity.project_id == project_id,
+            or_(*(CodeEntity.qualified_name.ilike(f"%{term}%") for term in terms)),
+        )
+        .order_by(CodeEntity.id)
+        .limit(20)
+        .all()
+    )
+    related = related_insights(
+        db,
+        project_id,
+        [{"id": e.id, "file_path": e.file_path, "source_id": e.source_id} for e in entities],
+        limit=20,
+    )
+    eligible = [i for i in related if i.status == "verified" and i.outdated_at is None]
+    matches = list({i.id: i for i in [*eligible, *matches]}.values())[:5]
     budget = 8000
     parts = []
     for insight in matches:

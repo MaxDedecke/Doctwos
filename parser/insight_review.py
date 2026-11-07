@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from doctus_models.database import Insight, KnowledgeSource
+from doctus_models.insight_evidence import file_fingerprint
 
 
 def _references_source(value: Any, source_id: int) -> bool:
@@ -31,12 +32,23 @@ def mark_source_insights_outdated(db, source: KnowledgeSource) -> int:
             Insight.project_id == source.project_id,
             Insight.status == "verified",
         )
+        .with_for_update()
         .all()
     ):
         if not _references_source(insight.evidence_json, source.id):
             continue
+        references = [e for e in insight.evidence_json if e.get("source_id") == source.id]
+        if references and all(
+            e.get("file_fingerprint")
+            and e.get("file")
+            and e["file_fingerprint"]
+            == file_fingerprint(db, insight.project_id, source.id, e["file"])
+            for e in references
+        ):
+            continue
         prior_ids = set(insight.outdated_source_ids or [])
         prior_ids.add(source.id)
+        insight.revision = (insight.revision or 1) + 1
         insight.status = "outdated"
         insight.outdated_at = datetime.now(timezone.utc)
         insight.outdated_source_ids = sorted(prior_ids)

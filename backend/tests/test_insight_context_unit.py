@@ -36,6 +36,10 @@ class InsightContextTests(unittest.TestCase):
                 id=3, title="Payment", content="no evidence", status="verified", evidence_json=[]
             ),
         ]
+        insight_query = db.query.return_value
+        db.query.side_effect = lambda model: (
+            MagicMock() if model.__name__ == "CodeEntity" else insight_query
+        )
         user = object()
         sources = []
         context = retrieve_insight_context(db, user, 7, "Payment", sources=sources)

@@ -187,6 +187,8 @@ class Insight(Base):
     verified_at = Column(DateTime(timezone=True), nullable=True)
     outdated_at = Column(DateTime(timezone=True), nullable=True)
     outdated_source_ids = Column(JSON, nullable=True)
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
+    review_history = Column(JSON, nullable=False, default=list, server_default="[]")
 
     project = relationship("Project", backref=backref("insights", passive_deletes=True))
     created_by = relationship("User", foreign_keys=[created_by_id])
@@ -196,9 +198,11 @@ class Insight(Base):
         CheckConstraint(
             "origin_kind IN ('chat', 'code', 'process')", name="ck_insights_origin_kind"
         ),
-        CheckConstraint("status IN ('draft', 'verified', 'outdated')", name="ck_insights_status"),
         CheckConstraint(
-            "(status = 'draft' AND verified_by_id IS NULL AND verified_at IS NULL) OR "
+            "status IN ('draft', 'verified', 'outdated', 'rejected')", name="ck_insights_status"
+        ),
+        CheckConstraint(
+            "(status IN ('draft', 'rejected') AND verified_by_id IS NULL AND verified_at IS NULL) OR "
             "(status IN ('verified', 'outdated') AND verified_by_id IS NOT NULL AND verified_at IS NOT NULL)",
             name="ck_insights_verification_state",
         ),
@@ -696,6 +700,13 @@ class CodeEdge(Base):
         Index("ix_code_edges_dst_type", "dst_entity_id", "type"),
         Index("ix_code_edges_dstname", "source_id", "dst_name"),
         Index("ix_code_edges_scope_name", "scope_entity_id", "dst_name"),
+        Index(
+            "ix_code_edges_unresolved_project_name",
+            "project_id",
+            func.lower(dst_name),
+            "id",
+            postgresql_where=dst_entity_id.is_(None) & resolution.in_(("unresolved", "dynamic")),
+        ),
     )
 
 

@@ -2142,11 +2142,31 @@
     "provenanceSnapshot": "The evidence includes the source state captured when it was saved.",
     "pendingLinks": "{{count}} new link suggestions in Link Manager",
     "rejectedLinks": "{{count}} rejected links",
-    "filter": { "all": "All", "outdated": "Review again", "draft": "Drafts", "verified": "Approved" },
-    "status": { "draft": "Draft", "verified": "Approved", "outdated": "Review again" },
+    "filter": {
+      "all": "All",
+      "outdated": "Review again",
+      "draft": "Drafts",
+      "verified": "Approved",
+      "rejected": "Rejected"
+    },
+    "status": {
+      "draft": "Draft",
+      "verified": "Approved",
+      "outdated": "Review again",
+      "rejected": "Rejected"
+    },
     "retrievalEnabled": "Available as approved LLM context for matching questions in this project.",
     "retrievalExcluded": "Excluded from LLM retrieval: only approved, current insights are used.",
-    "origin": { "chat": "Chat", "code": "Code", "process": "Process" }
+    "origin": {
+      "chat": "Chat",
+      "code": "Code",
+      "process": "Process"
+    },
+    "revise": "Revise",
+    "reject": "Reject",
+    "rejectConfirm": "Reject this insight?",
+    "history": "Previous reviews",
+    "currentSources": "Current source revision"
   },
   "provenance": {
     "kindLabel": "Claim type",
@@ -2246,7 +2266,10 @@
     "unknownAreas": "Unknown areas and analysis limits",
     "responsibility": "CODEOWNERS hints (not confirmed domain ownership)",
     "unknownOwner": "Ownership unknown",
-    "unknownOwnerFiles": "Could not resolve CODEOWNERS ownership for {{count}} file(s)."
+    "unknownOwnerFiles": "Could not resolve CODEOWNERS ownership for {{count}} file(s).",
+    "insights": "Related insights",
+    "buildArtifacts": "Maven/CI evidence (JSON, optional)",
+    "buildArtifactsError": "Invalid JSON file or file larger than 3 MB."
   },
   "sourceNetworkGraph": {
     "title": "Source network",
