@@ -8,7 +8,7 @@ from sqlalchemy import text
 from core.dataset_assignment import DERIVED_BY, EDGE_TYPE, derive_assignments
 from db import SessionLocal
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
-from tasks.edge_resolver import _derive_dataset_assignments
+from tasks.cics_resolver import derive_dataset_assignments as _derive_dataset_assignments
 
 
 def entity(id_, type_, name, parent_id=None, meta=None, path="x", line=1):

@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
+from bms.parse import parse_bms_file
 from cobol.parse import parse_copybook, parse_program
 from cobol.prepare import prepare_copybook_index
 from core.analysis_fingerprint import COBOL_PARSER_VERSION
@@ -130,6 +131,11 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
         parse=parse_csd_file,
         root_entity_types=("csd_file",),
         parser_version="csd-structure-1",
+    ),
+    "bms": ParserEntry(
+        parse=parse_bms_file,
+        root_entity_types=("bms_mapset",),
+        parser_version="bms-structure-1",
     ),
     "properties": ParserEntry(
         parse=parse_properties_file,

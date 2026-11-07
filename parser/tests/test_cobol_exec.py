@@ -252,3 +252,31 @@ def test_a_cics_file_held_in_a_variable_names_its_possible_values():
     assert edge.meta["operation"] == "WRITE"
     assert edge.meta["dynamic"] is True
     assert [item["name"] for item in edge.meta["candidate_targets"]] == ["TRANSACT"]
+
+
+def test_send_and_receive_map_point_to_their_screen_and_a_map_in_a_variable_stays_dynamic():
+    result = parse_program(
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. SIGNON.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01 WS-MAP PIC X(7) VALUE 'COMEN1A'.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           EXEC CICS RECEIVE MAP('COSGN0A') MAPSET('COSGN00')\n"
+        "           END-EXEC\n"
+        "           EXEC CICS SEND MAP('COERR0A') ERASE\n"
+        "           END-EXEC\n"
+        "           EXEC CICS SEND MAP(WS-MAP) MAPSET('COMEN01')\n"
+        "           END-EXEC.\n",
+        "SIGNON.CBL",
+    )
+    maps = [e for e in result.edges if e.type == "USES_MAP"]
+    assert [
+        (e.dst_name, e.resolution, e.meta.get("mapset"), e.meta["operation"]) for e in maps
+    ] == [
+        ("COSGN0A", "unresolved", "COSGN00", "RECEIVE"),
+        ("COERR0A", "unresolved", "COERR0A", "SEND"),
+        ("WS-MAP", "dynamic", "COMEN01", "SEND"),
+    ]
+    assert [item["name"] for item in maps[2].meta["candidate_targets"]] == ["COMEN1A"]

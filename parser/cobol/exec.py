@@ -118,6 +118,8 @@ def scan(
                 )
             )
 
+        edges.extend(_map_edges(dialect, operation, resources, block, block_qname, common))
+
         # Keep only explicit identifier operands with well-known direction.
         # Literal and dynamic resource arguments are handled separately above;
         # unknown CICS/IMS parameters remain visible only in the source text.
@@ -214,3 +216,34 @@ def _resources(body: str) -> list[ExecResource]:
             seen.add(key)
             result.append(ExecResource(kind=kind, name=name, dynamic=variable is not None))
     return result
+
+
+def _map_edges(dialect, operation, resources, block, block_qname, common) -> list[ParsedEdge]:
+    """``SEND/RECEIVE MAP(m) [MAPSET(s)]`` zeigt auf eine BMS-Maske in einer anderen Datei (tasks/cics_resolver.py).
+    Ohne MAPSET heißt das Mapset wie die Maske. Ein Name aus einer Variablen bleibt ``dynamic``; belegte Werte
+    hängt dynamic_targets.py als Kandidaten an."""
+    if dialect != "CICS" or operation not in {"SEND", "RECEIVE"}:
+        return []
+    mapset = next((r for r in resources if r.kind == "MAPSET"), None)
+    edges = []
+    for resource in resources:
+        if resource.kind != "MAP":
+            continue
+        meta = {**common, "operation": operation}
+        if mapset is None and not resource.dynamic:
+            meta["mapset"] = resource.name
+        elif mapset is not None and not mapset.dynamic:
+            meta["mapset"] = mapset.name
+        edges.append(
+            ParsedEdge(
+                type="USES_MAP",
+                src_name=block_qname,
+                dst_name=resource.name,
+                resolution="dynamic" if resource.dynamic else "unresolved",
+                src_start_line=block.start_line,
+                src_end_line=block.end_line,
+                scope=common["program"],
+                meta=meta,
+            )
+        )
+    return edges

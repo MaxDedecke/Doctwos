@@ -48,8 +48,7 @@ Aufhebung des Feature-Stopps für den COBOL-Parser (siehe `CLAUDE.md`). Quellsys
 | Fingerprint | Ein nicht auflösbarer COPY-Name (Systemmember wie `DFHAID`) macht den Fingerprint nicht mehr bestandsweit: fehlende und mehrdeutige Namen stehen als `?NAME` in `copybook_dependencies`. Am CardDemo hatten vorher 24 von 106 Dateien einen bestandsweiten Fingerprint, jetzt keine. |
 | Grammatik | SLL scheiterte an jedem Subskript und jeder Referenzmodifikation; das ganze Programm wurde dann in LL(*) wiederholt (`COACTUPC.cbl`, 4.236 Zeilen: 130 s). Die Grammatik-Sicht blendet Klammern direkt hinter Datennamen aus (`antlr_bridge._blank_subscripts`), Länge und Zeilen bleiben gleich: 9 s, bei 76 verglichenen CardDemo-Dateien identische Entities und Kanten (einzige Abweichung: ein kaputtes Makro-Copybook mit weniger Müll-Sections). `JSON`/`XML GENERATE|PARSE` werden maskiert. |
 
-Offen: Bedienoberfläche für Profil und Preflight und ein BMS-Parser (die 17 BMS-Dateien von CardDemo sind
-`text_fallback`).
+Offen: Bedienoberfläche für Profil und Preflight.
 
 Erledigt 07.11.2026: Prozeduren, die `XML PARSE … PROCESSING PROCEDURE`, `SORT … INPUT/OUTPUT PROCEDURE` und
 `MERGE … OUTPUT PROCEDURE` ausführen, sind `PERFORM`-Kanten mit `meta.invocation` (samt `THRU`). Das Größenlimit je Git-Datei ist über `GIT_MAX_FILE_MB` einstellbar (Standard 2); nach einer
@@ -75,6 +74,14 @@ abgedeckt: variable Satzlängen (RDW, O-128) und endungslose EBCDIC-Dateien (die
 Parserversion: Der Git-Sync übernahm bisher `cobol-structure-19` aus `core/registry.py`; `COBOL_PARSER_VERSION`
 erreichte den Fingerprint nicht, Scanner-Änderungen lösten keinen Reparse aus. Die Registry leitet die Version jetzt
 aus der Konstante ab (jetzt 20).
+
+BMS (07.11.2026): `parser/bms/parse.py` liest `DFHMSD`/`DFHMDI`/`DFHMDF` mit Assembler-Fortsetzung (Spalte 72,
+weiter in Spalte 16, auch mitten in Literalen) als `bms_mapset` → `bms_map` → `bms_field`. Felder tragen Position,
+Länge, Attribute, Farbe, PICIN/PICOUT und als `label` den festen Text direkt links daneben; die festen Texte einer
+Maske stehen in `meta.texts`. `EXEC CICS SEND/RECEIVE MAP(m) [MAPSET(s)]` erzeugt `USES_MAP`, aufgelöst in
+`tasks/cics_resolver.py` nur bei genau einer Maske mit diesem Namen und Mapset; ein Name aus einer Variablen bleibt
+`dynamic` mit belegten Kandidaten. CardDemo: alle 17 Mapsets mit 451 Feldern, 47 `USES_MAP`-Kanten. Offen: die
+Verbindung von Maskenfeldern zu den Feldern der symbolischen Map im Copybook (`USERIDI`/`USERIDO`).
 
 ## Stand 06.11.2026: Dialekte, Welle 1 (Standard-COBOL, auch IBM)
 

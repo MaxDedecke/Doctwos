@@ -100,12 +100,13 @@ describe('labels of parser types', () => {
     + 'html_document endpoint maven_plugin local_class function annotation_type exec_operation exec_block jcl_dataset wsdl_part xsd_schema wsdl_message '
     + 'wsdl_operation jcl_step shell_function xsd_simple_type exec_resource xslt_template xslt_parameter groovy_file section sql_statement wsdl_port '
     + 'xslt_stylesheet xslt_variable xsd_attribute_group copybook jcl_file sql_object wsdl_binding shell_script jcl_job file_fd wsdl_service html_form '
-    + 'wsdl_port_type program sql_script javascript_file xslt_section sql_block sql_include jcl_proc xsd_group sql_table entry').split(' ');
+    + 'wsdl_port_type program sql_script javascript_file xslt_section sql_block sql_include jcl_proc xsd_group sql_table entry '
+    + 'bms_mapset bms_map bms_field').split(' ');
   const EDGE_TYPES = ('CALLS USES_TYPE READS IMPORTS INSTANTIATES WRITES EXTENDS DOCUMENTS CONTAINS IMPLEMENTS REFERENCES_METHOD REFERENCES_XML_ELEMENT DEPENDS_ON '
     + 'USES_XML_TYPE INCLUDES DECLARES_SOURCE_ROOT MAPS_XML_ELEMENT CONFIGURES INJECTS PERFORM CONTAINS_MODULE EXTENDS_XML_TYPE USES EXPOSES USES_PLUGIN EXECUTES '
     + 'REFERENCES_PROPERTY_KEY COPY MAPS_XML_TYPE LINKS_TO USES_RESOURCE GOTO DECLARES IMPLEMENTS_OPERATION BINDS_TO APPLIES_TEMPLATES DISPATCHES_TO CALL '
     + 'REFERENCES_RESOURCE INPUT_MESSAGE OUTPUT_MESSAGE CALLS_TEMPLATE SUBMITS_TO DEFINES ASSIGNED_DATASET USES_DATASET READS_XML FAULT_MESSAGE SOURCES '
-    + 'EXECUTES_SCRIPT HANDLES_XML_ELEMENT').split(' ');
+    + 'EXECUTES_SCRIPT HANDLES_XML_ELEMENT USES_MAP').split(' ');
 
   it.each(['de', 'en'] as const)('names every known type in %s, never with the raw value', (locale) => {
     for (const type of ENTITY_TYPES) expect(ENTITY_TYPE_LABELS[type]?.[locale], type).toBeTruthy();

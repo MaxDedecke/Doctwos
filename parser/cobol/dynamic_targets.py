@@ -75,12 +75,15 @@ def literal_assignments(tokens: list[Token]) -> dict[str, list[tuple[str, int, s
 
 
 def annotate(edges: list[ParsedEdge], tokens: list[Token], first_line: int, last_line: int) -> None:
-    """Hängt belegte Kandidaten an dynamische `CALL`- und CICS-Dateikanten desselben Programms."""
+    """Hängt belegte Kandidaten an dynamische `CALL`-, CICS-Datei- und Maskenkanten desselben Programms."""
     dynamic = [
         e
         for e in edges
         if e.resolution == "dynamic"
-        and (e.type == "CALL" or (e.type == "USES" and e.meta.get("resource_kind") in _FILE_KINDS))
+        and (
+            e.type in ("CALL", "USES_MAP")
+            or (e.type == "USES" and e.meta.get("resource_kind") in _FILE_KINDS)
+        )
     ]
     if not dynamic:
         return

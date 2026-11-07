@@ -1412,6 +1412,7 @@
       "writes": "Writes",
       "executes": "Executes",
       "usesDataset": "Uses dataset",
+      "usesMap": "Uses map",
       "contains": "contains",
       "boundary": "bounded by"
     },

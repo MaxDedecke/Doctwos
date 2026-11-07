@@ -52,16 +52,33 @@ JCL = LanguageProfile(
     control_edges=frozenset({"EXECUTES"}),
     include_edges=frozenset(),
 )
+BMS = LanguageProfile(
+    name="bms",
+    containers=frozenset({"bms_mapset", "bms_map"}),
+    routines=frozenset(),
+    data=frozenset({"bms_field"}),
+    control_edges=frozenset(),
+    include_edges=frozenset(),
+)
 
 # Use of values and types (reads, writes, dataset use, type use); the "data" kind of the drop view.
 DATA_EDGES = frozenset(
-    {"READS", "WRITES", "USES", "USES_DATASET", "ASSIGNED_DATASET", "USES_TYPE", "INSTANTIATES"}
+    {
+        "READS",
+        "WRITES",
+        "USES",
+        "USES_DATASET",
+        "ASSIGNED_DATASET",
+        "USES_TYPE",
+        "INSTANTIATES",
+        "USES_MAP",
+    }
 )
 
 # A unit only names another one (import statements); the weakest sign of a dependency between files.
 NAMING_EDGES = frozenset({"IMPORTS", "IMPORTS_MODULE"})
 
-PROFILES: tuple[LanguageProfile, ...] = (COBOL, JAVA, JCL)
+PROFILES: tuple[LanguageProfile, ...] = (COBOL, JAVA, JCL, BMS)
 
 CONTROL_EDGES = frozenset().union(*(profile.control_edges for profile in PROFILES))
 INCLUDE_EDGES = frozenset().union(*(profile.include_edges for profile in PROFILES))

@@ -1412,6 +1412,7 @@
       "writes": "Schreibt",
       "executes": "Führt aus",
       "usesDataset": "Verwendet Dataset",
+      "usesMap": "Verwendet Maske",
       "contains": "enthält",
       "boundary": "begrenzt"
     },

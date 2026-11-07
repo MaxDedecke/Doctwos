@@ -286,7 +286,7 @@ _GIT_FETCH_LOCK_SECONDS = 600
 
 
 # Sprachen, deren Quellen häufig als Windows-ANSI statt UTF-8 vorliegen.
-_LEGACY_ENCODING_LANGUAGES = frozenset({"cobol", "copybook", "jcl"})
+_LEGACY_ENCODING_LANGUAGES = frozenset({"cobol", "copybook", "jcl", "bms"})
 
 
 _CLASSIFY_HEAD_BYTES = 8192

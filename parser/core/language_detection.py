@@ -48,6 +48,7 @@ DEFAULT_LANGUAGE_EXTENSIONS: dict[str, set[str]] = {
     "jsp": {".jsp", ".jspx", ".jspf", ".tag", ".tagx"},
     "properties": {".properties"},
     "csd": {".csd"},
+    "bms": {".bms"},
     "xml": {".xml", ".xsd", ".wsdl", ".xjb"},
     "xslt": {".xsl", ".xslt"},
 }
