@@ -74,6 +74,7 @@ from core.projects import (
 )
 from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
+from services.source_file_text import read_source_text
 from services.web_documents import is_web_source
 from services.web_documents.resolve import (
     ASSET_MAX_AGE_SECONDS,
@@ -618,8 +619,7 @@ def get_knowledge_source_content(
                 return {"content": "\n".join(parts), "format": "text"}
 
         else:
-            with open(file_path, "r", errors="ignore") as f:
-                content = f.read()
+            content = read_source_text(db, db_source, path, file_path)
             fmt = "markdown" if ext == ".md" else "text"
             return {"content": content, "format": fmt}
 

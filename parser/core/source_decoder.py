@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
-import codecs
 import re
+
+from doctus_models.source_text import codec_name, decode_text, detect_ebcdic, is_ebcdic
+
+from core.model import ParseDiagnostic
 
 _CCSID = re.compile(r"^(?:IBM|CCSID)[-_ ]?(\d+)$", re.I)
 
@@ -34,7 +37,7 @@ def resolve_encoding(encoding: str | None) -> str:
     match = _CCSID.fullmatch(requested)
     candidate = f"cp{match.group(1)}" if match else requested
     try:
-        return codecs.lookup(candidate).name
+        return codec_name(candidate)
     except LookupError as error:
         raise SourceDecodeError(
             f"unbekannte oder nicht verfügbare Codepage '{requested}'"
@@ -55,12 +58,12 @@ def decode_source(
     """
     codec = resolve_encoding(encoding)
     try:
-        return raw.decode(codec, errors="strict"), codec
+        return decode_text(raw, codec), codec
     except UnicodeDecodeError as error:
         if fallback_encoding is not None:
             fallback_codec = resolve_encoding(fallback_encoding)
             try:
-                return raw.decode(fallback_codec, errors="strict"), fallback_codec
+                return decode_text(raw, fallback_codec), fallback_codec
             except UnicodeDecodeError:
                 # Keep the primary error: it explains why the selected source
                 # encoding failed, while the caller may report it as a skip.
@@ -70,13 +73,20 @@ def decode_source(
 
 
 def decode_legacy_source(raw: bytes, encoding: str | None = None) -> tuple[str, str]:
-    """Wie :func:`decode_source`, mit sichtbarem cp1252-Rückfall für ältere Quellen.
+    """Wie :func:`decode_source`, mit sichtbarem Rückfall für ältere Quellen.
 
     Ein ausdrücklich konfigurierter Codec bleibt strikt. Ohne Konfiguration gilt
-    UTF-8 und erst bei ungültigen Bytes ``LEGACY_FALLBACK_ENCODING``. Ein
-    Fallback-Ergebnis mit überwiegend Nicht-ASCII-Zeichen (typisch für EBCDIC) wird
-    abgelehnt, statt Datenmüll als Quelltext zu behandeln.
+    UTF-8; erst bei ungültigen Bytes wird EBCDIC erkannt (O-330, Codepage nach Inhalt)
+    oder ``LEGACY_FALLBACK_ENCODING`` versucht. Ein cp1252-Ergebnis mit überwiegend
+    Nicht-ASCII-Zeichen wird abgelehnt, statt Datenmüll als Quelltext zu behandeln.
     """
+    if not encoding:
+        try:
+            return decode_text(raw, "utf-8"), "utf-8"
+        except UnicodeDecodeError:
+            ebcdic = detect_ebcdic(raw)
+            if ebcdic is not None:
+                return decode_text(raw, ebcdic, errors="replace"), ebcdic
     fallback = None if encoding else LEGACY_FALLBACK_ENCODING
     content, codec = decode_source(raw, encoding, fallback_encoding=fallback)
     if fallback is not None and codec == resolve_encoding(fallback) and content:
@@ -97,3 +107,25 @@ def looks_like_text(content: str, max_control_char_ratio: float) -> bool:
         1 for char in content if char not in "\t\r\n" and (ord(char) < 32 or ord(char) == 127)
     )
     return control_chars / len(content) <= max_control_char_ratio
+
+
+def fallback_diagnostic(encoding: str | None) -> ParseDiagnostic:
+    """Hinweis an einer Datei, deren Kodierung ohne Buildprofil angenommen wurde."""
+    if is_ebcdic(encoding):
+        how = f"als EBCDIC erkannt und als {encoding} gelesen (Codepage nach Inhalt gewählt"
+    else:
+        how = (
+            f"kein UTF-8-Text und wurde als {encoding} gelesen ({LEGACY_FALLBACK_ENCODING}-Rückfall"
+        )
+    return ParseDiagnostic(
+        code="SOURCE_ENCODING_FALLBACK",
+        severity="info",
+        phase="import",
+        message=(
+            f"Datei ist {how}, keine Codepage im Buildprofil). "
+            "Bezeichner und Literale mit Sonderzeichen sind eine Annahme; "
+            "bei abweichender Codepage 'encoding' im Buildprofil setzen."
+        ),
+        line=0,
+        column=0,
+    )

@@ -70,3 +70,36 @@ def test_a_folder_source_reads_only_below_the_watched_root(
         f"/knowledge-sources/{source.id}/{endpoint}", params={"path": str(tmp_path / "outside.txt")}
     )
     assert res.status_code == 404
+
+
+def test_a_git_file_is_shown_with_the_encoding_it_was_imported_with(
+    client, make_source, tmp_path, monkeypatch, db_session
+):
+    from doctus_models.database import SourceScanFile
+
+    monkeypatch.setattr(ks_api, "REPOS_ROOT", str(tmp_path))
+    source = make_source("Git", {})
+    worktree = tmp_path / "wt" / f"ks_{source.id}"
+    worktree.mkdir(parents=True)
+    records = ["000100 IDENTIFICATION DIVISION.".ljust(80), "000200* Prüfung für München".ljust(80)]
+    (worktree / "PROG.cbl").write_bytes("".join(records).encode("cp273"))
+    (worktree / "ANSI.cbl").write_bytes("* Grüße\r\n".encode("cp1252"))
+    for name, encoding in (("PROG.cbl", "cp273"), ("ANSI.cbl", "cp1252")):
+        db_session.add(
+            SourceScanFile(
+                source_id=source.id,
+                file_path=name,
+                content_hash=name,
+                encoding=encoding,
+                parse_status="complete",
+            )
+        )
+    db_session.commit()
+
+    ebcdic = client.get(f"/knowledge-sources/{source.id}/content", params={"path": "PROG.cbl"})
+    ansi = client.get(f"/knowledge-sources/{source.id}/content", params={"path": "ANSI.cbl"})
+
+    assert ebcdic.json()["content"].split("\n") == records
+    assert ansi.json()["content"] == "* Grüße\n"
+    db_session.query(SourceScanFile).filter(SourceScanFile.source_id == source.id).delete()
+    db_session.commit()

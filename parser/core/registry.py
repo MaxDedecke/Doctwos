@@ -7,6 +7,7 @@ from typing import Any, Callable, Protocol
 
 from cobol.parse import parse_copybook, parse_program
 from cobol.prepare import prepare_copybook_index
+from core.analysis_fingerprint import COBOL_PARSER_VERSION
 from core.analysis_fingerprint import grammar_fingerprint as cobol_grammar_fingerprint
 from core.model import ParseResult
 from java.fingerprint import grammar_fingerprint as java_grammar_fingerprint
@@ -77,20 +78,20 @@ STRUCTURE_PARSERS: dict[str, ParserEntry] = {
     "jcl": ParserEntry(
         parse=parse_jcl_file,
         root_entity_types=("jcl_file",),
-        parser_version="jcl-structure-5",
+        parser_version="jcl-structure-6",
     ),
     "cobol": ParserEntry(
         parse=_parse_cobol,
         prepare_source=prepare_copybook_index,
         root_entity_types=("program",),
-        parser_version="cobol-structure-19",
+        parser_version=f"cobol-structure-{COBOL_PARSER_VERSION}",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "copybook": ParserEntry(
         parse=_parse_copybook,
         prepare_source=prepare_copybook_index,
         root_entity_types=("copybook",),
-        parser_version="cobol-structure-19",
+        parser_version=f"cobol-structure-{COBOL_PARSER_VERSION}",
         grammar_fingerprint=cobol_grammar_fingerprint,
     ),
     "java": ParserEntry(

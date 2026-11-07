@@ -42,16 +42,16 @@ from sqlalchemy.orm import aliased
 import git_utils
 import parse_pool
 from git_utils import MAX_READ_BYTES, SIZE_SKIP_REASON
-from core.model import ParseDiagnostic, ParseResult, classify_completeness
+from core.model import ParseResult, classify_completeness
 from core.dependency_fingerprints import DependencyFingerprints, analysis_is_current
 from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.failure_location import describe_failure
 from core.source_decoder import (
-    LEGACY_FALLBACK_ENCODING,
     SourceDecodeError,
     decode_legacy_source,
     decode_source,
+    fallback_diagnostic,
     looks_like_text,
 )
 from cobol import copybook as copybook_mod
@@ -287,22 +287,6 @@ _GIT_FETCH_LOCK_SECONDS = 600
 
 # Sprachen, deren Quellen häufig als Windows-ANSI statt UTF-8 vorliegen.
 _LEGACY_ENCODING_LANGUAGES = frozenset({"cobol", "copybook", "jcl"})
-
-
-def _encoding_fallback_diagnostic(doc: dict) -> ParseDiagnostic:
-    return ParseDiagnostic(
-        code="SOURCE_ENCODING_FALLBACK",
-        severity="info",
-        phase="import",
-        message=(
-            f"Datei ist kein UTF-8-Text und wurde als {doc['extra_meta'].get('encoding')} "
-            f"gelesen ({LEGACY_FALLBACK_ENCODING}-Rückfall, keine Codepage im Buildprofil). "
-            "Bezeichner und Literale mit Sonderzeichen sind eine Annahme; "
-            "bei abweichender Codepage 'encoding' im Buildprofil setzen."
-        ),
-        line=0,
-        column=0,
-    )
 
 
 _CLASSIFY_HEAD_BYTES = 8192
@@ -827,7 +811,9 @@ class GitConnector(BaseConnector):
                 try:
                     parse_result = await self._parse_structure(entry, lang, doc, parse_kwargs)
                     if doc["extra_meta"].get("encoding_fallback"):
-                        parse_result.diagnostics.append(_encoding_fallback_diagnostic(doc))
+                        parse_result.diagnostics.append(
+                            fallback_diagnostic(doc["extra_meta"].get("encoding"))
+                        )
                     chunks = [
                         {
                             "content": c.content,

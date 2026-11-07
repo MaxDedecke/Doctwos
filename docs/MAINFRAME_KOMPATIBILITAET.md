@@ -48,8 +48,8 @@ Aufhebung des Feature-Stopps für den COBOL-Parser (siehe `CLAUDE.md`). Quellsys
 | Fingerprint | Ein nicht auflösbarer COPY-Name (Systemmember wie `DFHAID`) macht den Fingerprint nicht mehr bestandsweit: fehlende und mehrdeutige Namen stehen als `?NAME` in `copybook_dependencies`. Am CardDemo hatten vorher 24 von 106 Dateien einen bestandsweiten Fingerprint, jetzt keine. |
 | Grammatik | SLL scheiterte an jedem Subskript und jeder Referenzmodifikation; das ganze Programm wurde dann in LL(*) wiederholt (`COACTUPC.cbl`, 4.236 Zeilen: 130 s). Die Grammatik-Sicht blendet Klammern direkt hinter Datennamen aus (`antlr_bridge._blank_subscripts`), Länge und Zeilen bleiben gleich: 9 s, bei 76 verglichenen CardDemo-Dateien identische Entities und Kanten (einzige Abweichung: ein kaputtes Makro-Copybook mit weniger Müll-Sections). `JSON`/`XML GENERATE|PARSE` werden maskiert. |
 
-Offen: Bedienoberfläche für Profil und Preflight, BMS-Parser (die 17 BMS-Dateien von CardDemo sind
-`text_fallback`), und EBCDIC-Autoerkennung (O-330).
+Offen: Bedienoberfläche für Profil und Preflight und ein BMS-Parser (die 17 BMS-Dateien von CardDemo sind
+`text_fallback`).
 
 Erledigt 07.11.2026: Prozeduren, die `XML PARSE … PROCESSING PROCEDURE`, `SORT … INPUT/OUTPUT PROCEDURE` und
 `MERGE … OUTPUT PROCEDURE` ausführen, sind `PERFORM`-Kanten mit `meta.invocation` (samt `THRU`). Das Größenlimit je Git-Datei ist über `GIT_MAX_FILE_MB` einstellbar (Standard 2); nach einer
@@ -62,6 +62,19 @@ die Schreibweise der Datei (`:PFX:-ID`), das Programm erbt sie über die vorhand
 (es wird mitten in einen Satz kopiert). Grammatik: `STOP RUN RETURNING|GIVING x`, `STOP RUN WITH ERROR STATUS [x]`,
 `GOBACK RETURNING|GIVING x`. CardDemo: `CSSETATY.cpy` jetzt `complete`, die 44 Programme unverändert;
 CobolCraft: 6 Dateien `partial` → `complete`, nichts verloren.
+
+EBCDIC (O-330, 07.11.2026): COBOL, Copybook und JCL ohne Profil-`encoding`, die kein UTF-8 sind, werden auf EBCDIC
+geprüft, bevor der cp1252-Rückfall greift (viele Leerzeichen 0x40, kaum 0x20, dekodiert ≥ 95 % Buchstaben, Ziffern und
+COBOL-Satzzeichen). Die Codepage wählt der Inhalt: Umlaute entscheiden für cp273, sonst gilt `EBCDIC_DEFAULT_CODEPAGE`
+(Standard cp037). Exporte ohne Zeilenende werden in 80-Byte-Sätze geteilt, auch bei konfigurierter Codepage;
+`CCSID-1141` liest wie 273. Die Webansicht dekodiert mit der beim Import gespeicherten Kodierung
+(`doctus_models/source_text.py`, gemeinsam für Parser und Backend), damit Zeilen und Umlaute übereinstimmen; das
+behebt auch fehlende Umlaute beim cp1252-Rückfall. Datendateien (gepackte Felder) bleiben übersprungen. Nicht
+abgedeckt: variable Satzlängen (RDW, O-128) und endungslose EBCDIC-Dateien (die Inhaltserkennung liest ASCII).
+
+Parserversion: Der Git-Sync übernahm bisher `cobol-structure-19` aus `core/registry.py`; `COBOL_PARSER_VERSION`
+erreichte den Fingerprint nicht, Scanner-Änderungen lösten keinen Reparse aus. Die Registry leitet die Version jetzt
+aus der Konstante ab (jetzt 20).
 
 ## Stand 06.11.2026: Dialekte, Welle 1 (Standard-COBOL, auch IBM)
 

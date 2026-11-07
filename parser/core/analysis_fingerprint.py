@@ -17,8 +17,11 @@ from typing import Mapping
 
 # Änderungen an handgeschriebenen Scanner-/Persistenzregeln sind nicht aus
 # einer Grammatikdatei ableitbar. Dieser Wert ist deshalb ein absichtlicher,
-# bei semantischen Parseränderungen zu erhöhender Vertrag.
-COBOL_PARSER_VERSION = "9"
+# bei semantischen Parseränderungen zu erhöhender Vertrag. Er ist Teil der
+# Parserversion von COBOL und Copybook in core/registry.py, die der Git-Sync
+# in den Fingerprint übernimmt (bis 07.11.2026 stand dort ein eigener Wert
+# "cobol-structure-19", der diese Konstante nicht kannte).
+COBOL_PARSER_VERSION = "20"
 
 
 def grammar_fingerprint() -> str:

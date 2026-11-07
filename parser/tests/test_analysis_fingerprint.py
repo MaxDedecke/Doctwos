@@ -68,3 +68,11 @@ def test_empty_profile_has_an_explicit_stable_payload():
         "copy_search_order": [],
         "resolved_from": {},
     }
+
+
+def test_the_cobol_parser_version_reaches_the_git_sync_fingerprint():
+    from core.analysis_fingerprint import COBOL_PARSER_VERSION
+    from core.registry import STRUCTURE_PARSERS
+
+    for language in ("cobol", "copybook"):
+        assert STRUCTURE_PARSERS[language].parser_version.endswith(f"-{COBOL_PARSER_VERSION}")
