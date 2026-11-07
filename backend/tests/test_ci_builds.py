@@ -345,3 +345,22 @@ def test_source_change_and_empty_reports_are_explicit(ci_source, client, db_sess
         "ci_builds"
     ]
     assert builds["status"] == "missing"
+
+
+def test_collector_hashes_original_crlf_bytes(tmp_path):
+    import hashlib
+    import importlib.util
+    from pathlib import Path
+
+    module_path = Path(__file__).resolve().parents[2] / "scripts" / "lib" / "maven_ci_artifacts.py"
+    spec = importlib.util.spec_from_file_location("ci_artifact_fixture", module_path)
+    collector = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(collector)
+    report = tmp_path / "target" / "surefire-reports" / "TEST-lines.xml"
+    report.parent.mkdir(parents=True)
+    raw = b'<testsuite>\r\n<testcase name="ok"/>\r\n</testsuite>\r\n'.replace(
+        b"\\r", b"\r"
+    ).replace(b"\\n", b"\n")
+    report.write_bytes(raw)
+    modules, _ = collector.collect(tmp_path)
+    assert modules[0]["test_reports"][0]["sha256"] == hashlib.sha256(raw).hexdigest()

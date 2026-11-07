@@ -15,7 +15,7 @@ def _read(path, root):
         or path.stat().st_size > MAX_FILE
     ):
         raise ValueError("Artifact outside workspace or too large")
-    return path.read_text(encoding="utf-8")
+    return path.read_bytes().decode("utf-8")
 
 
 def collect(root):
