@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-import mcp_server
+from services import answer_context
 from api import jobs as jobs_api
 from doctus_models.database import ChatSession, KnowledgeSource
 from services import index_state
@@ -77,13 +77,13 @@ def project_source(db_session, test_project, test_team):
 def test_evidence_pack_carries_the_index_status_only_when_the_index_is_mixed(
     db_session, test_project, project_source, monkeypatch
 ):
-    assert "index_status" not in mcp_server._with_index_status(db_session, test_project, {})
+    assert "index_status" not in answer_context._with_index_status(db_session, test_project, {})
 
     project_source.sync_status = "syncing"
     db_session.commit()
     monkeypatch.setattr(index_state, "sync_running", lambda _source_id: False)
 
-    status = mcp_server._with_index_status(db_session, test_project, {})["index_status"]
+    status = answer_context._with_index_status(db_session, test_project, {})["index_status"]
     assert [(s["source"], s["state"]) for s in status["sources"]] == [
         ("Indexstand-Quelle", "interrupted")
     ]

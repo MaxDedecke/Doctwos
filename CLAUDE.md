@@ -40,7 +40,8 @@ offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 
 ## MCP-Ziel: Antworten in O(1) Schritten für Agenten
 
-Der MCP-Server (`backend/mcp_server.py`, Werkzeug `answer_context`) soll Agenten so bedienen, dass eine typische
+Der MCP-Server (`backend/mcp_server.py`, Werkzeug `answer_context`; das Belegpaket selbst baut
+`backend/services/answer_context.py`, den auch der Chat-Agent nutzt) soll Agenten so bedienen, dass eine typische
 Frage in **einem** Werkzeugaufruf beantwortbar ist (nahezu O(1); immer ist unrealistisch). Der Server bereitet die
 Antwort aus dem Index vor, der Agent muss sie nicht aus mehreren Werkzeugläufen zusammensuchen. Gemessen am Chat:
 Wo das Beweispaket die Antwort fertig enthält (COPY-Liste, Herkunftskette), bestehen auch kleine Modelle (`qwen3:8b`)
@@ -59,7 +60,7 @@ Regeln dafür:
 3. **Jede belegbare Angabe trägt `cite`** (`pfad/datei.ext:zeile`) und ist als klickbare Quelle auffindbar
    (`services/chat_sources.py::extract_tool_sources`). Unbelegtes wird als Lücke benannt (`unresolved`, `external`, `unknown`),
    nie ergänzt.
-4. **Das Paket bleibt begrenzt** (`max_chars`, `_fit_evidence`) und trägt Bausteine nur, wenn die Frage danach klingt
+4. **Das Paket bleibt begrenzt** (`max_chars`, `services/answer_context.py::_fit_evidence`) und trägt Bausteine nur, wenn die Frage danach klingt
    (Intent), damit andere Fragen nichts kosten.
 5. **Messen, nicht annehmen:** Neue Bausteine bekommen Eval-Fälle für COBOL **und** Java (`backend/tests/fixtures/`,
    `scripts/eval_search.py`, `scripts/eval_chat.py`) und einen Unit-Test pro Sprache.

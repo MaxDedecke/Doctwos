@@ -494,7 +494,7 @@ async def _prefetch_evidence(
         :1400
     ]
     try:
-        from mcp_server import build_answer_context
+        from services.answer_context import build_answer_context
 
         user = db_session.query(User).filter(User.id == user_id).first()
         if user is None:

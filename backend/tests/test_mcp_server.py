@@ -7,6 +7,7 @@ import httpx
 import pytest
 
 import mcp_server
+from services import answer_context, call_flow_page, code_symbols, entity_explanation
 from doctus_models.database import (
     CodeEntity,
     CodeEdge,
@@ -249,13 +250,14 @@ def test_get_call_flow_accepts_documented_directions(
         start_line=1,
         end_line=2,
     )
+    monkeypatch.setattr(call_flow_page, "_entity", lambda *_args: requested_root)
     monkeypatch.setattr(mcp_server, "_entity", lambda *_args: requested_root)
 
     def fake_trace(_db, **kwargs):
         calls.update(kwargs)
         return {"status": "ok", "nodes": [], "edges": [], "entry_candidates": []}
 
-    monkeypatch.setattr(mcp_server, "trace_call_flow", fake_trace)
+    monkeypatch.setattr(call_flow_page, "trace_call_flow", fake_trace)
     result = mcp_server.get_call_flow(
         _context(user.id), project_id=project_id, entity_id=1, direction=direction
     )
@@ -323,7 +325,7 @@ def test_get_call_flow_includes_bounded_source_evidence_and_binds_cursor_options
         "end_line": target.end_line,
     }
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_args, **_kwargs: {
             "status": "ok",
@@ -408,7 +410,7 @@ async def test_search_knowledge_uses_the_active_embedding_profile(
         dimension=1024,
         context_length=4096,
     )
-    monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
+    monkeypatch.setattr(answer_context, "get_active_embedding_profile", lambda _db: profile)
     calls = {}
 
     async def fake_search(db, project_id, query, **kwargs):
@@ -470,7 +472,7 @@ async def test_search_knowledge_falls_back_to_scoped_keywords_when_embedding_fai
         dimension=1024,
         context_length=4096,
     )
-    monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
+    monkeypatch.setattr(answer_context, "get_active_embedding_profile", lambda _db: profile)
 
     async def failing_search(*_args, **_kwargs):
         request = httpx.Request("POST", "https://embedding.test/api/embed")
@@ -531,7 +533,7 @@ async def test_search_knowledge_retrieval_is_scoped_before_ranking(
         dimension=1024,
         context_length=4096,
     )
-    monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
+    monkeypatch.setattr(answer_context, "get_active_embedding_profile", lambda _db: profile)
     monkeypatch.setattr(ollama_client, "embed_text", AsyncMock(return_value=vector))
 
     chunks = await ollama_client.search_project_chunks(
@@ -561,7 +563,7 @@ async def test_search_knowledge_rechecks_scope_on_retriever_results(
         dimension=1024,
         context_length=4096,
     )
-    monkeypatch.setattr(mcp_server, "get_active_embedding_profile", lambda _db: profile)
+    monkeypatch.setattr(answer_context, "get_active_embedding_profile", lambda _db: profile)
     foreign_chunk = SimpleNamespace(
         id=987654,
         project_id=foreign_project_id,
@@ -767,7 +769,7 @@ def test_research_project_uses_paged_call_flow_contract(
         for n in range(1, 31)
     ]
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -821,7 +823,7 @@ def test_research_project_ignores_parameters_that_share_the_method_name(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -841,7 +843,7 @@ def test_research_project_ignores_parameters_that_share_the_method_name(
 
 
 def test_research_terms_keep_prose_but_split_symbol_lists():
-    terms = mcp_server._research_terms
+    terms = code_symbols._research_terms
     assert terms("how does approval/decline work") == ["how does approval/decline work"]
     assert terms("UserLogic#create(User) UserLogic#update(UserPatch)") == [
         "UserLogic#create(User)",
@@ -852,7 +854,7 @@ def test_research_terms_keep_prose_but_split_symbol_lists():
 
 
 def test_research_terms_treat_cobol_names_with_digits_as_symbols_but_not_plain_words():
-    terms = mcp_server._research_terms
+    terms = code_symbols._research_terms
     assert terms("COSGN00C COMEN01C") == ["COSGN00C", "COMEN01C"]
     assert terms("COBOL CICS MQ") == ["COBOL CICS MQ"]  # Akronyme ohne Ziffer bleiben Prosa
     assert terms("how does approval/decline work") == ["how does approval/decline work"]
@@ -860,7 +862,7 @@ def test_research_terms_treat_cobol_names_with_digits_as_symbols_but_not_plain_w
 
 
 def test_mentioned_symbols_come_from_prose_and_ignore_plain_words():
-    mentioned = mcp_server._mentioned_symbols
+    mentioned = code_symbols._mentioned_symbols
     assert mentioned("Welche Rolle spielt COSGN00C bei der Anmeldung?") == ["COSGN00C"]
     assert mentioned("Was macht PA-TRANSACTION-AMT in COPAUA0C?") == [
         "COPAUA0C",
@@ -894,7 +896,7 @@ def test_research_project_resolves_a_symbol_named_inside_a_prose_question(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -968,11 +970,11 @@ def _chunk(project_id, path, lines, start=1):
 
 
 def test_query_variants_cover_the_java_method_spelling():
-    variants = mcp_server._query_variants("AuthDataAccessor.authenticate")
+    variants = code_symbols._query_variants("AuthDataAccessor.authenticate")
     assert "AuthDataAccessor#authenticate" in variants
-    assert mcp_server._query_variants("org.x.Auth.run(String)")[:1] == ["org.x.Auth.run(String)"]
-    assert "Auth#run" in mcp_server._query_variants("org.x.Auth.run")
-    assert mcp_server._query_variants("COSGN00C.MAIN-PARA") == ["COSGN00C.MAIN-PARA"]
+    assert code_symbols._query_variants("org.x.Auth.run(String)")[:1] == ["org.x.Auth.run(String)"]
+    assert "Auth#run" in code_symbols._query_variants("org.x.Auth.run")
+    assert code_symbols._query_variants("COSGN00C.MAIN-PARA") == ["COSGN00C.MAIN-PARA"]
 
 
 def test_search_code_finds_java_methods_by_dotted_name_and_word_pairs(
@@ -1163,7 +1165,7 @@ def test_explain_symbol_returns_numbered_source_callers_callees_and_data_access(
             "entry_candidates": [],
         }
 
-    monkeypatch.setattr(mcp_server, "trace_call_flow", fake_flow)
+    monkeypatch.setattr(call_flow_page, "trace_call_flow", fake_flow)
     result = mcp_server.explain_symbol(
         _context(user.id), project_id=project_id, symbol="Auth.authenticate"
     )
@@ -1292,7 +1294,7 @@ def test_get_code_entity_resolves_a_symbol_without_an_entity_id(
 
 
 def test_extract_symbols_finds_code_names_in_german_and_english_questions():
-    extract = mcp_server._extract_symbols
+    extract = entity_explanation._extract_symbols
     assert extract("In AWS CardDemo: Wie berechnet das Batch-Programm CBACT04C die Zinsen?") == [
         "CardDemo",
         "CBACT04C",
@@ -1329,12 +1331,12 @@ def test_relevant_children_prefers_names_and_facts_that_match_the_question():
         },
         {"symbol": "P.9999-ABEND-PROGRAM", "type": "paragraph", "lines": "31-40"},
     ]
-    top = mcp_server._relevant_children(
+    top = entity_explanation._relevant_children(
         "Wie berechnet P die Zinsen und welche Formel gilt?", outline, 2
     )
     assert top[0]["symbol"] == "P.1300-COMPUTE-INTEREST"
     assert all(item["type"] != "section" for item in top)
-    files = mcp_server._relevant_children("Welche Dateien werden gelesen?", outline, 1)
+    files = entity_explanation._relevant_children("Welche Dateien werden gelesen?", outline, 1)
     assert files[0]["symbol"] == "P.1000-READ-INPUT"
 
 
@@ -1396,7 +1398,7 @@ def test_used_by_lists_copy_users_and_overload_callers_once_per_unit(
         ]
     )
     db_session.commit()
-    users = mcp_server._used_by(db_session, db_session.get(User, user.id), book, 10)
+    users = entity_explanation._used_by(db_session, db_session.get(User, user.id), book, 10)
     assert [u["unit"] for u in users] == ["PROGA", "PROGB"]
     assert users[0]["lines"] == [7, 40] and users[0]["types"] == ["COPY"]
 
@@ -1414,7 +1416,7 @@ def test_answer_context_resolves_named_symbols_and_returns_evidence(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -1470,7 +1472,7 @@ def test_answer_context_expands_the_paragraphs_that_match_a_large_program(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -1517,7 +1519,7 @@ def test_answer_context_denies_a_project_the_mcp_user_cannot_open(
 
 @pytest.fixture(autouse=True)
 def _no_embedding_calls(monkeypatch):
-    monkeypatch.setattr(mcp_server, "_embedding_scores", lambda *_a, **_k: None)
+    monkeypatch.setattr(answer_context, "_embedding_scores", lambda *_a, **_k: None)
 
 
 def test_answer_context_accepts_symbols_and_topic_without_a_question(
@@ -1533,7 +1535,7 @@ def test_answer_context_accepts_symbols_and_topic_without_a_question(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -1595,7 +1597,8 @@ def test_answer_context_follows_the_call_chain_two_hops(
             "edges": [{"target": target.id, "type": "CALLS", "start_line": 1}],
         }
 
-    monkeypatch.setattr(mcp_server, "_call_flow_page", flow)
+    monkeypatch.setattr(answer_context, "_call_flow_page", flow)
+    monkeypatch.setattr(entity_explanation, "_call_flow_page", flow)
     result = mcp_server.answer_context(
         _context(user.id), project_id=project_id, symbols=["Entry.start"], topic="routing"
     )
@@ -1608,12 +1611,14 @@ def test_answer_context_follows_the_call_chain_two_hops(
 def test_embedding_scores_blend_into_the_ranking(db_session, mcp_project_context, monkeypatch):
     user, _outsider, project_id, _foreign = mcp_project_context
     monkeypatch.setattr(
-        mcp_server,
+        answer_context,
         "_embedding_scores",
         lambda _db, _p, _q, texts: [0.1 if "PLAIN" in t else 0.9 for t in texts],
     )
     rows = [(1.0, {"symbol": "PLAIN-ONE"}), (1.0, {"symbol": "SEMANTIC-TWO"})]
-    ranked = mcp_server._rank_by_embedding(db_session, project_id, "q", rows, lambda i: i["symbol"])
+    ranked = answer_context._rank_by_embedding(
+        db_session, project_id, "q", rows, lambda i: i["symbol"]
+    )
     assert ranked[0][1]["symbol"] == "SEMANTIC-TWO"
 
 
@@ -1633,7 +1638,7 @@ def test_chat_prefetch_runs_the_evidence_pack_and_registers_citable_sources(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -1692,7 +1697,7 @@ def test_outline_facts_carry_message_texts_and_assigned_codes(db_session, mcp_pr
     ]
     db_session.add_all([program, para, _chunk(project_id, "app/AUTHPROG.cbl", lines)])
     db_session.commit()
-    outline = mcp_server._outline(db_session, program)
+    outline = call_flow_page._outline(db_session, program)
     facts = next(item for item in outline if item["symbol"] == "AUTHPROG.8000-DECLINE")["facts"]
     assert "AUTH-RESP-REASON=51" in facts and '"INSUFFICIENT FUNDS [LIMIT]"' in facts
     assert "not a message" not in facts
@@ -1735,7 +1740,7 @@ def test_relevant_children_follows_perform_one_step_and_skips_housekeeping():
     ]
     chosen = [
         c["symbol"]
-        for c in mcp_server._relevant_children("Wie berechnet P die Zinsen?", outline, 1)
+        for c in entity_explanation._relevant_children("Wie berechnet P die Zinsen?", outline, 1)
     ]
     assert chosen == ["P.1300-COMPUTE-INTEREST", "P.1300-B-WRITE-TX"]
 
@@ -1767,7 +1772,7 @@ def test_outline_facts_name_the_fields_a_paragraph_computes(db_session, mcp_proj
     db_session.commit()
     facts = next(
         i
-        for i in mcp_server._outline(db_session, program)
+        for i in call_flow_page._outline(db_session, program)
         if i["symbol"].endswith("COMPUTE-INTEREST")
     )["facts"]
     assert "computes WS-MONTHLY-INT, WS-TOTAL-INT" in facts
@@ -1891,7 +1896,7 @@ def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(
     )
     db_session.commit()
 
-    summary = mcp_server._data_access_summary(db_session, program)
+    summary = call_flow_page._data_access_summary(db_session, program)
 
     assert summary == [
         {
@@ -1913,7 +1918,7 @@ def test_symbol_signature_must_match_the_overload():
 
     update = method("a.UserServiceImpl#update(UserUR)")
     create = method("a.UserLogic#create(UserCR,boolean)")
-    matches = mcp_server._symbol_matches
+    matches = code_symbols._symbol_matches
     assert matches(update, "UserServiceImpl.update")
     assert matches(update, "UserServiceImpl#update(UserUR)")
     assert matches(update, "UserServiceImpl.update(final UserUR req)")
@@ -1999,7 +2004,7 @@ def test_answer_context_lists_copybooks_grouped_when_the_question_asks_for_them(
     )
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -2326,14 +2331,14 @@ def test_evidence_pack_shrinking_keeps_the_answering_blocks_and_drops_redundant_
     }
     pack = [entry]
     before = len(json.dumps(pack))
-    mcp_server._fit_evidence(pack, before - 2500)
+    answer_context._fit_evidence(pack, before - 2500)
     assert (
         "control_flow" in pack[0] and len(pack[0]["control_flow"]["flow"]) == 8
     )  # Block bleibt, solange andere Teile reichen
     assert (
         "callees" not in pack[0] and "callee_chain" not in pack[0]
     )  # durch den Ablauf überflüssig
-    mcp_server._fit_evidence(pack, 350)  # sehr knapp: erst jetzt wird der Ablauf selbst gekürzt
+    answer_context._fit_evidence(pack, 350)  # sehr knapp: erst jetzt wird der Ablauf selbst gekürzt
     assert 6 <= len(pack[0]["control_flow"]["flow"]) < 8
 
 
@@ -2343,7 +2348,7 @@ def test_symbols_with_hyphenated_cobol_names_and_bare_names_resolve_in_the_named
     """O-346/Q3: `PROG.PARA` und `1000-INIT` werden erkannt; ein Name, den viele Programme haben, gehört zum genannten."""
     _use_test_session(monkeypatch, db_session)
     user, _outsider, project_id, _foreign = mcp_project_context
-    assert mcp_server._extract_symbols(
+    assert entity_explanation._extract_symbols(
         "Fluss von `COPAUA0C.MAIN-PARA` und `1000-INITIALIZE` bitte"
     )[:2] == ["COPAUA0C.MAIN-PARA", "1000-INITIALIZE"]
     one = _method(project_id, "PROGONE", "PROGONE", "src/ONE.cbl", 1, 90, kind="program")
@@ -2372,7 +2377,7 @@ def test_symbols_with_hyphenated_cobol_names_and_bare_names_resolve_in_the_named
     db_session.add_all([one, two, para_one, init_one, init_two])
     db_session.commit()
     monkeypatch.setattr(
-        mcp_server,
+        call_flow_page,
         "trace_call_flow",
         lambda *_a, **_k: {
             "status": "ok",
@@ -2383,7 +2388,7 @@ def test_symbols_with_hyphenated_cobol_names_and_bare_names_resolve_in_the_named
         },
     )
 
-    result = mcp_server.build_answer_context(
+    result = answer_context.build_answer_context(
         db_session,
         db_session.get(type(user), user.id),
         project_id,
