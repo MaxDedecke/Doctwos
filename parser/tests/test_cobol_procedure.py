@@ -353,3 +353,51 @@ WORK-PARA.
     assert performs == [("WORK-PARA", 10)]
     move = next(e for e in result.edges if e.type == "WRITES" and e.dst_name == "WS-Y")
     assert [step["type"] for step in move.meta["control_path"]] == ["LOOP"]
+
+
+def test_procedures_run_by_xml_parse_sort_and_merge_are_performed():
+    from cobol.parse import parse_program
+
+    text = """IDENTIFICATION DIVISION.
+PROGRAM-ID. XMLSORT.
+ENVIRONMENT DIVISION.
+INPUT-OUTPUT SECTION.
+FILE-CONTROL.
+    SELECT SORT-FILE ASSIGN TO SORTWK.
+DATA DIVISION.
+FILE SECTION.
+SD  SORT-FILE.
+01  SORT-REC PIC X(80).
+WORKING-STORAGE SECTION.
+01  XML-DOC PIC X(200).
+PROCEDURE DIVISION.
+MAIN-PARA.
+    XML PARSE XML-DOC
+        PROCESSING PROCEDURE XML-HANDLER
+        ON EXCEPTION DISPLAY 'ERR'
+    END-XML
+    SORT SORT-FILE ON ASCENDING KEY SORT-REC
+        INPUT PROCEDURE IS SORT-IN THRU SORT-IN-EXIT
+        OUTPUT PROCEDURE SORT-OUT
+    GOBACK.
+XML-HANDLER.
+    DISPLAY 'X'.
+SORT-IN.
+    RELEASE SORT-REC.
+SORT-IN-EXIT.
+    EXIT.
+SORT-OUT.
+    RETURN SORT-FILE AT END CONTINUE END-RETURN.
+"""
+    result = parse_program(text, "xmlsort.cbl")
+    performs = {
+        e.dst_name: (e.resolution, e.src_start_line, e.meta.get("invocation"), e.meta.get("thru"))
+        for e in result.edges
+        if e.type == "PERFORM"
+    }
+    assert performs == {
+        "XML-HANDLER": ("resolved", 16, "XML PARSE", None),
+        "SORT-IN": ("resolved", 20, "SORT INPUT", "SORT-IN-EXIT"),
+        "SORT-OUT": ("resolved", 21, "SORT OUTPUT", None),
+    }
+    assert result.errors == []

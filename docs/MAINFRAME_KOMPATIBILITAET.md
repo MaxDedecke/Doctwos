@@ -49,9 +49,11 @@ Aufhebung des Feature-Stopps für den COBOL-Parser (siehe `CLAUDE.md`). Quellsys
 | Grammatik | SLL scheiterte an jedem Subskript und jeder Referenzmodifikation; das ganze Programm wurde dann in LL(*) wiederholt (`COACTUPC.cbl`, 4.236 Zeilen: 130 s). Die Grammatik-Sicht blendet Klammern direkt hinter Datennamen aus (`antlr_bridge._blank_subscripts`), Länge und Zeilen bleiben gleich: 9 s, bei 76 verglichenen CardDemo-Dateien identische Entities und Kanten (einzige Abweichung: ein kaputtes Makro-Copybook mit weniger Müll-Sections). `JSON`/`XML GENERATE|PARSE` werden maskiert. |
 
 Offen: Bedienoberfläche für Profil und Preflight, BMS-Parser (die 17 BMS-Dateien von CardDemo sind
-`text_fallback`), Copybooks mit Prozedur-Code (`CSSETATY.cpy` bleibt `partial`), die Kante für
-`XML PARSE … PROCESSING PROCEDURE`, EBCDIC-Autoerkennung (O-330) und ein konfigurierbares
-Größenlimit (derzeit 2 MiB je Datei).
+`text_fallback`), Copybooks mit Prozedur-Code (`CSSETATY.cpy` bleibt `partial`), EBCDIC-Autoerkennung
+(O-330) und ein konfigurierbares Größenlimit (derzeit 2 MiB je Datei).
+
+Erledigt 07.11.2026: Prozeduren, die `XML PARSE … PROCESSING PROCEDURE`, `SORT … INPUT/OUTPUT PROCEDURE` und
+`MERGE … OUTPUT PROCEDURE` ausführen, sind `PERFORM`-Kanten mit `meta.invocation` (samt `THRU`).
 
 ## Stand 06.11.2026: Dialekte, Welle 1 (Standard-COBOL, auch IBM)
 

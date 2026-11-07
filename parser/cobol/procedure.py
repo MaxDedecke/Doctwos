@@ -1,7 +1,8 @@
 """
 parser/cobol/procedure.py
 ============================
-F-023/024: CALL/PERFORM/GO TO als Kanten aus der PROCEDURE DIVISION, sowie
+F-023/024: CALL/PERFORM/GO TO als Kanten aus der PROCEDURE DIVISION (dazu Prozeduren, die
+XML PARSE, SORT und MERGE ausführen, als PERFORM mit ``meta.invocation``), sowie
 ENTRY-Anweisungen (O-138) als `program.entry_points`.
 
 Läuft nach divisions.scan() — braucht dessen CobolProgram (für die
@@ -444,26 +445,7 @@ def scan(
             if not is_inline and nxt is not None and nxt.kind == "WORD":
                 end_idx = i + 1
                 meta = _with_path(_build_meta(program.name, control_stack), path_stack)
-                thru_idx = i + 2
-                if (
-                    thru_idx < n
-                    and proc_tokens[thru_idx].kind == "WORD"
-                    and canonical_identifier(proc_tokens[thru_idx].value) in ("THRU", "THROUGH")
-                    and thru_idx + 1 < n
-                    and proc_tokens[thru_idx + 1].kind == "WORD"
-                ):
-                    thru_name = proc_tokens[thru_idx + 1].value
-                    meta["thru"] = thru_name
-                    thru_targets = local_targets.get(canonical_identifier(thru_name), [])
-                    if len(thru_targets) == 1:
-                        meta["thru_resolution"] = "resolved"
-                        meta["thru_target_qualified_name"] = f"{program.name}.{thru_targets[0]}"
-                    else:
-                        # An endpoint is informative even if it cannot be
-                        # unambiguously navigated; do not turn a same-named
-                        # paragraph/section into an arbitrary destination.
-                        meta["thru_resolution"] = "unresolved"
-                    end_idx = thru_idx + 1
+                end_idx = _apply_thru(proc_tokens, i + 1, meta, local_targets, program.name)
                 loop = _loop_of(proc_tokens, end_idx + 1, chars)
                 if loop is not None:
                     meta["loop"] = loop
@@ -483,6 +465,30 @@ def scan(
                 )
             i += 1
             continue
+
+        invocation = _procedure_invocation(proc_tokens, i)
+        if invocation is not None:
+            target_idx = i + 2 if _word_at(proc_tokens, i + 1, "IS") else i + 1
+            target = proc_tokens[target_idx] if target_idx < n else None
+            if target is not None and target.kind == "WORD":
+                meta = _with_path(_build_meta(program.name, control_stack), path_stack)
+                meta["invocation"] = invocation
+                end_idx = _apply_thru(proc_tokens, target_idx, meta, local_targets, program.name)
+                resolved = len(local_targets.get(canonical_identifier(target.value), [])) == 1
+                edges.append(
+                    ParsedEdge(
+                        type="PERFORM",
+                        src_name=_enclosing_paragraph(program, tok.phys_line),
+                        dst_name=target.value,
+                        resolution="resolved" if resolved else "unresolved",
+                        src_start_line=tok.phys_line,
+                        src_end_line=proc_tokens[end_idx].phys_line,
+                        scope=program.name,
+                        meta=meta,
+                    )
+                )
+                i = end_idx + 1
+                continue
 
         if (
             tok.kind == "WORD"
@@ -636,6 +642,54 @@ def block_edges(
             )
         )
     return edges
+
+
+_INVOKING_CLAUSES = {"PROCESSING": "XML PARSE", "INPUT": "SORT INPUT", "OUTPUT": "OUTPUT"}
+
+
+def _procedure_invocation(tokens: list[Token], i: int) -> str | None:
+    """Prozeduren, die die Laufzeit wie ein PERFORM ausführt: ``XML PARSE … PROCESSING PROCEDURE``,
+    ``SORT … INPUT/OUTPUT PROCEDURE`` und ``MERGE … OUTPUT PROCEDURE``."""
+    if i == 0 or not _word_at(tokens, i, "PROCEDURE") or tokens[i - 1].kind != "WORD":
+        return None
+    clause = _INVOKING_CLAUSES.get(canonical_identifier(tokens[i - 1].value))
+    if clause != "OUTPUT":
+        return clause
+    for k in range(i - 2, max(-1, i - 200), -1):
+        if tokens[k].kind == "PERIOD":
+            break
+        if tokens[k].kind == "WORD" and canonical_identifier(tokens[k].value) in ("SORT", "MERGE"):
+            return f"{canonical_identifier(tokens[k].value)} OUTPUT"
+    return None
+
+
+def _apply_thru(
+    tokens: list[Token],
+    target_idx: int,
+    meta: dict,
+    local_targets: dict[str, list[str]],
+    program_name: str,
+) -> int:
+    """Trägt ein ``THRU ende`` hinter dem Ziel in ``meta`` ein; liefert den Index des letzten Zielworts."""
+    thru_idx = target_idx + 1
+    if not (
+        thru_idx + 1 < len(tokens)
+        and tokens[thru_idx].kind == "WORD"
+        and canonical_identifier(tokens[thru_idx].value) in ("THRU", "THROUGH")
+        and tokens[thru_idx + 1].kind == "WORD"
+    ):
+        return target_idx
+    thru_name = tokens[thru_idx + 1].value
+    meta["thru"] = thru_name
+    thru_targets = local_targets.get(canonical_identifier(thru_name), [])
+    if len(thru_targets) == 1:
+        meta["thru_resolution"] = "resolved"
+        meta["thru_target_qualified_name"] = f"{program_name}.{thru_targets[0]}"
+    else:
+        # Ein Endpunkt ist auch ohne eindeutiges Ziel informativ; ein gleichnamiger Paragraph oder eine
+        # gleichnamige Section wird nicht willkürlich zum Ziel.
+        meta["thru_resolution"] = "unresolved"
+    return thru_idx + 1
 
 
 def _enclosing_paragraph(program: CobolProgram, line: int) -> str:
