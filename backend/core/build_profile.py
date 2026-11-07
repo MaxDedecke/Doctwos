@@ -9,13 +9,14 @@ Die erlaubten Werte spiegeln `parser/cobol/profile.py` und `parser/core/model.py
 
 from __future__ import annotations
 
-import codecs
 import re
 from typing import Any
 
+from doctus_models.source_text import codec_name
+
 SOURCE_FORMATS = ("fixed", "free", "variable", "extended")
 LITERAL_DELIMITERS = ("both", "apostrophe", "quote")
-LANGUAGE_PATH_LABELS = ("cobol", "copybook", "jcl")
+LANGUAGE_PATH_LABELS = ("cobol", "copybook", "jcl", "bms")
 
 _CCSID = re.compile(r"^(?:IBM|CCSID)[-_ ]?(\d+)$", re.I)
 _FRAGMENT_FIELDS = (
@@ -58,7 +59,7 @@ def _validate_encoding(value: Any) -> str:
     match = _CCSID.fullmatch(requested)
     candidate = f"cp{match.group(1)}" if match else requested
     try:
-        codecs.lookup(candidate)
+        codec_name(candidate)
     except LookupError as error:
         raise ProfileValidationError(
             f"Unbekannte Codepage '{requested}' (Beispiele: utf-8, cp1252, CCSID-273, IBM-1141)."

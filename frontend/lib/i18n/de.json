@@ -393,6 +393,69 @@
         "finishAndClose": "Fertigstellen & Schließen"
       }
     },
+    "sourceProfile": {
+      "open": "Buildprofil und Preflight",
+      "title": "Buildprofil und Preflight · {{name}}",
+      "description": "Wie die Quelle gelesen wurde, wo die Analyse hakt, und die Einstellungen für den nächsten Sync.",
+      "close": "Schließen",
+      "tab": {
+        "preflight": "Preflight",
+        "profile": "Buildprofil"
+      },
+      "loading": "Wird geladen …",
+      "loadFailed": "Bericht oder Profil konnte nicht geladen werden.",
+      "hints": "Hinweise",
+      "noHints": "Keine Auffälligkeiten.",
+      "files": "Dateien ({{total}})",
+      "language": "Sprache",
+      "status": {
+        "complete": "vollständig",
+        "partial": "teilweise",
+        "text_fallback": "nur Text",
+        "skipped": "übersprungen",
+        "error": "Fehler"
+      },
+      "encodings": "Kodierungen",
+      "parserGaps": "Häufigste Grammatikfehler",
+      "pattern": "Muster",
+      "occurrences": "Vorkommen",
+      "fileCount": "Dateien",
+      "example": "Beispiel",
+      "openCopies": "Offene COPY-Namen",
+      "ambiguous": "mehrdeutig, {{count}} Verweise",
+      "missing": "nicht gefunden, {{count}} Verweise",
+      "profileIntro": "Gilt ab dem nächsten Sync; betroffene Dateien werden dann neu analysiert. Leere Felder bedeuten: nach Inhalt erkennen.",
+      "compilerFamily": "Compilerfamilie",
+      "compilerVersion": "Compilerversion",
+      "sourceFormat": "Quellformat",
+      "automatic": "automatisch",
+      "encoding": "Codepage",
+      "encodingHint": "Leer: UTF-8, sonst EBCDIC nach Inhalt oder cp1252. Beispiele: CCSID-1141, cp037, utf-8.",
+      "literalDelimiter": "Literal-Begrenzer",
+      "delimiter": {
+        "both": "Apostroph und Anführungszeichen",
+        "apostrophe": "nur Apostroph",
+        "quote": "nur Anführungszeichen"
+      },
+      "debugMode": "Debug-Zeilen (D in Spalte 7) mitlesen",
+      "copySearchOrder": "COPY-Suchreihenfolge",
+      "copySearchOrderHint": "Ein Verzeichnis je Zeile; entscheidet gleichnamige Copybooks.",
+      "defines": "Bedingte Kompilierung",
+      "definesHint": "NAME=WERT je Zeile, für >>IF und >>EVALUATE.",
+      "languagePaths": "Sprache nach Verzeichnis",
+      "languagePathsHint": "Präfix = Sprache je Zeile, für Dateien ohne aussagekräftige Endung ({{labels}}).",
+      "pathOverrides": "Abweichungen je Verzeichnis",
+      "pathOverridesHint": "JSON: Verzeichnispräfix → dieselben Felder wie oben, z. B. ein anderes Quellformat für einen Altbestand.",
+      "save": "Speichern",
+      "saved": "Gespeichert, gilt ab dem nächsten Sync.",
+      "saveFailed": "Speichern fehlgeschlagen.",
+      "adminOnly": "Nur Administratoren können das Profil ändern.",
+      "formError": {
+        "defines": "Bedingte Kompilierung: Zeile „{{line}}“ braucht die Form NAME=WERT.",
+        "language_paths": "Sprache nach Verzeichnis: Zeile „{{line}}“ braucht die Form Präfix = Sprache.",
+        "paths_json": "Abweichungen je Verzeichnis: kein gültiges JSON-Objekt."
+      }
+    },
     "sourcesTab": {
       "pulseLabel": "Projekt-Kennzahlen",
       "title": "Wissensquellen & Integrationen",

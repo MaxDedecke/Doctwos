@@ -17,7 +17,9 @@ from sqlalchemy.orm import Session
 
 from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile
 
-STRUCTURED_LANGUAGES = ("cobol", "copybook", "jcl")
+STRUCTURED_LANGUAGES = ("cobol", "copybook", "jcl", "bms")
+# Codecs, die parser/core/source_decoder.py bei erkannten EBCDIC-Quellen speichert.
+_EBCDIC_CODECS = ("cp037", "cp273", "cp500", "cp1140")
 _TOP_GAPS = 15
 _TOP_COPIES = 25
 _MAX_TOKEN_CHARS = 40
@@ -150,7 +152,9 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
         if status == "skipped":
             size_skipped += 1 if "überschreitet" in (error or "") else 0
             # Nur Quelltext-Sprachen: EBCDIC-Datendateien (.PS u. ä.) sind kein Befund.
-            if language in STRUCTURED_LANGUAGES and "kein UTF-8" in (error or ""):
+            if language in STRUCTURED_LANGUAGES and (
+                "kein UTF-8" in (error or "") or "weder UTF-8" in (error or "")
+            ):
                 non_utf8_skipped += 1
 
     profile = spaces.get("build_profile")
@@ -169,8 +173,11 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
                 "Compilerfamilie, Quellformat und Codepage im Profil angeben.",
             }
         )
-    fallback = sum(n for codec, n in encodings.items() if codec != "utf-8")
-    if fallback:
+    ebcdic = sum(n for codec, n in encodings.items() if codec in _EBCDIC_CODECS)
+    fallback = sum(
+        n for codec, n in encodings.items() if codec != "utf-8" and codec not in _EBCDIC_CODECS
+    )
+    if fallback and not ((profile or {}).get("source") or {}).get("encoding"):
         hints.append(
             {
                 "code": "ENCODING_FALLBACK",
@@ -178,12 +185,20 @@ def build_preflight(db: Session, source: KnowledgeSource) -> dict[str, Any]:
                 "als cp1252 gelesen. Weicht die tatsächliche Codepage ab, 'encoding' im Profil setzen.",
             }
         )
+    if ebcdic and not ((profile or {}).get("source") or {}).get("encoding"):
+        hints.append(
+            {
+                "code": "ENCODING_EBCDIC",
+                "message": f"{ebcdic} Quelldatei(en) wurden als EBCDIC erkannt; die Codepage wurde "
+                "nach Inhalt gewählt. Ist sie bekannt (z. B. CCSID-1141), 'encoding' im Profil setzen.",
+            }
+        )
     if non_utf8_skipped:
         hints.append(
             {
                 "code": "NON_UTF8_SKIPPED",
-                "message": f"{non_utf8_skipped} Datei(en) wurden als nicht lesbar übersprungen. "
-                "Bei EBCDIC-Quellen die Codepage (z. B. CCSID-273) im Profil angeben.",
+                "message": f"{non_utf8_skipped} Datei(en) wurden als nicht lesbar übersprungen "
+                "(weder UTF-8 noch erkennbar EBCDIC oder cp1252). Codepage im Profil angeben.",
             }
         )
     if size_skipped:

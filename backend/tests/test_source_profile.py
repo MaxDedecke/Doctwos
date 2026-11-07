@@ -157,6 +157,41 @@ def test_preflight_reports_gaps_encodings_and_missing_profile(
     assert {"PROFILE_MISSING", "ENCODING_FALLBACK", "EXTENSIONLESS_AS_TEXT", "PARSER_GAPS"} <= codes
 
 
+def test_preflight_names_ebcdic_sources_and_accepts_bms_paths(
+    client,
+    make_project,  # noqa: F811
+    db_session,
+):
+    source_id = _git_source(client, make_project())
+    db_session.add_all(
+        [
+            SourceScanFile(
+                source_id=source_id,
+                file_path=f"HOST/{name}",
+                content_hash=name,
+                language=language,
+                parse_status="complete",
+                encoding="cp273",
+            )
+            for name, language in (("PGM1", "cobol"), ("MAP1", "bms"))
+        ]
+    )
+    db_session.commit()
+
+    report = client.get(f"/knowledge-sources/{source_id}/preflight").json()
+    codes = {hint["code"] for hint in report["hints"]}
+    assert "ENCODING_EBCDIC" in codes and "ENCODING_FALLBACK" not in codes
+    assert report["files"]["encodings"] == {"cp273": 2}
+
+    saved = client.put(
+        f"/knowledge-sources/{source_id}/build-profile",
+        json={"build_profile": {"encoding": "CCSID-1141"}, "language_paths": {"HOST/MAPS": "bms"}},
+    )
+    assert saved.status_code == 200, saved.text
+    report = client.get(f"/knowledge-sources/{source_id}/preflight").json()
+    assert "ENCODING_EBCDIC" not in {hint["code"] for hint in report["hints"]}
+
+
 def test_profile_endpoints_reject_non_git_sources(client, make_project):  # noqa: F811
     response = client.post(
         "/knowledge-sources",

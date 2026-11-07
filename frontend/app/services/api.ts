@@ -2,6 +2,7 @@ import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, C
 import axios from 'axios';
 import type { UsageReference } from '@/lib/usageAnchors';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
+import type { BuildProfileView, PreflightReport, StoredBuildProfile } from '@/lib/buildProfileForm';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 import type { ProjectPulse } from '@/lib/chatStarters';
 import type { DropDirection, DropKind, DropResult } from '@/lib/dropView';
@@ -103,6 +104,10 @@ export const api = {
     updateKnowledgeSourceInterval: (id: number, sync_interval_minutes: number) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { sync_interval_minutes }),
     updateKnowledgeSourceContextNote: (id: number, context_note: string) => axios.patch(`${API_URL}/knowledge-sources/${id}`, { context_note }),
     deleteKnowledgeSource: (id: number) => axios.delete(`${API_URL}/knowledge-sources/${id}`),
+    getBuildProfile: (id: number) => axios.get<BuildProfileView>(`${API_URL}/knowledge-sources/${id}/build-profile`),
+    putBuildProfile: (id: number, body: { build_profile: StoredBuildProfile | null; language_paths: Record<string, string> | null }) =>
+        axios.put<BuildProfileView>(`${API_URL}/knowledge-sources/${id}/build-profile`, body),
+    getPreflight: (id: number) => axios.get<PreflightReport>(`${API_URL}/knowledge-sources/${id}/preflight`),
     getKnowledgeSourceContent: (id: number | string, path?: string) => axios.get<{ content: string; format: string }>(`${API_URL}/knowledge-sources/${id}/content`, { params: path ? { path } : {} }),
     // O-120/O-242: file_status trägt Einträge für nicht uneingeschränkt
     // analysierte Dateien einschließlich Textfallbacks und nachvollziehbarer

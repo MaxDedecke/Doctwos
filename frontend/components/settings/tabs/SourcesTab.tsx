@@ -17,6 +17,7 @@ import {
   AlertCircle,
   Calendar,
   CheckCircle2,
+  ClipboardCheck,
   Code,
   Database,
   Download,
@@ -33,6 +34,7 @@ import {
 } from 'lucide-react';
 import React from 'react';
 import { GitSourcePulse } from '@/components/settings/GitSourcePulse';
+import { SourceProfileDialog } from '@/components/settings/SourceProfileDialog';
 import { SourceNetworkGraph } from './SourceNetworkGraph';
 
 interface SourcesTabProps {
@@ -63,6 +65,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
     activeEmbeddingModel,
   } = useSettings();
   const [reindexingSourceId, setReindexingSourceId] = React.useState<number | null>(null);
+  const [profileSource, setProfileSource] = React.useState<{ id: number; name: string } | null>(null);
 
   const handleDeleteSource = async (sourceId: string | number) => {
     if (!confirm(t('settings.confirm.deleteSource'))) return;
@@ -493,6 +496,22 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
 
                       {(inst.type?.toLowerCase() === 'confluence' || inst.type?.toLowerCase() === 'jira' || inst.type?.toLowerCase() === 'git') && (
                         <>
+                          {inst.type?.toLowerCase() === 'git' && (
+                            <button
+                              type="button"
+                              onClick={(e) => { e.stopPropagation(); setProfileSource({ id: Number(inst.id), name: inst.name }); }}
+                              className={cn(
+                                "h-7 w-7 rounded-lg flex items-center justify-center transition-colors border",
+                                theme === 'dark'
+                                  ? "bg-ds-zinc-950/80 border-ds-zinc-850 text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200"
+                                  : "bg-ds-white border-ds-zinc-200 text-ds-zinc-600 hover:bg-ds-zinc-50 hover:text-ds-zinc-800"
+                              )}
+                              title={t('settings.sourceProfile.open')}
+                              aria-label={t('settings.sourceProfile.open')}
+                            >
+                              <ClipboardCheck className="w-3.5 h-3.5" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             disabled={inst.sync_status === 'syncing'}
@@ -629,6 +648,11 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
           })}
         </div>
       </div>
+      <SourceProfileDialog
+        source={profileSource}
+        canEdit={Boolean(currentUser?.is_admin)}
+        onClose={() => setProfileSource(null)}
+      />
     </div>
   );
 };

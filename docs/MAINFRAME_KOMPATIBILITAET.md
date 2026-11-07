@@ -43,12 +43,17 @@ Aufhebung des Feature-Stopps für den COBOL-Parser (siehe `CLAUDE.md`). Quellsys
 |---|---|
 | Kodierung | COBOL, Copybook und JCL fallen ohne Profil-`encoding` von UTF-8 auf cp1252 zurück (Diagnose `SOURCE_ENCODING_FALLBACK`, gespeicherte Kodierung). Ergibt der Rückfall überwiegend Nicht-ASCII (EBCDIC), wird die Datei weiter übersprungen. Ein gesetztes Profil-`encoding` bleibt strikt. |
 | Klassifikation | Endungslose Dateien werden am Inhalt als `cobol`/`copybook` erkannt (`core/language_detection.py::sniff_cobol_family`). `spaces.language_paths` ordnet Verzeichnispräfixe zu, deren Endung nichts aussagt. Eine Vorab-Klassifikation je Sync speist Profil, Copybook-Index, Fingerprint und Parser. |
-| Profil und Preflight | `GET/PUT /knowledge-sources/{id}/build-profile` (Schreiben nur Admin) prüft `build_profile` und `language_paths`. `GET /knowledge-sources/{id}/preflight` zeigt Dateien nach Sprache und Status, Kodierungen, die häufigsten Grammatikfehler mit Beispielstelle, offene COPY-Namen (mehrdeutig/fehlend) und Hinweise. Die Bedienoberfläche dafür fehlt noch. |
+| Profil und Preflight | `GET/PUT /knowledge-sources/{id}/build-profile` (Schreiben nur Admin) prüft `build_profile` und `language_paths`. `GET /knowledge-sources/{id}/preflight` zeigt Dateien nach Sprache und Status, Kodierungen, die häufigsten Grammatikfehler mit Beispielstelle, offene COPY-Namen (mehrdeutig/fehlend) und Hinweise. Bedienoberfläche: Einstellungen → Quellen, Knopf „Buildprofil und Preflight“ an jeder Git-Quelle (07.11.2026). |
 | COPY-Suchfolge | `copy_search_order` entscheidet gleichnamige Copybooks (erstes Verzeichnis mit genau einem Treffer; kein Raten innerhalb eines Verzeichnisses). Das gewählte Ziel steht als `meta.target_path` an der Kante, damit der globale Resolver die richtige Entity findet. |
 | Fingerprint | Ein nicht auflösbarer COPY-Name (Systemmember wie `DFHAID`) macht den Fingerprint nicht mehr bestandsweit: fehlende und mehrdeutige Namen stehen als `?NAME` in `copybook_dependencies`. Am CardDemo hatten vorher 24 von 106 Dateien einen bestandsweiten Fingerprint, jetzt keine. |
 | Grammatik | SLL scheiterte an jedem Subskript und jeder Referenzmodifikation; das ganze Programm wurde dann in LL(*) wiederholt (`COACTUPC.cbl`, 4.236 Zeilen: 130 s). Die Grammatik-Sicht blendet Klammern direkt hinter Datennamen aus (`antlr_bridge._blank_subscripts`), Länge und Zeilen bleiben gleich: 9 s, bei 76 verglichenen CardDemo-Dateien identische Entities und Kanten (einzige Abweichung: ein kaputtes Makro-Copybook mit weniger Müll-Sections). `JSON`/`XML GENERATE|PARSE` werden maskiert. |
 
-Offen: Bedienoberfläche für Profil und Preflight.
+Die Liste vom 28.10. ist abgearbeitet (07.11.2026). Bedienoberfläche: `SourceProfileDialog` an jeder Git-Quelle
+(Einstellungen → Quellen) zeigt den Preflight-Bericht und bearbeitet das quellweite Profil als Formular
+(Compilerfamilie, Quellformat, Codepage, Literal-Begrenzer, Debug-Zeilen, Defines, COPY-Suchreihenfolge,
+Sprache nach Verzeichnis); Abweichungen je Verzeichnis bleiben JSON. Nur Administratoren speichern.
+`CCSID-1141`/`IBM-1141` wird jetzt auch bei der Profilprüfung angenommen (vorher als Beispiel genannt, aber
+abgelehnt).
 
 Erledigt 07.11.2026: Prozeduren, die `XML PARSE … PROCESSING PROCEDURE`, `SORT … INPUT/OUTPUT PROCEDURE` und
 `MERGE … OUTPUT PROCEDURE` ausführen, sind `PERFORM`-Kanten mit `meta.invocation` (samt `THRU`). Das Größenlimit je Git-Datei ist über `GIT_MAX_FILE_MB` einstellbar (Standard 2); nach einer

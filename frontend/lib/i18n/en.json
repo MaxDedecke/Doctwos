@@ -393,6 +393,69 @@
         "finishAndClose": "Finish & Close"
       }
     },
+    "sourceProfile": {
+      "open": "Build profile and preflight",
+      "title": "Build profile and preflight · {{name}}",
+      "description": "How the source was read, where analysis struggles, and the settings for the next sync.",
+      "close": "Close",
+      "tab": {
+        "preflight": "Preflight",
+        "profile": "Build profile"
+      },
+      "loading": "Loading …",
+      "loadFailed": "The report or profile could not be loaded.",
+      "hints": "Hints",
+      "noHints": "Nothing stands out.",
+      "files": "Files ({{total}})",
+      "language": "Language",
+      "status": {
+        "complete": "complete",
+        "partial": "partial",
+        "text_fallback": "text only",
+        "skipped": "skipped",
+        "error": "error"
+      },
+      "encodings": "Encodings",
+      "parserGaps": "Most frequent grammar errors",
+      "pattern": "Pattern",
+      "occurrences": "Occurrences",
+      "fileCount": "Files",
+      "example": "Example",
+      "openCopies": "Open COPY names",
+      "ambiguous": "ambiguous, {{count}} references",
+      "missing": "not found, {{count}} references",
+      "profileIntro": "Applies from the next sync; affected files are then analysed again. Empty fields mean: detect from content.",
+      "compilerFamily": "Compiler family",
+      "compilerVersion": "Compiler version",
+      "sourceFormat": "Source format",
+      "automatic": "automatic",
+      "encoding": "Code page",
+      "encodingHint": "Empty: UTF-8, otherwise EBCDIC by content or cp1252. Examples: CCSID-1141, cp037, utf-8.",
+      "literalDelimiter": "Literal delimiter",
+      "delimiter": {
+        "both": "apostrophe and quote",
+        "apostrophe": "apostrophe only",
+        "quote": "quote only"
+      },
+      "debugMode": "Read debug lines (D in column 7)",
+      "copySearchOrder": "COPY search order",
+      "copySearchOrderHint": "One directory per line; decides between copybooks of the same name.",
+      "defines": "Conditional compilation",
+      "definesHint": "NAME=VALUE per line, for >>IF and >>EVALUATE.",
+      "languagePaths": "Language by directory",
+      "languagePathsHint": "prefix = language per line, for files without a telling extension ({{labels}}).",
+      "pathOverrides": "Overrides by directory",
+      "pathOverridesHint": "JSON: directory prefix → the same fields as above, e.g. another source format for legacy code.",
+      "save": "Save",
+      "saved": "Saved, applies from the next sync.",
+      "saveFailed": "Saving failed.",
+      "adminOnly": "Only administrators can change the profile.",
+      "formError": {
+        "defines": "Conditional compilation: line “{{line}}” needs the form NAME=VALUE.",
+        "language_paths": "Language by directory: line “{{line}}” needs the form prefix = language.",
+        "paths_json": "Overrides by directory: not a valid JSON object."
+      }
+    },
     "sourcesTab": {
       "pulseLabel": "Project figures",
       "title": "Knowledge Sources & Integrations",
