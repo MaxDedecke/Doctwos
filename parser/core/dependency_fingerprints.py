@@ -1,5 +1,6 @@
 """Stable dependency fingerprints, including relationships discovered during import."""
 
+import git_utils
 from core.analysis_fingerprint import analysis_fingerprint
 
 
@@ -42,3 +43,15 @@ class DependencyFingerprints:
             if row.file_path in settled.inputs and row.parse_status != "error":
                 row.analysis_fingerprint = settled.for_path(row.file_path)
         db.flush()
+
+
+def analysis_is_current(record, fingerprint: str) -> bool:
+    """Ist die gespeicherte Analyse einer Datei noch gültig? Fehler und unter einem anderen Größenlimit
+    übersprungene Dateien werden immer neu versucht."""
+    return (
+        record is not None
+        and record.language is not None
+        and record.parse_status != "error"
+        and record.analysis_fingerprint == fingerprint
+        and not git_utils.skipped_under_other_size_limit(record.parse_status, record.parse_error)
+    )

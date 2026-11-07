@@ -41,9 +41,9 @@ from sqlalchemy.orm import aliased
 
 import git_utils
 import parse_pool
-from git_utils import MAX_READ_BYTES
+from git_utils import MAX_READ_BYTES, SIZE_SKIP_REASON
 from core.model import ParseDiagnostic, ParseResult, classify_completeness
-from core.dependency_fingerprints import DependencyFingerprints
+from core.dependency_fingerprints import DependencyFingerprints, analysis_is_current
 from core.inference_admission import CHAT_RESERVE, MAX_CONCURRENCY, track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.failure_location import describe_failure
@@ -1383,14 +1383,7 @@ class GitConnector(BaseConnector):
             if path in excluded_java_paths:
                 excluded_fingerprints[path] = (content_hash, fingerprint, language)
                 continue
-            existing = existing_records.get(path)
-            if (
-                not force_reindex
-                and existing
-                and existing.language is not None
-                and existing.parse_status != "error"
-                and existing.analysis_fingerprint == fingerprint
-            ):
+            if not force_reindex and analysis_is_current(existing_records.get(path), fingerprint):
                 continue
             self._profiles_by_path[path] = profiles_by_path.get(path)
             to_process.append((path, content_hash, fingerprint, language))
@@ -1442,9 +1435,10 @@ class GitConnector(BaseConnector):
             except OSError:
                 continue
             if file_size > MAX_READ_BYTES:
-                reason = f"überschreitet {MAX_READ_BYTES // (1024 * 1024)} MB, nicht embedded."
-                self._log(f"[SKIP] '{path}' {reason}")
-                self._record_skip(path, content_hash, analysis_fp, reason, language=language)
+                self._log(f"[SKIP] '{path}' {SIZE_SKIP_REASON}")
+                self._record_skip(
+                    path, content_hash, analysis_fp, SIZE_SKIP_REASON, language=language
+                )
                 continue
             try:
                 with open(full_path, "rb") as f:

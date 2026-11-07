@@ -10,7 +10,7 @@ zusätzliche Grenzen der jeweiligen Kundenumgebung.
 | Bereich | Grenze / Default | Quelle und Bedeutung |
 |---|---:|---|
 | Kontextnotiz einer Wissensquelle | 2.000 Zeichen | `backend/api/knowledge_sources.py::SOURCE_CONTEXT_NOTE_MAX_CHARS`; die Notiz wird bei jeder Chat-Anfrage in den Kontext übernommen. |
-| Einzelner Git-Dateiread | 2 MiB | `parser/git_utils.py::MAX_READ_BYTES`; größere Dateien werden nicht als unbeschränkter Einzelread verarbeitet. |
+| Einzelner Git-Dateiread | 2 MiB, `GIT_MAX_FILE_MB` | `parser/git_utils.py::MAX_READ_BYTES`; größere Dateien werden als übersprungen ausgewiesen. Nach einer Erhöhung prüft der nächste Sync sie erneut. |
 | Confluence-Anhang | 20 MiB | `parser/connectors/confluence.py::ATTACHMENT_MAX_BYTES`. |
 | Java-/Text-Chunk | 1.000 Zeichen | `parser/core/config.py::CHUNK_SIZE`; per Env anpassbar. Java-Struktur-Chunks werden zusätzlich symbolorientiert erzeugt. |
 | Embedding-Nebenläufigkeit | 20, CPU-only 2 | `EMBED_CONCURRENCY` und `EMBED_CONCURRENCY_CPU_ONLY`; per Env anpassbar, um Ollama nicht zu überlasten. |

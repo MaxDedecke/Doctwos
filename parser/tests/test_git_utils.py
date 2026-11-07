@@ -250,3 +250,14 @@ def test_fetch_branch_missing_branch_raises(remote, repos_root):
     bare = git_utils.ensure_bare_mirror(repos_root, fp, remote)
     with pytest.raises(git_utils.GitCommandError):
         git_utils.fetch_branch(bare, "does-not-exist")
+
+
+def test_only_files_skipped_under_another_size_limit_are_retried():
+    current = git_utils.SIZE_SKIP_REASON
+    other = f"{git_utils.SIZE_SKIP_PREFIX}{git_utils.MAX_READ_MB + 3} MB, nicht embedded."
+    assert git_utils.skipped_under_other_size_limit("skipped", other)
+    assert not git_utils.skipped_under_other_size_limit("skipped", current)
+    assert not git_utils.skipped_under_other_size_limit(
+        "skipped", "Binärformat ohne Textextraktion"
+    )
+    assert not git_utils.skipped_under_other_size_limit("complete", other)

@@ -27,7 +27,22 @@ from urllib.parse import urlsplit, urlunsplit
 # connectors/git.py, damit auch cobol/prepare.py sie lesen kann, ohne einen
 # Zirkelimport auf connectors.git einzugehen (git_utils selbst hängt an
 # nichts aus cobol/ oder connectors/).
-MAX_READ_BYTES = 2 * 1024 * 1024
+MAX_READ_MB = max(1, int(os.environ.get("GIT_MAX_FILE_MB", "2")))
+MAX_READ_BYTES = MAX_READ_MB * 1024 * 1024
+# Übersprungene Dateien tragen den Grund mit dem damaligen Limit. Weicht er vom aktuellen ab, wird die Datei
+# beim nächsten Sync erneut geprüft, auch wenn sich weder Inhalt noch Fingerprint geändert haben.
+SIZE_SKIP_PREFIX = "überschreitet "
+SIZE_SKIP_REASON = f"{SIZE_SKIP_PREFIX}{MAX_READ_MB} MB, nicht embedded."
+
+
+def skipped_under_other_size_limit(parse_status: str | None, parse_error: str | None) -> bool:
+    reason = parse_error or ""
+    return (
+        parse_status == "skipped"
+        and reason.startswith(SIZE_SKIP_PREFIX)
+        and reason != SIZE_SKIP_REASON
+    )
+
 
 # E-3 (docs/ENTSCHEIDUNGEN.md): Partial Clone spart bei der Erstindexierung
 # eines Monorepos den Großteil des Transfers, braucht dafür aber dauerhaft
