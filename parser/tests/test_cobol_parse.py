@@ -1010,3 +1010,31 @@ def test_compute_string_and_unstring_operands_get_directions():
     assert ("WRITES", "WS-AMT", 19) in seen and ("READS", "WS-AMT", 19) in seen
     assert {("READS", "WS-A", 20), ("READS", "WS-B", 20), ("WRITES", "WS-LINE", 20)} <= seen
     assert {("READS", "WS-PTR", 21), ("WRITES", "WS-PTR", 21)} <= seen
+
+
+def test_stop_run_and_goback_with_a_return_code_parse_cleanly():
+    from core.model import classify_completeness
+
+    text = (
+        "       IDENTIFICATION DIVISION.\n"
+        "       PROGRAM-ID. RETCODE.\n"
+        "       DATA DIVISION.\n"
+        "       WORKING-STORAGE SECTION.\n"
+        "       01  WS-RC PIC 9.\n"
+        "       PROCEDURE DIVISION.\n"
+        "       MAIN-PARA.\n"
+        "           IF WS-RC = 1\n"
+        "               STOP RUN RETURNING 1\n"
+        "           END-IF\n"
+        "           IF WS-RC = 2\n"
+        "               STOP RUN WITH ERROR STATUS WS-RC\n"
+        "           END-IF\n"
+        "           PERFORM NEXT-PARA\n"
+        "           GOBACK RETURNING WS-RC.\n"
+        "       NEXT-PARA.\n"
+        "           DISPLAY 'N'.\n"
+    )
+    result = parse_program(text, "RETCODE.cbl")
+
+    assert classify_completeness(result)[0] == "complete"
+    assert [e.name for e in result.entities if e.type == "paragraph"] == ["MAIN-PARA", "NEXT-PARA"]

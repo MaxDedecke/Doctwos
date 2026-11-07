@@ -4247,6 +4247,15 @@ class Cobol85Listener(ParseTreeListener):
         pass
 
 
+    # Enter a parse tree produced by Cobol85Parser#stopRunStatus.
+    def enterStopRunStatus(self, ctx:Cobol85Parser.StopRunStatusContext):
+        pass
+
+    # Exit a parse tree produced by Cobol85Parser#stopRunStatus.
+    def exitStopRunStatus(self, ctx:Cobol85Parser.StopRunStatusContext):
+        pass
+
+
     # Enter a parse tree produced by Cobol85Parser#stringStatement.
     def enterStringStatement(self, ctx:Cobol85Parser.StringStatementContext):
         pass

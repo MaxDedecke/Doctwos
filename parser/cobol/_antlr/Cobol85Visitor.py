@@ -2364,6 +2364,11 @@ class Cobol85Visitor(ParseTreeVisitor):
         return self.visitChildren(ctx)
 
 
+    # Visit a parse tree produced by Cobol85Parser#stopRunStatus.
+    def visitStopRunStatus(self, ctx:Cobol85Parser.StopRunStatusContext):
+        return self.visitChildren(ctx)
+
+
     # Visit a parse tree produced by Cobol85Parser#stringStatement.
     def visitStringStatement(self, ctx:Cobol85Parser.StringStatementContext):
         return self.visitChildren(ctx)

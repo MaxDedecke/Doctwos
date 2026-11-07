@@ -1071,7 +1071,7 @@ def parse_copybook(
             header = (
                 "IDENTIFICATION DIVISION. PROGRAM-ID. ANTLR-COPYBOOK-WRAPPER. PROCEDURE DIVISION."
             )
-        tree, source_text, diags = antlr_bridge.build_tree(masked_lines, header=header)
+        tree, source_text, diags = antlr_bridge.build_tree(masked_lines, header, True)
         visitor = divisions_mod._StructureVisitor(source_text)
         visitor.visit(tree)
         if visitor.programs:

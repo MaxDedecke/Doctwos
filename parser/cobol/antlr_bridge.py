@@ -499,6 +499,37 @@ def _blank_subscripts(text: str, from_procedure: bool = False) -> str:
     return "".join(out)
 
 
+# Platzhalter in Vorlagen-Copybooks, die erst ``COPY … REPLACING ==:TAG:== BY ==…==`` füllt: ``:TAG:`` überall,
+# ``(TAG)`` nur als Wortteil (``FLG-(TAG)-OK``, ``(TAG)C``), damit Subskripte wie ``TAB(IDX)`` unberührt bleiben.
+_PLACEHOLDER_RE = re.compile(
+    r":[A-Za-z0-9][A-Za-z0-9-]*:"
+    r"|(?<=-)\([A-Za-z][A-Za-z0-9-]*\)"
+    r"|\([A-Za-z][A-Za-z0-9-]*\)(?=[A-Za-z0-9-])"
+)
+
+
+def _fill_placeholders(text: str) -> tuple[str, list[tuple[int, str]]]:
+    """Macht Platzhalter für die Grammatik zu gleich langen Wortteilen (``:PFX:-ID`` wird ``XPFXX-ID``).
+
+    Die Fundstellen kommen mit zurück; build_tree() setzt sie im zurückgegebenen Quelltext wieder ein, damit
+    Namen aus ``original_span()`` die Schreibweise der Datei behalten."""
+    found = [(m.start(), m.group(0)) for m in _PLACEHOLDER_RE.finditer(text)]
+    if not found:
+        return text, found
+    return _PLACEHOLDER_RE.sub(lambda m: f"X{m.group(0)[1:-1]}X", text), found
+
+
+def _close_last_sentence(text: str) -> str:
+    """Ein Prozedur-Copybook wird oft mitten in einen Satz kopiert und endet ohne Punkt. Für die Grammatik
+    endet der letzte Satz am Dateiende; ein zusätzlicher leerer Satz nach einem vorhandenen Punkt ist gültig."""
+    lines = text.split("\n")
+    for idx in range(len(lines) - 1, -1, -1):
+        if lines[idx].strip():
+            lines[idx] = f"{lines[idx].rstrip()} ."
+            break
+    return "\n".join(lines)
+
+
 def _prepend_header(text: str, header: str) -> str:
     lines = text.split("\n")
     for idx, line in enumerate(lines):
@@ -548,7 +579,7 @@ _TREE_CACHE_CHARS = 4_000_000
 
 
 def build_tree(
-    masked_lines: list[LogicalLine], header: str | None = None
+    masked_lines: list[LogicalLine], header: str | None = None, close_sentence: bool = False
 ) -> tuple[Cobol85Parser.StartRuleContext, str, list[ParseDiagnostic]]:
     """Baut den ANTLR-Parse-Tree aus den (embedded.mask()-maskierten)
     LogicalLines. `masked_lines` wird hier NICHT verändert — mask_for_grammar()
@@ -597,14 +628,24 @@ def build_tree(
             else None
         ),
     )
+    text = _blank_separators(_reconstruct_text(grammar_lines))
+    placeholders: list[tuple[int, str]] = []
+    if header is not None:
+        text, placeholders = _fill_placeholders(text)
     text = _blank_subscripts(
-        _blank_separators(_reconstruct_text(grammar_lines)),
+        text,
         from_procedure=bool(header) and header.rstrip().upper().endswith("PROCEDURE DIVISION."),
     )
+    if close_sentence:
+        text = _close_last_sentence(text)
+    parse_text = text
+    for start, original in placeholders:
+        text = text[:start] + original + text[start + len(original) :]
     if header:
         text = _prepend_header(text, header)
+        parse_text = _prepend_header(parse_text, header)
 
-    ascii_text = text.translate(_UMLAUT_FOLD)
+    ascii_text = parse_text.translate(_UMLAUT_FOLD)
     # divisions.scan() und data_division.parse() bauen den Baum für dieselbe Datei
     # mit demselben Text; ein LL(*)-Fallback kostet bei großen Programmen Minuten.
     # Die Visitoren lesen den Baum nur, ein geteilter Baum ist daher unkritisch.

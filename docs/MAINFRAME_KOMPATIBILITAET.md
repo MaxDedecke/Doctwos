@@ -49,12 +49,19 @@ Aufhebung des Feature-Stopps für den COBOL-Parser (siehe `CLAUDE.md`). Quellsys
 | Grammatik | SLL scheiterte an jedem Subskript und jeder Referenzmodifikation; das ganze Programm wurde dann in LL(*) wiederholt (`COACTUPC.cbl`, 4.236 Zeilen: 130 s). Die Grammatik-Sicht blendet Klammern direkt hinter Datennamen aus (`antlr_bridge._blank_subscripts`), Länge und Zeilen bleiben gleich: 9 s, bei 76 verglichenen CardDemo-Dateien identische Entities und Kanten (einzige Abweichung: ein kaputtes Makro-Copybook mit weniger Müll-Sections). `JSON`/`XML GENERATE|PARSE` werden maskiert. |
 
 Offen: Bedienoberfläche für Profil und Preflight, BMS-Parser (die 17 BMS-Dateien von CardDemo sind
-`text_fallback`), Copybooks mit Prozedur-Code (`CSSETATY.cpy` bleibt `partial`) und EBCDIC-Autoerkennung
-(O-330).
+`text_fallback`), und EBCDIC-Autoerkennung (O-330).
 
 Erledigt 07.11.2026: Prozeduren, die `XML PARSE … PROCESSING PROCEDURE`, `SORT … INPUT/OUTPUT PROCEDURE` und
 `MERGE … OUTPUT PROCEDURE` ausführen, sind `PERFORM`-Kanten mit `meta.invocation` (samt `THRU`). Das Größenlimit je Git-Datei ist über `GIT_MAX_FILE_MB` einstellbar (Standard 2); nach einer
 Erhöhung prüft der nächste Sync die vorher übersprungenen Dateien erneut.
+
+Vorlagen- und Prozedur-Copybooks (07.11.2026): Platzhalter, die erst `COPY … REPLACING` füllt (`:TAG:` überall,
+`(TAG)` als Wortteil wie `FLG-(TAG)-OK`), werden nur für die Grammatik zu gleich langen Wörtern; Feldnamen behalten
+die Schreibweise der Datei (`:PFX:-ID`), das Programm erbt sie über die vorhandene REPLACING-Anwendung als
+`CUST-ID`. Vorher lieferte eine solche Vorlage gar keine Felder. Ein Prozedur-Copybook darf ohne Schlusspunkt enden
+(es wird mitten in einen Satz kopiert). Grammatik: `STOP RUN RETURNING|GIVING x`, `STOP RUN WITH ERROR STATUS [x]`,
+`GOBACK RETURNING|GIVING x`. CardDemo: `CSSETATY.cpy` jetzt `complete`, die 44 Programme unverändert;
+CobolCraft: 6 Dateien `partial` → `complete`, nichts verloren.
 
 ## Stand 06.11.2026: Dialekte, Welle 1 (Standard-COBOL, auch IBM)
 

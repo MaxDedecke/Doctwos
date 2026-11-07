@@ -137,3 +137,42 @@ def test_procedure_copybook_with_exec_sql_has_no_data_placeholder_entities():
     names = {e.name for e in result.entities}
     assert "ANTLR-EXEC-PLACEHOLDER" not in names
     assert "9998-PRIMING-QUERY" in names
+
+
+def test_template_copybook_keeps_its_placeholder_fields():
+    from core.model import classify_completeness
+
+    text = (
+        "       01  :PFX:-REC.\n"
+        "           05  :PFX:-ID        PIC 9(5).\n"
+        "           05  (PFX)-NAME      PIC X(20).\n"
+        "           05  WS-TAB          PIC X OCCURS 5.\n"
+    )
+    result = parse_copybook(text, "/repo/copy/TPLREC.cpy")
+
+    assert classify_completeness(result)[0] == "complete"
+    assert [(e.name, e.start_line) for e in result.entities if e.type == "data_item"] == [
+        (":PFX:-REC", 1),
+        (":PFX:-ID", 2),
+        ("(PFX)-NAME", 3),
+        ("WS-TAB", 4),
+    ]
+
+
+def test_procedure_fragment_without_closing_period_and_with_placeholders_is_complete():
+    from core.model import classify_completeness
+
+    text = (
+        "           IF (FLG-(TESTVAR1)-NOT-OK\n"
+        "           OR  FLG-(TESTVAR1)-BLANK)\n"
+        "               MOVE DFHRED TO (SCRNVAR2)C OF (MAPNAME3)O\n"
+        '               CALL "LOGERR" USING (SCRNVAR2)C\n'
+        "               STOP RUN RETURNING 1\n"
+        "           END-IF\n"
+    )
+    result = parse_copybook(text, "/repo/copy/SETATTR.cpy")
+
+    assert classify_completeness(result)[0] == "complete"
+    assert [(e.type, e.dst_name, e.src_start_line) for e in result.edges if e.type == "CALL"] == [
+        ("CALL", "LOGERR", 4)
+    ]

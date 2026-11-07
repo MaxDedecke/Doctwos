@@ -1923,8 +1923,9 @@ generateStatement
 
 // goback statement
 
+// Doctus: GOBACK RETURNING|GIVING x (GnuCOBOL, Micro Focus).
 gobackStatement
-    : GOBACK
+    : GOBACK ((RETURNING | GIVING) (identifier | integerLiteral))?
     ;
 
 // goto statement
@@ -2503,8 +2504,14 @@ startKey
 
 // stop statement
 
+// Doctus: STOP RUN RETURNING|GIVING x und STOP RUN WITH ERROR STATUS [x] (GnuCOBOL, Micro Focus).
 stopStatement
-    : STOP (RUN | literal)
+    : STOP (RUN stopRunStatus? | literal)
+    ;
+
+stopRunStatus
+    : (RETURNING | GIVING) (identifier | integerLiteral)
+    | WITH? ERROR STATUS? (identifier | integerLiteral)?
     ;
 
 // string statement
