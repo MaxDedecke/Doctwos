@@ -31,7 +31,7 @@ from doctus_models.database import KnowledgeSource
 
 logger = logging.getLogger(__name__)
 
-# Muss zu parser/connectors/base.py::BaseConnector.sync passen (Sperre je Quelle).
+# Muss zu parser/core/sync_lock.py passen (Sperre je Quelle, mit Herzschlag verlängert).
 SYNC_LOCK_KEY = "lock:sync_source:{source_id}"
 _RUNNING = {"syncing", "parsing"}
 _NOTES = {

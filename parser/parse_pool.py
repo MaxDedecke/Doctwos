@@ -9,6 +9,7 @@ und nicht bei jedem Aufruf neu serialisiert wird.
 
 from __future__ import annotations
 
+import asyncio
 import multiprocessing
 import os
 import sys
@@ -16,6 +17,13 @@ from concurrent.futures import ProcessPoolExecutor
 from typing import Any
 
 _prepared_by_lang: dict[str, Any] = {}
+# Eine Datei, deren Parser länger braucht, landet im Text-Fallback statt ihren Prozess unbegrenzt zu belegen.
+# Die Zeit zählt ab der Übergabe an den Pool; der Standard lässt auch voller Warteschlange viel Raum.
+PARSE_FILE_TIMEOUT = max(10.0, float(os.getenv("PARSE_FILE_TIMEOUT_SECONDS", "900")))
+
+
+class ParseTimeout(RuntimeError):
+    """Der Strukturparser einer Datei hat das Zeitlimit überschritten."""
 
 
 def default_workers() -> int:
@@ -67,3 +75,25 @@ def create_pool(workers: int, prepared_by_lang: dict[str, Any]) -> ProcessPoolEx
         initializer=_init_worker,
         initargs=(prepared_by_lang,),
     )
+
+
+async def parse(pool: ProcessPoolExecutor, lang: str, text: str, path: str, profile: Any):
+    """Parst eine Datei im Pool. Nach dem Zeitlimit wird der Pool beendet, weil sich ein einzelner hängender
+    Aufruf nicht abbrechen lässt; die übrigen laufenden Dateien scheitern dann mit ``BrokenProcessPool`` und
+    werden vom Aufrufer einzeln nachgeparst."""
+    return await run_with_timeout(pool, _parse_in_worker, lang, text, path, profile)
+
+
+async def run_with_timeout(pool: ProcessPoolExecutor, fn, *args: Any):
+    future = asyncio.get_running_loop().run_in_executor(pool, fn, *args)
+    try:
+        return await asyncio.wait_for(future, PARSE_FILE_TIMEOUT)
+    except TimeoutError:
+        terminate(pool)
+        raise ParseTimeout(f"Parser-Zeitlimit von {PARSE_FILE_TIMEOUT:g} s überschritten") from None
+
+
+def terminate(pool: ProcessPoolExecutor) -> None:
+    for process in list((getattr(pool, "_processes", None) or {}).values()):
+        process.kill()
+    pool.shutdown(wait=False, cancel_futures=True)

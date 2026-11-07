@@ -29,10 +29,11 @@ import os
 from datetime import datetime, timedelta, timezone
 from celery import Celery
 from celery.schedules import crontab
-from celery.signals import worker_process_init
+from celery.signals import worker_process_init, worker_ready
 from db import REDIS_URL, SessionLocal
 from doctus_models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun
 
+from core import sync_lock
 from core.tracing import TraceIdFilter, trace_id_scope
 from tasks.document import process_local_document_async
 from tasks.sync import process_knowledge_source_async
@@ -40,6 +41,7 @@ from tasks.link_builder import compute_entity_links_async
 from tasks.cross_link_builder import compute_knowledge_links_async
 from tasks.diagnostics import generate_diagnostics_bundle_async
 from tasks.file_edges import refresh_code_file_edges, refresh_code_file_groups
+from tasks.recovery import end_interrupted_sync, recover_interrupted_syncs
 
 # Celery installs its own root handler by default (no basicConfig call existed
 # here before), so log lines from this worker had a different format than
@@ -155,17 +157,57 @@ app.conf.beat_schedule = {
 }
 
 
-@app.task(name="process_local_document", bind=True)
+# Zeitlimits je Lauf. Das eigene Limit bricht den Sync geordnet ab (Aufräumen, Log, Sperre) und setzt eine
+# lesbare Fehlermeldung. Blockiert die Ereignisschleife selbst, beendet Celerys hartes Limit 10 Minuten später
+# den Prozess; dann läuft die Sperre ab und die Wiederherstellung meldet den Abbruch.
+SYNC_TIME_LIMIT = int(float(os.getenv("SYNC_TIME_LIMIT_HOURS", "24")) * 3600)
+DOCUMENT_TIME_LIMIT = int(float(os.getenv("DOCUMENT_TIME_LIMIT_HOURS", "2")) * 3600)
+HARD_LIMIT_GRACE = 600
+
+
+@worker_ready.connect
+def _end_syncs_interrupted_by_a_previous_worker(**kwargs):
+    recover_interrupted_syncs()
+
+
+def _run_source_task(source_id: int, coroutine, limit_seconds: int) -> None:
+    """Führt einen Sync mit Zeitlimit aus und hinterlässt nie eine Sperre im wiederverwendeten Worker-Prozess."""
+    try:
+        asyncio.run(asyncio.wait_for(coroutine, limit_seconds))
+    except TimeoutError:
+        end_interrupted_sync(
+            source_id,
+            f"Sync nach dem Zeitlimit von {limit_seconds / 3600:g} h beendet. Bereits verarbeitete "
+            "Dateien bleiben erhalten; ein neuer Sync setzt dort fort.",
+        )
+        raise
+    finally:
+        sync_lock.release_all()
+
+
+@app.task(
+    name="process_local_document",
+    bind=True,
+    time_limit=DOCUMENT_TIME_LIMIT + HARD_LIMIT_GRACE,
+)
 def process_local_document(task, source_id: int, file_path: str, trace_id: str | None = None):
     """Celery-Task: Hochgeladenes lokales Dokument (PDF, Word, Text) parsen und einbetten."""
     _register_task_id(KnowledgeSource, source_id, task.request.id)
     _refresh_worker_ai_settings()
     with trace_id_scope(trace_id):
-        asyncio.run(process_local_document_async(source_id, file_path))
+        _run_source_task(
+            source_id,
+            process_local_document_async(source_id, file_path),
+            DOCUMENT_TIME_LIMIT,
+        )
     return {"status": "finished", "source_id": source_id}
 
 
-@app.task(name="process_knowledge_source", bind=True)
+@app.task(
+    name="process_knowledge_source",
+    bind=True,
+    time_limit=SYNC_TIME_LIMIT + HARD_LIMIT_GRACE,
+)
 def process_knowledge_source(
     task, source_id: int, force_reindex: bool = False, trace_id: str | None = None
 ):
@@ -185,7 +227,11 @@ def process_knowledge_source(
     _register_task_id(KnowledgeSource, source_id, task.request.id)
     _refresh_worker_ai_settings()
     with trace_id_scope(trace_id):
-        asyncio.run(process_knowledge_source_async(source_id, force_reindex=force_reindex))
+        _run_source_task(
+            source_id,
+            process_knowledge_source_async(source_id, force_reindex=force_reindex),
+            SYNC_TIME_LIMIT,
+        )
     return {"status": "finished", "source_id": source_id}
 
 
@@ -194,19 +240,27 @@ def process_knowledge_source(
 # "process_knowledge_source" umgestellt ist. Danach können diese entfernt werden.
 
 
-@app.task(name="process_confluence_source", bind=True)
+@app.task(
+    name="process_confluence_source",
+    bind=True,
+    time_limit=SYNC_TIME_LIMIT + HARD_LIMIT_GRACE,
+)
 def process_confluence_source(task, source_id: int):
     _register_task_id(KnowledgeSource, source_id, task.request.id)
     _refresh_worker_ai_settings()
-    asyncio.run(process_knowledge_source_async(source_id))
+    _run_source_task(source_id, process_knowledge_source_async(source_id), SYNC_TIME_LIMIT)
     return {"status": "finished", "source_id": source_id}
 
 
-@app.task(name="process_jira_source", bind=True)
+@app.task(
+    name="process_jira_source",
+    bind=True,
+    time_limit=SYNC_TIME_LIMIT + HARD_LIMIT_GRACE,
+)
 def process_jira_source(task, source_id: int):
     _register_task_id(KnowledgeSource, source_id, task.request.id)
     _refresh_worker_ai_settings()
-    asyncio.run(process_knowledge_source_async(source_id))
+    _run_source_task(source_id, process_knowledge_source_async(source_id), SYNC_TIME_LIMIT)
     return {"status": "finished", "source_id": source_id}
 
 
@@ -339,6 +393,8 @@ def scan_pull_sources():
     from connectors.registry import REGISTRY
     from doctus_models.database import KnowledgeSource
 
+    # Erst abgebrochene Läufe beenden: Ihr hängender „syncing“-Status würde sonst als laufender Sync gelten.
+    recover_interrupted_syncs()
     auto_sync_types = {k.lower() for k in REGISTRY.keys()}
     now = datetime.now(timezone.utc)
 

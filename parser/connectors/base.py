@@ -31,19 +31,20 @@ Ablauf eines sync()-Aufrufs
 import asyncio
 import json
 import logging
-import uuid
+import os
+import time
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import NotRequired, TypedDict
 
-import redis
 
 from chunk_reindex import reindex_chunks_preserving_links
 from connectors.tls import resolve_verify
 from code_parser import CodeParser
 from core import config
-from db import SessionLocal, REDIS_URL
+from core.sync_lock import SyncLock
+from db import SessionLocal
 from doctus_models.database import DocumentChunk, KnowledgeSource
 from insight_review import mark_source_insights_outdated
 from ollama_client import (
@@ -56,19 +57,8 @@ from ollama_client import (
 
 logger = logging.getLogger(__name__)
 
-redis_client = redis.from_url(REDIS_URL)
-
-# Verhindert einen parallelen Sync derselben Quelle (z. B. Celery-Beat-Scan und ein
-# manueller "Jetzt synchronisieren"-Klick treffen sich): der bloße
-# source.sync_status=="syncing"-Check in der DB war ein ungeschütztes
-# Check-then-Set — zwei Worker-Prozesse (der Celery-Worker läuft ohne
-# --concurrency-Limit, also standardmäßig mit einem Prozess pro CPU-Kern) können
-# beide "nicht syncing" lesen, bevor einer von beiden committet, und denselben
-# storage_key parallel löschen+neu einfügen → doppelte Chunks. Redis SET NX EX ist
-# atomar und schließt das Rennen; Lease wird analog zu tasks/link_builder.py als
-# Heartbeat pro verarbeitetem Dokument erneuert, damit ein legitim langer Download
-# (große BIM-Modelle) die Sperre nicht verliert.
-_SYNC_LOCK_LEASE_SECONDS = 3600
+LOG_FLUSH_SECONDS = 2.0
+SYNC_LOG_MAX_CHARS = max(10_000, int(os.getenv("SYNC_LOG_MAX_CHARS", "1000000")))
 
 
 class Document(TypedDict):
@@ -148,6 +138,8 @@ class BaseConnector(ABC):
         # Solange eine Datei geschrieben wird, gehört jeder Commit der gemeinsamen
         # Session zu genau dieser Datei (siehe _file_write).
         self._file_write_open = False
+        self._log_buffer: list[str] = []
+        self._log_flushed_at = 0.0
 
     @contextmanager
     def _file_write(self):
@@ -171,13 +163,42 @@ class BaseConnector(ABC):
     # ── Logging ──────────────────────────────────────────────────────────────
 
     def _log(self, message: str) -> None:
-        """Schreibt eine Zeile ins sync_log der KnowledgeSource und auf stdout."""
+        """Schreibt eine Zeile ins sync_log der KnowledgeSource und auf stdout.
+
+        Zeilen werden gesammelt und höchstens alle ``LOG_FLUSH_SECONDS`` geschrieben: Früher schrieb jede Zeile
+        das ganze Log neu und committete (bei 40.000 Dateien quadratisch viele Bytes). Das Log behält die
+        letzten ``SYNC_LOG_MAX_CHARS`` Zeichen."""
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
-        line = f"[{timestamp}] {message}\n"
         logger.info(message)
-        if self.source:
-            self.source.sync_log = (self.source.sync_log or "") + line
-            self._commit_unless_file_write()
+        self._log_buffer.append(f"[{timestamp}] {message}\n")
+        if time.monotonic() - self._log_flushed_at >= LOG_FLUSH_SECONDS:
+            self._flush_log()
+
+    def _flush_log(self, final: bool = False) -> None:
+        """Gepufferte Zeilen ins sync_log übernehmen, nie mitten in einem offenen Datei-Schreibvorgang (der darf
+        nicht halb festgeschrieben werden). ``final`` am Ende des Laufs verwirft zuerst, was nicht committet ist:
+        Nach einem Abbruch mitten in einer Datei liegen deren Änderungen noch in der Session, früher verwarf
+        ``close()`` sie."""
+        self._log_flushed_at = time.monotonic()
+        if not self._log_buffer or not self.source or self._file_write_open:
+            return
+        try:
+            if final:
+                self.db.rollback()
+            text = (self.source.sync_log or "") + "".join(self._log_buffer)
+            self._log_buffer.clear()
+            if len(text) > SYNC_LOG_MAX_CHARS:
+                cut = text.find("\n", len(text) - SYNC_LOG_MAX_CHARS)
+                text = "[… ältere Zeilen gekürzt …]\n" + text[cut + 1 :]
+            self.source.sync_log = text
+            self.db.commit()
+        except Exception:
+            if not final:
+                raise
+            self.db.rollback()
+            logger.warning(
+                "Sync-Log für Quelle %s nicht geschrieben", self.source_id, exc_info=True
+            )
 
     def _update_progress(
         self, current: int, total: int | None = None, message: str | None = None
@@ -458,9 +479,8 @@ class BaseConnector(ABC):
         Orchestriert den vollständigen Sync-Ablauf für eine KnowledgeSource.
         Wird von der Celery-Task in tasks/sync.py aufgerufen.
         """
-        lock_key = f"lock:sync_source:{self.source_id}"
-        lock_owner = uuid.uuid4().hex
-        if not redis_client.set(lock_key, lock_owner, nx=True, ex=_SYNC_LOCK_LEASE_SECONDS):
+        lock = SyncLock(self.source_id)
+        if not lock.acquire():
             logger.warning(
                 f"[Connector] Sync für KnowledgeSource {self.source_id} läuft bereits (Lock aktiv), überspringe."
             )
@@ -516,10 +536,6 @@ class BaseConnector(ABC):
 
             try:
                 async for doc in self.fetch_documents():
-                    # Heartbeat: Lease erneuern, solange sichtbar Fortschritt gemacht wird,
-                    # damit ein legitim langer Sync (viele/große BIM-Downloads) die Sperre
-                    # nicht mitten im Lauf verliert.
-                    redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
                     in_flight.add(asyncio.create_task(self._process_one(doc)))
                     if len(in_flight) >= concurrency:
                         # Rückstau: der Crawl holt erst weitere Dokumente, wenn ein Platz frei wird.
@@ -573,10 +589,6 @@ class BaseConnector(ABC):
                 self.source.last_error = error_msg
                 self.db.commit()
         finally:
+            self._flush_log(final=True)
             self.db.close()
-            # Lock nur freigeben, wenn wir ihn noch besitzen (Schutz gegen den seltenen
-            # Fall, dass die Lease während eines extrem langen Laufs abgelaufen und
-            # zwischenzeitlich von einem neuen Sync übernommen wurde).
-            current_owner = redis_client.get(lock_key)
-            if current_owner == lock_owner.encode("utf-8"):
-                redis_client.delete(lock_key)
+            lock.release()

@@ -5,6 +5,7 @@ from connectors.folder import _extract_text, extract_docx_text, extract_pdf_page
 from connectors.office import OFFICE_EXTENSIONS, extract_legacy_doc
 from connectors.textio import read_text_file
 from core import config
+from core.sync_lock import SyncLock
 from db import SessionLocal
 from doctus_models.database import KnowledgeSource, DocumentChunk
 from insight_review import mark_source_insights_outdated
@@ -45,8 +46,13 @@ async def process_local_document_async(source_id: int, file_path: str):
         db.close()
         return
 
-    if source.sync_status == "syncing":
+    # Dieselbe Sperre wie bei den Konnektoren: Ohne sie blieb eine nach einem Absturz auf „syncing“
+    # stehende Datei für immer gesperrt, und die Wiederherstellung könnte einen laufenden Vorgang nicht
+    # von einem abgebrochenen unterscheiden.
+    lock = SyncLock(source_id)
+    if not lock.acquire():
         logger.info(f"Verarbeitung für Quelle {source_id} läuft bereits, überspringe.")
+        db.close()
         return
 
     embedding_model = source.embedding_model or config.EMBED_MODEL
@@ -218,3 +224,4 @@ async def process_local_document_async(source_id: int, file_path: str):
         db.commit()
     finally:
         db.close()
+        lock.release()

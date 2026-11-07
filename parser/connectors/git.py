@@ -59,7 +59,8 @@ from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from core.registry import STRUCTURE_PARSERS
 from structure_persist import persist_parse_result, rehome_shared_java_container
-from connectors.base import BaseConnector, Document, _SYNC_LOCK_LEASE_SECONDS
+from connectors.base import BaseConnector, Document
+from core.sync_lock import SyncLock
 from connectors.finalize import finalize_source
 from db import REPOS_ROOT
 from java.modules import is_build_excluded as _is_java_build_excluded
@@ -746,6 +747,10 @@ class GitConnector(BaseConnector):
             )
         try:
             return await self._parse_in_pool(pool, lang, doc, parse_kwargs)
+        except parse_pool.ParseTimeout:
+            if self._parse_pool is pool:
+                self._parse_pool = None
+            raise
         except BrokenProcessPool:
             # Stirbt ein Prozess (Speicher-Kill), scheitern alle laufenden Dateien des Pools, ohne
             # dass erkennbar wäre, welche es war. Nie im Hauptprozess nachparsen: Die Giftdatei
@@ -757,14 +762,8 @@ class GitConnector(BaseConnector):
 
     @staticmethod
     async def _parse_in_pool(pool, lang: str, doc, parse_kwargs: dict[str, Any]):
-        return await asyncio.get_running_loop().run_in_executor(
-            pool,
-            parse_pool._parse_in_worker,
-            lang,
-            doc["content"],
-            doc["storage_key"],
-            parse_kwargs.get("profile"),
-        )
+        args = (lang, doc["content"], doc["storage_key"], parse_kwargs.get("profile"))
+        return await parse_pool.parse(pool, *args)
 
     async def _parse_isolated(self, lang: str, doc, parse_kwargs: dict[str, Any]):
         """Parst eine Datei allein in einem eigenen Prozess, damit nur die Schuldige scheitert."""
@@ -1522,9 +1521,8 @@ class GitConnector(BaseConnector):
         eigenen, engeren Lock (siehe _git_fetch_lock) innerhalb von
         fetch_documents().
         """
-        lock_key = f"lock:sync_source:{self.source_id}"
-        lock_owner = uuid.uuid4().hex
-        if not redis_client.set(lock_key, lock_owner, nx=True, ex=_SYNC_LOCK_LEASE_SECONDS):
+        lock = SyncLock(self.source_id)
+        if not lock.acquire():
             logger.warning(
                 f"[Connector] Sync für KnowledgeSource {self.source_id} läuft bereits (Lock aktiv), überspringe."
             )
@@ -1642,7 +1640,6 @@ class GitConnector(BaseConnector):
 
             async for task in doc_producer():
                 pending_tasks.add(task)
-                redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
                 await drain_finished()
 
                 if len(pending_tasks) >= 50:
@@ -1653,7 +1650,6 @@ class GitConnector(BaseConnector):
                         await finish(t)
 
             while pending_tasks:
-                redis_client.expire(lock_key, _SYNC_LOCK_LEASE_SECONDS)
                 done, pending_tasks = await asyncio.wait(
                     pending_tasks, timeout=30, return_when=asyncio.FIRST_COMPLETED
                 )
@@ -1722,7 +1718,6 @@ class GitConnector(BaseConnector):
             if self._parse_pool is not None:
                 self._parse_pool.shutdown(wait=False, cancel_futures=True)
                 self._parse_pool = None
+            self._flush_log(final=True)
             self.db.close()
-            current_owner = redis_client.get(lock_key)
-            if current_owner == lock_owner.encode("utf-8"):
-                redis_client.delete(lock_key)
+            lock.release()
