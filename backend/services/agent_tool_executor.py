@@ -18,6 +18,8 @@ from services.change_impact import inspect_change_impact
 from services.change_package import inspect_change_package
 from api.graph import get_graph_neighborhood
 from services.search import search_nodes
+from services.project_evidence import project_evidence
+from services.reviewed_evidence import fit_result
 
 from services import agent_repo_tools as repo_tools
 
@@ -549,20 +551,31 @@ class AgentToolExecutor:
             for search_type in types
         )
         return json.dumps(
-            {
-                "status": "ok",
-                "query": query.strip(),
-                "types": types,
-                "project_id": self.project_id,
-                "source_id": source_id,
-                "limit": 10,
-                "results": results[:20],
-                "counts": {
-                    search_type: int(counts.get(search_type, 0) or 0) for search_type in types
+            fit_result(
+                {
+                    **project_evidence(
+                        self.db_session,
+                        user,
+                        self.project_id,
+                        query.strip(),
+                        source_id=source_id,
+                        nodes=results,
+                    ),
+                    "status": "ok",
+                    "query": query.strip(),
+                    "types": types,
+                    "project_id": self.project_id,
+                    "source_id": source_id,
+                    "limit": 10,
+                    "results": results[:20],
+                    "counts": {
+                        search_type: int(counts.get(search_type, 0) or 0) for search_type in types
+                    },
+                    "has_more": has_more,
+                    "truncated": has_more,
                 },
-                "has_more": has_more,
-                "truncated": has_more,
-            },
+                8000,
+            ),
             ensure_ascii=False,
         )
 

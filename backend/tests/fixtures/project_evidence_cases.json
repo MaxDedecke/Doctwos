@@ -1,0 +1,4 @@
+[
+  {"language": "java", "name": "Worker", "type": "class", "path": "src/main/java/demo/Worker.java", "code": "class Worker { void run() {} }", "question": "Worker Maven Testergebnisse und Erkenntnisse"},
+  {"language": "cobol", "name": "WORKER", "type": "program", "path": "src/WORKER.cbl", "code": "       IDENTIFICATION DIVISION.\n       PROGRAM-ID. WORKER.\n       PROCEDURE DIVISION.\n           GOBACK.", "question": "WORKER CI Testergebnisse und Erkenntnisse"}
+]

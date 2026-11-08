@@ -17,7 +17,8 @@ def related_insights(db, project_id, nodes, limit=40):
     selectors = []
     evidence = cast(Insight.evidence_json, JSONB)
     for node in nodes:
-        selectors.append(evidence.contains([{"entity_id": node["id"]}]))
+        if node.get("id") is not None:
+            selectors.append(evidence.contains([{"entity_id": node["id"]}]))
         if node.get("file_path") and node.get("source_id") is not None:
             selectors.append(
                 evidence.contains([{"file": node["file_path"], "source_id": node["source_id"]}])
@@ -33,13 +34,13 @@ def related_insights(db, project_id, nodes, limit=40):
     )
 
 
-def retrieve_insight_context(db, user, project_id, message, sources=None, source_id=None):
+def current_insights(db, user, project_id, message, source_id=None, nodes=None, limit=5):
     if project_id is None:
-        return ""
+        return []
     assert_project_visible(project_id, user, db)
     terms = list(dict.fromkeys(re.findall(r"[^\W_]{4,}", message.lower())))[:12]
-    if not terms:
-        return ""
+    if not terms and not nodes:
+        return []
     matches = (
         db.query(Insight)
         .filter(
@@ -47,14 +48,15 @@ def retrieve_insight_context(db, user, project_id, message, sources=None, source
             Insight.status == "verified",
             Insight.outdated_at.is_(None),
             or_(
+                False,
                 *(
                     or_(Insight.title.ilike(f"%{term}%"), Insight.content.ilike(f"%{term}%"))
                     for term in terms
-                )
+                ),
             ),
         )
         .order_by(Insight.verified_at.desc(), Insight.id.desc())
-        .limit(5)
+        .limit(40)
         .all()
     )
     # A class or file named in the question can retrieve a finding whose prose
@@ -63,7 +65,7 @@ def retrieve_insight_context(db, user, project_id, message, sources=None, source
         db.query(CodeEntity)
         .filter(
             CodeEntity.project_id == project_id,
-            or_(*(CodeEntity.qualified_name.ilike(f"%{term}%") for term in terms)),
+            or_(False, *(CodeEntity.qualified_name.ilike(f"%{term}%") for term in terms)),
         )
         .order_by(CodeEntity.id)
         .limit(20)
@@ -72,11 +74,28 @@ def retrieve_insight_context(db, user, project_id, message, sources=None, source
     related = related_insights(
         db,
         project_id,
-        [{"id": e.id, "file_path": e.file_path, "source_id": e.source_id} for e in entities],
+        [
+            *(nodes or []),
+            *[{"id": e.id, "file_path": e.file_path, "source_id": e.source_id} for e in entities],
+        ],
         limit=20,
     )
-    eligible = [i for i in related if i.status == "verified" and i.outdated_at is None]
-    matches = list({i.id: i for i in [*eligible, *matches]}.values())[:5]
+    eligible = [
+        i for i in related if i.status == "verified" and getattr(i, "outdated_at", None) is None
+    ]
+    matches = list({i.id: i for i in [*eligible, *matches]}.values())
+    return [
+        i
+        for i in matches
+        if i.status == "verified"
+        and getattr(i, "outdated_at", None) is None
+        and i.evidence_json
+        and version_state(db, i, source_id=source_id) in {"current", "project"}
+    ][:limit]
+
+
+def retrieve_insight_context(db, user, project_id, message, sources=None, source_id=None):
+    matches = current_insights(db, user, project_id, message, source_id)
     budget = 8000
     parts = []
     for insight in matches:
@@ -134,7 +153,11 @@ def retrieve_insight_context(db, user, project_id, message, sources=None, source
 def resolve_insight_sources(answer, candidates):
     """Only retrieved insight IDs explicitly cited outside code fences are sources."""
     scan = re.sub(r"```.*?```|~~~.*?~~~", " ", answer, flags=re.DOTALL)
-    by_id = {source["insight_id"]: source for source in candidates}
+    by_id = {
+        source["insight_id"]: source
+        for source in candidates
+        if source.get("insight_id") is not None
+    }
     seen = set()
     result = []
     for match in re.finditer(r"\[(?:Insight|Erkenntnis):([0-9]+)\]", scan, re.IGNORECASE):
@@ -146,19 +169,6 @@ def resolve_insight_sources(answer, candidates):
 
 
 def related_insight_records(db, project_id, nodes):
-    return [
-        {
-            "id": insight.id,
-            "title": insight.title,
-            "content": insight.content,
-            "status": insight.status,
-            "revision": insight.revision,
-            "evidence": insight.evidence_json,
-            "version_bindings": insight.version_bindings,
-            "version_state": version_state(db, insight),
-            "verified_by_id": insight.verified_by_id,
-            "verified_at": insight.verified_at.isoformat() if insight.verified_at else None,
-            "outdated_at": insight.outdated_at.isoformat() if insight.outdated_at else None,
-        }
-        for insight in related_insights(db, project_id, nodes)
-    ]
+    from services.reviewed_evidence import insight_record
+
+    return [insight_record(db, i) for i in related_insights(db, project_id, nodes)]

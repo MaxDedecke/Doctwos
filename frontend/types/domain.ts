@@ -219,7 +219,12 @@ export interface ChatTelemetry {
 }
 export interface ChatSource {
   file: string;
-  kind?: 'insight';
+  kind?: 'insight' | 'ci_build';
+  ci_build_id?: number;
+  truncated?: boolean;
+  version_bindings?: Array<Record<string, unknown>> | null;
+  revision?: number;
+  build?: Record<string, unknown>;
   insight_id?: number;
   project_id?: number;
   title?: string;

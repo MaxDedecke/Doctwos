@@ -1211,6 +1211,7 @@
     "agentWorking": "Agent arbeitet...",
     "referencedSources": "Referenzierte Quellen:",
     "insightSource": "Erkenntnis: {{title}}",
+    "ciSnapshot": "Dieses CI-Ergebnis zeigt den bei der Antwort gespeicherten Stand. Den aktuellen Stand findest du im Änderungspaket.",
     "insightSnapshot": "Bei dieser Antwort verwendete, damals freigegebene Erkenntnis mit ihren gespeicherten Belegen.",
     "sourceFileTitle": "{{file}} (Zeilen {{lines}})",
     "sourceLabel": "Quelle: {{name}}",

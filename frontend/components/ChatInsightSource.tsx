@@ -15,7 +15,9 @@ export function ChatInsightSource({ source, onOpenFile }: { source: ChatSource; 
     <div className="max-w-lg space-y-2 p-3">
       <p className="text-ds-zinc-500">{t('chatView.insightSnapshot')}</p>
       <p className="whitespace-pre-wrap break-words">{source.content}</p>
+      {source.truncated && <p className="text-ds-amber-500">{t('ciBuild.truncated')}</p>}
       <InsightEvidence evidence={source.evidence || []} onOpenFile={onOpenFile} />
+      {source.version_bindings && source.version_bindings.length > 0 && <details><summary>{t('insightCommit.bindings')}</summary><InsightEvidence evidence={source.version_bindings} /></details>}
     </div>
   </details>;
 }

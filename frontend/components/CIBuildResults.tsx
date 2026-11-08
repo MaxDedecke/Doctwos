@@ -20,6 +20,7 @@ export function CIBuildResults({ data }: { data: unknown }) {
         const tests = object(summary.test_results);
         return (
           <article key={String(run.id)} className="mt-3 rounded border border-ds-zinc-500/30 p-3">
+            {run.truncated === true && <p className="text-ds-amber-500">{t('ciBuild.truncated')}</p>}
             <p className="font-semibold">{String(run.provider)} · {String(run.job_name)} · {String(run.variant)}</p>
             <p className="mt-1">{String(run.run_id)} · {t('ciBuild.attempt')} {String(run.attempt)} · {t(`ciBuild.status.${String(run.status)}`)}</p>
             <p className="mt-1 break-all">{String(run.branch)} · {String(run.commit)}</p>

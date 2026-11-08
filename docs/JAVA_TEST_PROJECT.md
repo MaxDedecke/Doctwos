@@ -377,3 +377,62 @@ Module, Surefire/Failsafe, Entfernung alter Reports, bereinigte POM-Daten und
 den unveränderten Fehlercode eines fehlgeschlagenen Maven-Laufs.
 Die Oberflächentests prüfen Tokenausgabe, Ausblenden des Secrets, Rollen sowie
 die getrennte Anzeige von Build- und Teststatus.
+
+## Durchgängige Projektbelege in Web, Chat und MCP (08.11.2026)
+
+Das Änderungspaket liefert Erkenntnisse jetzt mit `version_state` und
+`usable_as_knowledge`. Die kompakte Agentenausgabe erhält sowohl Erkenntnisse
+als auch commitgebundene CI-Läufe, statt diese Felder zu verlieren.
+Allgemeine Recherche verwendet nur aktuelle Freigaben. Im Änderungspaket bleiben
+alle Prüfstatus sichtbar; Entwürfe, verworfene und veraltete Erkenntnisse dürfen
+nicht als freigegebene Aussagen behandelt werden.
+
+`answer_context` enthält zusätzlich relevante Erkenntnisse und CI-Ergebnisse
+für die ermittelten Quellen. Fragen nach CI/Builds ohne Symbol können die ersten
+20 Git-Quellen des Projekts berücksichtigen; eine Kürzung wird ausgewiesen.
+Die Wissenssuche des internen Chat-Agenten und MCP-`search_knowledge` liefern
+dieselben Ergänzungen. Fehlende/ausgefallene Embeddings verhindern beim
+MCP-Wissenszugang nicht den lexikalischen Rückfall und die Projektbelege.
+
+MCP-`inspect_change_package` nimmt `project_id`, ein `entity_id`/`file_path`
+oder `base_ref` und `head_ref`, optional `source_id`, sowie die bestehenden
+Richtungs-/Hop-/Mengenparameter an. Es nutzt dieselbe HTTP-Eingabeprüfung und
+Projektberechtigung. Das Werkzeug liest ausschließlich; ein MCP-Token erhält
+keine CI-Upload- oder Freigaberechte.
+
+Projektbelege tragen `[Insight:id]` bzw. `[CI:id]` als Zitiermarker.
+Chat-SSE und Nachrichtenhistorie enthalten nur tatsächlich zitierte
+Erkenntnis-/CI-Snapshots. CI-Quellen öffnen die gemeinsame Ergebnisansicht mit
+Commit, Job, Variante, Buildstatus und unabhängigem Teststatus. Historische
+Antworten behalten ihren gespeicherten Stand; sie werden nicht nachträglich
+auf den neuesten Build umgeschrieben. Beim Ableiten einer weiteren Erkenntnis
+bleiben Erkenntnisreferenzen und CI-Lauf-ID mit Quellbezug erhalten.
+Anlegen und Freigeben prüfen CI-Belege gegen deren tatsächliche Quelle und
+den aktuellen Commit. Ein historischer Chat-Build lässt sich dadurch nicht
+als Beleg eines neueren Quellenstands freigeben.
+
+Kompakte Ausgaben zeigen höchstens fünf Erkenntnisse und fünf CI-Läufe.
+CI-Details enthalten bis zu zwei Module, vier Dependencies und zwei Testreports
+pro Modul; Status, Zähler und Sammlungshinweise bleiben getrennt. Weitere
+Kürzungen durch das Zeichenbudget sind explizit. Das Agenten-Änderungspaket
+bleibt gültiges JSON unter 8.000 Zeichen; `answer_context` berücksichtigt sein
+gewähltes Gesamtbudget. Das XML-escaped Projektbeleg-Promptsegment bleibt
+unter 8.000 Zeichen. Kompakte Ergebnisse ersetzen nicht die Detailansicht oder
+die Originalpipeline und treffen keine Aussage über vollständige Testabdeckung.
+
+`backend/tests/fixtures/project_evidence_cases.json` enthält je einen
+Java- und COBOL-Fall. `test_project_evidence.py` prüft HTTP-Webpaket,
+Agentenprojektion, Antwortkontext, lokale Wissenssuche und MCP-Wissenssuche,
+MCP-Protokollregistrierung/-Aufruf, Projektisolation, falsche Commit-/Repository-/
+Quellenstände, unvollständige Indizes, ältere aktuelle Erkenntnisse hinter
+veralteten Kandidaten, gültiges begrenztes JSON sowie Chat-SSE/Persistenz in
+Agenten- und Standard-RAG-Betrieb. Modellantworten und Embeddings werden dabei
+simuliert; diese Regressionen sind kein neuer Beleg fachlicher LLM-Qualität.
+
+Die Abschlussprüfung dieses Stands bestand mit 943 Backend-Tests (1 Skip),
+854 Parser-Tests (7 Skips) und 1.110 Frontend-Tests. TypeScript, ESLint ohne
+Fehler, Design-Token-Prüfung sowie Ruff/Lint und Formatprüfung bestanden.
+31 neue Backendfälle prüfen die durchgängigen Projektbelege. Für den Parserlauf
+werden die vorhandenen Prüfskripte unter `/scripts` in den isolierten
+Testcontainer eingebunden. Es wurden keine Datenbankmodelle oder Abhängigkeiten
+geändert; Migration 0047 bleibt der aktuelle Stand.

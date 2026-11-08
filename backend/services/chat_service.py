@@ -787,10 +787,10 @@ async def retrieve_chat_context(
     )
     if code_focus_metadata:
         pinned_context = code_focus_metadata + pinned_context
-    from services.insight_context import retrieve_insight_context
+    from services.project_evidence import project_evidence_prompt
 
     insight_sources = []
-    context += retrieve_insight_context(
+    context += project_evidence_prompt(
         db, user, project_id, message, sources=insight_sources, source_id=focused_source_id
     )
     prompt = build_chat_prompt(
@@ -1323,8 +1323,8 @@ def build_chat_prompt(
         "Instruction: Cite a file that genuinely informed the answer inline in backticks as "
         "`path/to/file.ext:line`, with exactly one line number. Cite extensionless knowledge "
         "sources by their exact title without a line number. Do not cite uninvolved context. "
-        "When using an approved insight, cite its exact [Insight:id] marker from the context. "
-        "This identifies a reviewed claim, not independently checked source code. "
+        "Cite approved insights as [Insight:id] and recorded CI results as [CI:id] from the context. "
+        "Insights identify reviewed claims; CI citations identify recorded build outcomes. Neither replaces source-code evidence. "
         "Treat Java, COBOL, XSLT, XML, JSP/HTML and shell files as distinct languages. Use "
         "language-specific symbols only when the cited file or indexed entity supports them; "
         "describe cross-language links (for example Java-to-XSLT/JSP or shell-to-Java) only "

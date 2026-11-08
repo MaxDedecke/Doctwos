@@ -12,6 +12,7 @@ from core.projects import assert_project_visible, get_project_role
 from core.teams import is_admin
 from doctus_models.database import Insight, KnowledgeSource, User, DocumentChunk
 from doctus_models.insight_evidence import snapshot_evidence
+from services.ci_builds import validate_insight_ci_evidence
 from doctus_models.insight_versions import capture_versions, version_state, versions_match
 
 
@@ -96,6 +97,11 @@ def create_insight(
         raise HTTPException(status_code=422, detail="origin_kind muss chat, code oder process sein")
     if not all(isinstance(item, dict) and item for item in body.evidence):
         raise HTTPException(status_code=422, detail="Jeder Beleg muss ein nicht-leeres Objekt sein")
+
+    try:
+        validate_insight_ci_evidence(db, project_id, body.evidence)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     source_ids = {
         item.get("source_id") for item in body.evidence if isinstance(item.get("source_id"), int)
@@ -214,6 +220,7 @@ def verify_insight(
         )
 
     try:
+        validate_insight_ci_evidence(db, project_id, insight.evidence_json)
         current_versions = capture_versions(
             db, project_id, insight.evidence_json, dependencies=True, strict=True
         )

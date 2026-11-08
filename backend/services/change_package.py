@@ -823,7 +823,7 @@ def inspect_change_package(
         )
 
     gaps = [
-        "No versioned, reviewed domain-rule objects are available yet; possible rule labels are keyword-based linked-document candidates."
+        "Linked-document rule labels are keyword-based candidates; reviewed insights are listed separately with their approval and version state."
     ]
     if not linked_knowledge:
         gaps.append(

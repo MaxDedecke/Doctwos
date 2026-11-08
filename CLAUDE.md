@@ -167,3 +167,12 @@ aus der CI, ihre dauerhafte Commit-Zuordnung und die automatische Anzeige im
 quellengebundenen CI-Zugang. Der Import startet weiterhin keine Maven-Plugins.
 CI-Runner und Helfer gehören zum Offline-Bundle. Einrichtung und Datenvertrag
 stehen in `docs/CI_INTEGRATION.md`.
+
+## Auftrag 08.11.2026 — Erkenntnisse und CI in Web, Chat und MCP
+
+Explizit beauftragt ist die durchgängige Verfügbarkeit vorhandener Erkenntnisse
+und CI-Ergebnisse. Gemeinsame Auswahl-/Projektionsdienste versorgen Chat,
+MCP-Beweispaket, Wissenssuche und Änderungspaket. Der lesende MCP-Zugang zum
+Änderungspaket ist Teil dieses Auftrags. Freigabe-, Versions- und Quellenrechte
+bleiben wirksam; die Änderung erlaubt weder automatische fachliche Freigaben
+noch Maven-Ausführung im Import. Details: `docs/JAVA_TEST_PROJECT.md`.

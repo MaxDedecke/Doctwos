@@ -914,3 +914,32 @@ vor dem Upload verworfen. Fehlende Berichte erzeugen keine bestandenen Tests.
 Das gemeinsame ORM-Register liegt in `model_base.py`; die beiden neuen
 Featuretabellen liegen separat in `ci_models.py` und werden aus dem bisherigen
 `database`-Modul re-exportiert. Migration 0047 und Modellversion 1.9.0 sind nötig.
+
+## Gemeinsame Projektbelege für Web, Chat und MCP (08.11.2026)
+
+Erkenntnisse und CI-Läufe werden nicht in einen zweiten Suchindex kopiert.
+`services/insight_context.py` wählt aktuelle Freigaben aus;
+`services/project_evidence.py` verbindet sie mit dem bestehenden CI-Selektor.
+`services/reviewed_evidence.py` bildet begrenzte, zitierbare Datensätze.
+Die HTTP-Webansicht behält ihre vollständige, begrenzte Änderungspaket-Ausgabe;
+Chat und MCP verwenden kompakte Projektionen derselben Datensätze.
+
+Allgemeine Antworten verwenden ausschließlich freigegebene Erkenntnisse mit
+passender Versionsbindung. Das Änderungspaket enthält auch Entwürfe, verworfene
+und veraltete Aussagen als Prüfbedarf und kennzeichnet deren Verwendbarkeit.
+CI-Läufe bleiben an Quelle, Repository, Branch und vollständig indizierten Commit
+gebunden. Neuere Versuche desselben Jobs verdrängen ältere wie bisher.
+Buildstatus, Testergebnis und Sammlungsfehler bleiben getrennt.
+
+`answer_context`, beide Wissenssuchpfade und das neue lesende MCP-Werkzeug
+`inspect_change_package` nutzen die gemeinsamen Dienste. Das MCP-Änderungspaket
+verwendet die Eingabe- und Berechtigungsprüfung des bestehenden HTTP-Endpunkts.
+JSON wird strukturiert gekürzt, damit Quellenmarker und Status nicht durch
+abgeschnittenes JSON verloren gehen. Kürzungen und fehlende CI-Belege sind sichtbar.
+
+Zitate `[Insight:id]` und `[CI:id]` referenzieren ausschließlich tatsächlich
+gelieferte Datensätze. Im Chat werden verwendete Belege als Snapshot per SSE
+und in der Nachrichtenhistorie gespeichert. CI-Snapshots verwenden dieselbe
+Build-/Testergebnis-Komponente wie die Webansicht. Erkenntnisse aus späteren
+Werkzeugaufrufen werden ebenfalls als Zitatkandidaten aufgenommen. Fremdinhalte
+sind passive Daten; sie erteilen keine Handlungsanweisungen.

@@ -284,3 +284,32 @@ def matching_builds(db, project_id, impact, nodes):
         "items": items[:20],
         "truncated": truncated or len(items) > 20,
     }
+
+
+def validate_insight_ci_evidence(db, project_id, evidence):
+    """Do not rebind a historical chat's build outcome to today's source commit."""
+    for item in evidence:
+        build_id = item.get("ci_build_id")
+        if build_id is None:
+            continue
+        row = (
+            db.query(CIBuildRun).filter_by(id=build_id, project_id=project_id).first()
+            if type(build_id) is int
+            else None
+        )
+        source = (
+            db.query(KnowledgeSource).filter_by(id=row.source_id, project_id=project_id).first()
+            if row
+            else None
+        )
+        if (
+            row is None
+            or source is None
+            or item.get("source_id") != row.source_id
+            or item.get("source_commit", row.commit) != row.commit
+            or source.sync_status != "completed"
+            or (source.sync_cursor or {}).get("last_commit") != row.commit
+            or repository_identity(source) != row.repository
+            or (source.branch and source.branch != row.branch)
+        ):
+            raise ValueError("CI-Beleg gehört nicht zum vollständig indizierten Quellenstand")

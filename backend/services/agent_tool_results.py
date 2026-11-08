@@ -1,7 +1,10 @@
 """Werkzeugergebnisse des Chat-Agenten begrenzen, bevor sie in den Modellkontext gehen."""
 
 from typing import Any
-from xml.sax.saxutils import escape
+
+from services.linked_record_projection import compact_linked_records
+
+from services.reviewed_evidence import NOTICE, compact_insights, compact_builds, fit_result
 
 
 # O-168: die lokalen Repo-Werkzeuge (list_repo_files/view_repo_file/
@@ -76,62 +79,6 @@ def _compact_change_package_for_agent(package: dict) -> dict:
             ],
         }
 
-    def compact_records(key: str, count: int, include_text: bool = False) -> list[dict]:
-        records = package.get(key, [])
-        if not isinstance(records, list):
-            return []
-        compacted = []
-        for record in records[:count]:
-            if not isinstance(record, dict):
-                continue
-            item = {
-                name: record.get(name)
-                for name in (
-                    "entity_id",
-                    "source_type",
-                    "issue_key",
-                    "classification",
-                    "classification_basis",
-                    "classification_keyword",
-                    "record_type",
-                    "bug_candidate",
-                    "url",
-                    "relationship_path_entity_id",
-                    "relationship_path_available",
-                )
-                if name in record
-            }
-            if isinstance(record.get("title"), str):
-                item["title"] = (
-                    f"<untrusted_source>{escape(record['title'][:120])}</untrusted_source>"
-                )
-            evidence = record.get("evidence")
-            if isinstance(evidence, dict):
-                item["evidence"] = {
-                    name: evidence.get(name)
-                    for name in (
-                        "link_id",
-                        "status",
-                        "link_type",
-                        "direction",
-                        "score",
-                        "reviewed_at",
-                        "chunk_id",
-                        "start_line",
-                        "end_line",
-                    )
-                    if name in evidence
-                }
-                if include_text:
-                    for name in ("context", "excerpt"):
-                        value = evidence.get(name)
-                        if isinstance(value, str) and value.strip():
-                            item["evidence"][name] = (
-                                f"<untrusted_source>{escape(value[:120])}</untrusted_source>"
-                            )
-            compacted.append(item)
-        return compacted
-
     code = []
     for node in package.get("affected_code", [])[:6]:
         if not isinstance(node, dict):
@@ -165,9 +112,16 @@ def _compact_change_package_for_agent(package: dict) -> dict:
         "target": package.get("target"),
         "scope": package.get("scope"),
         "impact_summary": impact.get("impact_summary") if isinstance(impact, dict) else None,
+        "insights": compact_insights(package.get("insights", [])),
+        "ci_builds": compact_builds(package.get("ci_builds") or {}),
+        "project_evidence_notice": NOTICE,
         "affected_code": code,
-        "linked_knowledge": compact_records("linked_knowledge", 4, include_text=True),
-        "historical_issues": compact_records("historical_issues", 4, include_text=True),
+        "linked_knowledge": compact_linked_records(
+            package.get("linked_knowledge", []), 4, include_text=True
+        ),
+        "historical_issues": compact_linked_records(
+            package.get("historical_issues", []), 4, include_text=True
+        ),
         "tests": {
             "status": tests.get("status") if isinstance(tests, dict) else "unknown",
             "items": tests.get("items", [])[:5] if isinstance(tests, dict) else [],
@@ -193,13 +147,16 @@ def _compact_change_package_for_agent(package: dict) -> dict:
         "evidence_gaps": package.get("evidence_gaps", []),
         "limitations": package.get("limitations", []),
         "presentation_truncated": {
+            "insights": len(package.get("insights", [])) > 5,
+            "ci_builds": bool((package.get("ci_builds") or {}).get("truncated"))
+            or len((package.get("ci_builds") or {}).get("items", [])) > 5,
             "affected_code": len(package.get("affected_code", [])) > len(code),
             "linked_knowledge": len(package.get("linked_knowledge", [])) > 4,
             "historical_issues": len(package.get("historical_issues", [])) > 4,
             "tests": bool(tests.get("truncated")) if isinstance(tests, dict) else False,
         },
     }
-    return result
+    return fit_result(result, 8000)
 
 
 # Unified Agent Execution Loop

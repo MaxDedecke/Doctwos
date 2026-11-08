@@ -335,7 +335,7 @@ def local_tool_definitions(
                 "description": (
                     "Build a bounded, read-only evidence package for preparing a code change. It combines "
                     "O-196's indexed impact graph with approved code/document links, linked Jira records, "
-                    "statically related test/spec entities, relationship paths with source lines, and "
+                    "version-bound insights (including review tasks), recorded CI outcomes for the indexed commit, statically related test/spec entities, relationship paths with source lines, and "
                     "CODEOWNERS candidates when available. It labels keyword classifications and gaps; "
                     "unknown tests or owners are not evidence of absence or complete coverage. Use this "
                     "when the user asks what rules, documentation, earlier issues, tests, or people should "

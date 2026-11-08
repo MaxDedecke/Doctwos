@@ -110,3 +110,15 @@ geprüft. Der Runner-End-to-End-Test verwendet simuliertes Maven und einen
 echten HTTP-Upload durch die API bis zur Datenbank. Eine externe
 Unternehmenspipeline wird mit deren URL, Quell-ID, Runner und CI-Secret
 in ihrer Zielumgebung aktiviert.
+
+## Nutzung über Chat und MCP
+
+CI-Läufe sind auch in `answer_context`, `search_knowledge` und
+`inspect_change_package` verfügbar. Die kompakte Darstellung zeigt denselben
+Build-/Teststatus und dieselbe Commit-Zuordnung wie das Web-Änderungspaket,
+begrenzt aber die Detailmenge und weist Kürzungen aus. Das reine Lesen benötigt
+den bestehenden persönlichen MCP-Zugang; CI-Upload-Tokens bleiben getrennt.
+
+Der Chat zitiert einen gelieferten Lauf mit `[CI:id]` und speichert dessen
+Snapshot an der Antwort. Die Quellenanzeige öffnet die Build-/Testdetails und
+den Pipeline-Link. Ein späterer CI-Lauf verändert keine alte Chat-Antwort.

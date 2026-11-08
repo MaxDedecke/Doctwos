@@ -279,7 +279,7 @@ def _resolve_chain_target(db: Session, project_id: int, name: str) -> CodeEntity
     return (structural or rows or [None])[0]
 
 
-def build_answer_context(
+def _build_code_answer_context(
     db: Session,
     user: User,
     project_id: int,
@@ -700,3 +700,31 @@ def _with_index_status(db: Session, project_id: int, result: dict) -> dict:
             "from different revisions and relations to changed files may be missing. Say so in the answer.",
         }
     return result
+
+
+def build_answer_context(
+    db,
+    user,
+    project_id,
+    *,
+    question="",
+    symbols=None,
+    topic="",
+    max_chars=8000,
+    use_embeddings=True,
+):
+    from services.project_evidence import augment_answer_context
+
+    max_chars = max(3000, min(max_chars, 14000))
+    result = _build_code_answer_context(
+        db,
+        user,
+        project_id,
+        question=question,
+        symbols=symbols,
+        topic=topic,
+        max_chars=max_chars,
+        use_embeddings=use_embeddings,
+    )
+    text = " ".join([question, topic, *(symbols or [])]).strip()
+    return augment_answer_context(db, user, project_id, text, result, max_chars)
