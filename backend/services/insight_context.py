@@ -4,6 +4,7 @@ import json
 import re
 from xml.sax.saxutils import escape
 
+from sqlalchemy.orm import defer
 from sqlalchemy import or_, cast
 from sqlalchemy.dialects.postgresql import JSONB
 
@@ -27,6 +28,7 @@ def related_insights(db, project_id, nodes, limit=40):
         return []
     return (
         db.query(Insight)
+        .options(defer(Insight.review_history), defer(Insight.workflow_history))
         .filter(Insight.project_id == project_id, or_(*selectors))
         .order_by(Insight.id.desc())
         .limit(limit)
@@ -34,30 +36,28 @@ def related_insights(db, project_id, nodes, limit=40):
     )
 
 
-def current_insights(db, user, project_id, message, source_id=None, nodes=None, limit=5):
+def current_insights(
+    db,
+    user,
+    project_id,
+    message,
+    source_id=None,
+    nodes=None,
+    limit=5,
+    *,
+    query_embedding=None,
+    profile_key=None,
+):
     if project_id is None:
         return []
     assert_project_visible(project_id, user, db)
     terms = list(dict.fromkeys(re.findall(r"[^\W_]{4,}", message.lower())))[:12]
     if not terms and not nodes:
         return []
-    matches = (
-        db.query(Insight)
-        .filter(
-            Insight.project_id == project_id,
-            Insight.status == "verified",
-            Insight.outdated_at.is_(None),
-            or_(
-                False,
-                *(
-                    or_(Insight.title.ilike(f"%{term}%"), Insight.content.ilike(f"%{term}%"))
-                    for term in terms
-                ),
-            ),
-        )
-        .order_by(Insight.verified_at.desc(), Insight.id.desc())
-        .limit(40)
-        .all()
+    from services.insight_relevance import ranked_candidates
+
+    matches = ranked_candidates(
+        db, project_id, message, query_embedding=query_embedding, profile_key=profile_key
     )
     # A class or file named in the question can retrieve a finding whose prose
     # uses different words, through its evidence locator.

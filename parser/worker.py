@@ -141,7 +141,15 @@ def _warmup_antlr_cobol_parser(**kwargs):
         )
 
 
+@app.task(name="refresh_insight_embeddings", time_limit=120)
+def refresh_insight_embeddings_task():
+    from tasks.insight_embeddings import refresh_insight_embeddings
+
+    return asyncio.run(refresh_insight_embeddings())
+
+
 app.conf.beat_schedule = {
+    "insight-embeddings": {"task": "refresh_insight_embeddings", "schedule": crontab(minute="*/2")},
     # Ein einziger Pull-Scan für ALLE synchronisierbaren Quelltypen statt eines
     # Copy-Paste-Blocks pro Typ. Deckt automatisch jeden in der ConnectorRegistry
     # registrierten Connector ab (Git/FolderWatch/Confluence/Jira/WebDAV) — ein

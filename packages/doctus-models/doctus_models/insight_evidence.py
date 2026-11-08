@@ -1,14 +1,27 @@
 """Stable file fingerprints shared by insight creation and source-change review."""
 
 import hashlib
-from .database import CodeEntity, DocumentChunk
+from sqlalchemy import and_, or_, select
+from .database import CodeEntity, DocumentChunk, KnowledgeSource
+
+
+def project_chunk_scope(project_id):
+    return or_(
+        DocumentChunk.project_id == project_id,
+        and_(
+            DocumentChunk.project_id.is_(None),
+            DocumentChunk.source_id.in_(
+                select(KnowledgeSource.id).where(KnowledgeSource.project_id == project_id)
+            ),
+        ),
+    )
 
 
 def file_fingerprint(db, project_id, source_id, path):
     chunks = (
         db.query(DocumentChunk.content_hash)
         .filter(
-            DocumentChunk.project_id == project_id,
+            project_chunk_scope(project_id),
             DocumentChunk.source_id == source_id,
             DocumentChunk.file_path == path,
         )

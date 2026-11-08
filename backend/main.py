@@ -87,6 +87,7 @@ from api import (
     audit,
     feedback_diagnostics,
     insights,
+    insight_worklist,
     mcp_tokens,
     ide,
 )
@@ -158,6 +159,7 @@ app.include_router(jobs.router, dependencies=_authenticated)
 app.include_router(audit.router, dependencies=[Depends(require_admin)])
 app.include_router(feedback_diagnostics.router, dependencies=[Depends(require_admin)])
 app.include_router(insights.router, dependencies=_authenticated)
+app.include_router(insight_worklist.router, dependencies=_authenticated)
 app.include_router(teams.router)
 app.include_router(users.router)
 app.include_router(mcp_tokens.router, dependencies=_authenticated)

@@ -11,66 +11,14 @@ from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
 from core.teams import is_admin
 from doctus_models.database import Insight, KnowledgeSource, User, DocumentChunk
-from doctus_models.insight_evidence import snapshot_evidence
+from doctus_models.insight_evidence import snapshot_evidence, project_chunk_scope
 from services.ci_builds import validate_insight_ci_evidence
+from services.insight_records import serialize_insight as _serialize
+from doctus_models.insight_workflow import notify_insight, touched
 from doctus_models.insight_versions import capture_versions, version_state, versions_match
 
 
 router = APIRouter(prefix="/projects", tags=["insights"])
-
-
-def _serialize(insight: Insight, db=None) -> dict:
-    current_versions = (
-        capture_versions(db, insight.project_id, insight.evidence_json) if db is not None else []
-    )
-    return {
-        "version_bindings": insight.version_bindings,
-        "current_versions": current_versions,
-        "version_state": version_state(db, insight, current_versions)
-        if db is not None
-        else "unknown",
-        "current_sources": [
-            {
-                "source_id": source.id,
-                "last_synced_at": source.last_synced_at.isoformat()
-                if source.last_synced_at
-                else None,
-                "commit": (source.sync_cursor or {}).get("last_commit"),
-                "sync_status": source.sync_status,
-            }
-            for source in (
-                db.query(KnowledgeSource)
-                .filter(
-                    KnowledgeSource.project_id == insight.project_id,
-                    KnowledgeSource.id.in_(
-                        [
-                            e.get("source_id")
-                            for e in insight.evidence_json
-                            if e.get("source_id") is not None
-                        ]
-                    ),
-                )
-                .all()
-                if db is not None
-                else []
-            )
-        ],
-        "revision": insight.revision,
-        "review_history": insight.review_history or [],
-        "id": insight.id,
-        "project_id": insight.project_id,
-        "title": insight.title,
-        "content": insight.content,
-        "origin_kind": insight.origin_kind,
-        "evidence": insight.evidence_json,
-        "status": insight.status,
-        "created_by_id": insight.created_by_id,
-        "created_at": insight.created_at.isoformat() if insight.created_at else None,
-        "verified_by_id": insight.verified_by_id,
-        "verified_at": insight.verified_at.isoformat() if insight.verified_at else None,
-        "outdated_at": insight.outdated_at.isoformat() if insight.outdated_at else None,
-        "outdated_source_ids": insight.outdated_source_ids or [],
-    }
 
 
 def _require_project_admin(
@@ -140,9 +88,12 @@ def create_insight(
         evidence_json=evidence,
         version_bindings=capture_versions(db, project_id, evidence, dependencies=True),
         status="draft",
+        owner_id=user.id,
         created_by_id=user.id,
     )
     db.add(insight)
+    db.flush()
+    notify_insight(db, insight, "review_requested", actor_id=user.id)
     db.commit()
     db.refresh(insight)
     return _serialize(insight, db)
@@ -171,6 +122,8 @@ def delete_insight(
 def list_insights(
     project_id: int,
     status: str | None = Query(default=None),
+    limit: int = Query(default=100, ge=1, le=100),
+    offset: int = Query(default=0, ge=0, le=100000),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -182,7 +135,10 @@ def list_insights(
         query = query.filter(Insight.status == status)
     return [
         _serialize(insight, db)
-        for insight in query.order_by(Insight.created_at.desc(), Insight.id.desc()).all()
+        for insight in query.order_by(Insight.created_at.desc(), Insight.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
     ]
 
 
@@ -238,7 +194,8 @@ def verify_insight(
             status_code=409,
             detail="Quellenstand hat sich geändert; bitte Commit und Analysekontext erneut prüfen",
         )
-    _record_review(insight, user, "verify")
+    _record_review(insight, user, "verify", db)
+    touched(insight)
     insight.version_bindings = current_versions
     insight.evidence_json = _current_evidence(db, project_id, insight.evidence_json)
     insight.outdated_at = None
@@ -246,12 +203,16 @@ def verify_insight(
     insight.status = "verified"
     insight.verified_by_id = user.id
     insight.verified_at = datetime.now(timezone.utc)
+    from services.insight_maintenance import finish_notifications
+
+    finish_notifications(db, insight)
+    notify_insight(db, insight, "verified", actor_id=user.id, recipients=[insight.owner_id])
     db.commit()
     db.refresh(insight)
     return _serialize(insight, db)
 
 
-def _record_review(insight, user, action):
+def _record_review(insight, user, action, db):
     insight.review_history = [
         *(insight.review_history or []),
         {
@@ -270,6 +231,9 @@ def _record_review(insight, user, action):
         },
     ]
     insight.revision += 1
+    from services.insight_maintenance import invalidate_dependents
+
+    invalidate_dependents(db, insight)
 
 
 def _current_evidence(db, project_id, evidence):
@@ -288,7 +252,11 @@ def _current_evidence(db, project_id, evidence):
             if (
                 snapshot.get("file")
                 and not db.query(DocumentChunk.id)
-                .filter_by(project_id=project_id, source_id=source_id, file_path=snapshot["file"])
+                .filter(
+                    project_chunk_scope(project_id),
+                    DocumentChunk.source_id == source_id,
+                    DocumentChunk.file_path == snapshot["file"],
+                )
                 .first()
             ):
                 raise HTTPException(status_code=409, detail="Belegdatei fehlt im aktuellen Index")
@@ -310,25 +278,51 @@ def review_insight(
     user: User = Depends(get_current_user),
 ):
     assert_project_visible(project_id, user, db)
-    _require_project_admin(project_id, user, db, "überarbeiten")
     insight = (
         db.query(Insight).filter_by(id=insight_id, project_id=project_id).with_for_update().first()
     )
     if not insight:
         raise HTTPException(status_code=404, detail="Erkenntnis nicht gefunden")
+    if body.action == "reject":
+        _require_project_admin(project_id, user, db, "verwerfen")
+    elif get_project_role(project_id, user, db) != "admin" and user.id not in {
+        insight.owner_id,
+        insight.created_by_id if insight.owner_id is None else None,
+    }:
+        raise HTTPException(
+            status_code=403, detail="Nur Verantwortliche dürfen diese Erkenntnis überarbeiten"
+        )
     if insight.revision != body.expected_revision:
         raise HTTPException(status_code=409, detail="Erkenntnis wurde zwischenzeitlich geändert")
     if body.action == "revise" and (
         not body.title or not body.title.strip() or not body.content or not body.content.strip()
     ):
         raise HTTPException(status_code=422, detail="Titel und Aussage sind erforderlich")
-    _record_review(insight, user, body.action)
+    new_evidence = None
+    if body.action == "revise" and body.evidence is not None:
+        from services.insight_maintenance import normalize_evidence
+
+        new_evidence = normalize_evidence(db, project_id, body.evidence)
+    _record_review(insight, user, body.action, db)
+    touched(insight)
     if body.action == "revise":
         insight.title, insight.content = body.title.strip(), body.content.strip()
         insight.created_by_id = user.id
         insight.status = "draft"
+        if new_evidence is not None:
+            insight.evidence_json = new_evidence
+            insight.version_bindings = capture_versions(
+                db, project_id, new_evidence, dependencies=True
+            )
+        insight.outdated_at = None
+        insight.outdated_source_ids = []
+        notify_insight(db, insight, "review_requested", actor_id=user.id)
     else:
         insight.status = "rejected"
+        from services.insight_maintenance import finish_notifications
+
+        finish_notifications(db, insight)
+        notify_insight(db, insight, "rejected", actor_id=user.id, recipients=[insight.owner_id])
     insight.verified_by_id = None
     insight.verified_at = None
     db.commit()

@@ -176,3 +176,13 @@ MCP-Beweispaket, Wissenssuche und Änderungspaket. Der lesende MCP-Zugang zum
 Änderungspaket ist Teil dieses Auftrags. Freigabe-, Versions- und Quellenrechte
 bleiben wirksam; die Änderung erlaubt weder automatische fachliche Freigaben
 noch Maven-Ausführung im Import. Details: `docs/JAVA_TEST_PROJECT.md`.
+
+## Auftrag 08.11.2026 — Erkenntnisse im Team pflegen
+
+Explizit beauftragt sind Zuständigkeiten und Prüfer, gezielte Hinweise innerhalb
+von Doctus, priorisierte Aufgaben, Belegbearbeitung, serverseitige Suche und
+Paginierung sowie bessere Relevanzauswahl. Eine ausdrückliche Sammelfreigabe
+darf die bestehenden Versions-, Revisions- und Vier-Augen-Prüfungen nicht umgehen.
+Embeddings werden auf dem vorhandenen Parser-Worker gepflegt; zusätzliche
+Dienste und externe Benachrichtigungskanäle gehören nicht zu diesem Auftrag.
+Details: `docs/INSIGHT_TEAM_WORKFLOW.md`.

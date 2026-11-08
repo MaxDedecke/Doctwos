@@ -2498,5 +2498,69 @@
     "secretOnce": "Token jetzt als CI-Secret sichern. Es wird nur einmal angezeigt.",
     "revoke": "Widerrufen",
     "revoked": "Widerrufen"
+  },
+  "insightWork": {
+    "orderHint": "Überfällige Aufgaben zuerst, danach Priorität, Prüfstatus und Alter.",
+    "evidence": "Belege bearbeiten",
+    "fromLine": "Von Zeile",
+    "toLine": "Bis Zeile",
+    "removeEvidence": "Beleg entfernen",
+    "evidenceKind": "Art des Belegs",
+    "searchEvidence": "Beleg im Projekt suchen",
+    "addEvidence": "Beleg hinzufügen",
+    "narrowSearch": "Die Trefferliste ist begrenzt. Suche genauer.",
+    "failed": "Die Aktion konnte nicht abgeschlossen werden. Bitte Stand aktualisieren und erneut prüfen.",
+    "owner": "Verantwortlich",
+    "reviewer": "Prüfer",
+    "unassigned": "Nicht zugewiesen",
+    "priorityLabel": "Priorität",
+    "due": "Prüftermin",
+    "requestReview": "Prüfung anfordern",
+    "saveAssignment": "Zuständigkeit speichern",
+    "assignment": "Zuständigkeit und Termin",
+    "detail": "Erkenntnis im Detail",
+    "loading": "Wird geladen …",
+    "historyLimit": "Angezeigt werden die letzten 20 Historieneinträge.",
+    "notifications": "Meine Hinweise",
+    "moreNotifications": "Weitere Hinweise sind noch offen.",
+    "markRead": "Hinweise als gelesen markieren",
+    "search": "Erkenntnisse im Projekt suchen",
+    "scope": "Aufgabenbereich",
+    "onlyReview": "Nur Prüfbedarf",
+    "batchConfirm": "Ich habe alle {{count}} ausgewählten Erkenntnisse und ihre angezeigten Quellenstände fachlich geprüft und möchte sie freigeben.",
+    "batchApprove": "{{count}} geprüfte Erkenntnisse freigeben",
+    "batchResult": "{{count}} Erkenntnisse freigegeben.",
+    "open": "Details öffnen",
+    "select": "Auswählen",
+    "selectHint": "Nach Detailprüfung zur Freigabe auswählen",
+    "previous": "Zurück",
+    "next": "Weiter",
+    "page": "{{from}}–{{to}} von {{total}}",
+    "kind": {
+      "code": "Codeobjekt",
+      "file": "Datei",
+      "insight": "Erkenntnis",
+      "ci": "CI-Lauf"
+    },
+    "priority": {
+      "0": "Niedrig",
+      "1": "Normal",
+      "2": "Hoch",
+      "3": "Kritisch"
+    },
+    "scopeValue": {
+      "all": "Alle Aufgaben",
+      "mine": "Meine Verantwortung",
+      "reviewer": "Meine Prüfungen",
+      "unassigned": "Ohne Verantwortlichen"
+    },
+    "event": {
+      "assigned": "Neue Zuständigkeit",
+      "review_requested": "Prüfung angefordert",
+      "source_changed": "Quellenstand geändert",
+      "dependency_changed": "Referenzierte Erkenntnis geändert",
+      "verified": "Erkenntnis freigegeben",
+      "rejected": "Erkenntnis verworfen"
+    }
   }
 }

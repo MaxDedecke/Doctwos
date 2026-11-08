@@ -24,6 +24,7 @@ import { FileTreeList } from './sidebar/FileTreeList';
 import { SourceScanSummary, type SourceScanSummaryData } from './sidebar/SourceScanSummary';
 import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
 import { UserInfoDialog } from './UserInfoDialog';
+import { InsightInbox } from './InsightInbox';
 
 interface SidebarProps {
   theme: string;
@@ -441,6 +442,7 @@ export function Sidebar({
               "px-4 py-3 border-t z-20 transition-colors duration-200",
               theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
             )}>
+              {selectedProject && currentUser && <div className="mb-3"><InsightInbox key={`${selectedProject.id}:${currentUser.id}`} projectId={selectedProject.id} currentUser={currentUser} align="up" onOpenFile={(path, line, sourceId) => handleFileSelect(path, line ?? undefined, sourceId == null ? undefined : String(sourceId))} /></div>}
               <div className="flex items-center justify-between">
                 <button
                   type="button"

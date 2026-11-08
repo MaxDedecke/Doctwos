@@ -32,6 +32,7 @@ from doctus_models.database import (
 )
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
+from services.chat_context_formatting import chunk_header as chunk_header, _format_chunk_context
 
 from core.projects import (
     build_document_chunk_code_gate,
@@ -465,22 +466,6 @@ def gate_graph_neighbors(
     ]
 
 
-def _format_chunk_context(chunk: DocumentChunk, label: str) -> str:
-    """Render one retrieved chunk as explicitly untrusted model context."""
-    source_id = f' source_id="{chunk.source_id}"' if chunk.source_id is not None else ""
-    lines = ""
-    if chunk.start_line is not None:
-        lines += f' start_line="{chunk.start_line}"'
-    if chunk.end_line is not None:
-        lines += f' end_line="{chunk.end_line}"'
-    return (
-        f'<untrusted_source path="{chunk.file_path}" chunk_id="{chunk.id}"{source_id}{lines}>\n'
-        f"{label}: {chunk_header(chunk)}\n"
-        f"{chunk.content}\n"
-        "</untrusted_source>"
-    )
-
-
 async def retrieve_chat_context(
     *,
     db: Session,
@@ -602,6 +587,7 @@ async def retrieve_chat_context(
         message, code_focus_metadata, retrieval_pinned_context
     )
 
+    query_embedding = None
     try:
         query_text = message
         embed_kwargs = {}
@@ -791,7 +777,21 @@ async def retrieve_chat_context(
 
     insight_sources = []
     context += project_evidence_prompt(
-        db, user, project_id, message, sources=insight_sources, source_id=focused_source_id
+        db,
+        user,
+        project_id,
+        message,
+        sources=insight_sources,
+        source_id=focused_source_id,
+        query_embedding=query_embedding,
+        embedding_settings={
+            "model": selected_embedding_model,
+            "provider": embed_kwargs.get("provider") or cfg.EMBEDDING_PROVIDER,
+            "base_url": (embed_kwargs.get("base_url") or cfg.EMBEDDING_BASE_URL).rstrip("/"),
+            "path": embed_kwargs.get("path"),
+            "dimension": embed_kwargs.get("dimension") or cfg.EMBEDDING_DIMENSION,
+            "context": embed_kwargs.get("context_length") or cfg.EMBEDDING_CONTEXT_LENGTH,
+        },
     )
     prompt = build_chat_prompt(
         context=context,
@@ -1148,17 +1148,6 @@ def _extract_line_window(
         pieces.append((chunk.start_line, "\n".join(lines[first : last + 1])))
     pieces.sort(key=lambda item: item[0])
     return "\n".join(text for _, text in pieces), has_more
-
-
-def chunk_header(chunk: DocumentChunk) -> str:
-    """Format an indexed chunk's location for an LLM context header."""
-    page = (chunk.metadata_json or {}).get("page")
-    location = (
-        f"Seite {page}, Zeile {chunk.start_line}-{chunk.end_line}"
-        if page
-        else f"Zeile {chunk.start_line}-{chunk.end_line}"
-    )
-    return f"{chunk.file_path} ({location})"
 
 
 def build_pinned_context(

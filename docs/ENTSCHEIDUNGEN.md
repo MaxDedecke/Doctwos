@@ -943,3 +943,32 @@ und in der Nachrichtenhistorie gespeichert. CI-Snapshots verwenden dieselbe
 Build-/Testergebnis-Komponente wie die Webansicht. Erkenntnisse aus späteren
 Werkzeugaufrufen werden ebenfalls als Zitatkandidaten aufgenommen. Fremdinhalte
 sind passive Daten; sie erteilen keine Handlungsanweisungen.
+
+## Pflege vieler Erkenntnisse im Team (08.11.2026)
+
+Erkenntnisse erhalten Verantwortlichen, optionalen Prüfer, Priorität und Termin.
+Zuständigkeitsänderungen verwenden eine separate `work_revision` und Historie,
+damit eine reine Umverteilung keine fachlichen Erkenntnisreferenzen invalidiert.
+Die fachliche Revision bleibt an Aussage, Belege und ausdrückliche Freigabe gebunden.
+Bestehende Einträge bleiben zunächst unzugewiesen; neue Entwürfe gehören ihrem Autor.
+
+Hinweise werden transaktional, pro Empfänger und Änderungszyklus dedupliziert
+gespeichert. Der bestehende Quellen-Sync meldet veraltete Erkenntnisse an
+Verantwortliche und ausgewählten beziehungsweise bisherigen Prüfer. Während
+eine Erkenntnis bereits auf Prüfung wartet, werden nicht für jeden weiteren
+Commit neue Hinweise erzeugt. Änderungen referenzierter Erkenntnisse erzeugen
+ebenfalls Prüfaufgaben. Lesen setzt weiterhin aktuelle Projektmitgliedschaft voraus.
+Es gibt keine E-Mail-/Slack-Zustellung.
+
+Die Web-Prüfliste verwendet eine begrenzte, serverseitige Aufgabenabfrage;
+ausführliche Aussagen, Belege und Historie werden erst beim Öffnen geladen.
+Die alte Listen-API bleibt als begrenzte Kompatibilitätsschnittstelle erhalten.
+Belege werden als Projekt-Fundstellen ausgewählt und beim Speichern validiert.
+Historische Freigaben behalten ihre ursprünglichen Aussagen und Belege.
+
+Relevanz entsteht aus indizierter PostgreSQL-Textsuche, konkreten
+Belegbeziehungen und, soweit vorhanden, profilgebundenen Vektoren.
+Der vorhandene Parser-Worker aktualisiert Embeddings in kleinen Batches.
+Text-Hash und Profilidentität verhindern die Nutzung veralteter oder fremder
+Vektorräume. Freigabe-/Versionsprüfung folgt auch nach semantischer Auswahl.
+Migration 0048 und gemeinsames Modellpaket 1.10.0 sind erforderlich.

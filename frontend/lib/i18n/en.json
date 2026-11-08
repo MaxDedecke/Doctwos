@@ -2498,5 +2498,69 @@
     "secretOnce": "Save this token as a CI secret now. It is displayed only once.",
     "revoke": "Revoke",
     "revoked": "Revoked"
+  },
+  "insightWork": {
+    "orderHint": "Overdue tasks first, then priority, review status and age.",
+    "evidence": "Edit evidence",
+    "fromLine": "From line",
+    "toLine": "To line",
+    "removeEvidence": "Remove evidence",
+    "evidenceKind": "Evidence type",
+    "searchEvidence": "Search project evidence",
+    "addEvidence": "Add evidence",
+    "narrowSearch": "Results are limited. Refine your search.",
+    "failed": "The action could not be completed. Refresh and review the latest state.",
+    "owner": "Owner",
+    "reviewer": "Reviewer",
+    "unassigned": "Unassigned",
+    "priorityLabel": "Priority",
+    "due": "Review due",
+    "requestReview": "Request review",
+    "saveAssignment": "Save assignment",
+    "assignment": "Assignment and due date",
+    "detail": "Insight details",
+    "loading": "Loading …",
+    "historyLimit": "Showing the last 20 history entries.",
+    "notifications": "My notifications",
+    "moreNotifications": "More notifications remain unread.",
+    "markRead": "Mark notifications as read",
+    "search": "Search project insights",
+    "scope": "Task scope",
+    "onlyReview": "Review required only",
+    "batchConfirm": "I have reviewed all {{count}} selected insights and their displayed source versions and want to approve them.",
+    "batchApprove": "Approve {{count}} reviewed insights",
+    "batchResult": "{{count}} insights approved.",
+    "open": "Open details",
+    "select": "Select",
+    "selectHint": "Select for approval after reviewing details",
+    "previous": "Previous",
+    "next": "Next",
+    "page": "{{from}}–{{to}} of {{total}}",
+    "kind": {
+      "code": "Code entity",
+      "file": "File",
+      "insight": "Insight",
+      "ci": "CI run"
+    },
+    "priority": {
+      "0": "Low",
+      "1": "Normal",
+      "2": "High",
+      "3": "Critical"
+    },
+    "scopeValue": {
+      "all": "All tasks",
+      "mine": "Owned by me",
+      "reviewer": "Assigned reviews",
+      "unassigned": "Unassigned"
+    },
+    "event": {
+      "assigned": "New assignment",
+      "review_requested": "Review requested",
+      "source_changed": "Source version changed",
+      "dependency_changed": "Referenced insight changed",
+      "verified": "Insight approved",
+      "rejected": "Insight rejected"
+    }
   }
 }

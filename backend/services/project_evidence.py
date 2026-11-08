@@ -18,7 +18,18 @@ from services.reviewed_evidence import (
 )
 
 
-def project_evidence(db, user, project_id, question, *, nodes=None, source_id=None, max_chars=6000):
+def project_evidence(
+    db,
+    user,
+    project_id,
+    question,
+    *,
+    nodes=None,
+    source_id=None,
+    max_chars=6000,
+    query_embedding=None,
+    profile_key=None,
+):
     if project_id is None:
         return {"insights": [], "ci_builds": {"status": "missing", "items": [], "truncated": False}}
     assert_project_visible(project_id, user, db)
@@ -28,7 +39,17 @@ def project_evidence(db, user, project_id, question, *, nodes=None, source_id=No
             raise ValueError("Source does not belong to this project")
         assert_knowledge_source_visible(source, user, db)
     nodes = list(nodes or [])
-    insights = current_insights(db, user, project_id, question, source_id, nodes, limit=6)
+    insights = current_insights(
+        db,
+        user,
+        project_id,
+        question,
+        source_id,
+        nodes,
+        limit=6,
+        query_embedding=query_embedding,
+        profile_key=profile_key,
+    )
     source_ids = {node.get("source_id") for node in nodes if node.get("source_id") is not None}
     source_ids.update(
         binding["source_id"] for insight in insights for binding in insight.version_bindings or []
@@ -101,8 +122,28 @@ def project_evidence(db, user, project_id, question, *, nodes=None, source_id=No
     )
 
 
-def project_evidence_prompt(db, user, project_id, question, *, sources, source_id=None):
-    result = project_evidence(db, user, project_id, question, source_id=source_id)
+def project_evidence_prompt(
+    db,
+    user,
+    project_id,
+    question,
+    *,
+    sources,
+    source_id=None,
+    query_embedding=None,
+    embedding_settings=None,
+):
+    from doctus_models.insight_workflow import embedding_profile_key
+
+    result = project_evidence(
+        db,
+        user,
+        project_id,
+        question,
+        source_id=source_id,
+        query_embedding=query_embedding,
+        profile_key=embedding_profile_key(embedding_settings) if embedding_settings else None,
+    )
     if not result.get("insights") and not result.get("ci_builds", {}).get("items"):
         if not re.search(r"\b(ci|maven|build|pipeline|tests?|testergebnis\w*)\b", question, re.I):
             return ""

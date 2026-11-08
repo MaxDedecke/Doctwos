@@ -45,6 +45,7 @@ class InsightContextTests(unittest.TestCase):
             ),
         ]
         insight_query = db.query.return_value
+        insight_query.options.return_value = insight_query
         db.query.side_effect = lambda model: (
             MagicMock() if model.__name__ == "CodeEntity" else insight_query
         )

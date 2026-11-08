@@ -1,5 +1,6 @@
 import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
+import type { InsightPage, InsightDetail, InsightAssignees, InsightInboxData, InsightAssignment, Evidence } from '@/lib/insights';
 import type { UsageReference } from '@/lib/usageAnchors';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import type { BuildProfileView, PreflightReport, StoredBuildProfile } from '@/lib/buildProfileForm';
@@ -84,6 +85,24 @@ export const api = {
     deleteProject: (id: number) => axios.delete(`${API_URL}/projects/${id}`),
     createInsight: (projectId: number, data: { title: string; content: string; origin_kind: 'chat' | 'code' | 'process'; evidence: Array<Record<string, unknown>> }) =>
         axios.post(`${API_URL}/projects/${projectId}/insights`, data),
+    getInsightWorklist: (projectId: number, params: { q?: string; status?: string; mine?: boolean; unassigned?: boolean; reviewer?: boolean; needs_review?: boolean; offset?: number; limit?: number }) =>
+        axios.get<InsightPage>(`${API_URL}/projects/${projectId}/insight-worklist`, { params }),
+    getInsight: (projectId: number, id: number) =>
+        axios.get<InsightDetail>(`${API_URL}/projects/${projectId}/insights/${id}`),
+    getInsightAssignees: (projectId: number) =>
+        axios.get<InsightAssignees>(`${API_URL}/projects/${projectId}/insight-assignees`),
+    assignInsight: (projectId: number, id: number, data: InsightAssignment) =>
+        axios.patch<InsightDetail>(`${API_URL}/projects/${projectId}/insights/${id}/assignment`, data),
+    getInsightNotifications: (projectId: number) =>
+        axios.get<InsightInboxData>(`${API_URL}/projects/${projectId}/insight-notifications`),
+    readInsightNotification: (projectId: number, id: number) =>
+        axios.post(`${API_URL}/projects/${projectId}/insight-notifications/${id}/read`),
+    readInsightNotifications: (projectId: number) =>
+        axios.post(`${API_URL}/projects/${projectId}/insight-notifications/read`),
+    getInsightEvidenceOptions: (projectId: number, q: string, kind: string) =>
+        axios.get<{ items: Array<{ label: string; evidence: Record<string, unknown> }>; truncated: boolean }>(`${API_URL}/projects/${projectId}/insight-evidence-options`, { params: { q, kind } }),
+    batchApproveInsights: (projectId: number, items: Array<{ id: number; expected_revision: number; expected_versions: Evidence }>) =>
+        axios.post<{ items: Array<{ id: number; status: string; detail?: string }> }>(`${API_URL}/projects/${projectId}/insight-batch-approval`, { confirm: true, items }),
     getInsights: (projectId: number, status?: 'draft' | 'verified') =>
         axios.get<Array<{ id: number; title: string; content: string; origin_kind: string; evidence: Array<Record<string, unknown>>; status: 'draft' | 'verified' | 'outdated' | 'rejected'; revision?: number; review_history?: Array<Record<string, unknown>>; version_bindings?: Array<Record<string, unknown>> | null; current_versions?: Array<Record<string, unknown>>; version_state?: string; current_sources?: Array<Record<string, unknown>>; created_by_id: number; created_at: string | null; verified_by_id: number | null; verified_at: string | null; outdated_at: string | null; outdated_source_ids: number[] }>>(`${API_URL}/projects/${projectId}/insights`, { params: { status } }),
     verifyInsight: (projectId: number, insightId: number, revision?: number, versions?: Array<Record<string, unknown>>) =>
@@ -101,7 +120,7 @@ export const api = {
                 files: Array<{ file: string; change: string; kind: string; diff?: { text: string; truncated: boolean } }>;
             }>;
         }>(`${API_URL}/projects/${projectId}/insights/commit-check`, { params: { source_id: sourceId, target_ref: targetRef, after_id: afterId } }),
-    reviewInsight: (projectId: number, insightId: number, data: { action: 'revise' | 'reject'; expected_revision: number; title?: string; content?: string }) =>
+    reviewInsight: (projectId: number, insightId: number, data: { action: 'revise' | 'reject'; expected_revision: number; title?: string; content?: string; evidence?: Evidence }) =>
         axios.post(`${API_URL}/projects/${projectId}/insights/${insightId}/review`, data),
     deleteInsight: (projectId: number, insightId: number) =>
         axios.delete(`${API_URL}/projects/${projectId}/insights/${insightId}`),

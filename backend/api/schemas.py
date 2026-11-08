@@ -53,9 +53,9 @@ class ProjectCompleteRequest(BaseModel):
 
 class InsightCreate(BaseModel):
     title: str = Field(min_length=1, max_length=240)
-    content: str = Field(min_length=1)
+    content: str = Field(min_length=1, max_length=32000)
     origin_kind: str
-    evidence: List[Dict[str, Any]] = Field(min_length=1)
+    evidence: List[Dict[str, Any]] = Field(min_length=1, max_length=50)
 
 
 class InsightVerification(BaseModel):
@@ -70,7 +70,8 @@ class InsightReview(BaseModel):
     action: Literal["revise", "reject"]
     expected_revision: int = Field(ge=1)
     title: str | None = Field(default=None, min_length=1, max_length=240)
-    content: str | None = Field(default=None, min_length=1)
+    content: str | None = Field(default=None, min_length=1, max_length=32000)
+    evidence: List[Dict[str, Any]] | None = Field(default=None, min_length=1, max_length=50)
 
 
 class ChatRequest(BaseModel):

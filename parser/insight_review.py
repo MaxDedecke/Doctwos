@@ -2,9 +2,12 @@
 
 from datetime import datetime, timezone
 from typing import Any
+from sqlalchemy import cast, or_
+from sqlalchemy.dialects.postgresql import JSONB
 
 from doctus_models.database import Insight, KnowledgeSource
 from doctus_models.insight_evidence import file_fingerprint
+from doctus_models.insight_workflow import notify_insight, touched
 from doctus_models.insight_versions import capture_versions, versions_match
 
 
@@ -32,9 +35,14 @@ def mark_source_insights_outdated(db, source: KnowledgeSource) -> int:
         .filter(
             Insight.project_id == source.project_id,
             Insight.status == "verified",
+            or_(
+                cast(Insight.version_bindings, JSONB).contains([{"source_id": source.id}]),
+                cast(Insight.evidence_json, JSONB).contains([{"source_id": source.id}]),
+                Insight.version_bindings.is_(None),
+            ),
         )
         .with_for_update()
-        .all()
+        .yield_per(100)
     ):
         if not _references_source(insight.evidence_json, source.id) and not _references_source(
             insight.version_bindings or [], source.id
@@ -63,5 +71,7 @@ def mark_source_insights_outdated(db, source: KnowledgeSource) -> int:
         insight.status = "outdated"
         insight.outdated_at = datetime.now(timezone.utc)
         insight.outdated_source_ids = sorted(prior_ids)
+        touched(insight)
+        notify_insight(db, insight, "source_changed")
         affected += 1
     return affected

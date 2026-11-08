@@ -1,165 +1,118 @@
 "use client";
 
-import type { Project, ProjectMember, User } from '@/types/domain';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import type { Project, User } from '@/types/domain';
+import type { InsightPage, InsightSummary, InsightDetail, InsightAssignees } from '@/lib/insights';
 import { api } from '@/app/services/api';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
-import { Check, FileText, Link2, Loader2, RefreshCw, Trash2 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
-
-import { InsightEvidence } from './InsightEvidence';
 import { InsightCommitCheck } from './InsightCommitCheck';
+import { InsightDetailPanel } from './InsightDetailPanel';
+import { InsightInbox } from './InsightInbox';
 
-type Insight = Awaited<ReturnType<typeof api.getInsights>>['data'][number];
-
-export function InsightReviewView({ selectedProject, currentUser, theme, onOpenFile }: { selectedProject: Project | null; currentUser: User | null; theme: string; onOpenFile?: (path: string, line: number | null, sourceId: number | null) => void }) {
+export function InsightReviewView(props: { selectedProject: Project | null; currentUser: User | null; theme: string; onOpenFile?: (path: string, line: number | null, sourceId: number | null) => void }) {
   const { t } = useLanguage();
-  const [editing, setEditing] = useState<{ id: number; title: string; content: string } | null>(null);
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [members, setMembers] = useState<ProjectMember[]>([]);
-  const [linkCounts, setLinkCounts] = useState({ pending: 0, approved: 0, rejected: 0 });
-  const [filter, setFilter] = useState<'all' | 'outdated' | 'draft' | 'verified' | 'rejected'>('all');
+  if (!props.selectedProject) return <p className="p-4 text-sm">{t('insightReview.selectProject')}</p>;
+  return <InsightWorkspace key={`${props.selectedProject.id}:${props.currentUser?.id}`} {...props} projectId={props.selectedProject.id} />;
+}
+
+function InsightWorkspace({ projectId, currentUser, theme, onOpenFile }: {
+  projectId: number; currentUser: User | null; theme: string;
+  onOpenFile?: (path: string, line: number | null, sourceId: number | null) => void;
+}) {
+  const { t } = useLanguage();
+  const [page, setPage] = useState<InsightPage | null>(null);
+  const [assignees, setAssignees] = useState<InsightAssignees | null>(null);
+  const [query, setQuery] = useState('');
+  const [search, setSearch] = useState('');
+  const [status, setStatus] = useState('all');
+  const [scope, setScope] = useState('all');
+  const [needsReview, setNeedsReview] = useState(true);
+  const [offset, setOffset] = useState(0);
+  const [focus, setFocus] = useState<number | null>(null);
+  const [loaded, setLoaded] = useState<Record<number, InsightDetail>>({});
+  const [selected, setSelected] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState<number | null>(null);
-  const [deleting, setDeleting] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const isDark = theme === 'dark';
-
+  const [error, setError] = useState('');
+  const [batchResult, setBatchResult] = useState('');
+  const generation = useRef(0);
   const load = useCallback(async () => {
-    if (!selectedProject) return;
-    setLoading(true);
-    setError(null);
+    const request = ++generation.current;
+    setLoading(true); setError('');
     try {
-      const [insightResponse, memberResponse, linkResponse] = await Promise.all([
-        api.getInsights(selectedProject.id), api.getProjectMembers(selectedProject.id),
-        api.getLinkRecommendations(selectedProject.id),
+      const [response, people] = await Promise.all([
+        api.getInsightWorklist(projectId, { q: search, status: status === 'all' ? undefined : status, mine: scope === 'mine', unassigned: scope === 'unassigned', reviewer: scope === 'reviewer', needs_review: needsReview, offset, limit: 25 }),
+        api.getInsightAssignees(projectId),
       ]);
-      setInsights([...insightResponse.data].sort((left, right) => {
-        const priority = { outdated: 0, draft: 1, verified: 2, rejected: 3 };
-        return priority[left.status] - priority[right.status];
-      }));
-      setMembers(memberResponse.data);
-      setLinkCounts(linkResponse.data.counts);
-    } catch {
-      setError(t('insightReview.loadFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [selectedProject, t]);
-
+      if (generation.current !== request) return;
+      if (!response.data.items.length && offset > 0) { setOffset(Math.floor(Math.max(0, response.data.total - 1) / 25) * 25); return; }
+      setPage(response.data); setAssignees(people.data);
+    } catch { if (generation.current === request) setError(t('insightReview.loadFailed')); }
+    finally { if (generation.current === request) setLoading(false); }
+  }, [projectId, search, status, scope, needsReview, offset, t]);
   useEffect(() => {
-    // Defer the initial fetch so React's effect compiler does not treat the
-    // request's loading state as a synchronous render cascade.
     const timer = window.setTimeout(() => { void load(); }, 0);
-    return () => window.clearTimeout(timer);
+    return () => { window.clearTimeout(timer); generation.current += 1; };
   }, [load]);
-
-  if (!selectedProject) return <div className="p-5 text-sm text-ds-zinc-500">{t('insightReview.selectProject')}</div>;
-  const canVerify = Boolean(currentUser?.is_admin || members.some(member => member.user_id === currentUser?.id && member.role === 'admin'));
-  const insightCounts = insights.reduce((counts, insight) => ({ ...counts, [insight.status]: counts[insight.status] + 1 }), { outdated: 0, draft: 0, verified: 0, rejected: 0 });
-  const visibleInsights = filter === 'all' ? insights : insights.filter(insight => insight.status === filter);
-
-  const verify = async (insight: Insight) => {
-    setVerifying(insight.id);
-    setError(null);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { if (search !== query.trim()) { setSearch(query.trim()); setOffset(0); } }, 300);
+    return () => window.clearTimeout(timer);
+  }, [query, search]);
+  const remember = useCallback((detail: InsightDetail) => setLoaded(previous => ({ ...previous, [detail.id]: detail })), []);
+  const canManage = Boolean(assignees?.can_manage);
+  const remove = async (row: InsightSummary) => {
+    if (!window.confirm(t('insightReview.deleteConfirm', { title: row.title }))) return;
+    const request = generation.current;
     try {
-      await api.verifyInsight(selectedProject.id, insight.id, insight.revision, insight.current_versions);
-      await load();
-    } catch {
-      setError(t('insightReview.verifyFailed'));
-    } finally {
-      setVerifying(null);
-    }
+      await api.deleteInsight(projectId, row.id);
+      if (generation.current !== request) return;
+      setPage(previous => previous ? { ...previous, total: previous.total - 1, items: previous.items.filter(i => i.id !== row.id), counts: { ...previous.counts, [row.status]: Math.max(0, (previous.counts[row.status] || 0) - 1) } } : null);
+      setSelected(ids => ids.filter(id => id !== row.id));
+      if (focus === row.id) setFocus(null);
+      if (page?.items.length === 1 && (page.has_more || offset > 0)) await load();
+    } catch { if (generation.current === request) setError(t('insightReview.deleteFailed')); }
   };
-
-  const review = async (insight: Insight, action: 'revise' | 'reject') => {
-    if (action === 'revise' && (!editing?.title.trim() || !editing.content.trim())) return;
-    if (action === 'reject' && !window.confirm(t('insightReview.rejectConfirm'))) return;
-    setVerifying(insight.id);
+  const batchApprove = async () => {
+    if (!selected.length || !window.confirm(t('insightWork.batchConfirm', { count: selected.length }))) return;
+    const request = generation.current;
+    setLoading(true);
     try {
-      await api.reviewInsight(selectedProject.id, insight.id, {
-        action,
-        expected_revision: insight.revision ?? 1,
-        title: editing?.title,
-        content: editing?.content,
-      });
-      setEditing(null);
-      await load();
-    } catch {
-      setError(t('insightReview.verifyFailed'));
-    } finally {
-      setVerifying(null);
-    }
+      const response = await api.batchApproveInsights(projectId, selected.map(id => ({ id, expected_revision: loaded[id].revision, expected_versions: loaded[id].current_versions })));
+      if (generation.current !== request) return;
+      const failures = response.data.items.filter(item => item.status === 'error');
+      setBatchResult(t('insightWork.batchResult', { count: response.data.items.length - failures.length }) + failures.map(item => ` #${item.id}: ${item.detail}`).join('; '));
+      setSelected([]); setLoaded({}); setFocus(null); await load();
+    } catch { if (generation.current === request) { setError(t('insightWork.failed')); setLoading(false); } }
   };
-
-  const remove = async (insight: Insight) => {
-    if (!window.confirm(t('insightReview.deleteConfirm', { title: insight.title }))) return;
-    setDeleting(insight.id);
-    setError(null);
-    try {
-      await api.deleteInsight(selectedProject.id, insight.id);
-      setInsights(current => current.filter(item => item.id !== insight.id));
-    } catch {
-      setError(t('insightReview.deleteFailed'));
-    } finally {
-      setDeleting(null);
-    }
-  };
-
-  return <div className={cn('h-full overflow-y-auto p-4', isDark ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
-    <div className="mb-4 flex items-center justify-between gap-3">
-      <div><h2 className="text-sm font-bold">{t('insightReview.title')}</h2><p className="text-xs text-ds-zinc-500">{t('insightReview.description')}</p></div>
-      <button type="button" onClick={() => void load()} title={t('insightReview.refresh')} className="rounded border border-ds-zinc-700 p-1.5 text-ds-zinc-400"><RefreshCw className={cn('h-4 w-4', loading && 'animate-spin')} /></button>
+  const names = new Map((assignees?.items || []).map(person => [person.id, person.name]));
+  return <div className={cn('h-full overflow-y-auto p-4 text-sm', theme === 'dark' ? 'bg-ds-zinc-950 text-ds-zinc-200' : 'bg-ds-white text-ds-zinc-800')}>
+    <header className="mb-4 flex flex-wrap items-center justify-between gap-3"><div><h2 className="font-bold">{t('insightReview.title')}</h2><p className="mt-1 text-xs text-ds-zinc-500">{t('insightWork.orderHint')}</p></div><button type="button" onClick={() => void load()} className="rounded border border-ds-zinc-500/30 p-2 text-xs">{t('insightReview.refresh')}</button></header>
+    <InsightInbox projectId={projectId} currentUser={currentUser} onOpen={setFocus} />
+    <div className="my-4"><InsightCommitCheck projectId={projectId} canVerify={canManage} reviewerId={currentUser?.id} allowOwnReview={Boolean(currentUser?.is_admin)} theme={theme} onVerified={() => void load()} /></div>
+    <div className="mb-3 flex flex-wrap gap-2 text-xs">
+      <input aria-label={t('insightWork.search')} placeholder={t('insightWork.search')} value={query} onChange={e => setQuery(e.target.value)} className="min-w-0 flex-1 rounded border border-ds-zinc-500 bg-transparent p-2" />
+      <select aria-label={t('insightWork.scope')} value={scope} onChange={e => { setScope(e.target.value); setOffset(0); }} className="rounded border border-ds-zinc-500 bg-card p-2">{['all','mine','reviewer','unassigned'].map(value => <option key={value} value={value}>{t(`insightWork.scopeValue.${value}`)}</option>)}</select>
+      <label className="flex items-center gap-2"><input type="checkbox" checked={needsReview} onChange={e => { setNeedsReview(e.target.checked); setOffset(0); }} />{t('insightWork.onlyReview')}</label>
     </div>
-    <InsightCommitCheck key={selectedProject.id} projectId={selectedProject.id} canVerify={canVerify} reviewerId={currentUser?.id} allowOwnReview={Boolean(currentUser?.is_admin)} theme={theme} onVerified={() => void load()} />
-    <div className="mb-4 flex flex-wrap gap-1.5">
-      {(['all', 'outdated', 'draft', 'verified', 'rejected'] as const).map(status => <button key={status} type="button" onClick={() => setFilter(status)} className={cn('rounded border px-2 py-1 text-[0.625rem] font-semibold', filter === status ? 'border-ds-indigo-500 bg-ds-indigo-500/15 text-ds-indigo-400' : 'border-ds-zinc-700 text-ds-zinc-500')}>
-        {t(`insightReview.filter.${status}`)} · {status === 'all' ? insights.length : insightCounts[status]}
-      </button>)}
-    </div>
-    <div className="mb-4 flex flex-wrap gap-2 text-[0.625rem] text-ds-zinc-500"><span className="inline-flex items-center gap-1 rounded border border-ds-zinc-700 px-2 py-1"><Link2 className="h-3 w-3" />{t('insightReview.pendingLinks', { count: linkCounts.pending })}</span><span className="rounded border border-ds-zinc-700 px-2 py-1">{t('insightReview.rejectedLinks', { count: linkCounts.rejected })}</span></div>
-    {error && <p className="mb-3 text-xs text-ds-red-500">{error}</p>}
-    {!loading && insights.length === 0 && <p className="text-sm text-ds-zinc-500">{t('insightReview.empty')}</p>}
-    <div className="space-y-3">{visibleInsights.map(insight => {
-      const canApproveThis = canVerify && insight.status !== 'rejected' && insight.version_state !== 'index_unavailable' && (['draft', 'outdated'].includes(insight.status) || insight.version_state === 'different_version' || insight.version_state === 'unbound') && (currentUser?.is_admin || insight.created_by_id !== currentUser?.id);
-      return <article key={insight.id} className={cn('rounded-lg border p-3', isDark ? 'border-ds-zinc-800 bg-ds-zinc-900/60' : 'border-ds-zinc-200 bg-ds-zinc-50')}>
-        <div className="flex items-start justify-between gap-2"><div><h3 className="text-sm font-semibold">{insight.title}</h3><p className="mt-1 whitespace-pre-wrap text-xs">{insight.content}</p></div><span className={cn('rounded px-1.5 py-0.5 text-[0.625rem] font-bold', insight.status === 'verified' ? 'bg-ds-emerald-500/15 text-ds-emerald-500' : 'bg-ds-amber-500/15 text-ds-amber-500')}>{t(`insightReview.status.${insight.status}`)}</span></div>
-        <div className="mt-2 flex items-center gap-1 text-[0.625rem] text-ds-zinc-500"><FileText className="h-3 w-3" />{t('insightReview.evidenceCount', { count: insight.evidence.length })} · {t(`insightReview.origin.${insight.origin_kind}`)}</div>
-        {insight.version_state && <p className="mt-2 text-xs text-ds-zinc-500">{t(`insightCommit.versionState.${insight.version_state}`)}</p>}
-        {insight.version_bindings && insight.version_bindings.length > 0 && <details className="mt-2 text-xs"><summary>{t('insightCommit.bindings')}</summary><InsightEvidence evidence={insight.version_bindings} /></details>}
-        <InsightEvidence evidence={insight.evidence} onOpenFile={onOpenFile} />
-        {insight.status === 'outdated' && insight.current_sources && <details className="mt-2 text-xs"><summary>{t('insightReview.currentSources')}</summary><InsightEvidence evidence={insight.current_sources} /></details>}
-        <p className="mt-2 text-[0.625rem] text-ds-zinc-500">{t(insight.status === 'verified' && (!insight.version_state || ['current', 'project'].includes(insight.version_state)) ? 'insightReview.retrievalEnabled' : 'insightReview.retrievalExcluded')}</p>
-        {insight.status === 'outdated' && <p className="mt-1 text-[0.625rem] text-ds-amber-500">{t('insightReview.sourceChanged', { count: insight.outdated_source_ids.length })}</p>}
-        {insight.evidence.some(item => typeof item.source_last_synced_at === 'string') && <p className="mt-1 text-[0.625rem] text-ds-zinc-500">{t('insightReview.provenanceSnapshot')}</p>}
-        {canApproveThis && <button type="button" disabled={verifying === insight.id || deleting === insight.id} onClick={() => void verify(insight)} className="mt-3 inline-flex items-center gap-1.5 rounded bg-ds-emerald-600 px-2 py-1 text-[0.625rem] font-semibold text-ds-white disabled:opacity-50"><>{verifying === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Check className="h-3 w-3" />}</>{t('insightReview.verify')}</button>}
-        {canVerify && <span className="inline-flex gap-2">
-          <button type="button" disabled={verifying !== null} onClick={() => setEditing({ id: insight.id, title: insight.title, content: insight.content })} className="mt-3 ml-2 text-xs text-ds-indigo-400">{t('insightReview.revise')}</button>
-          {insight.status !== 'rejected' && <button type="button" disabled={verifying !== null} onClick={() => void review(insight, 'reject')} className="mt-3 text-xs text-ds-red-500">{t('insightReview.reject')}</button>}
-        </span>}
-        {editing?.id === insight.id && <form className="mt-3 space-y-2" onSubmit={event => { event.preventDefault(); void review(insight, 'revise'); }}>
-          <label className="block text-xs">{t('insightDraft.title')}<input value={editing.title} maxLength={240} onChange={event => setEditing({ ...editing, title: event.target.value })} className="block w-full rounded border border-ds-zinc-500 bg-transparent p-2" /></label>
-          <label className="block text-xs">{t('insightDraft.content')}<textarea value={editing.content} rows={5} onChange={event => setEditing({ ...editing, content: event.target.value })} className="block w-full rounded border border-ds-zinc-500 bg-transparent p-2" /></label>
-          <button type="submit" disabled={verifying !== null} className="mr-3 text-xs text-ds-indigo-400">{t('insightDraft.saveDraft')}</button>
-          <button type="button" onClick={() => setEditing(null)} className="text-xs">{t('common.cancel')}</button>
-        </form>}
-        {insight.review_history && insight.review_history.length > 0 && (
-          <details className="mt-2 text-xs">
-            <summary>{t('insightReview.history')}</summary>
-            {insight.review_history.map((entry, index) => (
-              <div key={index} className="mt-2 whitespace-pre-wrap">
-                {String(entry.at)} · {String(entry.action)} · {String(entry.title)}
-                <p>{String(entry.content)}</p>
-                <InsightEvidence
-                  evidence={Array.isArray(entry.evidence) ? entry.evidence as Array<Record<string, unknown>> : []}
-                  onOpenFile={onOpenFile}
-                />
-              </div>
-            ))}
-          </details>
-        )}
-        {canVerify && <button type="button" disabled={deleting !== null || verifying === insight.id} onClick={() => void remove(insight)} className="mt-3 ml-2 inline-flex items-center gap-1.5 rounded border border-ds-red-500/40 px-2 py-1 text-[0.625rem] font-semibold text-ds-red-500 disabled:opacity-50">{deleting === insight.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Trash2 className="h-3 w-3" />}{t('insightReview.delete')}</button>}
+    <div className="mb-3 flex flex-wrap gap-2 text-xs">{['all','outdated','draft','verified','rejected'].map(value => <button type="button" key={value} aria-pressed={status === value} onClick={() => { setStatus(value); setOffset(0); }} className={cn('rounded border p-2', status === value ? 'border-ds-indigo-500 text-ds-indigo-400' : 'border-ds-zinc-500/30')}>{t(`insightReview.filter.${value}`)} · {value === 'all' ? Object.values(page?.counts || {}).reduce((a,b) => a + (b || 0), 0) : page?.counts[value as keyof InsightPage['counts']] || 0}</button>)}</div>
+    {selected.length > 0 && <button type="button" disabled={loading} onClick={() => void batchApprove()} className="mb-3 rounded bg-ds-emerald-600 p-2 text-xs text-ds-white">{t('insightWork.batchApprove', { count: selected.length })}</button>}
+    {error && <p role="alert" className="mb-3 text-xs text-ds-red-500">{error}</p>}
+    {batchResult && <p role="status" className="mb-3 text-xs">{batchResult}</p>}
+    {focus != null && <div className="mb-4"><button type="button" onClick={() => setFocus(null)} className="mb-2 text-xs text-ds-indigo-400">{t('common.cancel')}</button><InsightDetailPanel key={focus} projectId={projectId} insightId={focus} currentUser={currentUser} onChanged={() => void load()} onLoaded={remember} onOpenFile={onOpenFile} /></div>}
+    {loading && <p className="text-xs">{t('insightWork.loading')}</p>}
+    {!loading && page?.items.length === 0 && <p>{t('insightReview.empty')}</p>}
+    <div className="space-y-3">{page?.items.map(row => {
+      const detail = loaded[row.id];
+      const eligible = canManage && detail && detail.status !== 'rejected' && detail.version_state !== 'index_unavailable' && (detail.status !== 'verified' || !['current','project'].includes(detail.version_state)) && (currentUser?.is_admin || detail.created_by_id !== currentUser?.id);
+      return <article key={row.id} className="rounded border border-ds-zinc-500/30 p-3">
+        <div className="flex items-start justify-between gap-2"><h3 className="min-w-0 break-words font-semibold">{row.title}</h3><span className="text-xs">{t(`insightReview.status.${row.status}`)}</span></div>
+        <p className="mt-2 text-xs">{t('insightWork.owner')}: {row.owner_id == null ? t('insightWork.unassigned') : names.get(row.owner_id) || `#${row.owner_id}`} · {t('insightWork.reviewer')}: {row.reviewer_id == null ? t('insightWork.unassigned') : names.get(row.reviewer_id) || `#${row.reviewer_id}`}</p>
+        <p className="mt-1 text-xs">{t(`insightWork.priority.${row.priority ?? 1}`)}{row.due_at ? ` · ${new Date(row.due_at).toLocaleString()}` : ''} · {t(`insightCommit.versionState.${row.version_state}`)}</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-xs"><button type="button" onClick={() => setFocus(row.id)} className="text-ds-indigo-400">{t('insightWork.open')}</button>
+          {canManage && <><label className="flex items-center gap-2"><input aria-label={`${t('insightWork.select')} ${row.title}`} type="checkbox" checked={selected.includes(row.id)} disabled={!eligible || (selected.length >= 20 && !selected.includes(row.id))} onChange={e => setSelected(ids => e.target.checked ? [...ids, row.id] : ids.filter(id => id !== row.id))} />{t('insightWork.selectHint')}</label><button type="button" onClick={() => void remove(row)} className="text-ds-red-500">{t('insightReview.delete')}</button></>}
+        </div>
       </article>;
     })}</div>
+    <footer className="mt-4 flex items-center justify-between gap-2 text-xs"><button disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - 25))} className="rounded border border-ds-zinc-500/30 p-2 disabled:opacity-50">{t('insightWork.previous')}</button><span>{t('insightWork.page', { from: page?.items.length ? offset + 1 : 0, to: offset + (page?.items.length || 0), total: page?.total || 0 })}</span><button disabled={!page?.has_more || loading} onClick={() => setOffset(offset + 25)} className="rounded border border-ds-zinc-500/30 p-2 disabled:opacity-50">{t('insightWork.next')}</button></footer>
   </div>;
 }

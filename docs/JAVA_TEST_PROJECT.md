@@ -436,3 +436,22 @@ Fehler, Design-Token-Prüfung sowie Ruff/Lint und Formatprüfung bestanden.
 werden die vorhandenen Prüfskripte unter `/scripts` in den isolierten
 Testcontainer eingebunden. Es wurden keine Datenbankmodelle oder Abhängigkeiten
 geändert; Migration 0047 bleibt der aktuelle Stand.
+
+## Pflege vieler Erkenntnisse im Team (08.11.2026)
+
+Die bisher vollständig geladene Prüfliste wurde durch serverseitige Suche,
+Aufgabenfilter und Seiten ersetzt. Zuständigkeiten, persönliche Hinweise,
+Belegpflege und ausdrücklich bestätigte Sammelfreigaben sind in
+`docs/INSIGHT_TEAM_WORKFLOW.md` beschrieben. Die Versionsbindung bleibt streng;
+auch unveränderte Belegdateien erteilen keine automatische Freigabe.
+
+Die Relevanzauswahl nutzt PostgreSQL-Text-Ranking und vorhandene,
+profilgebundene Embeddings zusätzlich zu konkreten Belegbeziehungen.
+Das betrifft den gemeinsamen Erkenntniskontext von Chat und MCP. Ein
+automatisierter Synonymfall prüft die Auswahl bei unterschiedlicher Wortwahl,
+die anschließende Commit-Prüfung schließt veraltetes Wissen weiterhin aus.
+Diese Regression ersetzt keine fachliche Qualitätsmessung am Hold-out.
+
+Das gemeinsame Modellpaket ist 1.10.0, die Migration ist 0048.
+Backend und Parser müssen gemeinsam aktualisiert werden. Neue Beispiele und
+Grenzen stehen im Workflow-Dokument.
