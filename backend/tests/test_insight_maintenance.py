@@ -455,3 +455,18 @@ def test_document_evidence_uses_source_scope_and_checks_lines(
         == 0
     )
     assert client.get("/projects/99999999/insight-assignees").status_code == 404
+
+
+def test_project_knowledge_becomes_an_unbound_task_when_git_is_added(
+    version_repo, client, db_session, test_project
+):
+    row = db_session.get(Insight, version_repo["insight"]["id"])
+    # Project knowledge approved before any Git source existed carries [].
+    row.version_bindings = []
+    row.evidence_json = [{"text": "Project decision recorded before Git was connected"}]
+    db_session.commit()
+    result = client.get(
+        f"/projects/{test_project}/insight-worklist", params={"needs_review": True}
+    ).json()
+    assert result["total"] == 1
+    assert result["items"][0]["id"] == row.id and result["items"][0]["version_state"] == "unbound"

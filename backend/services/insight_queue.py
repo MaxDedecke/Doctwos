@@ -7,7 +7,7 @@ from doctus_models.database import Insight, ProjectMembership, TeamMembership, P
 REVIEW_REQUIRED = text("""
 (insights.status IN ('draft','outdated') OR
  (insights.status = 'verified' AND (
-   (insights.version_bindings IS NULL AND EXISTS
+   ((insights.version_bindings IS NULL OR insights.version_bindings::jsonb = '[]'::jsonb) AND EXISTS
       (SELECT 1 FROM knowledge_sources s WHERE s.project_id=insights.project_id AND lower(s.type)='git'))
    OR EXISTS (
      SELECT 1 FROM jsonb_array_elements(COALESCE(insights.version_bindings::jsonb,'[]'::jsonb)) b

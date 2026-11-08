@@ -127,7 +127,7 @@ isolierten Datenbank vorwärts/rückwärts/vorwärts geprüft.
 
 ## Nachweis für diesen Stand
 
-Die Abschlussprüfung bestand mit 953 Backend-Tests (1 Skip), 857 Parser-Tests
+Die Abschlussprüfung bestand mit 954 Backend-Tests (1 Skip), 857 Parser-Tests
 (7 Skips) und 1.116 Frontend-Tests. TypeScript, ESLint ohne Fehler,
 Design-Token-Prüfung, Ruff und Formatprüfung bestanden.
 Die Worklist-Prüfung legt 10.000 Erkenntnisse in einer isolierten Datenbank an
@@ -136,6 +136,7 @@ Dies ist ein funktionaler Skalierungsnachweis, keine Mehrbenutzer-Latenzzusage.
 
 Die Tests prüfen außerdem persönliche Lesebestätigungen und Rollen,
 Belegüberarbeitung einschließlich Dokumentchunks über Quellenzugehörigkeit,
-Quellenänderungen, referenzierte Erkenntnisse, Sammelfreigabekonflikte,
+Quellenänderungen, Projektwissen nach Hinzufügen einer Git-Quelle,
+referenzierte Erkenntnisse, Sammelfreigabekonflikte,
 profil-/textgebundene Vektoren und Wiederholung des Hintergrundlaufs.
 Embeddings und Modellantworten werden in diesen Regressionen simuliert.
