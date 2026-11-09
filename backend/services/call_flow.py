@@ -26,6 +26,8 @@ CALL_FLOW_EDGE_TYPES = {
     "GOTO",
     "COPY",
     "CALLS",
+    # Interface-/Bean-Aufruf zur ausführenden Implementierung (parser/java/implementation_dispatch.py, injection.py).
+    "DISPATCHES_TO",
     "INSTANTIATES",
     "EXECUTES",
     "CONTAINS",
@@ -45,12 +47,21 @@ CALL_FLOW_EDGE_TYPES = {
     "ASSIGNED_DATASET",
     "LINKS_TO",
 }
-CALL_EXECUTION_EDGE_TYPES = {"CALL", "PERFORM", "GOTO", "CALLS", "STARTS_JAVA", "EXECUTES_SCRIPT"}
+CALL_EXECUTION_EDGE_TYPES = {
+    "CALL",
+    "PERFORM",
+    "GOTO",
+    "CALLS",
+    "DISPATCHES_TO",
+    "STARTS_JAVA",
+    "EXECUTES_SCRIPT",
+}
 CALL_DEPENDENCY_EDGE_TYPES = CALL_FLOW_EDGE_TYPES - CALL_EXECUTION_EDGE_TYPES
 CALL_FLOW_EDGE_PRIORITY = {
     "CALL": 0,
     "PERFORM": 0,
     "CALLS": 0,
+    "DISPATCHES_TO": 0,
     "EXECUTES": 0,
     "STARTS_JAVA": 0,
     "GOTO": 1,

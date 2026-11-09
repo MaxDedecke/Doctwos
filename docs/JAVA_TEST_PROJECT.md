@@ -42,6 +42,15 @@ inkrementelle Neuverarbeitung erhöht.
 - `DISPATCHES_TO` beschreibt einen statisch belegten Kandidaten einer ausgewählten
   Bean. Die ursprüngliche `CALLS`-Kante auf die deklarierte Methode bleibt erhalten.
   Fehlende/mehrdeutige Beans werden nicht durch eine beliebige Implementierung ersetzt.
+- Ohne ausgewählte Bean (z. B. `@Bean`-Fabrikmethoden wie bei Syncope) verbindet `DISPATCHES_TO`
+  einen Interface- oder abstrakten Aufruf mit der **einzigen** Implementierung, die ein konkreter
+  Untertyp des statischen Empfängertyps im Quelltext hat (gleicher Name und Parameterzahl, auch von
+  einer abstrakten Oberklasse geerbt; nur derselbe Quellbereich Haupt-/Testcode;
+  `dispatch_scope: single_source_implementation`, `parser/java/implementation_dispatch.py`).
+  Bei mehreren Implementierungen entsteht keine Kante. Aufrufkette, Verwendungen und Datenherkunft
+  folgen `DISPATCHES_TO` (09.11.2026; vorher endete jede Kette an der Interface-Deklaration, Katalogtest
+  J3). Syncope: 1.263 solcher Kanten, darunter `UserServiceImpl.create → UserLogic.create` und
+  `AbstractUserLogic.doCreate → DefaultUserProvisioningManager.create`.
 - `DOCTUS_SPRING_PROFILES=prod,soap` bestimmt die expliziten Spring-Profile.
   Unausgewählte CDI-Alternatives und unbekannte Boot-Conditions werden nicht als
   aktive Beans behauptet. Laufzeit-Beanregistrierung und komplexe Profil-/SpEL-Ausdrücke

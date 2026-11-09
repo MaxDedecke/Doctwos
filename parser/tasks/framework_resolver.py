@@ -6,6 +6,7 @@ from doctus_models.database import CodeEdge, CodeEntity
 from sqlalchemy import or_
 
 from core.model import Entity, ParseResult
+from java.implementation_dispatch import derive_implementation_dispatch
 from java.injection import derive_injection_edges
 from java.lambda_dispatch import derive_lambda_dispatch
 from java.modules import module_from_path
@@ -87,10 +88,18 @@ def resolve_framework_edges(db, source_id):
                 xml_beans.append(
                     (ParseResult(row.name, row.file_path, "free", variant_key=variant), bean)
                 )
-        derived = list(derive_injection_edges(results, xml_beans)) + list(
-            derive_lambda_dispatch(results)
+        derived = (
+            list(derive_injection_edges(results, xml_beans))
+            + list(derive_lambda_dispatch(results))
+            + list(derive_implementation_dispatch(results))
         )
+        seen = set()
         for result, edge in derived:
+            # Bean-Einbindung zuerst: Wählt sie dasselbe Ziel wie die Implementierungssuche, gilt ihr Beleg.
+            key = (edge.type, edge.src_name, edge.dst_name, edge.src_start_line)
+            if key in seen:
+                continue
+            seen.add(key)
             source = by_identity.get((variant, result.path, edge.src_name))
             target = by_identity.get(
                 (variant, edge.meta.get("target_file_path"), edge.meta.get("target_qualified_name"))

@@ -545,7 +545,7 @@ def _origin_table_statements(
                 db.query(CodeEdge)
                 .filter(
                     CodeEdge.project_id == project_id,
-                    CodeEdge.type == "CALLS",
+                    CodeEdge.type.in_(("CALLS", "DISPATCHES_TO")),
                     CodeEdge.dst_entity_id == parent.id,
                 )
                 .order_by(CodeEdge.id)

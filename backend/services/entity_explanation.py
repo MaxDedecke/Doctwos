@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 _USED_BY_TYPES = [
     "CALL",
     "CALLS",
+    "DISPATCHES_TO",
     "PERFORM",
     "GOTO",
     "COPY",

@@ -225,7 +225,17 @@ def _outline(db: Session, entity: CodeEntity) -> list[dict]:
             CodeEdge.project_id == entity.project_id,
             *same_file,
             or_(
-                CodeEdge.type.in_(["CALL", "CALLS", "PERFORM", "GOTO", "EXECUTES", "USES_DATASET"]),
+                CodeEdge.type.in_(
+                    [
+                        "CALL",
+                        "CALLS",
+                        "DISPATCHES_TO",
+                        "PERFORM",
+                        "GOTO",
+                        "EXECUTES",
+                        "USES_DATASET",
+                    ]
+                ),
                 and_(
                     CodeEdge.type.in_(["READS", "WRITES"]),
                     func.json_extract_path_text(CodeEdge.meta_json, "io_target_kind").isnot(None),
@@ -241,6 +251,7 @@ def _outline(db: Session, entity: CodeEntity) -> list[dict]:
     labels = {
         "CALL": "calls",
         "CALLS": "calls",
+        "DISPATCHES_TO": "calls",
         "PERFORM": "performs",
         "GOTO": "performs",
         "EXECUTES": "cics",
