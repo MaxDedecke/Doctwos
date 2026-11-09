@@ -31,12 +31,15 @@ export function getMermaidRenderConfig(theme: string): MermaidConfig {
 }
 
 /**
- * Ältere Antworten tragen den Zusatz „(Beziehung nicht im Index belegt)“ hinter Kantenzeilen des Diagramms
+ * Ältere Antworten tragen Zusätze wie „(Beziehung nicht im Index belegt)“ hinter Kantenzeilen des Diagramms
  * (die Antwortprüfung hat Mermaid-Zeilen früher als Kantenbehauptungen markiert). Er ist keine Mermaid-Syntax;
  * ohne Bereinigung schlägt das Rendern fehl.
  */
 export function repairMermaidSource(code: string): string {
-  return code.replace(/(?:[ \t]*\(Beziehung nicht im Index belegt\))+/g, '');
+  return code.replace(
+    /(?:[ \t]*\((?:Beziehung nicht im Index belegt|Beziehung nicht belegt|im Quelltext belegt, keine Index-Kante)\))+/g,
+    '',
+  );
 }
 
 /** Render Mermaid supplied by an agent answer without trusting its SVG output. */

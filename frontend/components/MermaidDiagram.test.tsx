@@ -43,8 +43,8 @@ describe('MermaidDiagram', () => {
   });
 
   it('removes the claim marker that older answers appended to edge lines', () => {
-    const broken = 'flowchart TD\n  a -->|CALLS| b (Beziehung nicht im Index belegt)\n  c -->|CALLS| d (Beziehung nicht im Index belegt) (Beziehung nicht im Index belegt)\n  e -->|READS| f';
-    expect(repairMermaidSource(broken)).toBe('flowchart TD\n  a -->|CALLS| b\n  c -->|CALLS| d\n  e -->|READS| f');
+    const broken = 'flowchart TD\n  a -->|CALLS| b (Beziehung nicht im Index belegt)\n  c -->|CALLS| d (Beziehung nicht im Index belegt) (Beziehung nicht im Index belegt)\n  e -->|READS| f (im Quelltext belegt, keine Index-Kante)\n  g -->|CALLS| h (Beziehung nicht belegt)';
+    expect(repairMermaidSource(broken)).toBe('flowchart TD\n  a -->|CALLS| b\n  c -->|CALLS| d\n  e -->|READS| f\n  g -->|CALLS| h');
     expect(repairMermaidSource('flowchart TD\n  a --> b')).toBe('flowchart TD\n  a --> b');
   });
 });

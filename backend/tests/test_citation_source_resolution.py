@@ -396,8 +396,8 @@ def test_verified_answer_keeps_an_unbacked_edge_sentence_but_marks_it():
 
     assert consistent
     assert "COBSWAIT ruft MVSWAIT auf" in text
-    assert "ruft DFSRRC00 auf (Beziehung nicht im Index belegt)" in text
-    assert "nicht im Index belegt" in text.rsplit("Hinweis", 1)[1]
+    assert "ruft DFSRRC00 auf (Beziehung nicht belegt)" in text
+    assert "Weder Index noch zitierter Quelltext" in text.rsplit("Hinweis", 1)[1]
 
 
 def test_fenced_mermaid_block_is_neither_checked_nor_annotated():

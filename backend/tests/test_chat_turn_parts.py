@@ -3,7 +3,7 @@
 import json
 from types import SimpleNamespace
 
-from services.chat_sources import ToolEvidence
+from services.citation_check import ToolEvidence
 from services.chat_turn import build_system_prompt
 from services.chat_view_actions import ViewActionTracker
 

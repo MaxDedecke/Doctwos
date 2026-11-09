@@ -40,7 +40,6 @@ from services.chat_service import (
 )
 from services.chat_sessions import ChatTurn
 from services.chat_sources import (
-    ToolEvidence,
     append_agent_source_fallback,
     attach_analysis_status,
     build_candidate_sources,
@@ -50,6 +49,7 @@ from services.chat_sources import (
 )
 from services.chat_view_actions import ViewActionTracker
 from services.index_state import answer_notice, stale_sources
+from services.citation_check import ToolEvidence
 from services.reviewed_evidence import observe_project_sources, resolve_project_sources
 from services.source_context import build_source_context_block
 

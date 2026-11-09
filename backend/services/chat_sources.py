@@ -568,6 +568,7 @@ def validate_answer_sources(
     sources: list[dict],
     edge_pairs: Optional[set[tuple[str, str]]] = None,
     evidence_text: Optional[str] = None,
+    source_supported=None,
 ) -> tuple[str, bool]:
     """Reject file/line citations and relationship claims without delivered evidence.
 
@@ -707,8 +708,11 @@ def validate_answer_sources(
         else:
             unsupported_claims.append(sentence.strip())
 
+    # Eine Aussage ohne Index-Kante, die der zitierte Quelltext zeigt, ist ein Quellbeleg, kein Graphbeleg
+    # (services/citation_check.py); Leser sollen beides unterscheiden können.
+    source_backed = [c for c in unsupported_claims if source_supported and source_supported(c)]
     if unsupported_claims:
-        if not (verified or supported_claims):
+        if not (verified or supported_claims or source_backed):
             # Nur unbelegte Kanten: keine Ersatzkante als Antwort anbieten.
             logger.warning(
                 "Verwerfe Agent-Antwort mit unbelegter Kantenbehauptung: %s",
@@ -727,11 +731,26 @@ def validate_answer_sources(
         )
         for claim in unsupported_claims:
             if claim and claim in answer:
-                answer = answer.replace(claim, f"{claim} (Beziehung nicht im Index belegt)", 1)
+                label = (
+                    "im Quelltext belegt, keine Index-Kante"
+                    if claim in source_backed
+                    else "Beziehung nicht belegt"
+                )
+                answer = answer.replace(claim, f"{claim} ({label})", 1)
         answer = (
             answer.rstrip()
-            + "\n\n> Hinweis: Mindestens eine Beziehungsaussage stammt nicht aus den abgerufenen "
-            "Analyseergebnissen und ist als „nicht im Index belegt“ markiert."
+            + "\n\n> Hinweis: "
+            + (
+                "„Im Quelltext belegt, keine Index-Kante“: Die zitierte Stelle zeigt die Beziehung, der "
+                "Aufrufgraph enthält sie aber nicht (z. B. statisch nicht aufgelöster Aufruf). "
+                if source_backed
+                else ""
+            )
+            + (
+                "„Beziehung nicht belegt“: Weder Index noch zitierter Quelltext zeigen die Beziehung."
+                if len(source_backed) < len(unsupported_claims)
+                else ""
+            )
         )
     return answer, True
 
@@ -829,28 +848,3 @@ def merge_candidate_sources(candidates: list[dict], extra: Iterable[dict]) -> No
             c["file"] == source["file"] and c["lines"] == source["lines"] for c in candidates
         ):
             candidates.append(source)
-
-
-class ToolEvidence:
-    """Was die Werkzeuge eines Agentenlaufs belegt haben: gelesene Stellen und Kanten.
-
-    ``observe`` nimmt jedes Werkzeugereignis entgegen; ``validate`` prüft die
-    fertige Antwort gegen genau diese Belege.
-    """
-
-    def __init__(self, repository_id: Optional[int]):
-        self.repository_id = repository_id
-        self.sources: list[dict] = []
-        self.edge_pairs: set[tuple[str, str]] = set()
-
-    def observe(self, event: dict) -> None:
-        extract_tool_sources(event, self.sources, self.repository_id)
-        self.edge_pairs.update(extract_tool_edge_pairs(event))
-
-    def validate(self, answer: str, agent_steps: list, question: str) -> tuple[str, bool]:
-        return validate_answer_sources(
-            answer,
-            self.sources,
-            self.edge_pairs,
-            evidence_text=tool_evidence_text(agent_steps, question) if agent_steps else None,
-        )
