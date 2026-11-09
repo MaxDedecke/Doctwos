@@ -181,8 +181,10 @@ def _literal_facts(
                     continue
                 code = match.group(1) or match.group(2) or match.group(3)
                 item = f"{match.group(4)}={code}"
-                if item not in found.setdefault("sets", []):
-                    found["sets"].append(item)
+                # Mit Zeile: Derselbe Code-Wert in zwei Zweigen (05 ablehnen, 00 genehmigen) darf nicht
+                # zu einer Aussage verschmelzen (Katalogtest 08.11.2026, CS5).
+                if not any(entry.startswith(item + " ") for entry in found.setdefault("sets", [])):
+                    found["sets"].append(f"{item} (Z. {number})")
             for match in _STRING_LITERAL.finditer(text):
                 literal = (
                     (match.group(1) or match.group(2)).strip().replace("(", "[").replace(")", "]")

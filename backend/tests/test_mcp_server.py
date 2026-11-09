@@ -1699,7 +1699,7 @@ def test_outline_facts_carry_message_texts_and_assigned_codes(db_session, mcp_pr
     db_session.commit()
     outline = call_flow_page._outline(db_session, program)
     facts = next(item for item in outline if item["symbol"] == "AUTHPROG.8000-DECLINE")["facts"]
-    assert "AUTH-RESP-REASON=51" in facts and '"INSUFFICIENT FUNDS [LIMIT]"' in facts
+    assert "AUTH-RESP-REASON=51 (Z. 4)" in facts and '"INSUFFICIENT FUNDS [LIMIT]"' in facts
     assert "not a message" not in facts
 
 
