@@ -109,8 +109,15 @@ def _mermaid_label(value: str) -> str:
     return escape(value, quote=True).replace("[", "(").replace("]", ")").replace('"', "'")
 
 
+# Das Diagramm ist für Leser, die Kanten im Ergebnis sind für Werkzeuge. Ein Trace mit hunderten Kanten (vor allem
+# unaufgelöste Bibliotheksaufrufe und mehrere Aufrufstellen zwischen denselben Methoden) machte die Antwort
+# unlesbar (Katalogtest 08.11.2026: bis 430 Kanten, 72 % des Antworttexts).
+MERMAID_MAX_EDGES = 40
+
+
 def _to_mermaid(nodes: list[dict], edges: list[dict]) -> str:
     lines = ["flowchart TD"]
+    names = {node["id"]: f"{node['name']} ({node['type']})" for node in nodes}
     declared: set[str] = set()
 
     def declare(identifier: str, label: str) -> None:
@@ -118,16 +125,34 @@ def _to_mermaid(nodes: list[dict], edges: list[dict]) -> str:
             declared.add(identifier)
             lines.append(f'  {identifier}["{_mermaid_label(label)}"]')
 
-    for node in nodes:
-        declare(f"n{node['id']}", f"{node['name']} ({node['type']})")
+    shown: list[str] = []
+    pairs: set[tuple] = set()
+    unresolved = omitted = 0
     for edge in edges:
-        source = f"n{edge['source']}"
         if edge["target"] is None:
-            target = f"u{edge['id']}"
-            declare(target, f"{edge['target_name']} (unaufgeloest)")
-        else:
-            target = f"n{edge['target']}"
-        lines.append(f"  {source} -->|{_mermaid_label(edge['type'])}| {target}")
+            unresolved += 1
+            continue
+        pair = (edge["source"], edge["target"], edge["type"])
+        if pair in pairs:
+            continue
+        pairs.add(pair)
+        if len(shown) >= MERMAID_MAX_EDGES:
+            omitted += 1
+            continue
+        for identifier in (edge["source"], edge["target"]):
+            declare(f"n{identifier}", names.get(identifier, str(identifier)))
+        shown.append(f"  n{edge['source']} -->|{_mermaid_label(edge['type'])}| n{edge['target']}")
+    if not shown:
+        for node in nodes[:1]:
+            declare(f"n{node['id']}", names[node["id"]])
+    lines.extend(shown)
+    notes = []
+    if omitted:
+        notes.append(f"{omitted} weitere Kanten")
+    if unresolved:
+        notes.append(f"{unresolved} unaufgelöste Aufrufe")
+    if notes:
+        lines.append(f'  more["{_mermaid_label("Nicht dargestellt: " + ", ".join(notes))}"]')
     return "\n".join(lines)
 
 

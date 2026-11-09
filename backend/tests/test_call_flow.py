@@ -468,3 +468,19 @@ def test_direction_both_resolves_the_entry_and_keeps_callers_of_the_program(
     finally:
         db_session.query(KnowledgeSource).filter(KnowledgeSource.id == source.id).delete()
         db_session.commit()
+
+
+def test_the_diagram_shows_each_resolved_pair_once_and_names_what_it_leaves_out():
+    from services.call_flow import MERMAID_MAX_EDGES, _to_mermaid
+
+    nodes = [{"id": i, "name": f"m{i}", "type": "method"} for i in range(60)]
+    edges = [{"id": 0, "source": 0, "target": 1, "type": "CALLS"}] * 3
+    edges += [{"id": i, "source": 0, "target": i, "type": "CALLS"} for i in range(2, 60)]
+    edges += [{"id": 99, "source": 0, "target": None, "target_name": "println", "type": "CALLS"}]
+
+    diagram = _to_mermaid(nodes, edges)
+
+    assert diagram.count("-->") == MERMAID_MAX_EDGES
+    assert diagram.splitlines().count("  n0 -->|CALLS| n1") == 1
+    assert "println" not in diagram
+    assert "Nicht dargestellt: 19 weitere Kanten, 1 unaufgelöste Aufrufe" in diagram
