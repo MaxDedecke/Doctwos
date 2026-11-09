@@ -331,6 +331,36 @@ def local_tool_definitions(
         )
         local_tools_def.append(
             {
+                "name": "view_commit_diff",
+                "description": (
+                    "Reads the bounded Git diff between two revisions of the project's Git source: per file the "
+                    "changed hunks with removed ('-') and added ('+') lines and the enclosing method from the hunk "
+                    "header. Use it whenever a question compares commits or asks what changed and how behaviour "
+                    "differs before and after; view_repo_file only shows the current (head) state. Without "
+                    "file_path it lists all changed files with their first hunks; ask again with file_path for "
+                    "omitted hunks. Cite head-side lines as path:line."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "base_ref": {"type": "string", "description": "Base revision (older)."},
+                        "head_ref": {"type": "string", "description": "Target revision (newer)."},
+                        "file_path": {
+                            "type": "string",
+                            "description": "Optional repository-relative path to limit the diff to one file.",
+                        },
+                        "source_id": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Git source ID; needed when the project has several Git sources.",
+                        },
+                    },
+                    "required": ["base_ref", "head_ref"],
+                },
+            }
+        )
+        local_tools_def.append(
+            {
                 "name": "inspect_change_package",
                 "description": (
                     "Build a bounded, read-only evidence package for preparing a code change. It combines "

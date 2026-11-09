@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 from core.analysis_status import load_analysis_status
 from core.projects import resolve_repository_id
 from doctus_models.database import DocumentChunk, KnowledgeSource
+from services.commit_diff import diff_source_ranges
 from services.provenance import build_provenance
 
 logger = logging.getLogger(__name__)
@@ -67,6 +68,7 @@ def extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[i
         "inspect_change_impact",
         "inspect_change_package",
         "answer_context",
+        "view_commit_diff",
     ):
         return
 
@@ -88,6 +90,9 @@ def extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[i
                 result.get("end_line", 1),
                 source_id,
             )
+    elif tool_name == "view_commit_diff":
+        for path, start, end in diff_source_ranges(result):
+            record_agent_source(agent_sources, path, start, end, source_id)
     elif tool_name == "search_repo_code":
         for match in result.get("matches", [])[:8]:
             if match.get("file"):

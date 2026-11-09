@@ -301,6 +301,13 @@ Index wiederholt sowie auf einer isolierten Testdatenbank zurück- und wieder
 vorwärts migriert. Regressionen prüfen die gemeinsame Indexdefinition und
 unveränderte ungelöste/dynamische Namensauflösung für Java und COBOL.
 
+Commitvergleich im Chat (09.11.2026): Das Änderungspaket nennt geänderte Dateien und Zeilenbereiche, der Agent
+konnte Dateien aber nur im Zielstand lesen; ein Vorher/Nachher-Vergleich war nicht belegbar (Katalogtest J11).
+Das Agentenwerkzeug `view_commit_diff` (`backend/services/commit_diff.py`) liefert die begrenzten Diff-Abschnitte
+zwischen zwei Revisionen der Git-Quelle mit entfernten und hinzugefügten Zeilen und der umgebenden Methode aus dem
+Hunk-Kopf (Git-Diff-Treiber für Java, Python, CSS, HTML; eigenes Muster für COBOL-Paragraphen und -Sections, ohne
+das Repository zu verändern). Zeilen des Zielstands zählen als gelesene Quellen und sind zitierbar.
+
 ## Versionsgebundene Erkenntnisse und Commit-Prüfung (07.11.2026)
 
 Jede neue Erkenntnis hält die Quellenstände ihrer Belege fest. Bei Git gehören

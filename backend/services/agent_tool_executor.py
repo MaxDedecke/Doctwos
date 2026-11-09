@@ -23,6 +23,7 @@ from services.reviewed_evidence import fit_result
 
 from services import agent_repo_tools as repo_tools
 
+from services.commit_diff import commit_diff
 from services.agent_tool_results import _cap_tool_result, _compact_change_package_for_agent
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,7 @@ class AgentToolExecutor:
                 "search_knowledge": self.project_id,
                 "inspect_change_impact": self.project_id,
                 "inspect_change_package": self.project_id,
+                "view_commit_diff": self.project_id,
             }.get(name, False)
         )
 
@@ -649,3 +651,20 @@ class AgentToolExecutor:
                     duration_ms=self.mcp_execution_metrics[tool_call_id or name]["mcp_duration_ms"],
                     error_message=error_message,
                 )
+
+    async def _tool_view_commit_diff(self, args: dict, tool_call_id: Optional[str]) -> str:
+        base_ref, head_ref = args.get("base_ref"), args.get("head_ref")
+        if not isinstance(base_ref, str) or not isinstance(head_ref, str):
+            return json.dumps({"error": "base_ref and head_ref are required."})
+        source_id = args.get("source_id")
+        result = commit_diff(
+            self.db_session,
+            project_id=self.project_id,
+            base_ref=base_ref,
+            head_ref=head_ref,
+            source_id=source_id
+            if isinstance(source_id, int) and not isinstance(source_id, bool)
+            else None,
+            file_path=args.get("file_path") if isinstance(args.get("file_path"), str) else None,
+        )
+        return json.dumps(result, ensure_ascii=False)
