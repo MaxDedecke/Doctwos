@@ -331,6 +331,33 @@ def local_tool_definitions(
         )
         local_tools_def.append(
             {
+                "name": "get_source_status",
+                "description": (
+                    "Returns the analysis state of the project's Git source: indexed commit, files per language "
+                    "and analysis status (complete, partial, text only, skipped), bounded lists of partially "
+                    "analysed, text-only and skipped files with their reason, the configured build profile "
+                    "(compiler family, source format, code page, COPY search order, defines) or that none is set, "
+                    "open COPY names and grammar error patterns. Use it for inventory questions, questions about "
+                    "which files are incompletely analysed, and about build profiles or compiler conditions."
+                ),
+                "inputSchema": {
+                    "type": "object",
+                    "properties": {
+                        "language": {
+                            "type": "string",
+                            "description": "Optional language filter for the file lists, e.g. cobol, copybook, jcl, java.",
+                        },
+                        "source_id": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "description": "Git source ID; needed when the project has several Git sources.",
+                        },
+                    },
+                },
+            }
+        )
+        local_tools_def.append(
+            {
                 "name": "view_commit_diff",
                 "description": (
                     "Reads the bounded Git diff between two revisions of the project's Git source: per file the "

@@ -40,6 +40,8 @@ def build_system_prompt(system_prompt: str | None) -> str:
         "Treffer als ungewiss. Nenne Trunkierung sowie Analysegrenzen; behaupte niemals Vollständigkeit. "
         "Das Werkzeug liest nur und startet weder Änderungen noch Reindexierung. Wenn ein Graph mit "
         "Beziehungen vorliegt, lass den Nutzer ihn über die angebotene Aktion explizit öffnen. "
+        "Fragt der Nutzer nach dem Bestand, nach teilweise oder nur als Text analysierten Dateien oder nach "
+        "Buildprofil und Compilerbedingungen, lies mit `get_source_status` den Analysestand der Quelle. "
         "Vergleicht die Frage zwei Commits oder fragt, was sich geändert hat, lies mit `view_commit_diff` die "
         "entfernten und hinzugefügten Zeilen und erkläre das Verhalten vorher und nachher je geänderter Methode; "
         "`view_repo_file` zeigt nur den Zielstand und belegt allein keine Änderung. "

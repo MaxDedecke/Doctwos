@@ -24,6 +24,7 @@ from services.reviewed_evidence import fit_result
 from services import agent_repo_tools as repo_tools
 
 from services.commit_diff import commit_diff
+from services.source_status import source_status
 from services.agent_tool_results import _cap_tool_result, _compact_change_package_for_agent
 
 logger = logging.getLogger(__name__)
@@ -108,6 +109,7 @@ class AgentToolExecutor:
                 "inspect_change_impact": self.project_id,
                 "inspect_change_package": self.project_id,
                 "view_commit_diff": self.project_id,
+                "get_source_status": self.project_id,
             }.get(name, False)
         )
 
@@ -668,3 +670,16 @@ class AgentToolExecutor:
             file_path=args.get("file_path") if isinstance(args.get("file_path"), str) else None,
         )
         return json.dumps(result, ensure_ascii=False)
+
+    async def _tool_get_source_status(self, args: dict, tool_call_id: Optional[str]) -> str:
+        source_id = args.get("source_id")
+        language = args.get("language")
+        result = source_status(
+            self.db_session,
+            project_id=self.project_id,
+            source_id=source_id
+            if isinstance(source_id, int) and not isinstance(source_id, bool)
+            else None,
+            language=language if isinstance(language, str) and language.strip() else None,
+        )
+        return json.dumps(result, ensure_ascii=False, default=str)
