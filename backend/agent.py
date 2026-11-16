@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 def _question_of(prompt: str) -> str:
     """Die Frage des Nutzers ohne den vorangestellten Kontextblock."""
-    return (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()
+    question = (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()
+    return question.removesuffix("Answer:").strip()
 
 
 async def _prefetch_evidence(
@@ -36,11 +37,13 @@ async def _prefetch_evidence(
     project_id: int,
     prompt: str,
     max_chars: Optional[int] = None,
+    overview: bool = False,
 ) -> Optional[tuple[str, dict, str]]:
     """Run the answer_context evidence pack for the symbols named in the question.
 
     Returns (tool name, arguments, JSON result) when at least one named symbol resolves, otherwise None so the
-    regular bootstrap applies. Failures never block the chat."""
+    regular bootstrap applies. With ``overview`` the project overview counts as a result too: it replaces the
+    generic bootstrap for questions that name neither a symbol nor a file. Failures never block the chat."""
     if user_id is None:
         return None
     question = _question_of(prompt)[:1400]
@@ -57,6 +60,7 @@ async def _prefetch_evidence(
             project_id,
             question=question,
             max_chars=max_chars or cfg.CHAT_EVIDENCE_CHARS,
+            overview=overview,
         )
     except Exception as exc:  # evidence is an accelerator; the model can still use its tools
         logger.warning("Chat evidence prefetch failed (%s)", type(exc).__name__)
@@ -65,7 +69,7 @@ async def _prefetch_evidence(
         except Exception:
             pass
         return None
-    if not result.get("resolved"):
+    if not result.get("resolved") and not (overview and result.get("overview")):
         return None
     args = {"symbols": [item["symbol"] for item in result["resolved"]], "topic": question[:200]}
     return "answer_context", args, json.dumps(result, ensure_ascii=False)
@@ -306,9 +310,19 @@ async def run_agent_loop(
             pinned_line=pinned_line,
             pinned_end_line=pinned_end_line,
         )
-        # Vor dem ersten Aufruf setzen: Alle Repository-Werkzeuge bleiben auf die genannten Dateien begrenzt.
-        executor.file_focus_paths.update(focus)
-        bootstrap_result = await executor.execute(bootstrap_name, bootstrap_args)
+        # Nennt die Frage weder Symbol noch Datei, bliebe nur die Liste der ersten Entitäten; der
+        # Projektüberblick aus dem Index trägt für solche Fragen deutlich mehr.
+        generic = bootstrap_name == "get_repo_entities" and bootstrap_args == {"limit": 20}
+        if generic and cfg.CHAT_EVIDENCE_PREFETCH:
+            prefetched = await _prefetch_evidence(
+                db_session, audit_user_id, project_id, prompt, evidence_chars, overview=True
+            )
+        if prefetched is not None:
+            bootstrap_name, bootstrap_args, bootstrap_result = prefetched
+        else:
+            # Vor dem ersten Aufruf setzen: Alle Repository-Werkzeuge bleiben auf die genannten Dateien begrenzt.
+            executor.file_focus_paths.update(focus)
+            bootstrap_result = await executor.execute(bootstrap_name, bootstrap_args)
     if bootstrap_result is not None:
         bootstrap_tool = ToolCall("bootstrap-0", bootstrap_name, bootstrap_args)
         for event in _tool_events(bootstrap_tool, bootstrap_result, {}):

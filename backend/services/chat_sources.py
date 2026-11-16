@@ -128,6 +128,12 @@ def extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[i
                     entity.get("source_id") or source_id,
                 )
     elif tool_name == "answer_context":
+        overview = result.get("overview") if isinstance(result.get("overview"), dict) else {}
+        for key in ("documentation", "entry_points", "most_used"):
+            for item in overview.get(key) or []:
+                lines = item.get("lines") if isinstance(item, dict) else None
+                if lines and item.get("file"):
+                    record_agent_source(agent_sources, item["file"], lines[0], lines[1], source_id)
         for entry in result.get("evidence", []):
             if not isinstance(entry, dict):
                 continue

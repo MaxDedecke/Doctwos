@@ -338,6 +338,7 @@ async def test_answer_context_tool_builds_the_evidence_pack_for_the_named_symbol
         "symbols": ["CBACT04C"],
         "topic": "Zinsen",
         "max_chars": 9000,
+        "overview": False,
     }
     rejected = await executor.execute("answer_context", {"symbols": "CBACT04C"})
     assert "error" in json.loads(rejected)
@@ -681,3 +682,11 @@ async def test_standard_chat_reports_an_oversized_request_instead_of_answering_b
 
     assert events[-1]["type"] == "error"
     assert "9000 Tokens bei einem Fenster von 2048" in events[-1]["error"]
+
+
+def test_the_question_is_taken_from_the_prompt_without_its_context_and_answer_marker():
+    from agent import _question_of
+
+    prompt = "Context:\n<untrusted_context>\nQuestion: alt\n</untrusted_context>\n\nQuestion: Was ist das?\nAnswer:"
+    assert _question_of(prompt) == "Was ist das?"
+    assert _question_of("Nur die Frage") == "Nur die Frage"

@@ -175,7 +175,8 @@ def local_tool_definitions(
                     "First choice for a question about named code (program, class, method, paragraph, field). "
                     "Returns in one call the source with line numbers, callers, callees, data access and users "
                     "of each symbol. An evidence pack for the symbols named in the question is usually already "
-                    "in the conversation; call this again only for further symbols."
+                    "in the conversation; call this again only for further symbols. Without symbols and with "
+                    "only a topic it returns the project overview (documentation, inventory, entry points)."
                 ),
                 "inputSchema": {
                     "type": "object",
@@ -190,7 +191,6 @@ def local_tool_definitions(
                             "description": "Few words on what to find out, e.g. 'interest calculation'.",
                         },
                     },
-                    "required": ["symbols"],
                 },
             }
         )

@@ -26,6 +26,7 @@ from services.index_state import stale_sources
 from services.ollama_client import embed_text
 from doctus_models.language_profile import role_of
 from services import evidence as evidence_blocks
+from services.evidence_overview import OVERVIEW_INTENT, project_overview
 from services.source_access import site_excerpt as _site_excerpt
 
 
@@ -289,11 +290,13 @@ def _build_code_answer_context(
     topic: str = "",
     max_chars: int = 8000,
     use_embeddings: bool = True,
+    overview: bool = False,
 ) -> dict:
     """Evidence pack for a question: source, callers, callees (two hops), data access and users of the named symbols.
 
     Shared by the MCP tool and the chat prefetch. `symbols` are names the caller already extracted; without them
-    they are taken from the free text."""
+    they are taken from the free text. A question that names no symbol and asks about the project as a whole
+    (or `overview`, the chat's fallback) gets the project overview instead."""
     text = " ".join(part for part in (question, topic) if part).strip()
     relevance_query = (topic or question).strip()
     max_chars = max(3000, min(max_chars, 14000))
@@ -383,19 +386,20 @@ def _build_code_answer_context(
         resolved.append((term, entity, others, mode))
     if not resolved:
         found, suggestions, _mode = _find_entities(db, user, project_id, text[:200], 6)
-        return _with_index_status(
-            db,
-            project_id,
-            {
-                "project_id": project_id,
-                "question": text,
-                "resolved": [],
-                "unresolved_terms": unresolved or terms,
-                "candidates": [_compact_entity(e) for e in found[:6]],
-                "did_you_mean": suggestions,
-                "hint": "No named symbol found. Use search_code with a name from the candidates or search_knowledge for wording.",
-            },
-        )
+        result = {
+            "project_id": project_id,
+            "question": text,
+            "resolved": [],
+            "unresolved_terms": unresolved or terms,
+            "candidates": [_compact_entity(e) for e in found[:6]],
+            "did_you_mean": suggestions,
+            "hint": "No named symbol found. Use search_code with a name from the candidates or search_knowledge for wording.",
+        }
+        if overview or OVERVIEW_INTENT.search(text):
+            summary = project_overview(db, project_id, max_chars - 1200)
+            if summary:
+                result["overview"] = summary
+        return _with_index_status(db, project_id, result)
     # Method-level references first, then the rest; at most three entities share the budget.
     resolved.sort(key=lambda row: 0 if row[1].type in {"method", "paragraph"} else 1)
     primary = resolved[:3]
@@ -712,6 +716,7 @@ def build_answer_context(
     topic="",
     max_chars=8000,
     use_embeddings=True,
+    overview=False,
 ):
     from services.project_evidence import augment_answer_context
 
@@ -725,6 +730,7 @@ def build_answer_context(
         topic=topic,
         max_chars=max_chars,
         use_embeddings=use_embeddings,
+        overview=overview,
     )
     text = " ".join([question, topic, *(symbols or [])]).strip()
     return augment_answer_context(db, user, project_id, text, result, max_chars)

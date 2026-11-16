@@ -272,6 +272,57 @@
           "AbstractEnduserITCase"
         ]
       }
+    },
+    {
+      "id": "Q12",
+      "project": "AWS CardDemo",
+      "label": "C7 Projektüberblick",
+      "question": "Was ist das für ein Projekt? Nenne die Art der Anwendung, die Sprachen und einen Einstieg, jeweils mit Fundstelle.",
+      "checks": {
+        "answer_all": [
+          "CardDemo|Kreditkart|[Cc]redit [Cc]ard",
+          "COBOL",
+          "JCL|Batch"
+        ],
+        "cites": [
+          {
+            "file": "README.md",
+            "lines": [
+              1,
+              400
+            ]
+          },
+          {
+            "file": "app/cbl/COSGN00C.cbl",
+            "lines": [
+              1,
+              400
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "id": "Q13",
+      "project": "Apache Syncope",
+      "label": "J7 Projektüberblick",
+      "question": "Gib mir einen Überblick über dieses Projekt: Was ist es, in welcher Sprache ist es geschrieben und in welchen Verzeichnissen liegt der meiste Code? Bitte mit Fundstelle.",
+      "checks": {
+        "answer_all": [
+          "Syncope",
+          "Java",
+          "client/idrepo|core/persistence"
+        ],
+        "cites": [
+          {
+            "file": "README.md",
+            "lines": [
+              1,
+              400
+            ]
+          }
+        ]
+      }
     }
   ]
 }

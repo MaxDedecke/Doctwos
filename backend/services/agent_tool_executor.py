@@ -308,15 +308,18 @@ class AgentToolExecutor:
     async def _tool_answer_context(self, args: dict, tool_call_id: Optional[str]) -> str:
         symbols = args.get("symbols")
         topic = args.get("topic") or ""
+        symbols = [] if symbols is None else symbols
         if (
             not isinstance(symbols, list)
-            or not 1 <= len(symbols) <= 8
+            or len(symbols) > 8
             or any(not isinstance(item, str) or not item.strip() for item in symbols)
             or not isinstance(topic, str)
+            or not (symbols or topic.strip())
         ):
             return json.dumps(
                 {
-                    "error": "symbols muss eine Liste von 1 bis 8 Code-Namen sein, topic ein kurzer Text."
+                    "error": "symbols muss eine Liste von bis zu 8 Code-Namen sein, topic ein kurzer "
+                    "Text; mindestens eines von beiden ist nötig."
                 }
             )
         from services.answer_context import build_answer_context
@@ -332,6 +335,8 @@ class AgentToolExecutor:
             symbols=[item.strip()[:200] for item in symbols],
             topic=topic.strip()[:200],
             max_chars=self.evidence_chars or cfg.CHAT_EVIDENCE_CHARS,
+            # Ohne Symbol ist der Projektüberblick gemeint (so steht der vorab geladene Aufruf im Gespräch).
+            overview=not symbols,
         )
         return json.dumps(result, ensure_ascii=False)
 
