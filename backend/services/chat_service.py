@@ -30,6 +30,7 @@ from doctus_models.database import (
     Project,
     User,
 )
+from services.agent_providers import ThinkFilter, strip_thinking
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
 from services.chat_context_formatting import chunk_header as chunk_header, _format_chunk_context
@@ -851,13 +852,17 @@ async def stream_standard_rag_events(
                 payload = {
                     "model": model_to_use,
                     "messages": [{"role": "system", "content": system_prompt}],
-                    "temperature": temperature
-                    if temperature is not None
-                    else cfg.DEFAULT_CHAT_TEMPERATURE,
                     "stream": True,
+                    # Ollamas /api/chat liest Sampling-Werte nur aus ``options``; ein
+                    # ``temperature`` auf oberster Ebene wird stillschweigend ignoriert.
                     # O-168: explizites Kontextfenster statt Ollamas kleinem,
                     # stillschweigend kürzendem Default.
-                    "options": {"num_ctx": context_length or cfg.OLLAMA_NUM_CTX},
+                    "options": {
+                        "temperature": temperature
+                        if temperature is not None
+                        else cfg.DEFAULT_CHAT_TEMPERATURE,
+                        "num_ctx": context_length or cfg.OLLAMA_NUM_CTX,
+                    },
                 }
             else:
                 base = (base_url or "https://api.openai.com/v1").rstrip("/")
@@ -881,6 +886,8 @@ async def stream_standard_rag_events(
             )
             payload["messages"].append({"role": "user", "content": prompt})
 
+            # Server ohne Reasoning-Parser liefern das Denken als <think>…</think> im Text.
+            think_filter = ThinkFilter()
             async with httpx.AsyncClient(timeout=120.0) as client:
                 async with admitted_stream(
                     client, url, kind="chat", json=payload, headers=headers
@@ -907,9 +914,15 @@ async def stream_standard_rag_events(
                                 content = chunk["choices"][0].get("delta", {}).get("content")
                             if content:
                                 answer += content
-                                yield {"type": "content_chunk", "content": content}
+                                visible = think_filter.feed(content)
+                                if visible:
+                                    yield {"type": "content_chunk", "content": visible}
                         except Exception as exc:
                             logger.error("Fehler beim Parsen des Stream-Chunks: %s", exc)
+            rest = think_filter.flush()
+            if rest:
+                yield {"type": "content_chunk", "content": rest}
+            answer = strip_thinking(answer)
 
         elif selected_protocol == "openai_responses":
             base = (base_url or "https://api.openai.com/v1").rstrip("/")
@@ -1046,6 +1059,7 @@ async def stream_agent_events(
     walkthrough_documents: Optional[list[dict[str, Any]]] = None,
     mcp_initialization_status: Optional[list[dict[str, Any]]] = None,
     evidence_chars: Optional[int] = None,
+    context_length: Optional[int] = None,
 ) -> AsyncIterator[dict]:
     """Yield the agent tool-loop events for one chat turn.
 
@@ -1079,6 +1093,7 @@ async def stream_agent_events(
         walkthrough_documents=walkthrough_documents,
         mcp_initialization_status=mcp_initialization_status,
         evidence_chars=evidence_chars,
+        context_length=context_length,
     ):
         yield event
 

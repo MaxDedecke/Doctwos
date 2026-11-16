@@ -76,6 +76,10 @@ _FINAL_TURN_INSTRUCTION = (
     "ausschließlich mit den bisher abgerufenen Belegen, nenne Fundstellen mit Zeilen und benenne ausdrücklich, "
     "was die Recherche nicht klären konnte."
 )
+_INVALID_ARGUMENTS_RESULT = (
+    "Fehler: Die Argumente für '{name}' waren kein gültiges JSON-Objekt; das Werkzeug wurde nicht "
+    "ausgeführt. Rufe es erneut mit einem gültigen JSON-Objekt auf."
+)
 _NO_RESEARCH_ANSWER = (
     "Ich konnte die projektbezogene Frage nicht verlässlich über "
     "das Repository-Tool prüfen. Bitte wiederhole die Frage kurz."
@@ -114,6 +118,11 @@ async def _research_loop(
       Manche Server behandeln ``required`` stillschweigend wie ``auto``; eine
       solche Antwort wird verworfen und einmal wiederholt, danach gibt es eine
       feste Meldung statt ungeprüften Texts.
+    - Ein Zug ohne Text und ohne Werkzeugaufruf wird einmal wiederholt: Server
+      verwerfen einen Werkzeugaufruf mit ungültigem JSON stillschweigend, und ein
+      erneuter Zug liefert meist eine brauchbare Ausgabe.
+    - Werkzeugargumente, die kein JSON-Objekt sind, gehen als Fehlermeldung an
+      das Modell zurück statt den Lauf abzubrechen.
     - Fehler der Modellaufrufe werden nicht abgefangen; der Aufrufer fällt auf
       Standard-RAG zurück bzw. meldet Kapazitätsfehler.
     """
@@ -127,11 +136,29 @@ async def _research_loop(
             tool_choice = "none" if final else "required" if pending else None
 
             turn: Optional[ModelTurn] = None
-            async for item in adapter.complete(client, turn_index, tool_choice):
-                if isinstance(item, ModelTurn):
-                    turn = item
-                elif not pending:
-                    yield {"type": "content_chunk", "content": item}
+            for attempt in range(2):
+                async for item in adapter.complete(client, turn_index, tool_choice):
+                    if isinstance(item, ModelTurn):
+                        turn = item
+                    elif not pending:
+                        yield {"type": "content_chunk", "content": item}
+                yield {
+                    "type": "model_usage",
+                    "turn": turn_index,
+                    "prompt_tokens": turn.prompt_tokens,
+                    "completion_tokens": turn.completion_tokens,
+                    "finish_reason": turn.finish_reason,
+                }
+                if turn.finish_reason == "length":
+                    logger.warning(
+                        "Modellzug %s endete an der Token- bzw. Kontextgrenze (prompt_tokens=%s)",
+                        turn_index,
+                        turn.prompt_tokens,
+                    )
+                if turn.text.strip() or (turn.tool_calls and not final):
+                    break
+                if attempt == 0:
+                    logger.warning("Modellzug %s war leer; wird einmal wiederholt", turn_index)
             calls = [] if final else turn.tool_calls
             if turn.text and (calls or not pending):
                 agent_steps.append({"type": "thought", "content": turn.text})
@@ -144,7 +171,10 @@ async def _research_loop(
                     call_event, _ = _tool_events(call, "", {})
                     agent_steps.append(call_event)
                     yield dict(call_event)
-                    result = await execute_tool(call.name, call.arguments, call.id)
+                    if isinstance(call.arguments, dict):
+                        result = await execute_tool(call.name, call.arguments, call.id)
+                    else:
+                        result = _INVALID_ARGUMENTS_RESULT.format(name=call.name)
                     _, result_event = _tool_events(call, result, execution_metadata(call.id))
                     agent_steps.append(result_event)
                     yield dict(result_event)
@@ -195,6 +225,7 @@ async def run_agent_loop(
     walkthrough_documents: Optional[List[Dict[str, Any]]] = None,
     mcp_initialization_status: Optional[List[Dict[str, Any]]] = None,
     evidence_chars: Optional[int] = None,
+    context_length: Optional[int] = None,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -240,6 +271,7 @@ async def run_agent_loop(
         walkthrough_documents=walkthrough_documents,
         mcp_tool_map=mcp_tool_map,
         prompt=prompt,
+        evidence_chars=evidence_chars,
     )
 
     # Ollama's OpenAI-compatible endpoint does not reliably honor
@@ -285,6 +317,7 @@ async def run_agent_loop(
         history=chat_history or [],
         prompt=prompt,
         temperature=temperature,
+        context_length=context_length,
     )
     if adapter is None:
         return

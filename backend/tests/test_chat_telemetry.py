@@ -46,4 +46,7 @@ def test_chat_sse_telemetry_keeps_monotonic_milestones_and_eval_metrics():
         "retrieval_wait_ms": 17,
         "first_tool_call_ms": 31,
         "model_end_ms": 93,
+        "model_turns": 0,
+        "prompt_tokens_max": None,
+        "completion_tokens": None,
     }

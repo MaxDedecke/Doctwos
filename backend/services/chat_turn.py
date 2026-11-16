@@ -103,6 +103,21 @@ class ChatSseTelemetry:
     first_token_ms: Optional[int] = None
     model_end_ms: Optional[int] = None
     message_saved_ms: Optional[int] = None
+    model_turns: int = 0
+    prompt_tokens_max: Optional[int] = None
+    completion_tokens: Optional[int] = None
+
+    def record_model_usage(self, event: dict) -> None:
+        """Tokenverbrauch eines Modellzugs; zeigt, wie voll das Kontextfenster wird."""
+        self.model_turns += 1
+        prompt_tokens, completion_tokens = (
+            event.get("prompt_tokens"),
+            event.get("completion_tokens"),
+        )
+        if prompt_tokens is not None:
+            self.prompt_tokens_max = max(self.prompt_tokens_max or 0, prompt_tokens)
+        if completion_tokens is not None:
+            self.completion_tokens = (self.completion_tokens or 0) + completion_tokens
 
     def record(self, event: str) -> dict:
         elapsed_ms = max(0, round((self.clock() - self.started_at) * 1000))
@@ -145,6 +160,9 @@ class ChatSseTelemetry:
             "retrieval_wait_ms": self.retrieval_wait_ms,
             "first_tool_call_ms": self.first_tool_call_ms,
             "model_end_ms": self.model_end_ms,
+            "model_turns": self.model_turns,
+            "prompt_tokens_max": self.prompt_tokens_max,
+            "completion_tokens": self.completion_tokens,
         }
 
 
@@ -484,7 +502,7 @@ class ChatTurnRun:
                 ollama_base_url=profile.llm_base_url or cfg.OLLAMA_BASE_URL,
                 endpoint_path=(
                     profile.llm_path
-                    if profile.protocol in {"openai_chat", "openai_responses"}
+                    if profile.protocol in {"openai_chat", "openai_responses", "ollama"}
                     else None
                 ),
                 history=[{"role": m.role, "content": m.content} for m in self.turn.history],
@@ -501,8 +519,12 @@ class ChatTurnRun:
                 walkthrough_documents=documents,
                 mcp_initialization_status=mcp_status,
                 evidence_chars=evidence_budget(profile.llm_context_length),
+                context_length=profile.llm_context_length,
             ):
                 kind = event["type"]
+                if kind == "model_usage":
+                    telemetry.record_model_usage(event)
+                    continue
                 if kind == "content_chunk":
                     marker = telemetry.record_first_token()
                     if marker:

@@ -2,8 +2,10 @@
 """Stellt die Chat-Fragen aus eval_chat_cases.json und prüft Antwort und Quellen gegen die Checkliste (O-354).
 
     DOCTUS_USER=admin DOCTUS_PASSWORD=... python3 scripts/eval_chat.py --profile 21 [--only Q1,Q3] [--out ergebnis.json]
+        [--temperature 0.6]
 
 Das Profil wird nur für diese Anfragen übergeben (`llm_profile_id`); das aktive Profil bleibt unverändert.
+Ohne `--temperature` gilt die Temperatur des Profils (Qwen3 rät von fast deterministischem Sampling ab).
 Exit-Code 1, wenn ein Prüfpunkt verfehlt wird.
 """
 import argparse
@@ -19,10 +21,12 @@ import requests
 CASES = Path(__file__).resolve().parent.parent / "backend" / "tests" / "fixtures" / "eval_chat_cases.json"
 
 
-def ask(session, base, project_id, question, profile):
+def ask(session, base, project_id, question, profile, temperature=None):
     started = time.monotonic()
-    response = session.post(f"{base}/chat", json={"message": question, "mode": "evidence", "project_id": project_id,
-                                                  "llm_profile_id": profile, "temperature": 0.2}, stream=True, timeout=900)
+    payload = {"message": question, "mode": "evidence", "project_id": project_id, "llm_profile_id": profile}
+    if temperature is not None:
+        payload["temperature"] = temperature
+    response = session.post(f"{base}/chat", json=payload, stream=True, timeout=900)
     response.raise_for_status()
     answer, sources, tools, completed, calls = "", [], 0, {}, []
     for raw in response.iter_lines(decode_unicode=True):
@@ -71,6 +75,7 @@ def main():
     parser.add_argument("--profile", type=int, required=True)
     parser.add_argument("--only", default="")
     parser.add_argument("--out")
+    parser.add_argument("--temperature", type=float, help="überschreibt die Temperatur des Profils")
     args = parser.parse_args()
     user, password = os.environ.get("DOCTUS_USER"), os.environ.get("DOCTUS_PASSWORD")
     if not user or not password:
@@ -83,12 +88,13 @@ def main():
     for case in json.loads(CASES.read_text(encoding="utf-8"))["cases"]:
         if wanted and case["id"] not in wanted:
             continue
-        result = ask(session, args.url, projects[case["project"]], case["question"], args.profile)
+        result = ask(session, args.url, projects[case["project"]], case["question"], args.profile, args.temperature)
         items = score(case, result)
         missed = [name for name, ok in items if not ok]
         failed += bool(missed)
         print(f"{'PASS' if not missed else 'FAIL'} {case['id']} {case['label']}: {len(items) - len(missed)}/{len(items)} Prüfpunkte, "
-              f"{result['tool_calls']} Tools, {result['seconds']} s" + (f" | verfehlt: {missed}" if missed else ""))
+              f"{result['tool_calls']} Tools, {result['seconds']} s, "
+              f"größter Prompt {result['metrics'].get('prompt_tokens_max')} Tokens" + (f" | verfehlt: {missed}" if missed else ""))
         report.append({"id": case["id"], "items": items, **result})
     if args.out:
         Path(args.out).write_text(json.dumps(report, ensure_ascii=False, indent=1), encoding="utf-8")

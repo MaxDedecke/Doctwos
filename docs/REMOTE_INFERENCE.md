@@ -75,6 +75,26 @@ probe tool call. Restrict vLLM network access to Doctus and trusted operators:
 vLLM's `--api-key` protects versioned inference paths such as `/v1`, while its
 `/health` endpoint is outside that API-key protection.
 
+### Context window, thinking and tool calls of the chat model
+
+The profile field **context length** is the contract between Doctus and the model server:
+
+- **Ollama** (chat and agent tool loop) is called through the native `/api/chat`, and the profile value is sent
+  as `options.num_ctx` with every request. Ollama's OpenAI-compatible `/v1/chat/completions` accepts neither
+  `num_ctx` nor `tool_choice`, so it is not used.
+- **OpenAI-compatible servers** (vLLM `--max-model-len`, llama.cpp `-c`, others) fix the window on the server.
+  Enter the same value in the profile. Doctus sizes the prefetched evidence from it and drops older tool results
+  once a conversation would exceed it. A value below the real window discards evidence early; a value above it
+  lets the server truncate or reject the request.
+
+For a 32B chat model plan with at least 32768 tokens; 8192 is filled by system prompt and tool schemas alone.
+Each answer records `model_turns`, `prompt_tokens_max` and `completion_tokens` in its telemetry
+(`scripts/eval_chat.py` prints the largest prompt per question), which shows how full the window gets.
+
+Thinking models (Qwen3): Doctus removes `<think>…</think>` from answers when the server does not separate
+reasoning itself (vLLM without `--reasoning-parser`). An empty model turn is retried once, and tool arguments
+that are not valid JSON are returned to the model as an error instead of ending the research.
+
 ## On-Premise Two-Machine Architecture (Machine A + Machine B)
 
 In typical high-security on-premise enterprise environments, Doctus operates across two machines in the same private LAN without internet access:

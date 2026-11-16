@@ -90,30 +90,10 @@ async def test_ollama_agent_loop_flags_truncated_mcp_result(monkeypatch):
         response.is_success = True
 
         async def first_turn_lines():
-            # Ein vollständiger Tool-Call in einem einzelnen Delta-Chunk.
-            yield "data: " + json.dumps(
-                {
-                    "choices": [
-                        {
-                            "delta": {
-                                "tool_calls": [
-                                    {
-                                        "index": 0,
-                                        "id": "call-1",
-                                        "type": "function",
-                                        "function": {"name": "big_lookup", "arguments": "{}"},
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            )
-            yield "data: [DONE]"
+            yield _ollama_reply(call="big_lookup")
 
         async def second_turn_lines():
-            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Fertig"}}]})
-            yield "data: [DONE]"
+            yield _ollama_reply(text="Fertig")
 
         response.aiter_lines = first_turn_lines if calls["n"] == 1 else second_turn_lines
         yield response
@@ -165,9 +145,8 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
         response.is_success = True
 
         async def lines():
-            # Keine tool_calls im Delta -> Schleife endet nach der ersten Runde.
-            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Antwort"}}]})
-            yield "data: [DONE]"
+            # Kein Werkzeugaufruf -> Schleife endet nach der ersten Runde.
+            yield _ollama_reply(text="Antwort")
 
         response.aiter_lines = lines
         yield response
@@ -202,7 +181,9 @@ async def test_ollama_agent_loop_sets_explicit_num_ctx(monkeypatch):
         )
     ]
 
-    assert all(payload["num_ctx"] == cfg.OLLAMA_NUM_CTX for payload in captured["payloads"])
+    assert all(
+        payload["options"]["num_ctx"] == cfg.OLLAMA_NUM_CTX for payload in captured["payloads"]
+    )
     # Project turns now receive a deterministic repository bootstrap before the
     # first model request, so the model can choose follow-up tools normally.
     assert all(payload.get("tool_choice") is None for payload in captured["payloads"])
@@ -231,8 +212,7 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
         response.is_success = True
 
         async def lines():
-            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Belegt."}}]})
-            yield "data: [DONE]"
+            yield _ollama_reply(text="Belegt.")
 
         response.aiter_lines = lines
         yield response
@@ -264,7 +244,7 @@ async def test_ollama_agent_bootstraps_pinned_file_before_model(monkeypatch, tmp
     assert [event["type"] for event in events[:2]] == ["tool_call", "tool_result"]
     assert events[0]["name"] == "view_repo_file"
     bootstrap_call = captured["payload"]["messages"][2]["tool_calls"][0]
-    assert '"file_path": "config.sh"' in bootstrap_call["function"]["arguments"]
+    assert bootstrap_call["function"]["arguments"]["file_path"] == "config.sh"
     assert captured["payload"]["messages"][3]["role"] == "tool"
     assert "tool_choice" not in captured["payload"]
     assert events[-1]["type"] == "answer"
@@ -301,8 +281,7 @@ async def test_ollama_agent_bootstraps_exact_entities_inside_explicit_file_scope
         response.is_success = True
 
         async def lines():
-            yield "data: " + json.dumps({"choices": [{"delta": {"content": "Keine Kante."}}]})
-            yield "data: [DONE]"
+            yield _ollama_reply(text="Keine Kante.")
 
         response.aiter_lines = lines
         yield response
@@ -376,32 +355,11 @@ async def test_trace_call_flow_rejects_an_entity_outside_exact_resolution(monkey
 
         async def lines():
             if calls["count"] == 1:
-                yield "data: " + json.dumps(
-                    {
-                        "choices": [
-                            {
-                                "delta": {
-                                    "tool_calls": [
-                                        {
-                                            "index": 0,
-                                            "id": "trace-1",
-                                            "type": "function",
-                                            "function": {
-                                                "name": "trace_call_flow",
-                                                "arguments": '{"entity_id": 99}',
-                                            },
-                                        }
-                                    ]
-                                }
-                            }
-                        ]
-                    }
+                yield _ollama_reply(
+                    call="trace_call_flow", arguments={"entity_id": 99}, call_id="trace-1"
                 )
             else:
-                yield "data: " + json.dumps(
-                    {"choices": [{"delta": {"content": "Keine belegte Kante."}}]}
-                )
-            yield "data: [DONE]"
+                yield _ollama_reply(text="Keine belegte Kante.")
 
         response.aiter_lines = lines
         yield response
@@ -833,7 +791,31 @@ async def test_every_provider_receives_the_bootstrap_evidence(monkeypatch, tmp_p
     assert events[-1]["content"] == "Belegt."
 
 
-def _ollama_lines(*, text: str = "", call: str | None = None) -> list[str]:
+def _ollama_reply(
+    *,
+    text: str = "",
+    call: str | None = None,
+    arguments: dict | None = None,
+    call_id: str = "call-1",
+) -> str:
+    """Eine Zeile aus Ollamas nativem /api/chat-Strom: Nachricht und Abschlussangaben zusammen."""
+    message: dict = {"role": "assistant", "content": text}
+    if call:
+        message["tool_calls"] = [
+            {"id": call_id, "function": {"index": 0, "name": call, "arguments": arguments or {}}}
+        ]
+    return json.dumps(
+        {
+            "message": message,
+            "done": True,
+            "done_reason": "stop",
+            "prompt_eval_count": 40,
+            "eval_count": 5,
+        }
+    )
+
+
+def _openai_lines(*, text: str = "", call: str | None = None) -> list[str]:
     delta: dict = {}
     if text:
         delta["content"] = text
@@ -855,9 +837,9 @@ async def test_required_research_retries_once_and_then_accepts_the_answer(monkey
     Recherche wird die Antwort normal übernommen statt durch die Fehlermeldung ersetzt."""
     payloads = []
     replies = [
-        _ollama_lines(text="Ungeprüfte Vermutung"),
-        _ollama_lines(call="big_lookup"),
-        _ollama_lines(text="Belegte Antwort"),
+        _openai_lines(text="Ungeprüfte Vermutung"),
+        _openai_lines(call="big_lookup"),
+        _openai_lines(text="Belegte Antwort"),
     ]
 
     @contextlib.asynccontextmanager
@@ -878,10 +860,10 @@ async def test_required_research_retries_once_and_then_accepts_the_answer(monkey
     events = [
         event
         async for event in run_agent_loop(
-            provider="ollama",
+            provider="vllm",
             model_name="test-model",
             api_key=None,
-            base_url=None,
+            base_url="http://vllm:8000/v1",
             system_prompt="System",
             prompt="Frage",
             temperature=None,

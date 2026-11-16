@@ -663,7 +663,8 @@ async def test_ai_profile(
                         ],
                         "tool_choice": "required",
                         "stream": False,
-                        "max_tokens": 32,
+                        # Genug Platz, falls ein Denkmodell (Qwen3) vor dem Aufruf erst überlegt.
+                        "max_tokens": 512,
                     },
                     headers={
                         "Content-Type": "application/json",

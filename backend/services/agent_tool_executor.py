@@ -4,11 +4,14 @@ Früher eine 530-Zeilen-Closure in agent.run_agent_loop. Eine Methode je Werkzeu
 aufgelöste Entitäten, bestätigte Aufrufketten, MCP-Messwerte) gilt nur für einen Durchgang.
 """
 
+import asyncio
 import logging
 import json
 import re
 import time
 from typing import Any, Optional
+
+import core.config as cfg
 from doctus_models.database import CodeEntity, KnowledgeSource, User
 from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids
@@ -62,7 +65,9 @@ class AgentToolExecutor:
         walkthrough_documents: list[dict[str, Any]],
         mcp_tool_map: dict[str, Any],
         prompt: str,
+        evidence_chars: Optional[int] = None,
     ) -> None:
+        self.evidence_chars = evidence_chars
         self.repo_id = repo_id
         self.repo_available = repo_available
         self.project_id = project_id
@@ -102,6 +107,7 @@ class AgentToolExecutor:
                 "search_repo_code": self.repo_available,
                 "offer_code_walkthrough": (self.repo_available or self.project_id),
                 "offer_source_walkthrough": self.walkthrough_documents,
+                "answer_context": self.project_id and self.audit_user_id is not None,
                 "get_repo_entities": self.project_id,
                 "trace_call_flow": self.project_id,
                 "show_graph_neighborhood": self.project_id,
@@ -298,6 +304,36 @@ class AgentToolExecutor:
                 )
             steps.append({**candidate, "kind": "document", "explanation": explanation})
         return json.dumps({"status": "ok", "title": title, "steps": steps})
+
+    async def _tool_answer_context(self, args: dict, tool_call_id: Optional[str]) -> str:
+        symbols = args.get("symbols")
+        topic = args.get("topic") or ""
+        if (
+            not isinstance(symbols, list)
+            or not 1 <= len(symbols) <= 8
+            or any(not isinstance(item, str) or not item.strip() for item in symbols)
+            or not isinstance(topic, str)
+        ):
+            return json.dumps(
+                {
+                    "error": "symbols muss eine Liste von 1 bis 8 Code-Namen sein, topic ein kurzer Text."
+                }
+            )
+        from services.answer_context import build_answer_context
+
+        user = self.db_session.query(User).filter(User.id == self.audit_user_id).first()
+        if user is None:
+            return json.dumps({"error": "Kein Benutzerkontext für das Belegpaket."})
+        result = await asyncio.to_thread(
+            build_answer_context,
+            self.db_session,
+            user,
+            self.project_id,
+            symbols=[item.strip()[:200] for item in symbols],
+            topic=topic.strip()[:200],
+            max_chars=self.evidence_chars or cfg.CHAT_EVIDENCE_CHARS,
+        )
+        return json.dumps(result, ensure_ascii=False)
 
     async def _tool_get_repo_entities(self, args: dict, tool_call_id: Optional[str]) -> str:
         query_val = args.get("query", "")

@@ -8,6 +8,8 @@ def build_system_prompt(system_prompt: str | None) -> str:
         "Nutze diese Werkzeuge proaktiv, um Fragen präzise und fundiert zu beantworten. "
         "Formuliere deine internen Gedanken (Thoughts) über deine Vorgehensweise, bevor du ein Tool aufrufst, "
         "damit der Benutzer deine Zwischenschritte nachvollziehen kann.\n\n"
+        "Liegt bereits ein `answer_context`-Ergebnis vor, beantworte die Frage zuerst daraus; rufe "
+        "`answer_context` nur für weitere, dort nicht enthaltene Symbole erneut auf.\n"
         "Wenn die Frage mehrere konkrete Dateien nennt, öffne und prüfe jede dieser Dateien ausdrücklich; "
         "eine Datei darf niemals als Beleg für eine andere ausgegeben werden. Nutze bei einer fehlenden Datei "
         "die quellenweite Dateisuche und melde die Indexlücke erst nach diesem Suchversuch.\n"
