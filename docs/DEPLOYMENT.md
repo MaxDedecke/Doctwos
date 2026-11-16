@@ -126,6 +126,16 @@ sudo systemctl restart docker
 
 `install.sh` and `install-offline.sh` both detect this automatically (`nvidia-smi` present **and** `docker info` lists the `nvidia` runtime) and set `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml` (or the offline equivalent) in `.env` — no manual step needed on a properly prepared GPU host, and every later `docker compose` command (including the "Enabling or changing tiers" step above and the "Updates later" step further down) then picks up the overlay automatically, no `-f` flags to remember.
 
+**After an NVIDIA driver update, recreate the container.** A running or merely restarted `ollama` container keeps the
+driver files it was created with. After a driver update on the host (on WSL2: the Windows driver) CUDA fails inside it
+with `CUDA driver version is insufficient for CUDA runtime version`, and Ollama silently falls back to the CPU —
+answers still arrive, roughly ten times slower. Symptom: `curl http://127.0.0.1:11434/api/ps` shows `"size_vram":0`
+for a loaded model, and `docker exec doctus-ollama nvidia-smi` fails. Fix:
+
+```sh
+docker compose --profile local-ollama up -d --force-recreate --no-deps ollama
+```
+
 To add it manually to an existing install (or if the toolkit was installed *after* the installer already ran once):
 
 ```sh
