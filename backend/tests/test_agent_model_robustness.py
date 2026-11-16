@@ -424,3 +424,260 @@ def test_telemetry_keeps_the_fullest_prompt_and_the_generated_tokens():
     assert metrics["model_turns"] == 3
     assert metrics["prompt_tokens_max"] == 9500
     assert metrics["completion_tokens"] == 500
+
+
+# --- Kontextfenster: Frage bleibt stehen, Grundlast klein, Überlauf sichtbar ---
+
+
+def _budget_adapter(context_length: int, *, history=(), prompt="Frage") -> OllamaChatAdapter:
+    return OllamaChatAdapter(
+        api_key=None,
+        endpoint_path=None,
+        ollama_base_url="http://ollama:11434",
+        model_name="m",
+        system_prompt="System",
+        tools=[],
+        history=list(history),
+        prompt=prompt,
+        temperature=0.2,
+        context_length=context_length,
+    )
+
+
+def _prompt_with_context(context: str, question: str) -> str:
+    return f"Context:\n<untrusted_context>\n{context}\n</untrusted_context>\n\nQuestion: {question}\nAnswer:"
+
+
+def test_the_question_survives_when_history_context_and_evidence_exceed_the_window():
+    """Ollama strich bei Überlauf Verlauf und Frage und ließ nur das Werkzeugergebnis stehen."""
+    history = [
+        {"role": "user", "content": "alt " * 800},
+        {"role": "assistant", "content": "x" * 3000},
+    ]
+    adapter = _budget_adapter(
+        4000, history=history, prompt=_prompt_with_context("K" * 9000, "Was macht CBACT04C?")
+    )
+    adapter.add_tool_results([ToolCall("bootstrap-0", "answer_context", {})], ["B" * 6000], None)
+
+    assert adapter._fit_messages() is True
+
+    roles = [m["role"] for m in adapter.messages]
+    assert roles == ["system", "user", "assistant", "tool"]  # Verlauf ist weg
+    prompt = adapter.messages[1]["content"]
+    assert prompt.endswith("Question: Was macht CBACT04C?\nAnswer:")
+    assert "abgerufener Kontext gekürzt" in prompt and len(prompt) < 9000
+    assert adapter._sent_chars <= (4000 - 1500) * adapter._chars_per_token
+
+
+def test_evidence_is_cut_only_after_history_and_context_are_gone():
+    adapter = _budget_adapter(3000, prompt=_prompt_with_context("K" * 2000, "Frage?"))
+    adapter.add_tool_results([ToolCall("bootstrap-0", "answer_context", {})], ["B" * 9000], None)
+
+    adapter._fit_messages()
+
+    result = adapter.messages[-1]["content"]
+    assert result.startswith("BBB") and "Werkzeugergebnis gekürzt" in result
+    assert "Question: Frage?" in adapter.messages[1]["content"]
+
+
+def _rejected(prompt_tokens: int, context_tokens: int):
+    body = json.dumps(
+        {
+            "error": json.dumps(
+                {
+                    "error": {
+                        "code": 400,
+                        "message": f"request ({prompt_tokens} tokens) exceeds the available context size",
+                        "type": "exceed_context_size_error",
+                        "n_prompt_tokens": prompt_tokens,
+                        "n_ctx": context_tokens,
+                    }
+                }
+            )
+        }
+    )
+
+    async def aread():
+        return body.encode()
+
+    return SimpleNamespace(is_success=False, status_code=400, text=body, aread=aread)
+
+
+def _serve_responses(monkeypatch, responses: list) -> list[dict]:
+    requests: list[dict] = []
+
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(_client, _url, **kwargs):
+        requests.append(json.loads(json.dumps(kwargs["json"])))
+        reply = responses[len(requests) - 1]
+        if not isinstance(reply, list):
+            yield reply
+            return
+        response = SimpleNamespace(is_success=True)
+
+        async def aiter_lines():
+            for line in reply:
+                yield line
+
+        response.aiter_lines = aiter_lines
+        yield response
+
+    monkeypatch.setattr("services.agent_providers.admitted_stream", mock_admitted_stream)
+    return requests
+
+
+@pytest.mark.asyncio
+async def test_a_rejected_oversized_request_is_cut_with_the_server_token_count_and_retried(
+    monkeypatch,
+):
+    requests = _serve_responses(
+        monkeypatch, [_rejected(9000, 4096), [_ollama_line(text="Antwort")]]
+    )
+    history = [{"role": "user", "content": "alt " * 2500}, {"role": "assistant", "content": "ok"}]
+
+    # Das Profil nennt ein größeres Fenster, als der Server tatsächlich hat.
+    events = await _run("ollama", context_length=32768, chat_history=history)
+
+    assert requests[0]["truncate"] is False
+    assert len(requests[0]["messages"]) == 4 and len(requests[1]["messages"]) < 4
+    assert requests[1]["messages"][-1]["content"] == "Frage"
+    assert events[-1]["content"] == "Antwort"
+
+
+@pytest.mark.asyncio
+async def test_a_request_that_cannot_be_cut_any_further_fails_with_a_clear_error(monkeypatch):
+    from core.inference_errors import ContextWindowExceeded
+
+    _serve_responses(
+        monkeypatch, [_rejected(9000, 512), _rejected(9000, 512), _rejected(9000, 512)]
+    )
+
+    with pytest.raises(ContextWindowExceeded, match="passt nicht in das Kontextfenster"):
+        await _run("ollama", context_length=512)
+
+
+def test_context_overflow_is_recognised_for_llama_cpp_and_vllm_wording():
+    from core.inference_errors import context_overflow
+
+    llama = context_overflow(
+        '{"error":{"type":"exceed_context_size_error","n_prompt_tokens":7258,"n_ctx":2048}}'
+    )
+    assert (llama.prompt_tokens, llama.context_tokens) == (7258, 2048)
+    vllm = context_overflow(
+        "This model's maximum context length is 8192 tokens. However, you requested 9000 tokens "
+        "(8000 in the messages, 1000 in the completion)."
+    )
+    assert (vllm.prompt_tokens, vllm.context_tokens) == (8000, 8192)
+    assert context_overflow("model not found") is None
+
+
+def test_special_tools_are_offered_only_when_the_question_sounds_like_them():
+    from services.agent_tool_defs import select_tools_for_question
+
+    tools = local_tool_definitions(True, [{"chunk_id": 1}], 1)
+
+    def offered(question: str) -> set[str]:
+        return {tool["name"] for tool in select_tools_for_question(tools, question)}
+
+    core = offered("Was macht das Programm CBACT04C?")
+    assert core == {
+        "list_repo_files",
+        "view_repo_file",
+        "search_repo_code",
+        "answer_context",
+        "search_knowledge",
+        "get_repo_entities",
+        "trace_call_flow",
+    }
+    assert "offer_code_walkthrough" in offered("Gib mir eine Tour durch den Code")
+    assert "inspect_change_impact" in offered("Was betrifft eine Änderung an COPAUA0C?")
+    assert "view_commit_diff" in offered("Was hat sich zwischen den Commits geändert?")
+    assert "get_source_status" in offered("Welche Dateien wurden nur teilweise analysiert?")
+    assert "show_graph_neighborhood" in offered("Zeige die Abhängigkeiten als Graph")
+
+
+def test_system_prompt_carries_only_the_instructions_of_offered_tools():
+    from services.agent_prompt import build_system_prompt
+
+    core = build_system_prompt(None, {"answer_context", "view_repo_file", "trace_call_flow"})
+    assert "`trace_call_flow`" in core and "pfad/zur/datei.ext:zeile" in core
+    for absent in ("offer_code_walkthrough", "inspect_change_package", "view_commit_diff"):
+        assert absent not in core
+    everything = build_system_prompt(None)
+    assert "offer_code_walkthrough" in everything and len(core) < len(everything) * 0.6
+
+
+def test_base_load_of_an_ordinary_question_leaves_most_of_an_8k_window_free():
+    """Systemtext und Werkzeugschemata belegten zuvor rund 5.000 der 8.192 Tokens."""
+    from services.agent_prompt import build_system_prompt
+    from services.agent_tool_defs import select_tools_for_question
+
+    tools = select_tools_for_question(
+        local_tool_definitions(True, [{"chunk_id": 1}], 1), "Was macht das Programm CBACT04C?"
+    )
+    prompt = build_system_prompt(None, {tool["name"] for tool in tools})
+
+    assert len(prompt) + len(json.dumps(tools, ensure_ascii=False)) < 11000
+
+
+@pytest.mark.asyncio
+async def test_standard_chat_drops_history_before_the_question_and_disables_silent_truncation(
+    monkeypatch,
+):
+    captured = {}
+
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(_client, _url, **kwargs):
+        captured.update(kwargs["json"])
+        response = SimpleNamespace(is_success=True)
+
+        async def aiter_lines():
+            yield json.dumps({"message": {"content": "Hi"}, "done": True})
+
+        response.aiter_lines = aiter_lines
+        yield response
+
+    monkeypatch.setattr("services.chat_service.admitted_stream", mock_admitted_stream)
+    history = [SimpleNamespace(role="user", content="alt " * 3000)]
+    [
+        event
+        async for event in stream_standard_rag_events(
+            provider="ollama",
+            model="test-model",
+            api_key=None,
+            base_url="http://ollama:11434",
+            temperature=None,
+            system_prompt="System",
+            history=history,
+            prompt="Frage",
+            context_length=2048,
+        )
+    ]
+
+    assert captured["truncate"] is False
+    assert [m["content"] for m in captured["messages"]] == ["System", "Frage"]
+
+
+@pytest.mark.asyncio
+async def test_standard_chat_reports_an_oversized_request_instead_of_answering_blind(monkeypatch):
+    @contextlib.asynccontextmanager
+    async def mock_admitted_stream(_client, _url, **_kwargs):
+        yield _rejected(9000, 2048)
+
+    monkeypatch.setattr("services.chat_service.admitted_stream", mock_admitted_stream)
+    events = [
+        event
+        async for event in stream_standard_rag_events(
+            provider="ollama",
+            model="test-model",
+            api_key=None,
+            base_url="http://ollama:11434",
+            temperature=None,
+            system_prompt="System",
+            history=[],
+            prompt="Frage",
+        )
+    ]
+
+    assert events[-1]["type"] == "error"
+    assert "9000 Tokens bei einem Fenster von 2048" in events[-1]["error"]

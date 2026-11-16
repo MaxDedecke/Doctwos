@@ -18,11 +18,16 @@ from services import agent_repo_tools as repo_tools
 from services.agent_bootstrap import plan_bootstrap
 from services.agent_mcp_tools import collect_mcp_tools
 from services.agent_prompt import build_system_prompt
-from services.agent_tool_defs import local_tool_definitions
+from services.agent_tool_defs import local_tool_definitions, select_tools_for_question
 from services.agent_tool_executor import AgentToolExecutor
 from services.agent_tool_results import _tool_result_was_truncated
 
 logger = logging.getLogger(__name__)
+
+
+def _question_of(prompt: str) -> str:
+    """Die Frage des Nutzers ohne den vorangestellten Kontextblock."""
+    return (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()
 
 
 async def _prefetch_evidence(
@@ -38,9 +43,7 @@ async def _prefetch_evidence(
     regular bootstrap applies. Failures never block the chat."""
     if user_id is None:
         return None
-    question = (prompt.rsplit("Question:", 1)[-1] if "Question:" in prompt else prompt).strip()[
-        :1400
-    ]
+    question = _question_of(prompt)[:1400]
     try:
         from services.answer_context import build_answer_context
 
@@ -245,7 +248,14 @@ async def run_agent_loop(
     # project's content is unavailable.
     repo_available = bool(repo_id) and os.path.isdir(repo_tools.get_repo_path(repo_id))
     walkthrough_documents = walkthrough_documents or []
-    local_tools_def = local_tool_definitions(repo_available, walkthrough_documents, project_id)
+    # Eine Rückfrage wie „ja, mach das“ erbt die Absicht der vorigen Nutzerfrage.
+    previous_question = next(
+        (m["content"] for m in reversed(chat_history or []) if m.get("role") == "user"), ""
+    )
+    local_tools_def = select_tools_for_question(
+        local_tool_definitions(repo_available, walkthrough_documents, project_id),
+        f"{_question_of(prompt)}\n{previous_question}",
+    )
     mcp_tools_def, mcp_tool_map, mcp_preflight = await collect_mcp_tools(
         mcp_clients, mcp_initialization_status
     )
@@ -259,7 +269,7 @@ async def run_agent_loop(
         # No tools available, exit generator so main.py falls back to standard LLM call
         return
 
-    full_system_prompt = build_system_prompt(system_prompt)
+    full_system_prompt = build_system_prompt(system_prompt, {tool["name"] for tool in all_tools})
     executor = AgentToolExecutor(
         repo_id=repo_id,
         repo_available=repo_available,

@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from doctus_models.inference_admission import admitted_post, admitted_stream
-from core.inference_errors import raise_for_inference_status
+from core.inference_errors import ContextWindowExceeded, raise_for_stream_status
 from doctus_models.database import (
     ChatMessage,
     CodeEdge,
@@ -30,7 +30,7 @@ from doctus_models.database import (
     Project,
     User,
 )
-from services.agent_providers import ThinkFilter, strip_thinking
+from services.agent_providers import ThinkFilter, fit_chat_messages, strip_thinking
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
 from services.chat_context_formatting import chunk_header as chunk_header, _format_chunk_context
@@ -851,8 +851,10 @@ async def stream_standard_rag_events(
                 model_to_use = cfg.resolve_ollama_model(model)
                 payload = {
                     "model": model_to_use,
-                    "messages": [{"role": "system", "content": system_prompt}],
                     "stream": True,
+                    # Ohne diesen Schalter entfernt Ollama bei Überlauf still ganze Nachrichten
+                    # von vorn; so lehnt es die Anfrage stattdessen erkennbar ab.
+                    "truncate": False,
                     # Ollamas /api/chat liest Sampling-Werte nur aus ``options``; ein
                     # ``temperature`` auf oberster Ebene wird stillschweigend ignoriert.
                     # O-168: explizites Kontextfenster statt Ollamas kleinem,
@@ -871,20 +873,19 @@ async def stream_standard_rag_events(
                 if api_key:
                     headers["Authorization"] = f"Bearer {api_key}"
                 model_to_use = model or "gpt-4o"
-                payload = {
-                    "model": model_to_use,
-                    "messages": [{"role": "system", "content": system_prompt}],
-                    "stream": True,
-                }
+                payload = {"model": model_to_use, "stream": True}
                 if cfg.openai_model_supports_custom_temperature(model_to_use):
                     payload["temperature"] = (
                         temperature if temperature is not None else cfg.DEFAULT_CHAT_TEMPERATURE
                     )
 
-            payload["messages"].extend(
-                {"role": message.role, "content": message.content} for message in history
+            # Verlauf und abgerufener Kontext weichen zuerst; Systemtext und Frage bleiben stehen.
+            payload["messages"] = fit_chat_messages(
+                system_prompt,
+                [{"role": message.role, "content": message.content} for message in history],
+                prompt,
+                (context_length or cfg.OLLAMA_NUM_CTX) if is_ollama else context_length,
             )
-            payload["messages"].append({"role": "user", "content": prompt})
 
             # Server ohne Reasoning-Parser liefern das Denken als <think>…</think> im Text.
             think_filter = ThinkFilter()
@@ -892,7 +893,7 @@ async def stream_standard_rag_events(
                 async with admitted_stream(
                     client, url, kind="chat", json=payload, headers=headers
                 ) as response:
-                    raise_for_inference_status(response, provider)
+                    await raise_for_stream_status(response, provider)
                     async for line in response.aiter_lines():
                         if not line.strip():
                             continue
@@ -1027,6 +1028,9 @@ async def stream_standard_rag_events(
 
         yield {"type": "turn_completed", "has_tool_calls": False}
         yield {"type": "answer", "content": answer, "agent_steps": []}
+    except ContextWindowExceeded as exc:
+        logger.error("Standard-Chat passt nicht ins Kontextfenster: %s", exc)
+        yield {"type": "error", "error": str(exc)}
     except Exception as exc:
         error_detail = f"Fehler bei der Kommunikation mit dem LLM-Provider ({provider}): {exc}"
         logger.error(error_detail)

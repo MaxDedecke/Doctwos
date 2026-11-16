@@ -1,6 +1,36 @@
 """Werkzeugbeschreibungen (JSON-Schemas) des Chat-Agenten, abhängig von Repository, Dokumenten und Projekt."""
 
+import re
 from typing import Any
+
+_TOUR = r"\b(?:tour|rundgang|walk-?through|führ\w*|fuehr\w*|schritt für schritt|step by step|zeig\w* mir)\b"
+# Werkzeuge, die nur angeboten werden, wenn die Frage danach klingt; alle übrigen gehören zur
+# Grundausstattung der Recherche. Jedes Schema kostet in jedem Modellzug Kontext, auch ungenutzt.
+_INTENT_TOOLS: dict[str, re.Pattern] = {
+    name: re.compile(pattern, re.IGNORECASE)
+    for name, pattern in {
+        "offer_code_walkthrough": _TOUR,
+        "offer_source_walkthrough": _TOUR,
+        "show_graph_neighborhood": r"graph|nachbar|abhängig|abhaengig|beziehung|verbind|verknüpf|depend|neighbo",
+        "inspect_change_impact": r"änder|aender|chang|auswirk|impact|betroff|betreff|refactor|umbau|anpass",
+        "inspect_change_package": (
+            r"änder|aender|chang|fachregel|verantwortlich|zuständig|zustaendig|owner|testabdeck|welche tests"
+        ),
+        "view_commit_diff": r"commit|\bdiff|geändert|geaendert|unterschied|vorher|nachher|\b[0-9a-f]{7,40}\b",
+        "get_source_status": (
+            r"bestand|analysestand|indexstand|indizier|teilweise|buildprofil|compiler|geparst|analysiert"
+        ),
+    }.items()
+}
+
+
+def select_tools_for_question(tools: list[dict], question: str) -> list[dict]:
+    """Die Grundausstattung plus die Spezialwerkzeuge, nach denen die Frage klingt."""
+    return [
+        tool
+        for tool in tools
+        if tool["name"] not in _INTENT_TOOLS or _INTENT_TOOLS[tool["name"]].search(question or "")
+    ]
 
 
 def local_tool_definitions(

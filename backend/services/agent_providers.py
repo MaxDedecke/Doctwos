@@ -23,7 +23,11 @@ from typing import Any, AsyncIterator, Optional, Union
 
 import core.config as cfg
 from doctus_models.inference_admission import admitted_post, admitted_stream
-from core.inference_errors import raise_for_inference_status
+from core.inference_errors import (
+    ContextWindowExceeded,
+    raise_for_inference_status,
+    raise_for_stream_status,
+)
 from core.llm_providers import is_self_hosted_openai
 
 logger = logging.getLogger(__name__)
@@ -119,12 +123,20 @@ class ThinkFilter:
         return "" if self._inside else rest
 
 
-# Vorsichtige Annahme für Zeichen je Token, bis der Server echte Zahlen meldet (Deutsch und JSON).
-_DEFAULT_CHARS_PER_TOKEN = 3.0
+# Annahme für Zeichen je Token, bis der Server echte Zahlen meldet (gemessen an Qwen3: rund 4).
+_DEFAULT_CHARS_PER_TOKEN = 3.5
 _TRIMMED_TOOL_RESULT = (
     "[Älteres Werkzeugergebnis entfernt, damit das Gespräch ins Kontextfenster des Modells passt. "
     "Bei Bedarf das Werkzeug erneut aufrufen.]"
 )
+_CONTEXT_CUT_NOTE = (
+    "\n[… abgerufener Kontext gekürzt, damit Frage und Belege ins Kontextfenster passen]"
+)
+_RESULT_CUT_NOTE = "\n[… Werkzeugergebnis gekürzt, damit es ins Kontextfenster passt]"
+_CONTEXT_BLOCK_RE = re.compile(r"(<untrusted_context>\n)(.*)(\n</untrusted_context>)", re.DOTALL)
+_MIN_TOOL_RESULT_CHARS = 400
+# So oft wird nach einer Ablehnung "Anfrage zu groß" mit der Tokenzahl des Servers nachgekürzt.
+_OVERFLOW_RETRIES = 2
 
 
 def _wire_size(value: Any) -> int:
@@ -134,53 +146,142 @@ def _wire_size(value: Any) -> int:
 class _ChatMessageBudget:
     """Hält ein Gespräch aus ``role``/``content``-Nachrichten unter dem Kontextfenster des Profils.
 
-    Ohne diese Grenze wächst das Gespräch über die Werkzeugrunden, bis der Server kürzt: Ollama entfernt
-    dann ganze Nachrichten von vorn (zuerst Verlauf und Frage), vLLM und llama.cpp lehnen die Anfrage ab.
-    Gekürzt werden nur ältere Werkzeugergebnisse; das erste (vorab geladenes Belegpaket) und das jüngste
-    bleiben stehen.
+    Ohne diese Grenze kürzt der Server: Ollama entfernte ganze Nachrichten von vorn und behielt nur
+    Systemtext und Gesprächsende, sodass das Modell ein Werkzeugergebnis ohne die Frage sah; vLLM und
+    llama.cpp lehnen die Anfrage ab. Systemtext, Werkzeugschemata und die Frage bleiben deshalb immer
+    stehen. Gekürzt wird in dieser Reihenfolge, bis es passt: ältere Werkzeugergebnisse (nicht das erste,
+    das vorab geladene Belegpaket, und nicht das jüngste), Verlauf, abgerufener Kontext in der Frage,
+    zuletzt die verbliebenen Werkzeugergebnisse.
     """
 
     context_length: Optional[int]
-    messages: list[dict]
     wire_tools: list[dict]
     _chars_per_token: float = _DEFAULT_CHARS_PER_TOKEN
     _sent_chars: int = 0
 
-    def _fit_messages(self, tools_sent: bool = True) -> None:
-        size = sum(_wire_size(m) for m in self.messages)
-        if tools_sent:
-            size += _wire_size(self.wire_tools)
-        if self.context_length:
-            reserve = max(1500, self.context_length // 5)  # Antwort und Denken
-            budget = (self.context_length - reserve) * self._chars_per_token
-            tool_indexes = [i for i, m in enumerate(self.messages) if m.get("role") == "tool"]
-            trimmed = 0
-            for index in tool_indexes[1:-1]:
-                if size <= budget:
-                    break
-                content = self.messages[index].get("content")
-                if not isinstance(content, str) or len(content) <= len(_TRIMMED_TOOL_RESULT):
-                    continue
-                size -= len(content) - len(_TRIMMED_TOOL_RESULT)
-                self.messages[index] = {**self.messages[index], "content": _TRIMMED_TOOL_RESULT}
-                trimmed += 1
-            if trimmed or size > budget:
-                logger.warning(
-                    "Gespräch nahe am Kontextfenster (%s Tokens): %s ältere Werkzeugergebnisse entfernt, "
-                    "geschätzt %s von %s Zeichen",
-                    self.context_length,
-                    trimmed,
-                    size,
-                    int(budget),
-                )
-        self._sent_chars = size
+    def _start_conversation(self, system_prompt: str, history: list[dict], prompt: str) -> None:
+        self.messages: list[dict] = []
+        if system_prompt:
+            self.messages.append({"role": "system", "content": system_prompt})
+        self._history_messages = [{"role": m["role"], "content": m["content"]} for m in history]
+        self.messages.extend(self._history_messages)
+        self._prompt_message = {"role": "user", "content": prompt}
+        self.messages.append(self._prompt_message)
 
-    def _calibrate(self, prompt_tokens: Optional[int]) -> None:
-        """Zeichen je Token aus der Serverangabe des letzten Zugs; ersetzt die Annahme."""
-        if prompt_tokens and self._sent_chars:
-            # Enge Grenzen: Bei kleinen Anfragen bläht die JSON-Hülle das Verhältnis auf, und ein
-            # Server, der nur neu ausgewertete Tokens meldet, würde das Budget zu großzügig machen.
-            self._chars_per_token = min(4.0, max(2.5, self._sent_chars / prompt_tokens))
+    def _fit_messages(self, tools_sent: bool = True) -> bool:
+        """Kürzt das Gespräch auf das Fenster; True, wenn dabei etwas entfernt wurde."""
+        tools_size = _wire_size(self.wire_tools) if tools_sent else 0
+
+        def size() -> int:
+            return tools_size + sum(_wire_size(m) for m in self.messages)
+
+        if not self.context_length:
+            self._sent_chars = size()
+            return False
+        reserve = max(1500, self.context_length // 5)  # Antwort und Denken
+        budget = int((self.context_length - reserve) * self._chars_per_token)
+        cut: list[str] = []
+
+        tool_messages = [m for m in self.messages if m.get("role") == "tool"]
+        for message in tool_messages[1:-1]:
+            if size() <= budget:
+                break
+            if len(message.get("content") or "") > len(_TRIMMED_TOOL_RESULT):
+                message["content"] = _TRIMMED_TOOL_RESULT
+                cut.append("älteres Werkzeugergebnis")
+
+        while size() > budget and self._history_messages:
+            oldest = self._history_messages.pop(0)
+            self.messages[:] = [m for m in self.messages if m is not oldest]
+            cut.append("Verlauf")
+
+        excess = size() - budget
+        if excess > 0:
+            match = _CONTEXT_BLOCK_RE.search(self._prompt_message["content"])
+            if match and match.group(2) and not match.group(2).endswith(_CONTEXT_CUT_NOTE):
+                # Die JSON-Hülle maskiert Zeichen; deshalb anteilig etwas mehr abschneiden.
+                keep = max(0, len(match.group(2)) - int(excess * 1.1) - len(_CONTEXT_CUT_NOTE))
+                kept = match.group(2)[:keep] + _CONTEXT_CUT_NOTE
+                self._prompt_message["content"] = (
+                    self._prompt_message["content"][: match.start(2)]
+                    + kept
+                    + self._prompt_message["content"][match.end(2) :]
+                )
+                cut.append("abgerufener Kontext")
+
+        for message in sorted(tool_messages, key=lambda m: -len(m.get("content") or "")):
+            excess = size() - budget
+            if excess <= 0:
+                break
+            content = message.get("content") or ""
+            keep = max(
+                _MIN_TOOL_RESULT_CHARS, len(content) - int(excess * 1.1) - len(_RESULT_CUT_NOTE)
+            )
+            if keep < len(content):
+                message["content"] = content[:keep] + _RESULT_CUT_NOTE
+                cut.append("Werkzeugergebnis")
+
+        self._sent_chars = size()
+        if cut or self._sent_chars > budget:
+            logger.warning(
+                "Gespräch am Kontextfenster (%s Tokens, geschätzt %s von %s Zeichen); gekürzt: %s",
+                self.context_length,
+                self._sent_chars,
+                budget,
+                ", ".join(sorted(set(cut))) or "nichts mehr kürzbar",
+            )
+        return bool(cut)
+
+    def _offers_tools(self, tool_choice: ToolChoice) -> bool:
+        return True
+
+    async def complete(self, client, turn_index, tool_choice):
+        """Ein Modellzug; lehnt der Server die Anfrage als zu groß ab, wird nachgekürzt und wiederholt."""
+        for attempt in range(_OVERFLOW_RETRIES + 1):
+            try:
+                async for item in self._complete_once(client, turn_index, tool_choice):
+                    yield item
+                return
+            except ContextWindowExceeded as error:
+                # Die Ablehnung kommt vor dem ersten Textstück; es wurde noch nichts ausgeliefert.
+                if attempt == _OVERFLOW_RETRIES or not self._refit_after_overflow(
+                    error, self._offers_tools(tool_choice)
+                ):
+                    raise
+
+    def _calibrate(self, prompt_tokens: Optional[int], exact: bool = False) -> None:
+        """Zeichen je Token aus der Serverangabe; ersetzt die Annahme."""
+        if not (prompt_tokens and self._sent_chars):
+            return
+        ratio = self._sent_chars / prompt_tokens
+        # Enge Grenzen für die Angabe eines erfolgreichen Zugs: Bei kleinen Anfragen bläht die JSON-Hülle
+        # das Verhältnis auf. Die Ablehnung "Anfrage zu groß" nennt dagegen die volle, genaue Tokenzahl.
+        self._chars_per_token = ratio * 0.97 if exact else min(4.5, max(2.5, ratio))
+
+    def _refit_after_overflow(self, error: ContextWindowExceeded, tools_sent: bool) -> bool:
+        """Kürzt mit der vom Server genannten Tokenzahl nach; False, wenn nichts mehr zu kürzen ist."""
+        if error.context_tokens and (
+            not self.context_length or error.context_tokens < self.context_length
+        ):
+            # Der Server läuft mit einem kleineren Fenster, als im Profil steht.
+            self.context_length = error.context_tokens
+        if error.prompt_tokens:
+            self._calibrate(error.prompt_tokens, exact=True)
+        else:
+            self._chars_per_token *= 0.8
+        return self._fit_messages(tools_sent)
+
+
+def fit_chat_messages(
+    system_prompt: str, history: list[dict], prompt: str, context_length: Optional[int]
+) -> list[dict]:
+    """Gespräch ohne Werkzeuge, auf das Kontextfenster gekürzt (Standard-Chat)."""
+    conversation = _ChatMessageBudget()
+    conversation.context_length = context_length
+    conversation.wire_tools = []
+    conversation._start_conversation(system_prompt, history, prompt)
+    conversation._fit_messages(tools_sent=False)
+    return conversation.messages
 
 
 class ProviderAdapter:
@@ -260,13 +361,9 @@ class OpenAIChatAdapter(_ChatMessageBudget, ProviderAdapter):
         if api_key:
             self.headers["Authorization"] = f"Bearer {api_key}"
         self.wire_tools = _openai_wire_tools(self.tools)
-        self.messages: list[dict] = []
-        if self.system_prompt:
-            self.messages.append({"role": "system", "content": self.system_prompt})
-        self.messages.extend({"role": m["role"], "content": m["content"]} for m in self.history)
-        self.messages.append({"role": "user", "content": self.prompt})
+        self._start_conversation(self.system_prompt, self.history, self.prompt)
 
-    async def complete(self, client, turn_index, tool_choice):
+    async def _complete_once(self, client, turn_index, tool_choice):
         self._fit_messages()
         payload: dict[str, Any] = {
             "model": self.model,
@@ -289,7 +386,7 @@ class OpenAIChatAdapter(_ChatMessageBudget, ProviderAdapter):
         async with admitted_stream(
             client, self.url, kind="chat", json=payload, headers=self.headers
         ) as resp:
-            raise_for_inference_status(resp, self.provider)
+            await raise_for_stream_status(resp, self.provider)
             async for line in resp.aiter_lines():
                 if not line.startswith("data: "):
                     continue
@@ -417,21 +514,23 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
         self.num_ctx = self.context_length or cfg.OLLAMA_NUM_CTX
         self.context_length = self.num_ctx
         self.wire_tools = _openai_wire_tools(self.tools)
-        self.messages: list[dict] = []
-        if self.system_prompt:
-            self.messages.append({"role": "system", "content": self.system_prompt})
-        self.messages.extend({"role": m["role"], "content": m["content"]} for m in self.history)
-        self.messages.append({"role": "user", "content": self.prompt})
+        self._start_conversation(self.system_prompt, self.history, self.prompt)
 
-    async def complete(self, client, turn_index, tool_choice):
+    def _offers_tools(self, tool_choice):
         # Ollama kennt kein ``tool_choice``. "none" wird durch Weglassen der Werkzeuge erreicht; "required"
         # lässt sich nicht erzwingen, die Schleife verwirft eine Antwort ohne Recherche und wiederholt.
-        offer_tools = tool_choice != "none"
+        return tool_choice != "none"
+
+    async def _complete_once(self, client, turn_index, tool_choice):
+        offer_tools = self._offers_tools(tool_choice)
         self._fit_messages(tools_sent=offer_tools)
         payload: dict[str, Any] = {
             "model": self.model,
             "messages": self.messages,
             "stream": True,
+            # Ohne diesen Schalter entfernt Ollama bei Überlauf still ganze Nachrichten von vorn, zuerst
+            # Verlauf und Frage. So lehnt es stattdessen ab und nennt die Tokenzahl.
+            "truncate": False,
             # O-168: explizites Kontextfenster statt Ollamas stillschweigend kürzender Servervorgabe.
             "options": {"temperature": self.temperature, "num_ctx": self.num_ctx},
         }
@@ -446,7 +545,7 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
         async with admitted_stream(
             client, self.url, kind="chat", json=payload, headers=self.headers
         ) as resp:
-            raise_for_inference_status(resp, self.provider)
+            await raise_for_stream_status(resp, self.provider)
             async for line in resp.aiter_lines():
                 if not line.strip():
                     continue
