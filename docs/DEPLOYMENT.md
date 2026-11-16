@@ -1,6 +1,6 @@
 # Deployment
 
-Doctus is single-tenant, self-hosted: one instance per customer, on their own infrastructure. There are two install paths depending on whether the customer's machine has internet/registry access.
+Doctus is single-tenant, self-hosted: one instance per customer, on their own infrastructure. There are two install paths depending on whether the customer's machine has internet/registry access (Path A, Path B), plus a lean image-only path for hosts that can pull public base images themselves (Path C).
 
 ## Verified fresh-host run (develop, 2026-07-16)
 
@@ -412,6 +412,150 @@ There's no `git pull` on an air-gapped box. Updates mean repeating the full cycl
 Unlike Path A, each bundle already tags its images with its own `DOCTUS_VERSION` (never `latest`), and `docker load` adds images without deleting differently-tagged ones already on the host — so the previous version's images normally stay available locally for rollback even without keeping the old bundle around. See **Rollback** below.
 
 If a `MASTER_ENCRYPTION_KEY` rotation is ever needed on an already-deployed customer instance, existing encrypted tokens must be re-encrypted first — same trap as on the online path, just harder to fix remotely. Avoid rotating it casually once real data exists.
+
+## Path C — Image-only delivery
+
+Use this when the target host has internet access for the public base images but should neither build Doctus nor
+receive a checkout or a full offline bundle. Only the three custom images are delivered; PostgreSQL, Valkey and
+(optionally) Ollama are pulled by the host from Docker Hub using the digests pinned in `docker-compose.yml`.
+
+Verified on 2026-11-16 with `pilot-20261116` (commit `64cadd9`) on a freshly installed Ubuntu 24.04.5 host
+(4 vCPU, 7.7 GiB RAM, no swap, no GPU): all 8 containers healthy with zero restarts. Idle footprint: about
+1.1 GiB RAM across all containers (`bge-m3` installed but not loaded), 1–3 % of one core, about 13 GB disk
+(11.9 GB images, 1.1 GB embedding model, 50 MB empty database). Transfer variant 2a was used; variant 2b
+(GitHub Container Registry) has not been run end to end yet.
+
+The host needs, besides the images, exactly three things next to each other in one directory:
+`docker-compose.yml`, a `.env` (created from `.env.example`) and the `config/` directory. The installers are not
+used on this path, so the steps they normally perform are done by hand below.
+
+### 1. Build (build machine, repository root)
+
+Run all commands of this step in the same shell; the variables are lost in a new terminal, and the build would
+then silently produce `latest` without a commit id.
+
+```sh
+export DOCTUS_VERSION=pilot-20261116 GIT_SHA=$(git rev-parse HEAD) BUILD_TIME=$(date -u +%FT%TZ)
+docker compose build backend-api && docker compose build parser-worker && docker compose build frontend
+```
+
+The builds are serial on purpose (shared parser image, see Troubleshooting). `GET /version` on the running
+backend later reports `GIT_SHA` and `BUILD_TIME`.
+
+### 2a. Transfer directly over SSH
+
+When the build machine can reach the target host:
+
+```sh
+ssh root@<server> 'apt-get update && apt-get install -y docker.io docker-compose-v2 && mkdir -p /root/doctus'
+docker save doctus-backend-api:$DOCTUS_VERSION doctus-parser-worker:$DOCTUS_VERSION doctus-frontend:$DOCTUS_VERSION \
+  | gzip | ssh root@<server> 'gunzip | docker load'
+scp -r docker-compose.yml .env.example config root@<server>:/root/doctus/
+```
+
+Do not pipe `docker save` through Windows PowerShell 5.1 (it corrupts binary streams); run it from WSL/Linux or
+write a `.tar.gz` file first and copy that.
+
+### 2b. Transfer through the GitHub Container Registry
+
+When the build machine cannot reach the target host, but both can reach GitHub. Images cannot be committed into
+a Git repository (100 MB file limit); they go to the registry `ghcr.io`, the three companion files into a small
+private repository. Packages pushed this way are private by default. The images contain the application source,
+so keep them private and remove them after the rollout.
+
+Two personal access tokens (classic): one with `write:packages` for the build machine, one with `read:packages`
+(plus `repo` if the companion repository is cloned with it) for the target host. Give both a short expiry.
+
+Build machine (`<owner>` is the GitHub account or organisation in lower case):
+
+```sh
+docker login ghcr.io -u <owner>          # password: the write token
+for i in backend-api parser-worker frontend; do
+  docker tag doctus-$i:$DOCTUS_VERSION ghcr.io/<owner>/doctus-$i:$DOCTUS_VERSION
+  docker push ghcr.io/<owner>/doctus-$i:$DOCTUS_VERSION
+done
+```
+
+Put `docker-compose.yml`, `.env.example` and `config/` into a private repository. Never commit a filled-in `.env`.
+
+Target host:
+
+```sh
+apt-get update && apt-get install -y docker.io docker-compose-v2 git
+git clone https://github.com/<owner>/<companion-repo>.git /root/doctus
+docker login ghcr.io -u <owner>          # password: the read token
+V=pilot-20261116
+for i in backend-api parser-worker frontend; do
+  docker pull ghcr.io/<owner>/doctus-$i:$V
+  docker tag ghcr.io/<owner>/doctus-$i:$V doctus-$i:$V
+done
+docker logout ghcr.io
+```
+
+The re-tag is required: the Compose files reference the local names `doctus-<service>:<version>` without a
+registry prefix. Afterwards delete the packages (GitHub > profile > Packages > package settings), the companion
+repository and both tokens.
+
+If the target host cannot reach Docker Hub either, this path does not fit: the base images are referenced by
+digest, which a re-tag from another registry does not satisfy. Use the offline bundle (Path B) instead.
+
+### 3. Configure (target host, once)
+
+```sh
+cd /root/doctus && cp --update=none .env.example .env && chmod 600 .env
+V=pilot-20261116
+MK=$(docker run --rm --network none --entrypoint python doctus-backend-api:$V -c \
+  'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
+sed -i \
+  -e "s|^DOCTUS_VERSION=.*|DOCTUS_VERSION=$V|" \
+  -e "s|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.yml|" \
+  -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|" \
+  -e "s|^MASTER_ENCRYPTION_KEY=.*|MASTER_ENCRYPTION_KEY=$MK|" \
+  -e "s|^SESSION_SECRET_KEY=.*|SESSION_SECRET_KEY=$(openssl rand -base64 32)|" \
+  -e "s|^API_URL=.*|API_URL=http://<server-address>:8000|" \
+  -e "s|^FRONTEND_URL=.*|FRONTEND_URL=http://<server-address>:3000|" \
+  .env
+```
+
+- **Run this block once.** A second run generates a new `MASTER_ENCRYPTION_KEY` and database password; after the
+  first start the password no longer matches the database and encrypted content becomes unreadable.
+- `COMPOSE_FILE` must not stay empty. `.env.example` ships `COMPOSE_FILE=` for the installers to fill in; left
+  empty, every `docker compose` call fails with `read /root/doctus: is a directory`.
+- The database password is hex on purpose: it is embedded in `DATABASE_URL`, where `/`, `+` or `@` would break
+  the URL.
+- For the bundled Ollama (embeddings with `bge-m3`), additionally:
+
+  ```sh
+  sed -i -e "s|^LEGACY_OLLAMA_SERVICE=.*|LEGACY_OLLAMA_SERVICE=true|" \
+         -e "s|^OLLAMA_BASE_URL=.*|OLLAMA_BASE_URL=http://ollama:11434|" .env
+  echo "COMPOSE_PROFILES=local-ollama" >> .env
+  ```
+
+  With a separate model server, leave these out and set the `LLM_*`/`EMBEDDING_*` endpoints instead
+  (`docs/REMOTE_INFERENCE.md`).
+
+### 4. Start and verify
+
+```sh
+docker compose up -d --no-build
+docker exec doctus-ollama ollama pull bge-m3          # only with the bundled Ollama
+docker compose logs backend-api | grep -A3 "Erster Start"   # generated admin password, shown once
+docker compose ps
+curl -fsS http://localhost:8000/health && curl -fsS http://localhost:8000/version
+```
+
+`--no-build` matters: `docker-compose.yml` carries `build:` sections, and without the flag a missing image tag
+would make Compose try to build from source directories that do not exist on this host.
+
+Back up `.env` right away (see **Backup**). Ports 3000 and 8000 are published on all interfaces without TLS; put
+a firewall and a reverse proxy in front before real data is introduced (see **TLS**).
+
+### 5. Updating later
+
+Build with a new `DOCTUS_VERSION`, transfer the three images again (2a or 2b), set `DOCTUS_VERSION` in `.env` to
+the new value and run `docker compose up -d --no-build`. Copy `docker-compose.yml`, `.env.example` and `config/`
+again only when they changed; compare new keys in `.env.example` against the existing `.env`. Back up database
+and `.env` first; **Rollback** applies as for Path B, since older image tags stay on the host.
 
 ## Backup
 
