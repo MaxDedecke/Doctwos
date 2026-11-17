@@ -89,6 +89,7 @@ def _isolate_from_server_ai_profile(monkeypatch):
     import ollama_client
 
     monkeypatch.setattr(ollama_client, "_load_server_settings", lambda: None)
+    monkeypatch.setattr(ollama_client, "_profile_settings_for_model", lambda _model: None)
 
 
 @pytest.fixture(autouse=True)

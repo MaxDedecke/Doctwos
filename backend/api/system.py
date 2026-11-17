@@ -40,8 +40,14 @@ from core.llm_providers import (
     provider_label,
 )
 from core.teams import require_admin
-from core.db_setup import engine, get_db
-from doctus_models.database import AIProfile, EmbeddingProfile, User
+from core.db_setup import SessionLocal, engine, get_db
+from doctus_models.database import (
+    AIProfile,
+    DocumentChunk,
+    EmbeddingProfile,
+    KnowledgeSource,
+    User,
+)
 from services import deployer_client
 from services.deployer_client import DeployerError
 from services.ai_settings import (
@@ -295,7 +301,32 @@ async def health(response: Response):
     healthy = all(v == "ok" for v in checks.values())
     if not healthy:
         response.status_code = 503
-    return {"status": "healthy" if healthy else "degraded", "checks": checks}
+    body = {"status": "healthy" if healthy else "degraded", "checks": checks}
+    # Für das Monitoring des Kunden: nur Zahlen, keine Namen (der Endpunkt ist ohne Anmeldung erreichbar).
+    # Eine kaputte Wissensquelle macht Doctus nicht unbenutzbar und ändert den Status deshalb nicht.
+    summary = _source_health_summary()
+    if summary is not None:
+        body["sources"] = summary
+    return body
+
+
+def _source_health_summary() -> dict | None:
+    from services.source_health import auto_sync_paused, is_overdue
+
+    try:
+        db = SessionLocal()
+        try:
+            sources = db.query(KnowledgeSource).all()
+            return {
+                "total": len(sources),
+                "failing": sum((s.sync_status or "") == "error" for s in sources),
+                "paused": sum(auto_sync_paused(s) for s in sources),
+                "overdue": sum(is_overdue(s) for s in sources),
+            }
+        finally:
+            db.close()
+    except Exception:  # noqa: BLE001 - die Datenbankprüfung oben meldet den Fehler bereits
+        return None
 
 
 @router.get("/version")
@@ -394,6 +425,7 @@ def update_embedding_profile(
         raise HTTPException(status_code=404, detail="Embedding-Profil nicht gefunden")
     values = request.model_dump(exclude_unset=True)
     _validate_embedding_profile_values(values, profile)
+    _refuse_space_change_of_used_profile(db, profile, values)
     for field, value in values.items():
         if field == "api_key":
             if value is not None:
@@ -407,6 +439,35 @@ def update_embedding_profile(
         apply_embedding_profile(settings, profile)
         db.commit()
     return serialize_embedding_profile(profile, active_id=settings.active_embedding_profile_id)
+
+
+def _refuse_space_change_of_used_profile(
+    db: Session, profile: EmbeddingProfile, values: dict
+) -> None:
+    """Modell und Dimension eines Profils, mit dem schon Abschnitte eingebettet sind, bleiben fest.
+
+    Sonst bettete die Suche Anfragen im neuen Raum ein, während die gespeicherten Vektoren im alten liegen. Ein
+    anderes Modell kommt über ein neues Profil und den Modellwechsel je Projekt (Einstellungen > Projekte).
+    """
+    model = (values.get("model") or profile.model or "").strip()
+    dimension = values.get("dimension") or profile.dimension
+    if model == profile.model and dimension == profile.dimension:
+        return
+    used = (
+        db.query(DocumentChunk.id)
+        .filter(DocumentChunk.embedding_model == profile.model)
+        .limit(1)
+        .first()
+    )
+    if used is not None:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"Mit '{profile.model}' sind bereits Inhalte eingebettet; Modell und Dimension dieses Profils "
+                "lassen sich nicht mehr ändern. Lege ein neues Embedding-Profil an und wechsle das Modell je "
+                "Projekt über den Modellwechsel."
+            ),
+        )
 
 
 @router.delete("/embedding-profiles/{profile_id}", status_code=204)
@@ -441,7 +502,22 @@ def activate_embedding_profile(
     apply_embedding_profile(settings, profile)
     settings.updated_by_user_id = user.id
     db.commit()
-    return serialize_embedding_profile(profile, active_id=profile.id)
+    # Das aktive Profil gilt nur für neue Projekte; bestehende behalten ihren Vektorraum, bis ihr Modell
+    # gewechselt wird. Wie viele das betrifft, sagt der Dialog dem Admin.
+    others = (
+        db.query(KnowledgeSource.project_id)
+        .filter(
+            KnowledgeSource.project_id.isnot(None),
+            KnowledgeSource.embedding_model.isnot(None),
+            KnowledgeSource.embedding_model != profile.model,
+        )
+        .distinct()
+        .count()
+    )
+    return {
+        **serialize_embedding_profile(profile, active_id=profile.id),
+        "projects_on_other_models": others,
+    }
 
 
 @router.post("/embedding-profiles/{profile_id}/test")

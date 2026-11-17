@@ -153,7 +153,40 @@ class EmbeddingNotConfigured(RuntimeError):
     """Kein Embedding-Endpunkt: weder aktives Profil noch Endpunkt in der Worker-Umgebung."""
 
 
+def _profile_settings_for_model(model: str) -> Optional[dict]:
+    """Endpunkt des einen Embedding-Profils mit genau diesem Modell, sonst None.
+
+    Eine Quelle behält ihr Modell, auch wenn ein anderes Profil aktiv wird, und ein Modellwechsel bettet mit dem
+    Zielprofil ein. Beides muss an den Endpunkt dieses Modells gehen, nicht an den des aktiven Profils.
+    """
+    try:
+        db = SessionLocal()
+        try:
+            profiles = db.query(EmbeddingProfile).filter(EmbeddingProfile.model == model).all()
+            if len(profiles) != 1:
+                return None
+            profile = profiles[0]
+            return {
+                "provider": profile.provider,
+                "base_url": profile.base_url.rstrip("/"),
+                "api_key": profile.api_key,
+                "path": profile.path,
+                "model": profile.model,
+                "dimension": profile.dimension,
+                "context": profile.context_length,
+            }
+        finally:
+            db.close()
+    except Exception as exc:  # noqa: BLE001 - ohne DB gilt das aktive Profil bzw. die Umgebung
+        logger.warning("Embedding-Profil für Modell %s nicht lesbar: %s", model, exc)
+        return None
+
+
 def _effective_embedding_settings(model: Optional[str] = None) -> dict:
+    if model:
+        pinned = _profile_settings_for_model(model)
+        if pinned is not None:
+            return pinned
     settings = _load_server_settings()
     if (
         settings is not None

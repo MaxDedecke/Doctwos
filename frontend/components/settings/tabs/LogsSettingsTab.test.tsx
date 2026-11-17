@@ -253,3 +253,22 @@ describe('LogsSettingsTab live status', () => {
     expect(apiMocks.getLlmDeployments).not.toHaveBeenCalled();
   });
 });
+
+describe('LogsSettingsTab source health', () => {
+  it('explains a rejected login and shows that automatic sync is paused', async () => {
+    const source = {
+      id: 7, name: 'Team-Wiki', type: 'Confluence', sync_status: 'error', last_error: '401 Unauthorized',
+      error_kind: 'auth', failure_count: 3, auto_sync_paused: true, overdue: false,
+    };
+    settingsState.connectedSources = [source];
+    apiMocks.getKnowledgeSources.mockResolvedValue({ data: [source] });
+
+    render(<LogsSettingsTab />);
+    fireEvent.click(await screen.findByText('Team-Wiki'));
+
+    expect(await screen.findByTestId('source-error-hint')).toHaveTextContent('settings.logsTab.errorKind.auth');
+    expect(screen.getByText('settings.logsTab.autoSyncPaused')).toBeInTheDocument();
+    expect(screen.getByText('settings.logsTab.failureCount:3')).toBeInTheDocument();
+    expect(screen.getAllByText('settings.logsTab.statusPaused').length).toBeGreaterThan(0);
+  });
+});

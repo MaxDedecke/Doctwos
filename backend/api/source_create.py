@@ -39,7 +39,7 @@ def create_web_source(source, db, user):
         spaces=source.spaces,
         sync_interval_minutes=api._validate_sync_interval(source.sync_interval_minutes),
         context_note=api._validate_context_note(source.context_note),
-        embedding_model=api._validate_embedding_model(source.embedding_model),
+        embedding_model=api._source_embedding_model(db, source.project_id, source.embedding_model),
         team_id=team_id,
     )
     db.add(db_source)

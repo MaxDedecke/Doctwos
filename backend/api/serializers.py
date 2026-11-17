@@ -7,6 +7,7 @@ Zentralisiert, damit alle Router dasselbe Format zurückgeben.
 Änderung am Response-Format: hier anpassen, gilt überall.
 """
 
+from services import source_health
 from typing import Optional
 from doctus_models.database import (
     CodeEntity,
@@ -105,6 +106,7 @@ def serialize_source(s: KnowledgeSource) -> dict:
         "parse_finished_at": s.parse_finished_at.isoformat() if s.parse_finished_at else None,
         "estimated_finish_at": s.estimated_finish_at.isoformat() if s.estimated_finish_at else None,
         "last_error_detail": s.last_error_detail,
+        **source_health.health(s),
     }
 
 

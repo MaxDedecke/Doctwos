@@ -15,6 +15,8 @@ Zustände:
     updating      ein Sync läuft (Status ``syncing`` und Sperre in Redis aktiv)
     interrupted   Status ``syncing`` ohne aktive Sperre: Prozess abgebrochen
     incomplete    letzter Lauf mit Fehlern beendet oder abgebrochen
+    overdue       letzter Lauf vollständig, aber älter als das Sync-Intervall erwarten lässt
+                  (die Quelle war seitdem nicht mehr erfolgreich erreichbar)
     not_indexed   noch kein vollständiger Lauf
 
 Für Git ist der vollständige Stand der Commit in ``sync_cursor["last_commit"]``.
@@ -28,6 +30,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from doctus_models.database import KnowledgeSource
+from services.source_health import HINTS, is_overdue
 
 logger = logging.getLogger(__name__)
 
@@ -39,6 +42,7 @@ _NOTES = {
     "interrupted": "Einlesen wurde abgebrochen",
     "incomplete": "letztes Einlesen endete mit Fehlern",
     "not_indexed": "ist noch nicht vollständig eingelesen",
+    "overdue": "wurde länger nicht aktualisiert, als ihr Sync-Intervall vorsieht",
 }
 
 _client: Optional[redis.Redis] = None
@@ -73,9 +77,11 @@ def index_state(source: KnowledgeSource, running: Optional[bool]) -> str:
     if status in _RUNNING:
         return "interrupted" if running is False else "updating"
     if status == "completed":
-        return "current"
+        return "overdue" if is_overdue(source) else "current"
     if status == "pending":
-        return "current" if source.indexed_at else "not_indexed"
+        if not source.indexed_at:
+            return "not_indexed"
+        return "overdue" if is_overdue(source) else "current"
     return "incomplete" if source.indexed_at else "not_indexed"
 
 
@@ -88,6 +94,8 @@ def describe(source: KnowledgeSource, state: str) -> dict:
         "note": f"„{source.name}“ {_NOTES[state]}",
         "indexed_at": source.indexed_at.isoformat() if source.indexed_at else None,
     }
+    if state == "incomplete" and source.error_kind in HINTS:
+        entry["error_kind"] = source.error_kind
     if cursor.get("last_commit"):
         entry["indexed_revision"] = cursor["last_commit"]
     return entry

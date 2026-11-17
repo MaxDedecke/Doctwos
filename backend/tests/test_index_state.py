@@ -1,7 +1,7 @@
 """Indexstand einer Wissensquelle: Erkennung, Hinweis in Antworten, Job-Center."""
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 import pytest
@@ -14,12 +14,13 @@ from services import index_state
 INDEXED = datetime(2026, 10, 1, 8, 30, tzinfo=timezone.utc)
 
 
-def _source(status, indexed_at=INDEXED, commit="0123456789abcdef"):
+def _source(status, indexed_at=INDEXED, commit="0123456789abcdef", interval=0):
     return SimpleNamespace(
         id=7,
         name="carddemo",
         sync_status=status,
         indexed_at=indexed_at,
+        sync_interval_minutes=interval,
         sync_cursor={"last_commit": commit} if commit else None,
     )
 
@@ -44,6 +45,18 @@ def test_index_state_distinguishes_running_crashed_and_failed_runs(
     assert index_state.index_state(_source(status, indexed_at), running) == expected
 
 
+def test_a_source_not_refreshed_for_three_intervals_is_overdue():
+    now = datetime.now(timezone.utc)
+    fresh = _source("completed", now - timedelta(minutes=90), interval=60)
+    old = _source("completed", now - timedelta(minutes=181), interval=60)
+    manual = _source("completed", now - timedelta(days=400), interval=0)
+
+    assert index_state.index_state(fresh, None) == "current"
+    assert index_state.index_state(old, None) == "overdue"
+    assert index_state.index_state(manual, None) == "current"
+    assert "länger nicht aktualisiert" in index_state.describe(old, "overdue")["note"]
+
+
 def test_answer_notice_names_the_last_complete_revision():
     entry = index_state.describe(_source("syncing"), "interrupted")
     notice = index_state.answer_notice([entry])
@@ -62,6 +75,7 @@ def project_source(db_session, test_project, test_team):
         team_id=test_team,
         sync_status="completed",
         indexed_at=INDEXED,
+        sync_interval_minutes=0,
         sync_cursor={"last_commit": "feedfacecafe"},
     )
     db_session.add(source)

@@ -34,6 +34,13 @@ export interface KnowledgeSource {
   sync_status?: string | null;
   sync_log?: string | null;
   last_error?: string | null;
+  /** Fehlerart des letzten Laufs (auth, network, not_found, config, source_content, embedding, internal). */
+  error_kind?: string | null;
+  failure_count?: number;
+  last_attempt_at?: string | null;
+  indexed_at?: string | null;
+  auto_sync_paused?: boolean;
+  overdue?: boolean;
   sync_interval_minutes?: number;
   progress?: number;
   progress_message?: string | null;

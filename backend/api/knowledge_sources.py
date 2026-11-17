@@ -149,6 +149,29 @@ def _validate_embedding_model(value: Optional[str]) -> Optional[str]:
     return model
 
 
+def _source_embedding_model(
+    db: Session, project_id: Optional[int], requested: Optional[str]
+) -> Optional[str]:
+    """Modell einer neuen Quelle: ausdrücklich gewählt, sonst das des Projekts, sonst das des aktiven Profils.
+
+    Ohne den Projektrückfall bekäme eine neue Quelle in einem bestehenden Projekt nach einem Profilwechsel das neue
+    Modell; das Projekt läge dann in zwei Vektorräumen, und die Suche fände nur einen davon.
+    """
+    model = _validate_embedding_model(requested)
+    if model:
+        return model
+    from services.ai_settings import get_active_embedding_profile
+    from services.answer_context import _embedding_profile_for_project
+
+    try:
+        if project_id is not None:
+            return _embedding_profile_for_project(db, project_id).model
+        return get_active_embedding_profile(db).model
+    except LookupError:
+        # Noch kein Embedding-Profil: Der Sync meldet das verständlich (parser/ollama_client.py).
+        return None
+
+
 def _check_knowledge_source_cap(project_id: Optional[int], db: Session):
     pass
 
@@ -851,7 +874,7 @@ def create_folder_watch_source(
         url=_resolve_watched_path(source.folder_path),
         project_id=source.project_id,
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
-        embedding_model=_validate_embedding_model(source.embedding_model),
+        embedding_model=_source_embedding_model(db, source.project_id, source.embedding_model),
         team_id=team_id,
     )
     db.add(db_source)
@@ -884,7 +907,7 @@ def create_git_source(
         branch=source.branch,
         spaces={"sparse_paths": source.sparse_paths},
         sync_interval_minutes=_validate_sync_interval(source.sync_interval_minutes),
-        embedding_model=_validate_embedding_model(source.embedding_model),
+        embedding_model=_source_embedding_model(db, source.project_id, source.embedding_model),
         team_id=team_id,
     )
     db.add(db_source)
@@ -949,7 +972,7 @@ async def upload_local_document(
         type="Local",
         project_id=project_id,
         team_id=resolved_team_id,
-        embedding_model=_validate_embedding_model(embedding_model),
+        embedding_model=_source_embedding_model(db, project_id, embedding_model),
     )
     db.add(db_source)
     db.commit()

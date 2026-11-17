@@ -16,7 +16,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { DEFAULT_PROJECT_COLOR } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
-import { Check, CheckCircle2, Database, Edit, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { Check, CheckCircle2, Database, Edit, Layers, Loader2, Plus, Trash2, UserPlus, Users, X } from 'lucide-react';
+import { EmbeddingMigrationPanel } from '@/components/settings/EmbeddingMigrationPanel';
 import React, { useEffect, useState } from 'react';
 
 // Aus SettingsModal herausgelöster 'projects'-Tab (Tab-Zerlegung, letzter Tab). Der Tab kapselt sein gesamtes lokales Domänen-
@@ -53,6 +54,7 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
 
   // Project members / access-requests local states
   const [expandedProjectMembersId, setExpandedProjectMembersId] = useState<number | null>(null);
+  const [expandedEmbeddingProjectId, setExpandedEmbeddingProjectId] = useState<number | null>(null);
   const [projectMembers, setProjectMembers] = useState<Record<number, ProjectMember[]>>({});
   const [projectMemberCandidates, setProjectMemberCandidates] = useState<Record<number, User[]>>({});
   const [projectAccessRequests, setProjectAccessRequests] = useState<Record<number, ProjectAccessRequest[]>>({});
@@ -520,6 +522,20 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                         <Users className="w-4 h-4" />
                                       </Button>
 
+                                      <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="icon"
+                                        onClick={() => setExpandedEmbeddingProjectId(expandedEmbeddingProjectId === project.id ? null : project.id)}
+                                        title={t('settings.projects.embedding.toggleTitle')}
+                                        className={cn(
+                                          "h-8 w-8 rounded-lg border flex items-center justify-center transition-all text-ds-zinc-500",
+                                          theme === 'dark' ? "border-ds-zinc-700/60 hover:bg-ds-zinc-800/60" : "border-ds-zinc-200 hover:bg-ds-zinc-100"
+                                        )}
+                                      >
+                                        <Layers className="w-4 h-4" />
+                                      </Button>
+
                                       {isProjectAdmin(project) && (
                                         <Button
                                           type="button"
@@ -625,6 +641,12 @@ export const ProjectsTab: React.FC<ProjectsTabProps> = ({ onNewProject }) => {
                                           {t('settings.projects.complete.cancel')}
                                         </Button>
                                       </div>
+                                    </div>
+                                  )}
+
+                                  {expandedEmbeddingProjectId === project.id && (
+                                    <div className={cn("pt-3 border-t", theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60")}>
+                                      <EmbeddingMigrationPanel projectId={project.id} isAdmin={Boolean(currentUser?.is_admin)} />
                                     </div>
                                   )}
 

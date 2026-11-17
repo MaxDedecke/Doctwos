@@ -32,7 +32,7 @@ EMBEDDING_API_KEY=
 EMBEDDING_AUTO_PULL=false
 ```
 
-Die URLs müssen zur tatsächlichen Reverse-Proxy-Konfiguration passen. Chat und Embeddings dürfen verschiedene Server/Schlüssel verwenden. Embeddings müssen 1024 Dimensionen liefern. Bei einem Modellwechsel bestehende Dokumente vollständig neu einbetten.
+Die URLs müssen zur tatsächlichen Reverse-Proxy-Konfiguration passen. Chat und Embeddings dürfen verschiedene Server/Schlüssel verwenden. Ein neues Embedding-Profil gilt nur für neue Projekte; bestehende Projekte wechseln ihr Modell einzeln unter Einstellungen > Projekte > Embedding-Modell (neue Vektoren entstehen neben den alten, Umschalten und Rücknahme in einem Schritt, siehe `docs/ENTSCHEIDUNGEN.md` E-20). Modell und Dimension eines bereits genutzten Profils lassen sich nicht ändern.
 
 Für interne HTTPS-Zertifikate ein PEM-Bundle bereitstellen (bei Bedarf Unternehmens- und öffentliche Root-CAs zusammen):
 

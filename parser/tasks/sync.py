@@ -14,7 +14,9 @@ Neuen Connector-Typ unterstützen:
 """
 
 import logging
+from datetime import datetime, timezone
 
+from connectors.errors import classify_exception, record_outcome
 from connectors.registry import get_connector
 from db import SessionLocal
 from doctus_models.database import KnowledgeSource
@@ -37,6 +39,7 @@ async def process_knowledge_source_async(source_id: int, force_reindex: bool = F
     """
     db = SessionLocal()
     source = None
+    attempted_at = datetime.now(timezone.utc)
     try:
         source = db.query(KnowledgeSource).filter(KnowledgeSource.id == source_id).first()
         if not source:
@@ -55,6 +58,11 @@ async def process_knowledge_source_async(source_id: int, force_reindex: bool = F
             await connector.sync(force_reindex=True)
         else:
             await connector.sync()
+        # Der Connector schreibt über eine eigene Session; hier zählt der Ausgang des Laufs.
+        db.refresh(source)
+        if (source.sync_status or "") in ("completed", "error"):
+            record_outcome(source, attempted_at)
+            db.commit()
 
         # O-315: Automatischen Link-Builder vom normalen Quellenimport entkoppeln.
         # Nach einem erfolgreichen Import startet kein automatischer, kostenintensiver
@@ -74,11 +82,12 @@ async def process_knowledge_source_async(source_id: int, force_reindex: bool = F
         # Falls der Fehler VOR connector.sync() passiert ist (z.B. get_connector failed),
         # müssen wir hier manuell in die DB loggen, damit der User es im Frontend sieht.
         if source:
-            from datetime import datetime, timezone
-
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+            db.rollback()
             source.sync_status = "error"
             source.last_error = error_msg
+            source.error_kind = classify_exception(e)
+            record_outcome(source, attempted_at)
             source.sync_log = (
                 source.sync_log or ""
             ) + f"[{timestamp}] Initialisierungs-Fehler: {error_msg}\n"

@@ -40,6 +40,7 @@ from typing import NotRequired, TypedDict
 
 
 from chunk_reindex import reindex_chunks_preserving_links
+from connectors.errors import EMBEDDING, classify_exception
 from connectors.tls import resolve_verify
 from code_parser import CodeParser
 from core import config
@@ -403,6 +404,8 @@ class BaseConnector(ABC):
     # großer Teil des Index auf einmal verschwinden, wird nichts gelöscht und stattdessen gewarnt.
     _ORPHAN_MAX_SHARE = 0.5
     _ORPHAN_MIN_COUNT = 20
+    # Ein leerer Crawl gilt als verdächtig, egal wie wenige Dokumente bekannt sind.
+    _ORPHAN_BLOCK_EMPTY = True
 
     def _remove_orphans(self, seen_keys: set[str]) -> int:
         """Entfernt Chunks dieser Quelle, deren Dokument in der Quelle nicht mehr vorkommt.
@@ -421,15 +424,23 @@ class BaseConnector(ABC):
             stale = known - seen_keys
             if not stale:
                 return 0
-            if not seen_keys or (
+            if (self._ORPHAN_BLOCK_EMPTY and not seen_keys) or (
                 len(stale) >= self._ORPHAN_MIN_COUNT
                 and len(stale) > len(known) * self._ORPHAN_MAX_SHARE
             ):
-                self._append_log(
-                    db,
-                    f"[WARNUNG] {len(stale)} von {len(known)} indizierten Dokumenten kamen im Crawl nicht mehr vor. "
-                    "Aus Sicherheit wird nichts gelöscht; prüfe Zugriffsrechte und Quelle.",
+                message = (
+                    f"{len(stale)} von {len(known)} indizierten Dokumenten kamen im Crawl nicht mehr vor. "
+                    "Aus Sicherheit wird nichts gelöscht; prüfe Zugriffsrechte und Quelle."
                 )
+                self._append_log(db, f"[WARNUNG] {message}")
+                # Der Index ist jetzt womöglich veraltet: als Fehler sichtbar machen, damit Antworten darauf hinweisen.
+                source = (
+                    db.query(KnowledgeSource).filter(KnowledgeSource.id == self.source_id).first()
+                )
+                if source is not None:
+                    source.sync_status = "error"
+                    source.last_error = message
+                    source.error_kind = "source_content"
                 db.commit()
                 return 0
             stale_list = sorted(stale)
@@ -502,6 +513,7 @@ class BaseConnector(ABC):
             self.source.progress = 0
             self.source.progress_message = "Initialisiere..."
             self.source.last_error = None
+            self.source.error_kind = None
             self.source.sync_log = ""
             self.db.commit()
 
@@ -556,6 +568,7 @@ class BaseConnector(ABC):
                 # Zeitstempel bleibt stehen: der nächste Lauf prüft diese Dokumente erneut.
                 total_failed = sum(self._embed_failures.values())
                 self.source.sync_status = "error"
+                self.source.error_kind = EMBEDDING
                 self.source.last_error = (
                     f"{total_failed} Chunk(s) in {len(self._embed_failures)} Dokument(en) konnten nicht eingebettet "
                     "werden (Embedding-Dienst prüfen). Betroffene Dokumente fehlen im Index; der nächste Sync "
@@ -587,6 +600,7 @@ class BaseConnector(ABC):
             if self.source:
                 self.source.sync_status = "error"
                 self.source.last_error = error_msg
+                self.source.error_kind = classify_exception(e)
                 self.db.commit()
         finally:
             self._flush_log(final=True)

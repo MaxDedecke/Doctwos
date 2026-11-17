@@ -316,6 +316,30 @@
         "noSources": "Diesem Projekt sind keine Wissensquellen zugeordnet.",
         "confirm": "Bestätigen & Abschließen",
         "cancel": "Abbrechen"
+      },
+      "embedding": {
+        "toggleTitle": "Embedding-Modell",
+        "title": "Embedding-Modell des Projekts",
+        "current": "Aktuell: {{model}}",
+        "coverage": "Abschnitte je Modell",
+        "withoutEmbedding": "{{count}} Abschnitte ohne Vektor",
+        "target": "Zielprofil",
+        "start": "Modellwechsel starten",
+        "progress": "Einbetten mit {{model}}: {{done}} von {{total}}",
+        "ready": "Alle Abschnitte haben einen Vektor von {{model}}. Die Suche nutzt noch {{previous}}. Suchqualität prüfen, dann umschalten.",
+        "switched": "Umgeschaltet auf {{model}}. Die alten Vektoren liegen noch zur Rücknahme bereit.",
+        "failed": "Lauf fehlgeschlagen: {{error}}",
+        "cancelled": "Abgebrochen.",
+        "rolledBack": "Zurückgenommen auf {{model}}.",
+        "cleaned": "Abgeschlossen; alte Vektoren entfernt.",
+        "switch": "Umschalten",
+        "rollback": "Zurücknehmen",
+        "cleanup": "Alte Vektoren entfernen",
+        "cancel": "Abbrechen",
+        "resume": "Fortsetzen",
+        "explain": "Neue Vektoren entstehen neben den alten; die Suche bleibt währenddessen unverändert. Umschalten tauscht beide in einem Schritt, Zurücknehmen tauscht zurück, bis die alten Vektoren entfernt werden.",
+        "error": "Aktion fehlgeschlagen",
+        "noProfiles": "Kein weiteres Embedding-Profil angelegt (Einstellungen > KI)."
       }
     },
     "git": {
@@ -782,7 +806,21 @@
       "diagnosticsDownload": "Bundle herunterladen",
       "diagnosticsStartedToast": "Diagnose-Bundle-Erzeugung gestartet",
       "diagnosticsFailedToast": "Diagnose-Bundle-Erzeugung fehlgeschlagen",
-      "diagnosticsStartFailedToast": "Diagnose-Bundle-Erzeugung konnte nicht gestartet werden"
+      "diagnosticsStartFailedToast": "Diagnose-Bundle-Erzeugung konnte nicht gestartet werden",
+      "statusPaused": "Pausiert",
+      "statusOverdue": "Überfällig",
+      "failureCount": "{{count}} fehlgeschlagene Läufe in Folge",
+      "autoSyncPaused": "Automatischer Sync pausiert, bis die Ursache behoben und die Quelle manuell synchronisiert wird.",
+      "overdueNote": "Der Index ist älter, als das Sync-Intervall vorsieht. Antworten weisen darauf hin.",
+      "errorKind": {
+        "auth": "Zugangsdaten abgelehnt (401/403). Token oder Passwort erneuern bzw. Rechte des Dienstkontos prüfen, dann manuell synchronisieren.",
+        "network": "Quelle nicht erreichbar (Netzwerk, DNS, Zertifikat oder Serverfehler). Erreichbarkeit vom Doctus-Host prüfen; der automatische Sync versucht es mit wachsendem Abstand erneut.",
+        "not_found": "Adresse, Projekt, Bereich oder Branch existiert nicht (mehr). Konfiguration der Quelle prüfen.",
+        "config": "Konfiguration der Quelle ist ungültig. Einstellungen der Quelle prüfen.",
+        "source_content": "Einzelne Inhalte konnten nicht verarbeitet werden oder die Quelle lieferte deutlich weniger als zuvor. Sync-Log prüfen; der vorhandene Index bleibt erhalten.",
+        "embedding": "Embedding-Dienst nicht erreichbar oder nicht eingerichtet. Embedding-Profil unter Einstellungen > KI prüfen; der nächste Sync holt fehlende Dokumente nach.",
+        "internal": "Unerwarteter Fehler. Sync-Log und Diagnosepaket prüfen."
+      }
     },
     "evaluationTab": {
       "feedbackTitle": "Negativ bewertete Chat-Antworten",
@@ -912,7 +950,8 @@
       "testTitle": "Verbindung testen",
       "editTitle": "Profil bearbeiten",
       "deleteTitle": "Profil löschen",
-      "activate": "Aktivieren"
+      "activate": "Aktivieren",
+      "activatedOthersKept": "Aktiviert. Gilt für neue Projekte; {{count}} bestehende Projekte bleiben bei ihrem bisherigen Modell. Wechsel je Projekt unter Einstellungen > Projekte."
     },
     "mcpTab": {
       "defaultName": "Meine IDE",
@@ -1106,10 +1145,26 @@
       "evidenceDescription": "Recherchiert Projektinhalte und prüft Belege und Quellen streng."
     },
     "normalSuggestions": {
-      "explainConcept": { "label": "Etwas erklären", "desc": "Ein Thema verständlich machen", "prompt": "Erkläre mir bitte einfach, wie " },
-      "draftText": { "label": "Text entwerfen", "desc": "Eine Nachricht oder Zusammenfassung formulieren", "prompt": "Hilf mir, einen kurzen Text zu schreiben über " },
-      "summarizeText": { "label": "Text zusammenfassen", "desc": "Lange Inhalte auf das Wesentliche kürzen", "prompt": "Fasse mir bitte folgenden Text kurz zusammen: " },
-      "brainstorm": { "label": "Ideen sammeln", "desc": "Ansätze und Alternativen durchdenken", "prompt": "Sammle mit mir Ideen für " }
+      "explainConcept": {
+        "label": "Etwas erklären",
+        "desc": "Ein Thema verständlich machen",
+        "prompt": "Erkläre mir bitte einfach, wie "
+      },
+      "draftText": {
+        "label": "Text entwerfen",
+        "desc": "Eine Nachricht oder Zusammenfassung formulieren",
+        "prompt": "Hilf mir, einen kurzen Text zu schreiben über "
+      },
+      "summarizeText": {
+        "label": "Text zusammenfassen",
+        "desc": "Lange Inhalte auf das Wesentliche kürzen",
+        "prompt": "Fasse mir bitte folgenden Text kurz zusammen: "
+      },
+      "brainstorm": {
+        "label": "Ideen sammeln",
+        "desc": "Ansätze und Alternativen durchdenken",
+        "prompt": "Sammle mit mir Ideen für "
+      }
     },
     "empty": {
       "shuffleTitle": "Andere Frage",
@@ -1924,7 +1979,6 @@
     "relationshipLabel": "Beziehungsart",
     "scoreLabel": "Mindest-Score"
   },
-
   "topicsPanel": {
     "nodeTypes": {
       "project": "Projekt",
@@ -2393,25 +2447,78 @@
     "source_last_synced_at": "Quellenstand"
   },
   "entityAnalysis": {
-    "title": "Objektdetails", "object": "Objekt", "loading": "Objektdetails werden geladen …",
-    "loadFailed": "Ein Teil der Objektdetails konnte nicht geladen werden.", "openSource": "Originalstelle öffnen",
-    "return_type": "Rückgabetyp", "parameter_types": "Parametertypen", "type_parameters": "Typparameter",
-    "field_type": "Feldtyp", "variable_type": "Variablentyp", "parameter_type": "Parametertyp", "component_type": "Komponententyp",
-    "throws_types": "Deklarierte Ausnahmen", "visibility": "Sichtbarkeit", "modifiers": "Modifikatoren",
-    "annotations": "Annotationen / Qualifier", "returns": "Rückgabeausdrücke", "exceptions": "Ausnahmen und Aufräumen",
+    "title": "Objektdetails",
+    "object": "Objekt",
+    "loading": "Objektdetails werden geladen …",
+    "loadFailed": "Ein Teil der Objektdetails konnte nicht geladen werden.",
+    "openSource": "Originalstelle öffnen",
+    "return_type": "Rückgabetyp",
+    "parameter_types": "Parametertypen",
+    "type_parameters": "Typparameter",
+    "field_type": "Feldtyp",
+    "variable_type": "Variablentyp",
+    "parameter_type": "Parametertyp",
+    "component_type": "Komponententyp",
+    "throws_types": "Deklarierte Ausnahmen",
+    "visibility": "Sichtbarkeit",
+    "modifiers": "Modifikatoren",
+    "annotations": "Annotationen / Qualifier",
+    "returns": "Rückgabeausdrücke",
+    "exceptions": "Ausnahmen und Aufräumen",
     "synthetic": "Implizite Methode ({{origin}}), aus ihrer Quelldeklaration abgeleitet.",
     "flowLimited": "Datenfluss unvollständig: {{count}} weitere Anweisungen wurden wegen des Analyse-Limits nicht erfasst.",
-    "dataFlow": "Datenherkunft und Zuweisungen", "line": "Zeile", "operation": "Operation", "target": "Ziel", "origin": "Herkunft", "statement": "Anweisung",
-    "operations": { "init": "Initialisierung", "assign": "Zuweisung", "compound_assign": "Verknüpfte Zuweisung", "increment": "Erhöhen / Verringern", "return": "Rückgabe" },
-    "maven": "Maven-Analysekontext", "module": "Modul", "source_set": "Quellbereich",
-    "maven_active_profiles": "Aktive Maven-Profile", "maven_visibility": "Sichtbare Compile-Module", "maven_runtime_visibility": "Sichtbare Laufzeit-Module", "mavenIssues": "Grenzen der Maven-Auflösung",
-    "endpoint": "Schnittstelle", "protocol": "Protokoll", "framework": "Framework", "http_method": "HTTP-Methode", "path": "Pfad", "path_expression": "Dynamischer Pfadausdruck",
-    "namespace": "Namespace", "service_name": "Service", "port_type": "Port-Typ", "consumes": "Akzeptierte Formate", "produces": "Antwortformate",
-    "bean": "Bean und Aktivierung", "activationUnknown": "Aktivierung nicht statisch bestimmbar", "active": "Im konfigurierten Profil aktiv", "inactive": "Im konfigurierten Profil inaktiv", "primary": "Bevorzugte Bean",
-    "names": "Bean-Namen", "provided_type": "Bereitgestellter Typ", "profiles": "Spring-Profile", "scopes": "Gültigkeitsbereiche", "bindings": "Belegte Verbindungen",
+    "dataFlow": "Datenherkunft und Zuweisungen",
+    "line": "Zeile",
+    "operation": "Operation",
+    "target": "Ziel",
+    "origin": "Herkunft",
+    "statement": "Anweisung",
+    "operations": {
+      "init": "Initialisierung",
+      "assign": "Zuweisung",
+      "compound_assign": "Verknüpfte Zuweisung",
+      "increment": "Erhöhen / Verringern",
+      "return": "Rückgabe"
+    },
+    "maven": "Maven-Analysekontext",
+    "module": "Modul",
+    "source_set": "Quellbereich",
+    "maven_active_profiles": "Aktive Maven-Profile",
+    "maven_visibility": "Sichtbare Compile-Module",
+    "maven_runtime_visibility": "Sichtbare Laufzeit-Module",
+    "mavenIssues": "Grenzen der Maven-Auflösung",
+    "endpoint": "Schnittstelle",
+    "protocol": "Protokoll",
+    "framework": "Framework",
+    "http_method": "HTTP-Methode",
+    "path": "Pfad",
+    "path_expression": "Dynamischer Pfadausdruck",
+    "namespace": "Namespace",
+    "service_name": "Service",
+    "port_type": "Port-Typ",
+    "consumes": "Akzeptierte Formate",
+    "produces": "Antwortformate",
+    "bean": "Bean und Aktivierung",
+    "activationUnknown": "Aktivierung nicht statisch bestimmbar",
+    "active": "Im konfigurierten Profil aktiv",
+    "inactive": "Im konfigurierten Profil inaktiv",
+    "primary": "Bevorzugte Bean",
+    "names": "Bean-Namen",
+    "provided_type": "Bereitgestellter Typ",
+    "profiles": "Spring-Profile",
+    "scopes": "Gültigkeitsbereiche",
+    "bindings": "Belegte Verbindungen",
     "bindingsLimited": "Weitere Verbindungen stehen im Referenzen-Menü zur Verfügung.",
-    "relations": { "INJECTS": "Injiziert", "DISPATCHES_TO": "Ruft ausgewähltes Ziel auf", "EXPOSES": "Stellt bereit" },
-    "relationsIncoming": { "INJECTS": "Wird verwendet von", "DISPATCHES_TO": "Wird aufgerufen von", "EXPOSES": "Wird bereitgestellt von" }
+    "relations": {
+      "INJECTS": "Injiziert",
+      "DISPATCHES_TO": "Ruft ausgewähltes Ziel auf",
+      "EXPOSES": "Stellt bereit"
+    },
+    "relationsIncoming": {
+      "INJECTS": "Wird verwendet von",
+      "DISPATCHES_TO": "Wird aufgerufen von",
+      "EXPOSES": "Wird bereitgestellt von"
+    }
   },
   "insightCommit": {
     "noBranch": "Branch nicht hinterlegt",

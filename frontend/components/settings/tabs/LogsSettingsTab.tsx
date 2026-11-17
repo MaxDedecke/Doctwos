@@ -155,6 +155,8 @@ export const LogsSettingsTab: React.FC = () => {
         icon: <Loader2 className="w-3 h-3 animate-spin shrink-0" />, progress: src.progress ?? 0,
       };
     }
+    if (status === 'error' && src.auto_sync_paused) return { status, tone: 'danger' as const, label: t('settings.logsTab.statusPaused'), icon: <AlertTriangle className="w-3 h-3 shrink-0" />, progress: 0 };
+    if (src.overdue && status !== 'error') return { status, tone: 'warning' as const, label: t('settings.logsTab.statusOverdue'), icon: <AlertTriangle className="w-3 h-3 shrink-0" />, progress: 0 };
     if (status === 'completed') return { status, tone: 'success' as const, label: t('settings.logsTab.statusSuccess'), icon: <CheckCircle2 className="w-3 h-3 shrink-0" />, progress: 0 };
     if (status === 'error') return { status, tone: 'danger' as const, label: t('settings.logsTab.statusErrorLabel'), icon: <AlertTriangle className="w-3 h-3 shrink-0" />, progress: 0 };
     return { status, tone: 'neutral' as const, label: t('settings.logsTab.statusPending'), icon: <Activity className="w-3 h-3 shrink-0" />, progress: 0 };
@@ -302,7 +304,23 @@ export const LogsSettingsTab: React.FC = () => {
                   <div className="min-w-0">
                     <p className="text-[0.5625rem] font-bold uppercase tracking-wide">{t('settings.logsTab.lastErrorLabel')}</p>
                     <p className="mt-0.5 max-h-20 overflow-y-auto break-all font-mono text-[0.625rem] leading-relaxed">{activeLogSource.last_error}</p>
+                    {activeLogSource.error_kind && (
+                      <p className="mt-1.5 leading-relaxed" data-testid="source-error-hint">{t(`settings.logsTab.errorKind.${activeLogSource.error_kind}`)}</p>
+                    )}
+                    {(activeLogSource.failure_count ?? 0) > 1 && (
+                      <p className="mt-1 leading-relaxed">{t('settings.logsTab.failureCount', { count: String(activeLogSource.failure_count) })}</p>
+                    )}
+                    {activeLogSource.auto_sync_paused && (
+                      <p className="mt-1 font-semibold leading-relaxed">{t('settings.logsTab.autoSyncPaused')}</p>
+                    )}
                   </div>
+                </div>
+              )}
+
+              {activeLogSource.overdue && activeLogSource.sync_status !== 'error' && (
+                <div className="flex shrink-0 gap-2.5 rounded-lg border border-ds-amber-500/20 bg-ds-amber-500/10 p-3 text-xs text-ds-amber-600">
+                  <AlertTriangle className="mt-0.5 w-4 h-4 shrink-0" />
+                  <p className="leading-relaxed">{t('settings.logsTab.overdueNote')}</p>
                 </div>
               )}
 

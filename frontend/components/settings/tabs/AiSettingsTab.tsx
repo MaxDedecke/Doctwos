@@ -316,10 +316,13 @@ function EmbeddingProfilesPanel({
   };
   const activate = async (profile: EmbeddingProfile) => {
     try {
-      await api.activateEmbeddingProfile(Number(profile.id));
+      const res = await api.activateEmbeddingProfile(Number(profile.id));
       setActiveProfileId(profile.id);
       setProfiles(profiles.map(item => ({ ...item, isActive: item.id === profile.id })));
-      showToast(t('settings.embeddingTab.activated'), 'success');
+      const others = Number(res?.data?.projects_on_other_models ?? 0);
+      showToast(others > 0
+        ? t('settings.embeddingTab.activatedOthersKept', { count: String(others) })
+        : t('settings.embeddingTab.activated'), 'success');
     } catch (error) { showToast(t('settings.embeddingTab.activateFailed'), 'error', error); }
   };
   const test = async (profile: EmbeddingProfile) => {

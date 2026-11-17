@@ -316,6 +316,30 @@
         "noSources": "No knowledge sources are linked to this project.",
         "confirm": "Confirm & Complete",
         "cancel": "Cancel"
+      },
+      "embedding": {
+        "toggleTitle": "Embedding model",
+        "title": "Project embedding model",
+        "current": "Current: {{model}}",
+        "coverage": "Chunks per model",
+        "withoutEmbedding": "{{count}} chunks without a vector",
+        "target": "Target profile",
+        "start": "Start model change",
+        "progress": "Embedding with {{model}}: {{done}} of {{total}}",
+        "ready": "All chunks have a {{model}} vector. Search still uses {{previous}}. Check search quality, then switch.",
+        "switched": "Switched to {{model}}. The old vectors are kept for rollback.",
+        "failed": "Run failed: {{error}}",
+        "cancelled": "Cancelled.",
+        "rolledBack": "Rolled back to {{model}}.",
+        "cleaned": "Done; old vectors removed.",
+        "switch": "Switch",
+        "rollback": "Roll back",
+        "cleanup": "Remove old vectors",
+        "cancel": "Cancel",
+        "resume": "Resume",
+        "explain": "New vectors are built next to the old ones; search is unchanged meanwhile. Switching swaps both in one step; rolling back swaps back until the old vectors are removed.",
+        "error": "Action failed",
+        "noProfiles": "No other embedding profile set up (Settings > AI)."
       }
     },
     "git": {
@@ -782,7 +806,21 @@
       "diagnosticsDownload": "Download bundle",
       "diagnosticsStartedToast": "Diagnostics bundle generation started",
       "diagnosticsFailedToast": "Diagnostics bundle generation failed",
-      "diagnosticsStartFailedToast": "Failed to start diagnostics bundle generation"
+      "diagnosticsStartFailedToast": "Failed to start diagnostics bundle generation",
+      "statusPaused": "Paused",
+      "statusOverdue": "Overdue",
+      "failureCount": "{{count}} failed runs in a row",
+      "autoSyncPaused": "Automatic sync paused until the cause is fixed and the source is synced manually.",
+      "overdueNote": "The index is older than the sync interval allows. Answers point this out.",
+      "errorKind": {
+        "auth": "Credentials rejected (401/403). Renew the token or password or check the service account's permissions, then sync manually.",
+        "network": "Source unreachable (network, DNS, certificate or server error). Check reachability from the Doctus host; automatic sync retries with growing intervals.",
+        "not_found": "Address, project, space or branch does not exist (any more). Check the source configuration.",
+        "config": "The source configuration is invalid. Check the source settings.",
+        "source_content": "Some content could not be processed or the source returned much less than before. Check the sync log; the existing index is kept.",
+        "embedding": "Embedding service unreachable or not set up. Check the embedding profile under Settings > AI; the next sync catches up on missing documents.",
+        "internal": "Unexpected error. Check the sync log and the diagnostics bundle."
+      }
     },
     "evaluationTab": {
       "feedbackTitle": "Negatively rated chat answers",
@@ -912,7 +950,8 @@
       "testTitle": "Test connection",
       "editTitle": "Edit profile",
       "deleteTitle": "Delete profile",
-      "activate": "Activate"
+      "activate": "Activate",
+      "activatedOthersKept": "Activated. Applies to new projects; {{count}} existing projects keep their current model. Switch per project under Settings > Projects."
     },
     "mcpTab": {
       "defaultName": "My IDE",
@@ -1106,10 +1145,26 @@
       "evidenceDescription": "Researches project content and checks sources and citations strictly."
     },
     "normalSuggestions": {
-      "explainConcept": { "label": "Explain something", "desc": "Make a topic easy to understand", "prompt": "Please explain simply how " },
-      "draftText": { "label": "Draft text", "desc": "Write a message or summary", "prompt": "Help me write a short text about " },
-      "summarizeText": { "label": "Summarize text", "desc": "Condense long content to the essentials", "prompt": "Please summarize the following text briefly: " },
-      "brainstorm": { "label": "Brainstorm", "desc": "Think through approaches and alternatives", "prompt": "Brainstorm ideas with me for " }
+      "explainConcept": {
+        "label": "Explain something",
+        "desc": "Make a topic easy to understand",
+        "prompt": "Please explain simply how "
+      },
+      "draftText": {
+        "label": "Draft text",
+        "desc": "Write a message or summary",
+        "prompt": "Help me write a short text about "
+      },
+      "summarizeText": {
+        "label": "Summarize text",
+        "desc": "Condense long content to the essentials",
+        "prompt": "Please summarize the following text briefly: "
+      },
+      "brainstorm": {
+        "label": "Brainstorm",
+        "desc": "Think through approaches and alternatives",
+        "prompt": "Brainstorm ideas with me for "
+      }
     },
     "empty": {
       "shuffleTitle": "Another question",
@@ -1924,7 +1979,6 @@
     "relationshipLabel": "Relationship type",
     "scoreLabel": "Minimum score"
   },
-
   "topicsPanel": {
     "nodeTypes": {
       "project": "Project",
@@ -2393,25 +2447,78 @@
     "source_last_synced_at": "Source snapshot"
   },
   "entityAnalysis": {
-    "title": "Object details", "object": "Object", "loading": "Loading object details …",
-    "loadFailed": "Some object details could not be loaded.", "openSource": "Open source location",
-    "return_type": "Return type", "parameter_types": "Parameter types", "type_parameters": "Type parameters",
-    "field_type": "Field type", "variable_type": "Variable type", "parameter_type": "Parameter type", "component_type": "Component type",
-    "throws_types": "Declared exceptions", "visibility": "Visibility", "modifiers": "Modifiers",
-    "annotations": "Annotations / qualifiers", "returns": "Return expressions", "exceptions": "Exceptions and cleanup",
+    "title": "Object details",
+    "object": "Object",
+    "loading": "Loading object details …",
+    "loadFailed": "Some object details could not be loaded.",
+    "openSource": "Open source location",
+    "return_type": "Return type",
+    "parameter_types": "Parameter types",
+    "type_parameters": "Type parameters",
+    "field_type": "Field type",
+    "variable_type": "Variable type",
+    "parameter_type": "Parameter type",
+    "component_type": "Component type",
+    "throws_types": "Declared exceptions",
+    "visibility": "Visibility",
+    "modifiers": "Modifiers",
+    "annotations": "Annotations / qualifiers",
+    "returns": "Return expressions",
+    "exceptions": "Exceptions and cleanup",
     "synthetic": "Implicit method ({{origin}}), derived from its source declaration.",
     "flowLimited": "Incomplete data flow: {{count}} additional statements were omitted due to the analysis limit.",
-    "dataFlow": "Data origins and assignments", "line": "Line", "operation": "Operation", "target": "Target", "origin": "Origin", "statement": "Statement",
-    "operations": { "init": "Initialization", "assign": "Assignment", "compound_assign": "Compound assignment", "increment": "Increment / decrement", "return": "Return" },
-    "maven": "Maven analysis context", "module": "Module", "source_set": "Source set",
-    "maven_active_profiles": "Active Maven profiles", "maven_visibility": "Visible compile modules", "maven_runtime_visibility": "Visible runtime modules", "mavenIssues": "Maven resolution limitations",
-    "endpoint": "Endpoint", "protocol": "Protocol", "framework": "Framework", "http_method": "HTTP method", "path": "Path", "path_expression": "Dynamic path expression",
-    "namespace": "Namespace", "service_name": "Service", "port_type": "Port type", "consumes": "Accepted formats", "produces": "Response formats",
-    "bean": "Bean and activation", "activationUnknown": "Activation cannot be determined statically", "active": "Active in the configured profile", "inactive": "Inactive in the configured profile", "primary": "Primary bean",
-    "names": "Bean names", "provided_type": "Provided type", "profiles": "Spring profiles", "scopes": "Scopes", "bindings": "Source-backed relationships",
+    "dataFlow": "Data origins and assignments",
+    "line": "Line",
+    "operation": "Operation",
+    "target": "Target",
+    "origin": "Origin",
+    "statement": "Statement",
+    "operations": {
+      "init": "Initialization",
+      "assign": "Assignment",
+      "compound_assign": "Compound assignment",
+      "increment": "Increment / decrement",
+      "return": "Return"
+    },
+    "maven": "Maven analysis context",
+    "module": "Module",
+    "source_set": "Source set",
+    "maven_active_profiles": "Active Maven profiles",
+    "maven_visibility": "Visible compile modules",
+    "maven_runtime_visibility": "Visible runtime modules",
+    "mavenIssues": "Maven resolution limitations",
+    "endpoint": "Endpoint",
+    "protocol": "Protocol",
+    "framework": "Framework",
+    "http_method": "HTTP method",
+    "path": "Path",
+    "path_expression": "Dynamic path expression",
+    "namespace": "Namespace",
+    "service_name": "Service",
+    "port_type": "Port type",
+    "consumes": "Accepted formats",
+    "produces": "Response formats",
+    "bean": "Bean and activation",
+    "activationUnknown": "Activation cannot be determined statically",
+    "active": "Active in the configured profile",
+    "inactive": "Inactive in the configured profile",
+    "primary": "Primary bean",
+    "names": "Bean names",
+    "provided_type": "Provided type",
+    "profiles": "Spring profiles",
+    "scopes": "Scopes",
+    "bindings": "Source-backed relationships",
     "bindingsLimited": "Additional relationships are available in the references menu.",
-    "relations": { "INJECTS": "Injects", "DISPATCHES_TO": "Calls selected target", "EXPOSES": "Exposes" },
-    "relationsIncoming": { "INJECTS": "Used by", "DISPATCHES_TO": "Called by", "EXPOSES": "Exposed by" }
+    "relations": {
+      "INJECTS": "Injects",
+      "DISPATCHES_TO": "Calls selected target",
+      "EXPOSES": "Exposes"
+    },
+    "relationsIncoming": {
+      "INJECTS": "Used by",
+      "DISPATCHES_TO": "Called by",
+      "EXPOSES": "Exposed by"
+    }
   },
   "insightCommit": {
     "noBranch": "Branch unspecified",

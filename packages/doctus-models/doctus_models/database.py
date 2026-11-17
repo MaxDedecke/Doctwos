@@ -181,6 +181,12 @@ class KnowledgeSource(Base):
     progress = Column(Integer, default=0)
     progress_message = Column(String, nullable=True)
     last_error = Column(Text, nullable=True)
+    # Fehlerart des letzten Laufs (auth, network, not_found, config, source_content, embedding, internal);
+    # bestimmt Handlungshinweis und ob der automatische Sync pausiert.
+    error_kind = Column(String(32), nullable=True)
+    # Fehlgeschlagene Läufe in Folge; der automatische Sync wartet danach immer länger (siehe parser/worker.py).
+    failure_count = Column(Integer, nullable=False, server_default="0", default=0)
+    last_attempt_at = Column(DateTime(timezone=True), nullable=True)
     sync_log = Column(Text, nullable=True)
     total_files = Column(Integer, nullable=True)
     parsed_files = Column(Integer, default=0)
@@ -254,6 +260,11 @@ class DocumentChunk(Base):
     # dass semantisch inkompatible Modelle trotz gleicher Dimension vermischt
     # werden. NULL bei Altbeständen wird als Deployment-Default behandelt.
     embedding_model = Column(String, nullable=True)
+    # Schattenvektor beim Modellwechsel (EmbeddingMigration): Der neue Vektor entsteht hier, während die Suche
+    # noch den alten nutzt; das Umschalten tauscht beide in einer Transaktion. Danach liegt hier der alte Vektor
+    # für die Rücknahme, bis er aufgeräumt wird.
+    embedding_next = Column(Vector, nullable=True)
+    embedding_next_model = Column(String, nullable=True)
     # O-180: fingerprint and revision used to decide whether link candidates
     # need to be recalculated after an incremental source sync.
     content_hash = Column(String(64), nullable=True, index=True)
@@ -454,6 +465,36 @@ class EmbeddingProfile(Base):
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class EmbeddingMigration(Base):
+    """Wechsel des Embedding-Modells eines Projekts: Schattenvektoren aufbauen, prüfen, umschalten, aufräumen.
+
+    Zustände: embedding → ready → switched → cleaned; daneben failed, cancelled und rolled_back. Höchstens eine
+    nicht abgeschlossene Migration je Projekt.
+    """
+
+    __tablename__ = "embedding_migrations"
+    id = Column(Integer, primary_key=True)
+    project_id = Column(
+        Integer, ForeignKey("projects.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    profile_id = Column(
+        Integer, ForeignKey("embedding_profiles.id", ondelete="SET NULL"), nullable=True
+    )
+    target_model = Column(String, nullable=False)
+    target_dimension = Column(Integer, nullable=True)
+    previous_model = Column(String, nullable=True)
+    status = Column(String(32), nullable=False, server_default="embedding")
+    total = Column(Integer, nullable=False, server_default="0", default=0)
+    done = Column(Integer, nullable=False, server_default="0", default=0)
+    failed = Column(Integer, nullable=False, server_default="0", default=0)
+    error = Column(Text, nullable=True)
+    celery_task_id = Column(String(255), nullable=True)
+    created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+    switched_at = Column(DateTime(timezone=True), nullable=True)
 
 
 class ChatFeedbackDiagnosticCase(Base):

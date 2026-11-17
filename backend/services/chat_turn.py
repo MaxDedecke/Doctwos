@@ -29,6 +29,7 @@ from doctus_models.inference_admission import InferenceAdmissionTimeout
 from core.teams import get_visible_team_ids
 from doctus_models.database import DocumentChunk, KnowledgeSource, Project, User
 from services.ai_settings import get_active_embedding_profile, get_profile
+from services.answer_context import _embedding_profile_for_project
 from services.chat_errors import ChatForbidden, ChatNotFound
 from services.chat_service import (
     ChatIntent,
@@ -427,7 +428,13 @@ class ChatTurnRun:
             self.telemetry.retrieval_wait_ms = 0
             return _Context(prompt=request.message)
         started_at = monotonic()
-        embedding_profile = get_active_embedding_profile(self.db)
+        # Das Projekt bestimmt den Vektorraum, nicht das gerade aktive Profil: Nach einem Profilwechsel fänden
+        # bereits eingelesene Projekte sonst keine Abschnitte mehr (die Suche filtert auf das Modell).
+        embedding_profile = (
+            _embedding_profile_for_project(self.db, request.project_id)
+            if request.project_id
+            else get_active_embedding_profile(self.db)
+        )
         retrieval = await retrieve_chat_context(
             db=self.db,
             user=self.user,

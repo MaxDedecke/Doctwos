@@ -59,6 +59,7 @@ from cobol.copybook import CopybookIndex
 from cobol.profile import BuildProfile, ProfileFragment, SourceColumns, resolve_profile
 from core.registry import STRUCTURE_PARSERS
 from structure_persist import persist_parse_result, rehome_shared_java_container
+from connectors.errors import SOURCE_CONTENT, classify_exception
 from connectors.base import BaseConnector, Document
 from core.sync_lock import SyncLock
 from connectors.finalize import finalize_source
@@ -1546,6 +1547,7 @@ class GitConnector(BaseConnector):
             self.source.parsed_files = 0
             self.source.progress_message = "Initialisiere…"
             self.source.last_error = None
+            self.source.error_kind = None
             self.source.sync_log = ""
             # Ein früher ausgeblendeter Job muss im Job-Center wieder erscheinen,
             # auch wenn der Sync nicht über die API angestoßen wurde (Zeitplan, Beat).
@@ -1680,6 +1682,7 @@ class GitConnector(BaseConnector):
 
             self.source.last_synced_at = self._sync_start_time
             self.source.sync_status = "error" if failed_files else "completed"
+            self.source.error_kind = SOURCE_CONTENT if failed_files else None
             self.source.last_error = (
                 f"{failed_files} Datei(en) konnten nicht indexiert werden."
                 if failed_files
@@ -1707,6 +1710,7 @@ class GitConnector(BaseConnector):
             if self.source:
                 self.source.sync_status = "error"
                 self.source.last_error = error_msg
+                self.source.error_kind = classify_exception(e)
                 self.db.commit()
         finally:
             # Noch wartende Dateien dürfen nach dem Abbruch nicht weiter in die geschlossene Session

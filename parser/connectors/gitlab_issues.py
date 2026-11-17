@@ -6,11 +6,12 @@ import httpx
 
 from connectors.base import BaseConnector, Document
 from connectors.http_retry import request_with_retry
-from db import SessionLocal
-from doctus_models.database import DocumentChunk
 
 
 class GitLabIssuesConnector(BaseConnector):
+    # Das letzte gelöschte Issue eines Projekts darf verschwinden; der Anteilsschutz greift erst ab vielen Issues.
+    _ORPHAN_BLOCK_EMPTY = False
+
     async def _pages(self, client, path, **params):
         page = 1
         while True:
@@ -106,19 +107,15 @@ class GitLabIssuesConnector(BaseConnector):
         self._prune(seen)
 
     def _prune(self, seen):
-        with SessionLocal() as db:
-            known = {
-                key
-                for (key,) in db.query(DocumentChunk.file_path)
-                .filter(DocumentChunk.source_id == self.source_id)
-                .distinct()
-            }
-            stale = sorted(known - seen)
-            for offset in range(0, len(stale), 500):
-                db.query(DocumentChunk).filter(
-                    DocumentChunk.source_id == self.source_id,
-                    DocumentChunk.file_path.in_(stale[offset : offset + 500]),
-                ).delete(synchronize_session=False)
-            db.commit()
-            if stale:
-                self.has_changes = True
+        """Merkt sich den vollständigen Bestand; gelöscht wird erst nach dem Sync (siehe ``sync``)."""
+        self._complete_keys = set(seen)
+
+    async def sync(self, force_reindex: bool = False) -> None:
+        self._complete_keys = None
+        await super().sync()
+        if self._complete_keys is None:
+            return
+        # Derselbe Schutz wie bei Confluence und Jira: Eine leere oder stark geschrumpfte, aber gültige Antwort
+        # (etwa nach einer Rechteänderung am Token) löscht nicht den ganzen Ticketbestand.
+        if self._remove_orphans(self._complete_keys):
+            self.has_changes = True

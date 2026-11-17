@@ -972,3 +972,25 @@ Der vorhandene Parser-Worker aktualisiert Embeddings in kleinen Batches.
 Text-Hash und Profilidentität verhindern die Nutzung veralteter oder fremder
 Vektorräume. Freigabe-/Versionsprüfung folgt auch nach semantischer Auswahl.
 Migration 0048 und gemeinsames Modellpaket 1.10.0 sind erforderlich.
+
+## E-20 — Ausfall einer Wissensquelle und Wechsel des Embedding-Modells (17.11.2026)
+
+**Ausfall einer Quelle.** Ein gescheiterter Sync löscht nie den vorhandenen Index; er bleibt durchsuchbar, Antworten
+weisen auf den Stand hin (`incomplete`, `overdue`). Jede Quelle führt Fehlerart (`error_kind`: auth, network,
+not_found, config, source_content, embedding, internal), Fehlschläge in Folge und den letzten Versuch. Der
+automatische Sync wartet nach Fehlschlägen Intervall · 2^(n−1), höchstens 24 h; bei auth, config und not_found
+pausiert er nach drei Fehlschlägen, bis ein manueller Sync ihn wieder freigibt (Wiederholen sperrt sonst Dienstkonten).
+Liefert eine Quelle ohne Fehler auf einmal weniger als die Hälfte ihrer Dokumente (ab 20), wird nichts gelöscht und die
+Quelle als Fehler `source_content` markiert; das gilt für alle Konnektoren mit Abgleich, auch GitLab Issues.
+`/health` meldet fehlerhafte, pausierte und überfällige Quellen als Zahlen. **Aufbewahrung:** Eine dauerhaft
+unerreichbare Quelle behält ihren Index, markiert als `incomplete` bzw. `overdue`; entfernt wird er nur durch Löschen
+der Quelle. Eine automatische Löschfrist gibt es bewusst nicht (Wissen verschwindet sonst still).
+
+**Embedding-Modell.** Das aktive Embedding-Profil gilt für neue Projekte. Ein Projekt behält den Vektorraum, in dem
+es eingebettet ist; Chat, MCP und neue Quellen des Projekts nutzen dessen Profil, und jedes Modell wird an seinem eigenen
+Endpunkt eingebettet. Modell und Dimension eines Profils mit eingebetteten Inhalten sind nicht änderbar. Der Wechsel
+eines Projekts läuft als Blue-Green über einen Schattenvektor (`document_chunks.embedding_next`, Tabelle
+`embedding_migrations`): einbetten (fortsetzbar), prüfen, in einer Transaktion umschalten (Syncs gesperrt,
+Neues nachgezogen), bei Bedarf zurücknehmen, danach aufräumen. Neue Dimensionen bekommen beim Umschalten ihren
+HNSW-Teilindex (`doctus_models/vector_index.py`). Altbestände ohne Modelleintrag erhielten mit Migration 0049 das Modell
+ihrer Quelle. Migration 0049 und Modellpaket 1.11.0 sind erforderlich.

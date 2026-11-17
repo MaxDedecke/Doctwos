@@ -18,6 +18,9 @@ def send_tracked_task(
 ):
     """Dispatch a task and retain its broker identifier on the visible job record."""
     send_kwargs = {"queue": queue} if queue else {}
+    if task_name == "process_knowledge_source" and getattr(record, "failure_count", 0):
+        # Ein von Hand ausgelöster Lauf hebt die Pause des automatischen Syncs auf (parser/worker.py).
+        record.failure_count = 0
     if kwargs is None:
         result = celery_app.send_task(task_name, args=args, **send_kwargs)
     else:

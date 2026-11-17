@@ -193,6 +193,21 @@ def _run_source_task(source_id: int, coroutine, limit_seconds: int) -> None:
         sync_lock.release_all()
 
 
+@app.task(name="embedding_migration", time_limit=SYNC_TIME_LIMIT + HARD_LIMIT_GRACE)
+def embedding_migration_task(migration_id: int, action: str = "run"):
+    """Modellwechsel eines Projekts: run (Schattenvektoren), switch, rollback, cleanup (tasks/embedding_migration.py)."""
+    from tasks import embedding_migration as job
+
+    _refresh_worker_ai_settings()
+    if action == "cleanup":
+        job.cleanup(migration_id)
+    elif action in ("run", "switch", "rollback"):
+        asyncio.run(getattr(job, action)(migration_id))
+    else:
+        raise ValueError(f"unbekannte Aktion {action}")
+    return {"status": "finished", "migration_id": migration_id, "action": action}
+
+
 @app.task(
     name="process_local_document",
     bind=True,
@@ -381,6 +396,37 @@ def generate_diagnostics_bundle(task, run_id: int, trace_id: str | None = None):
 _SYNC_DUE_GRACE = timedelta(minutes=7)
 
 
+# Nach Fehlschlägen wächst der Abstand: Intervall · 2^(Fehler-1), höchstens ein Tag. Abgelehnte Zugangsdaten,
+# fehlende Ziele und Fehlkonfiguration pausieren nach drei Fehlschlägen ganz, bis ein manueller Sync oder eine
+# Änderung der Quelle den Zähler zurücksetzt; Wiederholen würde nur das Dienstkonto sperren.
+_BACKOFF_MAX = timedelta(hours=24)
+_PAUSE_AFTER_FAILURES = 3
+
+
+def _aware(value):
+    return (
+        value.replace(tzinfo=timezone.utc) if value is not None and value.tzinfo is None else value
+    )
+
+
+def _auto_sync_due(source, interval: int, now) -> bool:
+    from connectors.errors import NEEDS_ACTION
+
+    failures = source.failure_count or 0
+    if failures:
+        if (source.error_kind or "") in NEEDS_ACTION and failures >= _PAUSE_AFTER_FAILURES:
+            return False
+        attempted = _aware(source.last_attempt_at) or _aware(source.last_synced_at)
+        if attempted is None:
+            return True
+        wait = min(timedelta(minutes=interval) * (2 ** (failures - 1)), _BACKOFF_MAX)
+        return now - attempted >= wait - _SYNC_DUE_GRACE
+    last = _aware(source.last_synced_at)
+    if last is None:
+        return True
+    return now - last >= timedelta(minutes=interval) - _SYNC_DUE_GRACE
+
+
 @app.task(name="scan_pull_sources")
 def scan_pull_sources():
     """
@@ -416,13 +462,7 @@ def scan_pull_sources():
             interval = s.sync_interval_minutes or 0
             if interval <= 0:
                 continue  # nur manuell — kein Auto-Sync
-            last = s.last_synced_at
-            if last is None:
-                due_ids.append(s.id)
-                continue
-            if last.tzinfo is None:
-                last = last.replace(tzinfo=timezone.utc)
-            if now - last >= timedelta(minutes=interval) - _SYNC_DUE_GRACE:
+            if _auto_sync_due(s, interval, now):
                 due_ids.append(s.id)
     finally:
         db.close()

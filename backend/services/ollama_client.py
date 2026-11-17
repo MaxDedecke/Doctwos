@@ -18,7 +18,6 @@ import re
 from typing import Optional
 
 import httpx
-from pgvector.sqlalchemy import HALFVEC, Vector
 from sqlalchemy import and_, cast, or_, text
 from sqlalchemy.orm import Session
 
@@ -27,6 +26,7 @@ from core.llm_providers import is_self_hosted_openai
 from doctus_models.inference_admission import admitted_post
 from core.inference_errors import raise_for_inference_status
 from doctus_models.database import DocumentChunk, KnowledgeSource
+from doctus_models.vector_index import indexed_type as vector_indexed_type
 
 logger = logging.getLogger(__name__)
 
@@ -164,10 +164,10 @@ def nearest_project_chunks(
     else:
         model_scope = DocumentChunk.embedding_model == selected_model
 
-    # Die HNSW-Indizes liegen auf (embedding)::vector(1024) bzw. ::halfvec(2560) mit Teilprädikat auf die Dimension.
+    # Die HNSW-Indizes liegen je Dimension auf (embedding)::vector(n) bzw. ::halfvec(n) mit Teilprädikat (vector_index).
     # Nur mit derselben Umwandlung nutzt die Abfrage den Index; ohne sie liest sie alle Abschnitte (Camel: 6,8 s statt 0,1 s).
     dimension = len(query_embedding)
-    indexed_type = {1024: Vector(1024), 2560: HALFVEC(2560)}.get(dimension)
+    indexed_type = vector_indexed_type(dimension)
     column = (
         cast(DocumentChunk.embedding, indexed_type)
         if indexed_type is not None
