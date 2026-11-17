@@ -82,10 +82,15 @@ DEPLOYER_TOKEN: str = os.getenv("DEPLOYER_TOKEN", "")
 
 OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL") or "http://ollama:11434"
 OLLAMA_API_KEY: str = os.getenv("OLLAMA_API_KEY", "")
+# OLLAMA_BASE_URL und OLLAMA_API_KEY spiegeln nach dem Aktivieren eines Profils dessen Adresse und Schlüssel,
+# auch bei einem Cloud-Profil. Die Werte aus der Umgebung bleiben hier unverändert erhalten.
+ENV_OLLAMA_BASE_URL: str = OLLAMA_BASE_URL.rstrip("/")
+ENV_OLLAMA_API_KEY: str = OLLAMA_API_KEY
 # Runtime metadata for the active server-side profile.  The legacy names above
 # remain because many call sites still consume them, but they can now point to
 # an Ollama-native or OpenAI-compatible endpoint.
 ACTIVE_LLM_PROTOCOL: str = "ollama"
+ACTIVE_LLM_PROVIDER: str = "ollama"
 ACTIVE_LLM_PATH: str = "/api/chat"
 ACTIVE_LLM_TEMPERATURE: float | None = None
 # Chat-Antworten (Agent und Standard-RAG), wenn weder Anfrage noch Profil eine
@@ -255,3 +260,25 @@ def cloud_llm_allowed() -> bool:
             return bool(json.load(f).get("llm", {}).get("allowCloudProviders", False))
     except Exception:
         return False
+
+
+def ollama_fallback_key(base_url: str | None) -> str:
+    """Schlüssel für ein Ollama-Ziel, das keinen eigenen mitbringt.
+
+    Nur ein Schlüssel, der zu genau dieser Adresse gehört: der des aktiven Ollama-Profils oder der aus der
+    Umgebung für den Umgebungs-Endpunkt. Nie der Schlüssel eines anderen Profils: Bei aktivem Cloud-Profil
+    steht in OLLAMA_API_KEY dessen Schlüssel, und der ging sonst als Bearer-Header an fremde Ollama-Server.
+    """
+    target = (base_url or "").rstrip("/")
+    if not target:
+        return ""
+    if ACTIVE_LLM_PROTOCOL == "ollama" and target == OLLAMA_BASE_URL.rstrip("/"):
+        return OLLAMA_API_KEY
+    if target == ENV_OLLAMA_BASE_URL:
+        return ENV_OLLAMA_API_KEY
+    return ""
+
+
+def default_ollama_base_url() -> str:
+    """Adresse für Ollama-Aufrufe ohne eigene Adresse: das aktive Profil nur, wenn es selbst Ollama ist."""
+    return OLLAMA_BASE_URL.rstrip("/") if ACTIVE_LLM_PROTOCOL == "ollama" else ENV_OLLAMA_BASE_URL

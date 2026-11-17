@@ -499,7 +499,7 @@ class ChatTurnRun:
                 repository_id=context.repository_id,
                 db=self.db,
                 mcp_clients=mcp_clients,
-                ollama_base_url=profile.llm_base_url or cfg.OLLAMA_BASE_URL,
+                ollama_base_url=profile.llm_base_url or cfg.default_ollama_base_url(),
                 endpoint_path=(
                     profile.llm_path
                     if profile.protocol in {"openai_chat", "openai_responses", "ollama"}

@@ -842,10 +842,10 @@ async def stream_standard_rag_events(
         if selected_protocol in ("openai_chat", "ollama"):
             is_ollama = selected_protocol == "ollama"
             if is_ollama:
-                base = (base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
+                base = (base_url or cfg.default_ollama_base_url()).rstrip("/")
                 url = f"{base}/{(path or '/api/chat').lstrip('/')}"
                 headers = {"Content-Type": "application/json"}
-                selected_key = cfg.OLLAMA_API_KEY if api_key is None else api_key
+                selected_key = cfg.ollama_fallback_key(base) if api_key is None else api_key
                 if selected_key:
                     headers["Authorization"] = f"Bearer {selected_key}"
                 model_to_use = cfg.resolve_ollama_model(model)

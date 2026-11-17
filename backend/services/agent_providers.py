@@ -506,7 +506,7 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
         self.headers = {"Content-Type": "application/json"}
         # Ein entferntes Ollama-Profil bringt ggf. eigene Zugangsdaten mit;
         # der prozessweite Wert ist nur der Rückfall für das lokale Profil (O-259).
-        key = api_key or cfg.OLLAMA_API_KEY
+        key = api_key or cfg.ollama_fallback_key(ollama_base_url)
         if key:
             self.headers["Authorization"] = f"Bearer {key}"
         self.model = cfg.resolve_ollama_model(self.model_name)

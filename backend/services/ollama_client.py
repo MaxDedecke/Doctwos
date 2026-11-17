@@ -284,8 +284,8 @@ async def ask_llm_json_for_profile(
 
     if provider == "ollama":
         model_to_use = cfg.resolve_ollama_model(model)
-        selected_base = (base_url or cfg.OLLAMA_BASE_URL).rstrip("/")
-        selected_key = cfg.OLLAMA_API_KEY if api_key is None else api_key
+        selected_base = (base_url or cfg.default_ollama_base_url()).rstrip("/")
+        selected_key = cfg.ollama_fallback_key(selected_base) if api_key is None else api_key
         headers = {"Content-Type": "application/json"}
         if selected_key:
             headers["Authorization"] = f"Bearer {selected_key}"

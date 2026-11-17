@@ -29,10 +29,17 @@ ROOT = Path(__file__).resolve().parent.parent
 OLLAMA = os.getenv("OLLAMA_URL", "http://localhost:11434")
 MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp")
 MODEL = os.getenv("BENCH_MODEL", "qwen3:8b")
-OPTIONS = {"temperature": 0.3, "top_p": 0.9, "num_ctx": int(os.getenv("BENCH_NUM_CTX", "8192")), "num_predict": int(os.getenv("BENCH_NUM_PREDICT", "1500"))}
+OPTIONS = {
+    "temperature": 0.3,
+    "top_p": 0.9,
+    "num_ctx": int(os.getenv("BENCH_NUM_CTX", "8192")),
+    "num_predict": int(os.getenv("BENCH_NUM_PREDICT", "1500")),
+}
 THINK = os.getenv("BENCH_THINK", "0") == "1"
 EXCLUDE_TOOLS = {t for t in os.getenv("BENCH_EXCLUDE_TOOLS", "").split(",") if t}
-PREFETCH = os.getenv("BENCH_PREFETCH", "0") == "1"  # Server fuehrt den Evidenz-Pack als ersten Werkzeugschritt selbst aus (wie der Chat)
+PREFETCH = (
+    os.getenv("BENCH_PREFETCH", "0") == "1"
+)  # Server fuehrt den Evidenz-Pack als ersten Werkzeugschritt selbst aus (wie der Chat)
 MAX_TURNS = 10
 TOOL_OUTPUT_CAP = 6000  # Zeichen; fuer alle Arme gleich
 CONTEXT_SOFT_LIMIT = OPTIONS["num_ctx"] - 1700
@@ -62,13 +69,18 @@ def sha256(path: Path) -> str:
 
 
 def manifest(tasks_file: str = "tasks.json") -> dict:
-    return {"tasks_sha256": sha256(ROOT / tasks_file), "protocol_sha256": sha256(ROOT / "PROTOCOL.md")}
+    return {
+        "tasks_sha256": sha256(ROOT / tasks_file),
+        "protocol_sha256": sha256(ROOT / "PROTOCOL.md"),
+    }
 
 
 def environment() -> dict:
     def sh(cmd: str) -> str:
         try:
-            return subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=20).stdout.strip()
+            return subprocess.run(
+                cmd, shell=True, capture_output=True, text=True, timeout=20
+            ).stdout.strip()
         except Exception:
             return ""
 
@@ -91,19 +103,51 @@ def environment() -> dict:
 # --------------------------------------------------------------------------- lokale Werkzeuge
 
 LOCAL_TOOLS = [
-    {"type": "function", "function": {
-        "name": "list_dir", "description": "Listet Dateien und Unterverzeichnisse eines Verzeichnisses.",
-        "parameters": {"type": "object", "properties": {"path": {"type": "string", "description": "Relativer Pfad, leer = Wurzel"}}}}},
-    {"type": "function", "function": {
-        "name": "grep", "description": "Sucht ein Regex-Muster (ohne Beachtung der Gross-/Kleinschreibung) in Dateien unterhalb eines Pfads. Liefert Datei:Zeile:Text.",
-        "parameters": {"type": "object", "properties": {
-            "pattern": {"type": "string"}, "path": {"type": "string", "description": "Relativer Pfad, leer = Wurzel"},
-            "max_results": {"type": "integer", "description": "Standard 40"}}, "required": ["pattern"]}}},
-    {"type": "function", "function": {
-        "name": "read_file", "description": "Liest Zeilen einer Datei (hoechstens 250 Zeilen pro Aufruf), mit Zeilennummern.",
-        "parameters": {"type": "object", "properties": {
-            "path": {"type": "string"}, "start_line": {"type": "integer", "description": "Standard 1"},
-            "end_line": {"type": "integer", "description": "Standard start_line+199"}}, "required": ["path"]}}},
+    {
+        "type": "function",
+        "function": {
+            "name": "list_dir",
+            "description": "Listet Dateien und Unterverzeichnisse eines Verzeichnisses.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string", "description": "Relativer Pfad, leer = Wurzel"}
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "grep",
+            "description": "Sucht ein Regex-Muster (ohne Beachtung der Gross-/Kleinschreibung) in Dateien unterhalb eines Pfads. Liefert Datei:Zeile:Text.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "pattern": {"type": "string"},
+                    "path": {"type": "string", "description": "Relativer Pfad, leer = Wurzel"},
+                    "max_results": {"type": "integer", "description": "Standard 40"},
+                },
+                "required": ["pattern"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Liest Zeilen einer Datei (hoechstens 250 Zeilen pro Aufruf), mit Zeilennummern.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "path": {"type": "string"},
+                    "start_line": {"type": "integer", "description": "Standard 1"},
+                    "end_line": {"type": "integer", "description": "Standard start_line+199"},
+                },
+                "required": ["path"],
+            },
+        },
+    },
 ]
 
 
@@ -148,11 +192,15 @@ class LocalTools:
             start = max(1, int(args.get("start_line") or 1))
             end = min(int(args.get("end_line") or start + 199), start + 249)
             lines = p.read_text(errors="replace").splitlines()
-            return "\n".join(f"{i}: {lines[i - 1]}" for i in range(start, min(end, len(lines)) + 1)) or "(leer)"
+            return (
+                "\n".join(f"{i}: {lines[i - 1]}" for i in range(start, min(end, len(lines)) + 1))
+                or "(leer)"
+            )
         raise ValueError(f"unbekanntes Werkzeug {name}")
 
 
 # --------------------------------------------------------------------------- MCP
+
 
 class McpTools:
     def __init__(self):
@@ -167,14 +215,24 @@ class McpTools:
 
         self._stack = AsyncExitStack()
         r, w, _ = await self._stack.enter_async_context(
-            streamablehttp_client(MCP_URL, headers={"Authorization": "Bearer " + os.environ["MCP_TOKEN"]})
+            streamablehttp_client(
+                MCP_URL, headers={"Authorization": "Bearer " + os.environ["MCP_TOKEN"]}
+            )
         )
         self.session = await self._stack.enter_async_context(ClientSession(r, w))
         await self.session.initialize()
         listed = await self.session.list_tools()
         self.tools = [
-            {"type": "function", "function": {"name": t.name, "description": t.description or "", "parameters": t.inputSchema}}
-            for t in listed.tools if t.name not in EXCLUDE_TOOLS
+            {
+                "type": "function",
+                "function": {
+                    "name": t.name,
+                    "description": t.description or "",
+                    "parameters": t.inputSchema,
+                },
+            }
+            for t in listed.tools
+            if t.name not in EXCLUDE_TOOLS
         ]
         return self
 
@@ -204,9 +262,18 @@ def is_empty_result(text: str) -> bool:
 
 # --------------------------------------------------------------------------- Sitzung
 
-async def ollama_chat(client: httpx.AsyncClient, messages: list[dict], tools: list[dict] | None, seed: int) -> dict:
-    body = {"model": MODEL, "messages": messages, "stream": False, "think": THINK,
-            "options": {**OPTIONS, "seed": seed}, "keep_alive": -1}
+
+async def ollama_chat(
+    client: httpx.AsyncClient, messages: list[dict], tools: list[dict] | None, seed: int
+) -> dict:
+    body = {
+        "model": MODEL,
+        "messages": messages,
+        "stream": False,
+        "think": THINK,
+        "options": {**OPTIONS, "seed": seed},
+        "keep_alive": -1,
+    }
     if tools:
         body["tools"] = tools
     r = await client.post(f"{OLLAMA}/api/chat", json=body)
@@ -214,23 +281,47 @@ async def ollama_chat(client: httpx.AsyncClient, messages: list[dict], tools: li
     return r.json()
 
 
-async def run_session(client, task: dict, arm: str, rep: int, project: dict, mcp: McpTools | None) -> dict:
+async def run_session(
+    client, task: dict, arm: str, rep: int, project: dict, mcp: McpTools | None
+) -> dict:
     seed = 1000 + rep
     root = ROOT / project["corpus"]
     root_listing = ", ".join(sorted(f"{c.name}{'/' if c.is_dir() else ''}" for c in root.iterdir()))
-    system = SYSTEM_BASE + " " + ARM_HINTS[arm].format(project_id=project["project_id"], root_listing=root_listing)
+    system = (
+        SYSTEM_BASE
+        + " "
+        + ARM_HINTS[arm].format(project_id=project["project_id"], root_listing=root_listing)
+    )
     messages = [{"role": "system", "content": system}, {"role": "user", "content": task["prompt"]}]
     local = LocalTools(ROOT / project["corpus"]) if arm == "local" else None
     tools = LOCAL_TOOLS if arm == "local" else (mcp.tools if arm == "mcp" else None)
 
-    rec = {"task": task["id"], "arm": arm, "rep": rep, "seed": seed, "status": "ok", "turns": 0,
-           "prompt_tokens": 0, "completion_tokens": 0, "llm_s": 0.0, "tool_s": 0.0,
-           "tool_calls": [], "tool_output_chars": 0, "forced_final": False, "answer": "", "retries": 0}
+    rec = {
+        "task": task["id"],
+        "arm": arm,
+        "rep": rep,
+        "seed": seed,
+        "status": "ok",
+        "turns": 0,
+        "prompt_tokens": 0,
+        "completion_tokens": 0,
+        "llm_s": 0.0,
+        "tool_s": 0.0,
+        "tool_calls": [],
+        "tool_output_chars": 0,
+        "forced_final": False,
+        "answer": "",
+        "retries": 0,
+    }
     t0 = time.monotonic()
     last_prompt_tokens = 0
     try:
         if PREFETCH and arm == "mcp":
-            args = {"project_id": project["project_id"], "question": task["prompt"], "max_chars": 5000}
+            args = {
+                "project_id": project["project_id"],
+                "question": task["prompt"],
+                "max_chars": 5000,
+            }
             ts = time.monotonic()
             text, error = await mcp.call("answer_context", args)
             dt = time.monotonic() - ts
@@ -239,16 +330,36 @@ async def run_session(client, task: dict, arm: str, rep: int, project: dict, mcp
                 text = text[:TOOL_OUTPUT_CAP] + "\n[... Ausgabe gekuerzt]"
             rec["tool_s"] += dt
             rec["tool_output_chars"] += len(text)
-            rec["tool_calls"].append({"name": "answer_context", "args": args, "chars": raw_len, "error": error,
-                                      "empty": (not error) and is_empty_result(text), "truncated": raw_len > TOOL_OUTPUT_CAP,
-                                      "s": round(dt, 3), "prefetch": True})
-            messages.append({"role": "assistant", "content": "", "tool_calls": [{"function": {"name": "answer_context", "arguments": args}}]})
+            rec["tool_calls"].append(
+                {
+                    "name": "answer_context",
+                    "args": args,
+                    "chars": raw_len,
+                    "error": error,
+                    "empty": (not error) and is_empty_result(text),
+                    "truncated": raw_len > TOOL_OUTPUT_CAP,
+                    "s": round(dt, 3),
+                    "prefetch": True,
+                }
+            )
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": [{"function": {"name": "answer_context", "arguments": args}}],
+                }
+            )
             messages.append({"role": "tool", "tool_name": "answer_context", "content": text})
         for turn in range(MAX_TURNS + 1):
             force = turn == MAX_TURNS or last_prompt_tokens >= CONTEXT_SOFT_LIMIT
             if force and tools:
                 rec["forced_final"] = True
-                messages.append({"role": "user", "content": "Antworte jetzt mit dem bisher Gesammelten. Keine weiteren Werkzeugaufrufe."})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": "Antworte jetzt mit dem bisher Gesammelten. Keine weiteren Werkzeugaufrufe.",
+                    }
+                )
             resp = await ollama_chat(client, messages, None if force else tools, rec["seed"])
             rec["turns"] += 1
             rec["prompt_tokens"] += resp.get("prompt_eval_count", 0)
@@ -260,12 +371,26 @@ async def run_session(client, task: dict, arm: str, rep: int, project: dict, mcp
             calls = msg.get("tool_calls") or []
             # Ollama verwirft Werkzeugaufrufe mit ungueltigem JSON (z. B. \' im Text) ohne Fehlermeldung und liefert dann
             # eine leere Nachricht. Ein Agent-Client wiederholt in diesem Fall mit einem Hinweis.
-            if tools and not force and not calls and not msg.get("content", "").strip() and resp.get("eval_count", 0) > 20 and rec.get("retries", 0) < 2:
+            if (
+                tools
+                and not force
+                and not calls
+                and not msg.get("content", "").strip()
+                and resp.get("eval_count", 0) > 20
+                and rec.get("retries", 0) < 2
+            ):
                 rec["retries"] = rec.get("retries", 0) + 1
-                messages.append({"role": "user", "content": "Dein letzter Werkzeugaufruf war kein gueltiges JSON und wurde verworfen. Rufe das Werkzeug erneut auf, mit kurzen Argumenten, ohne Anfuehrungszeichen im Text."})
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": "Dein letzter Werkzeugaufruf war kein gueltiges JSON und wurde verworfen. Rufe das Werkzeug erneut auf, mit kurzen Argumenten, ohne Anfuehrungszeichen im Text.",
+                    }
+                )
                 continue
             if not calls or force:
-                rec["answer"] = re.sub(r"<think>.*?</think>", "", msg.get("content", ""), flags=re.S).strip()
+                rec["answer"] = re.sub(
+                    r"<think>.*?</think>", "", msg.get("content", ""), flags=re.S
+                ).strip()
                 break
             messages.append(msg)
             for call in calls:
@@ -292,9 +417,17 @@ async def run_session(client, task: dict, arm: str, rep: int, project: dict, mcp
                 if truncated:
                     text = text[:TOOL_OUTPUT_CAP] + "\n[... Ausgabe gekuerzt]"
                 rec["tool_output_chars"] += len(text)
-                rec["tool_calls"].append({"name": name, "args": args, "chars": raw_len, "error": error,
-                                          "empty": (not error) and is_empty_result(text), "truncated": truncated,
-                                          "s": round(dt, 3)})
+                rec["tool_calls"].append(
+                    {
+                        "name": name,
+                        "args": args,
+                        "chars": raw_len,
+                        "error": error,
+                        "empty": (not error) and is_empty_result(text),
+                        "truncated": truncated,
+                        "s": round(dt, 3),
+                    }
+                )
                 messages.append({"role": "tool", "tool_name": name, "content": text})
         else:
             rec["status"] = "no_answer"
@@ -314,11 +447,28 @@ async def main() -> None:
     ap.add_argument("--arms", default="none,local,mcp")
     ap.add_argument("--tasks", default="")
     ap.add_argument("--out", default="")
-    ap.add_argument("--only", default="", help="Einzelsitzung TASK:ARM:REP (Wiederholung nach Infrastrukturfehler)")
-    ap.add_argument("--tasks-file", default="tasks.json", help="Aufgabendatei (Standard: tasks.json)")
-    ap.add_argument("--lock", default="", help="JSON-Festlegung (manifest_chN.json) statt des Standard-Locks")
+    ap.add_argument(
+        "--only",
+        default="",
+        help="Einzelsitzung TASK:ARM:REP (Wiederholung nach Infrastrukturfehler)",
+    )
+    ap.add_argument(
+        "--tasks-file", default="tasks.json", help="Aufgabendatei (Standard: tasks.json)"
+    )
+    ap.add_argument(
+        "--lock", default="", help="JSON-Festlegung (manifest_chN.json) statt des Standard-Locks"
+    )
     ap.add_argument("--freeze", action="store_true", help="schreibt manifest.lock und beendet")
-    ap.add_argument("--pilot", action="store_true", help="Ergebnisse als Pilot kennzeichnen (nicht fuer die Auswertung)")
+    ap.add_argument(
+        "--pilot",
+        action="store_true",
+        help="Ergebnisse als Pilot kennzeichnen (nicht fuer die Auswertung)",
+    )
+    ap.add_argument(
+        "--resume",
+        action="store_true",
+        help="vorhandene Ausgabedatei fortsetzen: fertige Sitzungen ueberspringen, anhaengen statt ueberschreiben",
+    )
     args = ap.parse_args()
 
     if args.freeze:
@@ -330,8 +480,14 @@ async def main() -> None:
         if frozen.get("tasks_sha256") != sha256(ROOT / args.tasks_file):
             raise SystemExit("Aufgabendatei passt nicht zur Festlegung " + args.lock)
     lock = ROOT / "manifest.lock"
-    if not args.lock and not args.pilot and (not lock.exists() or json.loads(lock.read_text()) != manifest(args.tasks_file)):
-        raise SystemExit("manifest.lock fehlt oder passt nicht zu tasks.json/PROTOCOL.md -- erst einfrieren (--freeze).")
+    if (
+        not args.lock
+        and not args.pilot
+        and (not lock.exists() or json.loads(lock.read_text()) != manifest(args.tasks_file))
+    ):
+        raise SystemExit(
+            "manifest.lock fehlt oder passt nicht zu tasks.json/PROTOCOL.md -- erst einfrieren (--freeze)."
+        )
 
     spec = json.loads((ROOT / args.tasks_file).read_text())
     tasks = [t for t in spec["tasks"] if not args.tasks or t["id"] in args.tasks.split(",")]
@@ -339,7 +495,26 @@ async def main() -> None:
     run_id = args.out or time.strftime("run_%Y%m%d_%H%M%S") + ("_pilot" if args.pilot else "")
     out_path = ROOT / "results" / "raw" / f"{run_id}.jsonl"
     env = environment()
-    out_path.write_text(json.dumps({"_meta": {**env, **manifest(args.tasks_file), "run_id": run_id, "pilot": args.pilot}}) + "\n")
+    done: set[tuple[str, str, int]] = set()
+    if args.resume and out_path.exists():
+        # Nach einem Infrastrukturabbruch: gleiche Seeds, nur die fehlenden Sitzungen; die Kopfzeile bleibt die erste.
+        for line in out_path.read_text().splitlines()[1:]:
+            r = json.loads(line)
+            done.add((r["task"], r["arm"], r["rep"]))
+    else:
+        out_path.write_text(
+            json.dumps(
+                {
+                    "_meta": {
+                        **env,
+                        **manifest(args.tasks_file),
+                        "run_id": run_id,
+                        "pilot": args.pilot,
+                    }
+                }
+            )
+            + "\n"
+        )
 
     rng = random.Random(20261002)
     plan = []
@@ -348,6 +523,10 @@ async def main() -> None:
             order = arms[:]
             rng.shuffle(order)  # Reihenfolge je Block zufaellig gegen Drift (Waerme, Cache)
             plan += [(task, arm, rep) for arm in order]
+
+    if done:
+        plan = [(task, arm, rep) for task, arm, rep in plan if (task["id"], arm, rep) not in done]
+        print(f"fortgesetzt: {len(done)} Sitzungen vorhanden, {len(plan)} offen", flush=True)
 
     if args.only:
         t_id, o_arm, o_rep = args.only.split(":")
@@ -365,9 +544,12 @@ async def main() -> None:
                 rec = await run_session(client, task, arm, rep, project, mcp)
                 with out_path.open("a") as fh:
                     fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
-                print(f"[{i}/{len(plan)}] {task['id']:<16} {arm:<5} rep{rep} {rec['status']:<10} "
-                      f"{rec['wall_s']:>6.1f}s turns={rec['turns']} tools={len(rec['tool_calls'])} "
-                      f"tok={rec['prompt_tokens']}+{rec['completion_tokens']}", flush=True)
+                print(
+                    f"[{i}/{len(plan)}] {task['id']:<16} {arm:<5} rep{rep} {rec['status']:<10} "
+                    f"{rec['wall_s']:>6.1f}s turns={rec['turns']} tools={len(rec['tool_calls'])} "
+                    f"tok={rec['prompt_tokens']}+{rec['completion_tokens']}",
+                    flush=True,
+                )
         finally:
             if mcp:
                 await mcp.__aexit__(None, None, None)

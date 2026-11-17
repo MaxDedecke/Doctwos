@@ -36,6 +36,11 @@ async def generate_typing_statement() -> str:
     # chatting, so attempting the disabled model would create log noise forever.
     if not cfg.OLLAMA_LLM_MODEL or cfg.OLLAMA_LLM_MODEL == "disabled":
         return random.choice(_FALLBACK_STATEMENTS)
+    # Nur ein aktives Ollama-Profil wird gefragt. Bei einem Cloud- oder fremden OpenAI-Profil stehen dessen
+    # Adresse und Schlüssel in den Ollama-Feldern; der ständig abgefragte Startbildschirm hätte sonst alle zwei
+    # Minuten eine kostenpflichtige Anfrage mit diesem Schlüssel gestellt.
+    if cfg.ACTIVE_LLM_PROTOCOL != "ollama" or cfg.ACTIVE_LLM_PROVIDER in cfg.CLOUD_LLM_PROVIDERS:
+        return random.choice(_FALLBACK_STATEMENTS)
 
     try:
         url = f"{cfg.OLLAMA_BASE_URL}/v1/chat/completions"
