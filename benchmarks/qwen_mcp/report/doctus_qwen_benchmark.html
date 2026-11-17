@@ -1,0 +1,374 @@
+<title>Doctus Qwen-Benchmark</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&family=Space+Grotesk:wght@500;600&display=swap">
+<style>
+/* Layout: eine Lesespalte; oben Kernaussagen, dann das Streudiagramm als Hauptfigur, darunter Wirkung, Aufgaben, Tabelle. */
+:root {
+  --bg: #f6f7f8; --surface: #fcfcfb; --fg: #16181b; --fg-2: #4f545b; --fg-3: #7b818a;
+  --line: #dfe2e6; --grid: #eceef1; --chip: #eef1f5;
+  --mcp: #2a78d6; --files: #eb6834; --none: #1baf7a;
+  --seq-1: #cde2fb; --seq-2: #9ec5f4; --seq-3: #6da7ec; --seq-4: #3987e5; --seq-5: #256abf; --seq-6: #184f95; --seq-7: #0d366b;
+  --font-display: "Space Grotesk", "Segoe UI", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #121315; --surface: #1a1a19; --fg: #f0efec; --fg-2: #c3c2b7; --fg-3: #8f8e86;
+    --line: #34363a; --grid: #26282b; --chip: #24262a;
+    --mcp: #3987e5; --files: #d95926; --none: #199e70; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #121315; --surface: #1a1a19; --fg: #f0efec; --fg-2: #c3c2b7; --fg-3: #8f8e86;
+  --line: #34363a; --grid: #26282b; --chip: #24262a;
+  --mcp: #3987e5; --files: #d95926; --none: #199e70; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--font-body); }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 32px 64px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1, h2 { font-family: var(--font-display); text-wrap: balance; margin: 0; letter-spacing: -0.01em; }
+h1 { font-size: 30px; line-height: 1.15; }
+h2 { font-size: 20px; }
+p { margin: 0; }
+.lede { color: var(--fg-2); max-width: 70ch; margin-top: 8px; }
+.eyebrow { font: 500 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.08em; color: var(--fg-3); }
+.findings { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.finding { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 14px 16px; display: grid; gap: 6px; align-content: start; min-width: 0; }
+.finding b { font: 600 22px/1.1 var(--font-display); }
+.finding span { color: var(--fg-2); font-size: 13.5px; }
+section.panel { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 14px; min-width: 0; }
+.panel-head { display: grid; gap: 4px; }
+.panel-head p { color: var(--fg-2); font-size: 14px; max-width: 75ch; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg button { font: 500 13px/1 var(--font-body); background: transparent; color: var(--fg-2); border: 0; padding: 8px 11px; cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line); }
+.seg button[aria-pressed="true"] { background: var(--chip); color: var(--fg); font-weight: 600; }
+.seg button:focus-visible, .chip:focus-within, .tabbtn:focus-visible { outline: 2px solid var(--mcp); outline-offset: 2px; }
+.ctl-label { font: 500 11px/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.06em; color: var(--fg-3); margin-right: 6px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { display: inline-flex; gap: 6px; align-items: center; font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; cursor: pointer; color: var(--fg-2); }
+.chip input { margin: 0; accent-color: var(--mcp); }
+.legend { display: flex; flex-wrap: wrap; gap: 16px; font-size: 13px; color: var(--fg-2); }
+.legend i { display: inline-block; vertical-align: -2px; margin-right: 6px; }
+.chart-box { position: relative; min-width: 0; }
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+svg text { fill: var(--fg-2); font-family: var(--font-body); }
+.axis-label { font-size: 12px; fill: var(--fg-3); }
+.tick text { font: 11px var(--font-mono); fill: var(--fg-3); }
+.tuple { font: 500 11px var(--font-mono); fill: var(--fg); }
+.mname { font: 600 12.5px var(--font-body); fill: var(--fg); }
+.tooltip { position: absolute; pointer-events: none; background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 9px 11px; font-size: 12.5px; box-shadow: 0 6px 20px rgb(0 0 0 / 0.12); min-width: 220px; max-width: 300px; z-index: 5; }
+.tooltip .tt-title { font-weight: 600; margin-bottom: 4px; }
+.tooltip .tt-row { display: flex; justify-content: space-between; gap: 14px; color: var(--fg-2); font-variant-numeric: tabular-nums; }
+.tooltip .tt-row b { color: var(--fg); font-weight: 500; font-family: var(--font-mono); }
+.note { font-size: 13px; color: var(--fg-2); }
+.table-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+th, td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { font: 500 11px var(--font-mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--fg-3); }
+th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+td.num { font-family: var(--font-mono); }
+.armtag { display: inline-flex; align-items: center; gap: 6px; }
+.badge { font: 500 10.5px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; color: var(--fg-3); margin-left: 6px; }
+.method { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px 24px; font-size: 13.5px; color: var(--fg-2); }
+.method h3 { font: 600 14px var(--font-body); color: var(--fg); margin: 0 0 4px; }
+.heat-scroll { overflow-x: auto; }
+.theme-toggle { justify-self: end; font: 500 12px var(--font-body); background: transparent; border: 1px solid var(--line); color: var(--fg-2); border-radius: 6px; padding: 5px 10px; cursor: pointer; }
+header { display: grid; gap: 4px; grid-template-columns: 1fr auto; align-items: start; }
+@media (max-width: 640px) { h1 { font-size: 24px; } section.panel { padding: 14px; } }
+@media (prefers-reduced-motion: no-preference) { .pt { transition: opacity .15s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <div class="eyebrow">Doctus · Kapitel 9 · 17.11.2026</div>
+      <h1>Wie viel hilft Doctus-MCP lokalen Qwen-Modellen?</h1>
+      <p class="lede">18 Entwickleraufgaben auf AWS CardDemo (COBOL) und Apache Syncope (Java). Jedes Modell bekommt dieselbe Aufgabe dreimal: ohne Werkzeuge, mit Dateiwerkzeugen auf dem Quellcode (grep, lesen) und mit den Doctus-MCP-Werkzeugen. Bewertet wird nach festen Prüfpunkten je Aufgabe (Rubrik 0 bis 1).</p>
+    </div>
+    <button class="theme-toggle" id="themeToggle" type="button">Hell/Dunkel</button>
+  </header>
+
+  <div class="findings" id="findings"></div>
+
+  <section class="panel" aria-labelledby="h-frontier">
+    <div class="panel-head">
+      <div class="eyebrow">Hauptfigur</div>
+      <h2 id="h-frontier">Qualität gegen Aufwand je Modell</h2>
+      <p>Jeder Punkt ist ein Tupel aus Aufwand und mittlerer Rubrik. Die drei Punkte eines Modells sind verbunden: ohne Werkzeuge, mit Dateien, mit MCP. Senkrechte Striche zeigen das 95-%-Intervall (Bootstrap über Aufgaben). Oben links ist gut.</p>
+    </div>
+    <div class="controls">
+      <div><span class="ctl-label">Aufgaben</span><span class="seg" id="segSet"></span></div>
+      <div><span class="ctl-label">Sprache</span><span class="seg" id="segLang"></span></div>
+      <div><span class="ctl-label">x-Achse</span><span class="seg" id="segX"></span></div>
+      <div><span class="ctl-label">Tupel</span><span class="seg" id="segLabels"></span></div>
+    </div>
+    <div class="chips" id="modelChips" aria-label="Modelle"></div>
+    <div class="legend" id="legend"></div>
+    <div class="chart-box" id="frontierBox"><svg id="frontier" viewBox="0 0 900 470" role="img" aria-label="Streudiagramm Rubrik gegen Aufwand"></svg><div class="tooltip" id="tip" hidden></div></div>
+    <p class="note" id="frontierNote"></p>
+  </section>
+
+  <section class="panel" aria-labelledby="h-gain">
+    <div class="panel-head">
+      <div class="eyebrow">Wirkung</div>
+      <h2 id="h-gain">Was MCP gegenüber den anderen Gruppen bringt</h2>
+      <p>Gleiche Aufgaben und Wiederholungen, gepaart verglichen. Die Differenz ist MCP minus Vergleichsgruppe, in Klammern das 95-%-Intervall über Aufgaben. Ein Intervall, das die Null nicht enthält, gilt hier als belegt.</p>
+    </div>
+    <div class="chart-box"><svg id="gain" viewBox="0 0 900 300" role="img" aria-label="Rubrik je Modell und Gruppe"></svg></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-heat">
+    <div class="panel-head">
+      <div class="eyebrow">Je Aufgabe</div>
+      <h2 id="h-heat">Wo die Modelle gewinnen und scheitern</h2>
+      <p>Mittlere Rubrik je Aufgabe für die gewählte Gruppe. Leere Felder: Aufgabe in diesem Lauf nicht gemessen.</p>
+    </div>
+    <div class="controls"><div><span class="ctl-label">Gruppe</span><span class="seg" id="segHeatArm"></span></div></div>
+    <div class="heat-scroll"><svg id="heat" viewBox="0 0 900 600" role="img" aria-label="Rubrik je Aufgabe und Modell"></svg></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-table">
+    <div class="panel-head">
+      <div class="eyebrow">Zahlen</div>
+      <h2 id="h-table">Alle Gruppen im Überblick</h2>
+      <p>Folgt der Auswahl von Aufgabensatz und Sprache oben. „Limit“ ist der Anteil der Sitzungen, die das Höchstmaß von 10 Werkzeugaufrufen erreichten.</p>
+    </div>
+    <div class="table-scroll"><table id="table"></table></div>
+  </section>
+
+  <section class="panel" aria-labelledby="h-method">
+    <div class="panel-head"><div class="eyebrow">Methode</div><h2 id="h-method">So wurde gemessen</h2></div>
+    <div class="method">
+      <div><h3>Aufgaben</h3><p>12 Team-Aufgaben (Einarbeitung, Änderungsstelle, Auswirkung, Fehlersuche, Erweiterung, Review, Tests) und 6 Prüfaufgaben, die erst nach dem Umbau des MCP-Servers geschrieben und eingefroren wurden. Je Aufgabe 2 Wiederholungen mit festen Seeds; bei 8B wurden nur Wiederholung 1 und 2 der drei gemessenen ausgewertet.</p></div>
+      <div><h3>Bewertung</h3><p>Rubrik = Anteil der erfüllten Prüfpunkte je Aufgabe (Datei, Einheit, Zeilenbeleg, fachliche Aussage), abzüglich Strafen für erfundene Angaben. „Brauchbar“ heißt Rubrik ≥ 0,5. Bewertet wird maschinell nach festen Mustern, nicht durch ein Modell.</p></div>
+      <div><h3>Umgebung</h3><p>Ollama mit nativer API, Q4-Quantisierung, 32k Kontext, Temperatur des Modells, höchstens 10 Werkzeugaufrufe. Hardware: RunPod RTX A6000 (48 GB); 8B zusätzlich lokal mit 8k Kontext. Doctus lief lokal mit dem Stand vom 17.11.2026.</p></div>
+      <div><h3>Grenzen</h3><p>18 Aufgaben aus zwei Projekten, je Gruppe 12 bis 24 Sitzungen: Unterschiede unter etwa 0,1 sind meist nicht belegt. 14B ist ein Teillauf. Die Zeiten stammen vom Pod, dessen CPU die GPU ausbremste; die Reihenfolge der Modelle gilt, die absoluten Sekunden nicht.</p></div>
+    </div>
+  </section>
+</div>
+
+<script>
+const DATA = {"tasks":{"T-C1-ONBOARD":{"set":"team","lang":"COBOL","cat":"Einarbeitung","q":"In AWS CardDemo: Ich bin neu im Team. Wie ist die Anwendung technisch aufgebaut? Erkläre den Online- und den Batch-Teil, über welche Transaktion und welches Programm man einsteigt, wohin man nach der Anmeldung geleitet w","project":"carddemo"},"T-C2-CHANGEPOINT":{"set":"team","lang":"COBOL","cat":"Änderungsstelle finden","q":"In AWS CardDemo: Neue Anforderung: Bei der Online-Aktualisierung eines Kontos darf das Kreditlimit künftig nicht über 50.000 gesetzt werden. In welchem Programm und in welchem Paragraphen muss ich die Prüfung einbauen, w","project":"carddemo"},"T-C3-IMPACT":{"set":"team","lang":"COBOL","cat":"Auswirkung einer Änderung","q":"In AWS CardDemo: Ich möchte das Feld ACCT-CURR-BAL im Kontosatz um zwei Stellen verlängern. Welche Programme sind betroffen (welche rechnen mit dem Feld, welche binden den Satz nur ein und müssen neu übersetzt werden), u","project":"carddemo"},"T-C4-BUGHUNT":{"set":"team","lang":"COBOL","cat":"Fehlersuche","q":"In AWS CardDemo: Fehlermeldung aus dem Fachbereich: Bei der Online-Aktualisierung einer Kreditkarte lässt sich ein Ablaufjahr 2100 nicht speichern, es erscheint 'Invalid card expiry year'. Wo genau entsteht die Meldung, ","project":"carddemo"},"T-C5-JOB":{"set":"team","lang":"COBOL","cat":"Batch-Job verstehen","q":"In AWS CardDemo: Ich soll den Lauf übernehmen, der die Kontoauszüge für Kunden erzeugt. Welcher Job ist das, welche Schritte laufen darin nacheinander, welche Programme werden ausgeführt, welche Dateien werden gelesen un","project":"carddemo"},"T-C6-REVIEW":{"set":"team","lang":"COBOL","cat":"Review-Vorbereitung","q":"In AWS CardDemo: Ein Kollege will das Unterprogramm CSUTLDTC (Datumsprüfung) umbauen. Bevor ich den Change reviewe: Wie ist die Schnittstelle (Parameter und Rückgabe), worauf stützt sich die Prüfung intern, und welche Pr","project":"carddemo"},"T-J1-ONBOARD":{"set":"team","lang":"Java","cat":"Einarbeitung","q":"In Apache Syncope: Ich bin neu im Team. Wie ist das Projekt aufgebaut? Welche Hauptbereiche gibt es, wo liegen REST-Schicht, Geschäftslogik, Provisionierung, Workflow und Persistenz im Core, welche Persistenz-Implementie","project":"syncope"},"T-J2-EXTENSION":{"set":"team","lang":"Java","cat":"Änderungsstelle finden","q":"In Apache Syncope: Wir müssen vor jeder Änderung eines Benutzers eine eigene fachliche Prüfung ausführen (zum Beispiel: die Kostenstelle muss gesetzt sein), möglichst ohne den Core-Code von Syncope zu ändern. Welche Erwe","project":"syncope"},"T-J3-IMPACT":{"set":"team","lang":"Java","cat":"Auswirkung einer Änderung","q":"In Apache Syncope: Ich möchte die Signatur von UserDAO.findByUsername ändern. Wo ist die Methode deklariert, wie wird sie in den Persistenz-Modulen umgesetzt, welche Klassen im Produktivcode rufen sie auf und welche Test","project":"syncope"},"T-J4-TESTS":{"set":"team","lang":"Java","cat":"Tests finden","q":"In Apache Syncope: Ich ändere die Passwort-Erzeugung (DefaultPasswordGenerator). Welche Tests muss ich danach laufen lassen, in welchen Modulen liegen sie und was genau prüfen sie?","project":"syncope"},"T-J5-BUGHUNT":{"set":"team","lang":"Java","cat":"Fehlersuche","q":"In Apache Syncope: Fehlermeldung aus dem Betrieb: Beim Pull aus dem LDAP werden Benutzer doppelt angelegt, obwohl es sie schon gibt; die Benutzernamen unterscheiden sich nur in der Groß- und Kleinschreibung. Wo wird ents","project":"syncope"},"T-J6-REVIEW":{"set":"team","lang":"Java","cat":"Review-Vorbereitung","q":"In Apache Syncope: Ich soll einen Change am Ablauf 'Passwort muss beim nächsten Login geändert werden' reviewen. Über welchen REST-Endpunkt ändert der Benutzer sein Passwort in diesem Zustand, welche Logik-Methode läuft,","project":"syncope"},"P-C1-XREF-ERROR":{"set":"holdout","lang":"COBOL","cat":"Fehlersuche","q":"In AWS CardDemo: Bei der Online-Erfassung einer neuen Transaktion erscheint dem Operator die Meldung 'Unable to lookup Card # in XREF file...'. Wo entsteht diese Meldung, welche Datei wird dafür gelesen, mit welchem Schl","project":"carddemo"},"P-C2-PASSWORD-IMPACT":{"set":"holdout","lang":"COBOL","cat":"Auswirkung einer Änderung","q":"In AWS CardDemo: Das Sicherheitsteam verlangt, dass Passwörter nicht mehr im Klartext gespeichert werden. Welche Programme lesen oder schreiben das Passwortfeld des Benutzersatzes, wie lang ist das Feld heute und in welc","project":"carddemo"},"P-C3-EXPORT":{"set":"holdout","lang":"COBOL","cat":"Batch-Job verstehen","q":"In AWS CardDemo: Für eine Migration sollen alle Stammdaten in eine einzige Austauschdatei exportiert werden. Welches Programm und welcher Job macht das, welche Datenarten (Satzarten) enthält die Datei und wie werden sie ","project":"carddemo"},"P-J1-DELETE":{"set":"holdout","lang":"Java","cat":"Einarbeitung","q":"In Apache Syncope: Wie läuft das Löschen eines Benutzers über die Verwaltungsschnittstelle ab? Welche Berechtigung ist nötig, welche Prüfungen laufen vor dem Löschen, welcher Sonderfall verhindert es, und welche Komponen","project":"syncope"},"P-J2-REALM-CHECK":{"set":"holdout","lang":"Java","cat":"Review-Vorbereitung","q":"In Apache Syncope: Ich reviewe eine Änderung an der Zugriffsprüfung. Wie entscheidet Syncope, ob der angemeldete Administrator einen bestimmten Benutzer ändern oder löschen darf? Welche Fälle werden in welcher Reihenfolg","project":"syncope"},"P-J3-DBTYPE":{"set":"holdout","lang":"Java","cat":"Änderungsstelle finden","q":"In Apache Syncope: Wir wollen den Core statt mit der Standarddatenbank mit MariaDB betreiben. Mit welcher Konfigurationseigenschaft wird der Datenbanktyp gewählt, welche Datenbanken kennt die JPA-Persistenz, welche ist d","project":"syncope"}},"models":[{"id":"local_8b_q4_8k","label":"qwen3:8b Q4","hw":"Laptop-GPU, 8k Kontext","note":"","rows":[["T-C1-ONBOARD","l",1,0.0,0,0,0,25.2,824],["T-C1-ONBOARD","m",1,0.25,0,1,0,26.3,1111],["T-C1-ONBOARD","n",1,0.0,0,0,0,25.4,1176],["T-C2-CHANGEPOINT","n",1,0.0,0,0,0,15.4,743],["T-C2-CHANGEPOINT","l",1,0.0,0,0,0,10.9,570],["T-C2-CHANGEPOINT","m",1,0.75,1,1,0,15.7,586],["T-C3-IMPACT","n",1,0.0,0,0,0,27.8,1473],["T-C3-IMPACT","m",1,0.538,1,1,0,28.3,1356],["T-C3-IMPACT","l",1,0.0,0,0,0,11.6,605],["T-C4-BUGHUNT","m",1,0.091,0,1,0,10.7,449],["T-C4-BUGHUNT","l",1,0.091,0,3,0,9.3,439],["T-C4-BUGHUNT","n",1,0.091,0,0,0,15.4,858],["T-C5-JOB","n",1,0.0,0,0,0,15.3,860],["T-C5-JOB","m",1,0.0,0,1,0,16.9,785],["T-C5-JOB","l",1,0.0,0,0,0,3.6,176],["T-C6-REVIEW","n",1,0.0,0,0,0,14.7,833],["T-C6-REVIEW","m",1,0.75,1,1,0,19.8,936],["T-C6-REVIEW","l",1,0.583,1,4,0,17.0,824],["T-J1-ONBOARD","m",1,0.091,0,1,0,24.4,836],["T-J1-ONBOARD","l",1,0.0,0,0,0,18.8,593],["T-J1-ONBOARD","n",1,0.182,0,0,0,23.7,1305],["T-J2-EXTENSION","l",1,0.0,0,0,0,9.2,374],["T-J2-EXTENSION","n",1,0.0,0,0,0,11.6,516],["T-J2-EXTENSION","m",1,0.273,0,1,0,9.6,354],["T-J3-IMPACT","n",1,0.091,0,0,0,16.2,875],["T-J3-IMPACT","m",1,0.364,0,1,0,11.8,488],["T-J3-IMPACT","l",1,0.0,0,4,0,5.9,248],["T-J4-TESTS","l",1,0.3,0,0,0,17.2,944],["T-J4-TESTS","n",1,0.4,0,0,0,19.1,1062],["T-J4-TESTS","m",1,0.4,0,2,0,30.4,1377],["T-J5-BUGHUNT","l",1,0.0,0,5,0,8.7,281],["T-J5-BUGHUNT","n",1,0.0,0,0,0,22.4,1229],["T-J5-BUGHUNT","m",1,0.0,0,2,0,11.1,472],["T-J6-REVIEW","l",1,0.0,0,10,1,15.7,546],["T-J6-REVIEW","m",1,0.167,0,1,0,16.4,603],["T-J6-REVIEW","n",1,0.083,0,0,0,15.9,881],["T-C1-ONBOARD","l",2,0.0,0,0,0,12.5,673],["T-C1-ONBOARD","n",2,0.0,0,0,0,27.1,1500],["T-C1-ONBOARD","m",2,0.25,0,1,0,24.4,854],["T-C2-CHANGEPOINT","m",2,0.667,1,1,0,14.9,590],["T-C2-CHANGEPOINT","l",2,0.0,0,0,0,34.6,1500],["T-C2-CHANGEPOINT","n",2,0.0,0,0,0,11.6,595],["T-C3-IMPACT","l",2,0.0,0,0,0,20.8,1019],["T-C3-IMPACT","m",2,0.692,1,1,0,34.9,1620],["T-C3-IMPACT","n",2,0.0,0,0,0,29.7,1500],["T-C4-BUGHUNT","m",2,0.091,0,1,0,13.2,507],["T-C4-BUGHUNT","l",2,0.091,0,3,0,12.9,610],["T-C4-BUGHUNT","n",2,0.0,0,0,0,14.5,802],["T-C5-JOB","n",2,0.1,0,0,0,16.4,905],["T-C5-JOB","m",2,0.0,0,1,0,20.9,974],["T-C5-JOB","l",2,0.0,0,0,0,14.6,772],["T-C6-REVIEW","n",2,0.0,0,0,0,15.0,825],["T-C6-REVIEW","m",2,0.75,1,1,0,15.8,726],["T-C6-REVIEW","l",2,0.75,1,4,0,17.9,852],["T-J1-ONBOARD","l",2,0.0,0,0,0,13.1,606],["T-J1-ONBOARD","n",2,0.091,0,0,0,8.7,0],["T-J1-ONBOARD","m",2,0.0,0,1,0,18.4,642],["T-J2-EXTENSION","n",2,0.0,0,0,0,12.9,579],["T-J2-EXTENSION","m",2,0.273,0,1,0,10.5,346],["T-J2-EXTENSION","l",2,0.0,0,0,0,8.5,330],["T-J3-IMPACT","m",2,0.364,0,1,0,12.0,510],["T-J3-IMPACT","n",2,0.182,0,0,0,15.3,862],["T-J3-IMPACT","l",2,0.0,0,4,0,5.4,214],["T-J4-TESTS","m",2,0.4,0,2,0,29.8,1353],["T-J4-TESTS","n",2,0.3,0,0,0,22.8,1203],["T-J4-TESTS","l",2,0.3,0,0,0,18.1,1002],["T-J5-BUGHUNT","l",2,0.0,0,5,0,8.4,357],["T-J5-BUGHUNT","m",2,0.0,0,3,0,20.9,704],["T-J5-BUGHUNT","n",2,0.0,0,0,0,26.9,1345],["T-J6-REVIEW","n",2,0.083,0,0,0,14.4,793],["T-J6-REVIEW","m",2,0.167,0,1,0,15.4,623],["T-J6-REVIEW","l",2,0.0,0,10,1,14.4,427],["P-C1-XREF-ERROR","l",1,0.25,0,2,0,7.3,338],["P-C1-XREF-ERROR","m",1,0.417,0,1,0,22.3,548],["P-C1-XREF-ERROR","n",1,0.0,0,0,0,10.7,536],["P-C2-PASSWORD-IMPACT","n",1,0.0,0,0,0,14.9,808],["P-C2-PASSWORD-IMPACT","l",1,0.0,0,0,0,3.3,63],["P-C2-PASSWORD-IMPACT","m",1,0.364,0,4,1,50.1,1244],["P-C3-EXPORT","n",1,0.0,0,0,0,32.2,895],["P-C3-EXPORT","m",1,0.364,0,1,0,20.7,461],["P-C3-EXPORT","l",1,0.364,0,3,0,15.8,496],["P-J1-DELETE","m",1,0.0,0,2,0,55.1,557],["P-J1-DELETE","l",1,0.0,0,0,0,17.2,796],["P-J1-DELETE","n",1,0.0,0,0,0,19.5,1046],["P-J2-REALM-CHECK","n",1,0.0,0,0,0,18.5,1016],["P-J2-REALM-CHECK","m",1,0.0,0,4,0,31.4,770],["P-J2-REALM-CHECK","l",1,0.0,0,0,0,18.6,529],["P-J3-DBTYPE","n",1,0.364,0,0,0,8.2,450],["P-J3-DBTYPE","m",1,0.455,0,1,0,7.7,280],["P-J3-DBTYPE","l",1,0.364,0,0,0,14.1,402],["P-C1-XREF-ERROR","m",2,0.5,1,1,0,29.5,564],["P-C1-XREF-ERROR","l",2,0.25,0,3,0,9.6,412],["P-C1-XREF-ERROR","n",2,0.0,0,0,0,12.1,568],["P-C2-PASSWORD-IMPACT","l",2,0.0,0,4,0,8.3,351],["P-C2-PASSWORD-IMPACT","n",2,0.182,0,0,0,20.6,1145],["P-C2-PASSWORD-IMPACT","m",2,0.455,0,4,1,63.2,1050],["P-C3-EXPORT","n",2,0.0,0,0,0,18.2,796],["P-C3-EXPORT","m",2,0.545,1,1,0,27.7,743],["P-C3-EXPORT","l",2,0.0,0,0,0,13.6,351],["P-J1-DELETE","l",2,0.0,0,0,0,22.1,620],["P-J1-DELETE","n",2,0.0,0,0,0,15.2,831],["P-J1-DELETE","m",2,0.0,0,5,0,30.7,206],["P-J2-REALM-CHECK","l",2,0.0,0,0,0,22.6,584],["P-J2-REALM-CHECK","n",2,0.154,0,0,0,24.2,1216],["P-J2-REALM-CHECK","m",2,0.154,0,2,0,42.8,1549],["P-J3-DBTYPE","l",2,0.364,0,0,0,6.9,242],["P-J3-DBTYPE","m",2,0.455,0,1,0,10.1,406],["P-J3-DBTYPE","n",2,0.364,0,0,0,7.5,323]]},{"id":"pod_8b_q4_32k","label":"qwen3:8b Q4","hw":"RTX A6000, 32k","note":"","rows":[["T-C1-ONBOARD","l",1,0.0,0,0,0,24.4,643],["T-C1-ONBOARD","m",1,0.25,0,1,0,36.5,826],["T-C1-ONBOARD","n",1,0.0,0,0,0,42.0,1086],["T-C2-CHANGEPOINT","n",1,0.0,0,0,0,22.8,611],["T-C2-CHANGEPOINT","l",1,0.25,0,6,0,34.1,637],["T-C2-CHANGEPOINT","m",1,0.75,1,1,0,25.2,535],["T-C3-IMPACT","n",1,0.0,0,0,0,54.5,1481],["T-C3-IMPACT","m",1,0.615,1,1,0,57.8,1360],["T-C3-IMPACT","l",1,0.0,0,0,0,37.0,899],["T-C4-BUGHUNT","m",1,0.0,0,1,0,24.8,499],["T-C4-BUGHUNT","l",1,0.273,0,4,0,23.9,466],["T-C4-BUGHUNT","n",1,0.091,0,0,0,31.3,852],["T-C5-JOB","n",1,0.1,0,0,0,28.2,758],["T-C5-JOB","m",1,0.0,0,1,0,49.8,1046],["T-C5-JOB","l",1,0.1,0,0,0,24.2,602],["T-C6-REVIEW","n",1,0.0,0,0,0,31.5,843],["T-C6-REVIEW","m",1,0.75,1,1,0,44.6,976],["T-C6-REVIEW","l",1,0.583,1,4,0,31.9,746],["T-J1-ONBOARD","m",1,0.364,0,1,0,47.0,999],["T-J1-ONBOARD","l",1,0.182,0,0,0,32.7,828],["T-J1-ONBOARD","n",1,0.182,0,0,0,48.1,1284],["T-J2-EXTENSION","l",1,0.0,0,0,0,13.2,264],["T-J2-EXTENSION","n",1,0.0,0,0,0,24.4,644],["T-J2-EXTENSION","m",1,0.273,0,1,0,20.6,353],["T-J3-IMPACT","n",1,0.091,0,0,0,21.2,536],["T-J3-IMPACT","m",1,0.364,0,1,0,24.2,452],["T-J3-IMPACT","l",1,0.0,0,3,0,6.5,122],["T-J4-TESTS","l",1,0.3,0,0,0,51.8,1372],["T-J4-TESTS","n",1,0.3,0,0,0,41.4,1153],["T-J4-TESTS","m",1,0.5,1,3,0,52.7,937],["T-J5-BUGHUNT","l",1,0.0,0,10,1,41.8,870],["T-J5-BUGHUNT","n",1,0.0,0,0,0,50.5,1378],["T-J5-BUGHUNT","m",1,0.0,0,1,0,24.1,480],["T-J6-REVIEW","l",1,0.0,0,10,1,26.1,542],["T-J6-REVIEW","m",1,0.167,0,1,0,28.2,571],["T-J6-REVIEW","n",1,0.167,0,0,0,27.6,740],["T-C1-ONBOARD","l",2,0.0,0,0,0,28.8,767],["T-C1-ONBOARD","n",2,0.0,0,0,0,47.1,1298],["T-C1-ONBOARD","m",2,0.25,0,1,0,44.2,954],["T-C2-CHANGEPOINT","m",2,0.75,1,1,0,70.4,1623],["T-C2-CHANGEPOINT","l",2,0.0,0,0,0,21.8,475],["T-C2-CHANGEPOINT","n",2,0.0,0,0,0,35.4,956],["T-C3-IMPACT","l",2,0.0,0,0,0,20.3,512],["T-C3-IMPACT","m",2,0.462,0,1,0,61.9,1464],["T-C3-IMPACT","n",2,0.0,0,0,0,56.2,1500],["T-C4-BUGHUNT","m",2,0.091,0,1,0,29.6,596],["T-C4-BUGHUNT","l",2,0.364,0,2,0,17.4,339],["T-C4-BUGHUNT","n",2,0.091,0,0,0,27.3,741],["T-C5-JOB","n",2,0.1,0,0,0,34.2,942],["T-C5-JOB","m",2,0.1,0,1,0,40.1,959],["T-C5-JOB","l",2,0.0,0,8,0,27.9,566],["T-C6-REVIEW","n",2,0.0,0,0,0,27.1,734],["T-C6-REVIEW","m",2,0.75,1,1,0,39.3,940],["T-C6-REVIEW","l",2,0.75,1,4,0,30.3,681],["T-J1-ONBOARD","l",2,0.091,0,0,0,42.7,1105],["T-J1-ONBOARD","n",2,0.091,0,0,0,45.6,1248],["T-J1-ONBOARD","m",2,0.455,0,1,0,54.8,1159],["T-J2-EXTENSION","n",2,0.0,0,0,0,26.9,652],["T-J2-EXTENSION","m",2,0.273,0,1,0,31.5,386],["T-J2-EXTENSION","l",2,0.0,0,0,0,18.3,447],["T-J3-IMPACT","m",2,0.364,0,1,0,23.5,448],["T-J3-IMPACT","n",2,0.182,0,0,0,30.3,785],["T-J3-IMPACT","l",2,0.091,0,10,1,35.0,815],["T-J4-TESTS","m",2,0.2,0,3,0,47.1,877],["T-J4-TESTS","n",2,0.3,0,0,0,48.0,1196],["T-J4-TESTS","l",2,0.3,0,0,0,42.3,1118],["T-J5-BUGHUNT","l",2,0.0,0,5,0,12.1,202],["T-J5-BUGHUNT","m",2,0.0,0,1,0,42.9,977],["T-J5-BUGHUNT","n",2,0.25,0,0,0,55.8,1458],["T-J6-REVIEW","n",2,0.0,0,0,0,30.5,830],["T-J6-REVIEW","m",2,0.167,0,1,0,44.6,531],["T-J6-REVIEW","l",2,0.0,0,10,1,25.9,483],["P-C1-XREF-ERROR","l",1,0.25,0,2,0,17.1,417],["P-C1-XREF-ERROR","m",1,0.417,0,1,0,27.4,546],["P-C1-XREF-ERROR","n",1,0.0,0,0,0,28.6,750],["P-C2-PASSWORD-IMPACT","n",1,0.0,0,0,0,29.7,845],["P-C2-PASSWORD-IMPACT","l",1,0.0,0,4,0,18.4,397],["P-C2-PASSWORD-IMPACT","m",1,0.273,0,3,0,53.2,1095],["P-C3-EXPORT","n",1,0.0,0,0,0,29.4,705],["P-C3-EXPORT","m",1,0.545,1,1,0,33.8,739],["P-C3-EXPORT","l",1,0.0,0,0,0,10.6,210],["P-J1-DELETE","m",1,0.25,0,2,0,52.1,944],["P-J1-DELETE","l",1,0.0,0,0,0,37.3,850],["P-J1-DELETE","n",1,0.167,0,0,0,28.1,792],["P-J2-REALM-CHECK","n",1,0.154,0,0,0,38.8,1086],["P-J2-REALM-CHECK","m",1,0.0,0,3,0,51.7,1204],["P-J2-REALM-CHECK","l",1,0.0,0,0,0,32.1,818],["P-J3-DBTYPE","n",1,0.364,0,0,0,16.9,450],["P-J3-DBTYPE","m",1,0.455,0,1,0,15.1,334],["P-J3-DBTYPE","l",1,0.364,0,0,0,15.8,382],["P-C1-XREF-ERROR","m",2,0.667,1,1,0,25.5,463],["P-C1-XREF-ERROR","l",2,0.25,0,3,0,16.6,380],["P-C1-XREF-ERROR","n",2,0.0,0,0,0,18.5,500],["P-C2-PASSWORD-IMPACT","l",2,0.182,0,4,0,17.6,418],["P-C2-PASSWORD-IMPACT","n",2,0.0,0,0,0,27.5,764],["P-C2-PASSWORD-IMPACT","m",2,0.273,0,3,0,46.0,885],["P-C3-EXPORT","n",2,0.0,0,0,0,25.8,664],["P-C3-EXPORT","m",2,0.364,0,1,0,33.4,685],["P-C3-EXPORT","l",2,0.0,0,0,0,9.0,189],["P-J1-DELETE","l",2,0.0,0,0,0,33.6,718],["P-J1-DELETE","n",2,0.0,0,0,0,31.9,837],["P-J1-DELETE","m",2,0.5,1,2,0,47.4,855],["P-J2-REALM-CHECK","l",2,0.0,0,0,0,26.5,673],["P-J2-REALM-CHECK","n",2,0.0,0,0,0,52.0,1438],["P-J2-REALM-CHECK","m",2,0.0,0,1,0,82.8,2085],["P-J3-DBTYPE","l",2,0.364,0,0,0,15.7,384],["P-J3-DBTYPE","m",2,0.455,0,1,0,13.8,294],["P-J3-DBTYPE","n",2,0.364,0,0,0,20.1,508]]},{"id":"pod_14b_32k","label":"qwen3:14b Q4","hw":"RTX A6000, 32k","note":"Teillauf: 17 Sitzungen, nur die 6 COBOL-Team-Aufgaben, 1 Wiederholung","rows":[["T-C1-ONBOARD","l",1,0.083,0,3,0,14.1,251],["T-C1-ONBOARD","m",1,0.25,0,1,0,43.5,779],["T-C1-ONBOARD","n",1,0.0,0,0,0,36.5,703],["T-C2-CHANGEPOINT","n",1,0.0,0,0,0,11.9,234],["T-C2-CHANGEPOINT","l",1,0.0,0,1,0,8.6,179],["T-C2-CHANGEPOINT","m",1,0.5,1,1,0,17.8,261],["T-C3-IMPACT","n",1,0.077,0,0,0,58.3,1146],["T-C3-IMPACT","m",1,0.692,1,1,0,64.7,1198],["T-C3-IMPACT","l",1,0.692,1,2,0,78.1,1498],["T-C4-BUGHUNT","m",1,0.364,0,1,0,39.1,714],["T-C4-BUGHUNT","l",1,0.364,0,1,0,43.9,864],["T-C4-BUGHUNT","n",1,0.091,0,0,0,19.4,368],["T-C5-JOB","n",1,0.1,0,0,0,35.0,687],["T-C5-JOB","m",1,0.0,0,1,0,22.0,384],["T-C5-JOB","l",1,0.0,0,2,0,44.7,838],["T-C6-REVIEW","n",1,0.0,0,0,0,43.2,823],["T-C6-REVIEW","m",1,0.667,1,1,0,54.2,1014]]},{"id":"pod_32b_32k","label":"qwen3:32b Q4","hw":"RTX A6000, 32k","note":"","rows":[["T-C1-ONBOARD","l",1,0.083,0,3,0,103.9,1041],["T-C1-ONBOARD","m",1,0.667,1,1,0,125.3,1216],["T-C1-ONBOARD","n",1,0.0,0,0,0,127.5,1294],["T-C2-CHANGEPOINT","n",1,0.0,0,0,0,80.8,804],["T-C2-CHANGEPOINT","l",1,0.25,0,2,0,87.5,900],["T-C2-CHANGEPOINT","m",1,0.583,1,1,0,74.8,717],["T-C3-IMPACT","n",1,0.077,0,0,0,148.7,1500],["T-C3-IMPACT","m",1,0.538,1,3,0,164.5,1609],["T-C3-IMPACT","l",1,0.692,1,1,0,153.7,1531],["T-C4-BUGHUNT","m",1,0.0,0,1,0,53.6,527],["T-C4-BUGHUNT","l",1,0.273,0,1,0,41.4,434],["T-C4-BUGHUNT","n",1,0.0,0,0,0,82.6,837],["T-C5-JOB","n",1,0.1,0,0,0,91.8,911],["T-C5-JOB","m",1,0.0,0,2,0,35.3,360],["T-C5-JOB","l",1,0.0,0,1,0,14.8,144],["T-C6-REVIEW","n",1,0.0,0,0,0,124.1,1257],["T-C6-REVIEW","m",1,0.833,1,2,0,60.0,565],["T-C6-REVIEW","l",1,0.583,1,1,0,90.5,894],["T-J1-ONBOARD","m",1,0.273,0,1,0,97.9,805],["T-J1-ONBOARD","l",1,0.273,0,0,0,104.1,1052],["T-J1-ONBOARD","n",1,0.273,0,0,0,115.8,1166],["T-J2-EXTENSION","l",1,0.0,0,2,0,24.8,232],["T-J2-EXTENSION","n",1,0.0,0,0,0,72.4,731],["T-J2-EXTENSION","m",1,0.0,0,1,0,88.3,802],["T-J3-IMPACT","n",1,0.091,0,0,0,123.1,1239],["T-J3-IMPACT","m",1,0.364,0,2,0,116.4,1129],["T-J3-IMPACT","l",1,0.545,1,6,0,87.8,838],["T-J4-TESTS","l",1,0.0,0,2,0,18.3,170],["T-J4-TESTS","n",1,0.3,0,0,0,111.5,1111],["T-J4-TESTS","m",1,0.1,0,3,0,105.4,1029],["T-J5-BUGHUNT","l",1,0.0,0,1,0,103.8,1052],["T-J5-BUGHUNT","n",1,0.25,0,0,0,96.2,994],["T-J5-BUGHUNT","m",1,0.0,0,1,0,113.6,1080],["T-J6-REVIEW","l",1,0.0,0,6,0,80.8,789],["T-J6-REVIEW","m",1,0.0,0,1,0,69.7,656],["T-J6-REVIEW","n",1,0.167,0,0,0,103.6,1061],["T-C1-ONBOARD","l",2,0.25,0,1,0,150.1,1520],["T-C1-ONBOARD","n",2,0.0,0,0,0,107.8,1123],["T-C1-ONBOARD","m",2,0.167,0,1,0,71.7,696],["T-C2-CHANGEPOINT","m",2,0.5,1,1,0,57.1,550],["T-C2-CHANGEPOINT","l",2,0.25,0,2,0,39.6,369],["T-C2-CHANGEPOINT","n",2,0.0,0,0,0,66.7,660],["T-C3-IMPACT","l",2,0.692,1,1,0,149.6,1539],["T-C3-IMPACT","m",2,0.615,1,3,0,134.3,1275],["T-C3-IMPACT","n",2,0.154,0,0,0,124.5,1288],["T-C4-BUGHUNT","m",2,0.273,0,1,0,92.2,911],["T-C4-BUGHUNT","l",2,0.091,0,2,0,68.0,692],["T-C4-BUGHUNT","n",2,0.091,0,0,0,65.1,649],["T-C5-JOB","n",2,0.1,0,0,0,105.5,1049],["T-C5-JOB","m",2,0.0,0,2,0,42.1,403],["T-C5-JOB","l",2,0.0,0,1,0,8.6,110],["T-C6-REVIEW","n",2,0.0,0,0,0,114.1,1141],["T-C6-REVIEW","m",2,0.833,1,2,0,73.0,718],["T-C6-REVIEW","l",2,0.583,1,1,0,94.6,952],["T-J1-ONBOARD","l",2,0.273,0,0,0,104.1,1039],["T-J1-ONBOARD","n",2,0.455,0,0,0,149.5,1500],["T-J1-ONBOARD","m",2,0.364,0,1,0,127.0,1183],["T-J2-EXTENSION","n",2,0.0,0,0,0,79.7,801],["T-J2-EXTENSION","m",2,0.0,0,1,0,105.2,1009],["T-J2-EXTENSION","l",2,0.0,0,3,0,14.7,169],["T-J3-IMPACT","m",2,0.364,0,2,0,58.8,579],["T-J3-IMPACT","n",2,0.182,0,0,0,84.2,843],["T-J3-IMPACT","l",2,0.364,0,5,0,83.2,828],["T-J4-TESTS","m",2,0.4,0,2,0,87.4,882],["T-J4-TESTS","n",2,0.3,0,0,0,128.9,1320],["T-J4-TESTS","l",2,0.5,1,1,0,82.2,828],["T-J5-BUGHUNT","l",2,0.0,0,4,0,82.7,830],["T-J5-BUGHUNT","m",2,0.0,0,1,0,75.4,695],["T-J5-BUGHUNT","n",2,0.0,0,0,0,85.9,855],["T-J6-REVIEW","n",2,0.083,0,0,0,96.3,966],["T-J6-REVIEW","m",2,0.083,0,1,0,121.2,1135],["T-J6-REVIEW","l",2,0.0,0,1,0,60.8,611],["P-C1-XREF-ERROR","l",1,0.25,0,1,0,49.1,481],["P-C1-XREF-ERROR","m",1,0.667,1,1,0,74.6,713],["P-C1-XREF-ERROR","n",1,0.0,0,0,0,85.8,869],["P-C2-PASSWORD-IMPACT","n",1,0.0,0,0,0,106.2,1072],["P-C2-PASSWORD-IMPACT","l",1,0.364,0,6,0,88.6,884],["P-C2-PASSWORD-IMPACT","m",1,0.273,0,2,0,86.8,823],["P-C3-EXPORT","n",1,0.091,0,0,0,98.5,1034],["P-C3-EXPORT","m",1,0.545,1,2,0,73.0,685],["P-C3-EXPORT","l",1,0.636,1,1,0,55.3,565],["P-J1-DELETE","m",1,0.0,0,1,0,93.6,905],["P-J1-DELETE","l",1,0.167,0,6,0,94.4,934],["P-J1-DELETE","n",1,0.167,0,0,0,129.8,1327],["P-J2-REALM-CHECK","n",1,0.0,0,0,0,79.7,817],["P-J2-REALM-CHECK","m",1,0.0,0,1,0,94.8,804],["P-J2-REALM-CHECK","l",1,0.0,0,2,0,34.2,329],["P-J3-DBTYPE","n",1,0.364,0,0,0,84.6,840],["P-J3-DBTYPE","m",1,0.364,0,1,0,94.0,846],["P-J3-DBTYPE","l",1,0.364,0,2,0,42.8,424],["P-C1-XREF-ERROR","m",2,0.667,1,1,0,59.7,561],["P-C1-XREF-ERROR","l",2,0.25,0,1,0,62.4,641],["P-C1-XREF-ERROR","n",2,0.0,0,0,0,80.8,802],["P-C2-PASSWORD-IMPACT","l",2,0.455,0,5,0,115.8,1065],["P-C2-PASSWORD-IMPACT","n",2,0.0,0,0,0,102.8,1132],["P-C2-PASSWORD-IMPACT","m",2,0.091,0,2,0,88.6,847],["P-C3-EXPORT","n",2,0.0,0,0,0,65.1,672],["P-C3-EXPORT","m",2,0.636,1,2,0,86.4,857],["P-C3-EXPORT","l",2,0.636,1,1,0,54.2,554],["P-J1-DELETE","l",2,0.0,0,1,0,64.7,678],["P-J1-DELETE","n",2,0.167,0,0,0,113.4,1173],["P-J1-DELETE","m",2,0.333,0,1,0,79.0,682],["P-J2-REALM-CHECK","l",2,0.0,0,2,0,43.4,441],["P-J2-REALM-CHECK","n",2,0.0,0,0,0,91.5,907],["P-J2-REALM-CHECK","m",2,0.308,0,1,0,92.3,934],["P-J3-DBTYPE","l",2,0.364,0,1,0,46.2,460],["P-J3-DBTYPE","m",2,0.364,0,1,0,79.5,747],["P-J3-DBTYPE","n",2,0.364,0,0,0,78.1,804]]},{"id":"pod_coder30b_32k","label":"qwen3-coder:30b Q4","hw":"RTX A6000, 32k","note":"","rows":[["T-C1-ONBOARD","l",1,0.583,1,10,1,50.4,1263],["T-C1-ONBOARD","m",1,0.333,0,10,1,88.3,1285],["T-C1-ONBOARD","n",1,0.0,0,0,0,22.9,827],["T-C2-CHANGEPOINT","n",1,0.0,0,0,0,12.7,445],["T-C2-CHANGEPOINT","l",1,0.0,0,0,0,3.1,85],["T-C2-CHANGEPOINT","m",1,0.917,1,10,1,82.5,1457],["T-C3-IMPACT","n",1,0.154,0,0,0,26.6,970],["T-C3-IMPACT","m",1,0.538,1,10,1,88.0,1719],["T-C3-IMPACT","l",1,0.846,1,3,0,34.9,1099],["T-C4-BUGHUNT","m",1,0.727,1,10,1,61.9,1307],["T-C4-BUGHUNT","l",1,0.818,1,10,1,47.8,1216],["T-C4-BUGHUNT","n",1,0.0,0,0,0,24.0,807],["T-C5-JOB","n",1,0.0,0,0,0,13.3,479],["T-C5-JOB","m",1,0.9,1,9,0,67.7,1261],["T-C5-JOB","l",1,0.5,1,10,1,52.3,1301],["T-C6-REVIEW","n",1,0.083,0,0,0,17.3,614],["T-C6-REVIEW","m",1,0.917,1,10,1,81.3,1583],["T-C6-REVIEW","l",1,0.75,1,7,0,45.3,1173],["T-J1-ONBOARD","m",1,0.636,1,5,0,53.1,1051],["T-J1-ONBOARD","l",1,0.909,1,10,1,29.9,1027],["T-J1-ONBOARD","n",1,0.273,0,0,0,16.9,606],["T-J2-EXTENSION","l",1,0.0,0,0,0,22.9,802],["T-J2-EXTENSION","n",1,0.0,0,0,0,19.3,691],["T-J2-EXTENSION","m",1,0.818,1,10,1,77.2,1382],["T-J3-IMPACT","n",1,0.182,0,0,0,21.7,721],["T-J3-IMPACT","m",1,0.545,1,10,1,79.3,1577],["T-J3-IMPACT","l",1,0.364,0,4,0,32.1,907],["T-J4-TESTS","l",1,0.9,1,4,0,30.2,1042],["T-J4-TESTS","n",1,0.3,0,0,0,17.2,654],["T-J4-TESTS","m",1,1.0,1,10,1,72.4,1350],["T-J5-BUGHUNT","l",1,0.583,1,9,0,68.9,1598],["T-J5-BUGHUNT","n",1,0.0,0,0,0,22.9,758],["T-J5-BUGHUNT","m",1,0.0,0,10,1,63.3,1331],["T-J6-REVIEW","l",1,0.75,1,10,1,45.7,1014],["T-J6-REVIEW","m",1,0.75,1,10,1,68.6,1312],["T-J6-REVIEW","n",1,0.0,0,0,0,16.2,529],["T-C1-ONBOARD","l",2,0.583,1,10,1,49.5,1209],["T-C1-ONBOARD","n",2,0.0,0,0,0,19.7,665],["T-C1-ONBOARD","m",2,0.333,0,10,1,72.7,1216],["T-C2-CHANGEPOINT","m",2,0.917,1,10,1,72.3,1388],["T-C2-CHANGEPOINT","l",2,0.5,1,10,1,72.3,1424],["T-C2-CHANGEPOINT","n",2,0.0,0,0,0,8.6,274],["T-C3-IMPACT","l",2,0.769,1,5,0,46.6,1392],["T-C3-IMPACT","m",2,0.923,1,10,1,80.6,1658],["T-C3-IMPACT","n",2,0.0,0,0,0,26.5,861],["T-C4-BUGHUNT","m",2,0.727,1,10,1,67.7,1529],["T-C4-BUGHUNT","l",2,0.909,1,10,1,43.1,1121],["T-C4-BUGHUNT","n",2,0.091,0,0,0,12.6,476],["T-C5-JOB","n",2,0.0,0,0,0,12.9,504],["T-C5-JOB","m",2,1.0,1,10,1,83.6,1330],["T-C5-JOB","l",2,0.9,1,10,1,38.7,1295],["T-C6-REVIEW","n",2,0.0,0,0,0,6.5,195],["T-C6-REVIEW","m",2,0.917,1,10,1,85.2,1503],["T-C6-REVIEW","l",2,0.667,1,10,1,55.6,1400],["T-J1-ONBOARD","l",2,0.909,1,10,1,33.8,1015],["T-J1-ONBOARD","n",2,0.091,0,0,0,23.4,824],["T-J1-ONBOARD","m",2,0.545,1,3,0,30.9,670],["T-J2-EXTENSION","n",2,0.0,0,0,0,14.4,632],["T-J2-EXTENSION","m",2,0.909,1,10,1,77.4,1258],["T-J2-EXTENSION","l",2,0.0,0,7,0,63.8,1975],["T-J3-IMPACT","m",2,0.545,1,10,1,88.8,1568],["T-J3-IMPACT","n",2,0.091,0,0,0,23.5,781],["T-J3-IMPACT","l",2,0.364,0,5,0,18.4,515],["T-J4-TESTS","m",2,0.7,1,9,0,60.7,1083],["T-J4-TESTS","n",2,0.3,0,0,0,19.1,675],["T-J4-TESTS","l",2,0.9,1,5,0,34.0,942],["T-J5-BUGHUNT","l",2,0.083,0,10,1,46.4,1186],["T-J5-BUGHUNT","m",2,0.0,0,10,1,69.0,1562],["T-J5-BUGHUNT","n",2,0.0,0,0,0,23.4,747],["T-J6-REVIEW","n",2,0.0,0,0,0,15.8,551],["T-J6-REVIEW","m",2,0.75,1,10,1,59.0,1300],["T-J6-REVIEW","l",2,0.833,1,10,1,61.9,1325],["P-C1-XREF-ERROR","l",1,0.917,1,7,0,32.7,884],["P-C1-XREF-ERROR","m",1,0.167,0,10,1,81.3,1620],["P-C1-XREF-ERROR","n",1,0.0,0,0,0,15.2,515],["P-C2-PASSWORD-IMPACT","n",1,0.182,0,0,0,21.6,741],["P-C2-PASSWORD-IMPACT","l",1,0.273,0,10,1,38.7,1108],["P-C2-PASSWORD-IMPACT","m",1,0.182,0,10,1,72.4,1497],["P-C3-EXPORT","n",1,0.0,0,0,0,10.0,308],["P-C3-EXPORT","m",1,0.727,1,10,1,66.5,1183],["P-C3-EXPORT","l",1,0.909,1,10,1,51.6,1049],["P-J1-DELETE","m",1,0.167,0,7,0,44.7,897],["P-J1-DELETE","l",1,0.667,1,9,0,75.9,1798],["P-J1-DELETE","n",1,0.333,0,0,0,23.4,742],["P-J2-REALM-CHECK","n",1,0.154,0,0,0,21.9,924],["P-J2-REALM-CHECK","m",1,0.231,0,10,1,81.6,1589],["P-J2-REALM-CHECK","l",1,0.538,1,15,1,80.8,1801],["P-J3-DBTYPE","n",1,0.364,0,0,0,25.3,773],["P-J3-DBTYPE","m",1,0.636,1,10,1,74.5,1031],["P-J3-DBTYPE","l",1,0.455,0,10,1,51.0,1186],["P-C1-XREF-ERROR","m",2,0.833,1,8,0,59.4,1123],["P-C1-XREF-ERROR","l",2,0.667,1,7,0,32.2,958],["P-C1-XREF-ERROR","n",2,0.0,0,0,0,17.9,688],["P-C2-PASSWORD-IMPACT","l",2,0.909,1,6,0,39.4,1124],["P-C2-PASSWORD-IMPACT","n",2,0.182,0,0,0,18.8,653],["P-C2-PASSWORD-IMPACT","m",2,0.727,1,10,1,77.7,1359],["P-C3-EXPORT","n",2,0.0,0,0,0,12.2,466],["P-C3-EXPORT","m",2,0.818,1,10,1,65.2,1205],["P-C3-EXPORT","l",2,0.909,1,9,0,45.9,1074],["P-J1-DELETE","l",2,0.0,0,10,1,38.0,1246],["P-J1-DELETE","n",2,0.083,0,0,0,13.3,542],["P-J1-DELETE","m",2,0.333,0,7,0,39.8,847],["P-J2-REALM-CHECK","l",2,0.077,0,10,1,48.0,1156],["P-J2-REALM-CHECK","n",2,0.0,0,0,0,19.3,729],["P-J2-REALM-CHECK","m",2,0.923,1,10,1,67.7,1318],["P-J3-DBTYPE","l",2,0.636,1,9,0,59.5,1327],["P-J3-DBTYPE","m",2,0.091,0,0,0,3.3,93],["P-J3-DBTYPE","n",2,0.364,0,0,0,13.9,489]]},{"id":"pod_coder30b_32k_v3","label":"Coder + MCP-Lenkung","hw":"RTX A6000, 32k","note":"Versuch: search_code liefert das Beweispaket mit. Zurückgenommen, weil die Team-Aufgaben schlechter wurden.","rows":[["T-C1-ONBOARD","m",1,0.583,1,10,1,75.0,1136],["T-C2-CHANGEPOINT","m",1,0.917,1,10,1,102.3,1572],["T-C3-IMPACT","m",1,0.0,0,0,0,6.7,110],["T-C4-BUGHUNT","m",1,1.0,1,10,1,89.6,1431],["T-C5-JOB","m",1,0.9,1,10,1,78.1,1368],["T-C6-REVIEW","m",1,0.75,1,10,1,96.9,1630],["T-J1-ONBOARD","m",1,0.636,1,1,0,36.1,718],["T-J2-EXTENSION","m",1,0.636,1,6,0,61.6,1019],["T-J3-IMPACT","m",1,0.364,0,10,1,84.6,1849],["T-J4-TESTS","m",1,0.8,1,10,1,86.0,1485],["T-J5-BUGHUNT","m",1,0.75,1,10,1,106.9,1617],["T-J6-REVIEW","m",1,0.167,0,10,1,86.2,1464],["T-C1-ONBOARD","m",2,0.583,1,10,1,70.4,1072],["T-C2-CHANGEPOINT","m",2,0.917,1,10,1,86.2,1352],["T-C3-IMPACT","m",2,0.769,1,10,1,105.3,1745],["T-C4-BUGHUNT","m",2,0.909,1,10,1,85.3,1373],["T-C5-JOB","m",2,0.5,1,10,1,80.5,1358],["T-C6-REVIEW","m",2,0.833,1,9,0,70.3,1569],["T-J1-ONBOARD","m",2,0.455,0,1,0,44.4,778],["T-J2-EXTENSION","m",2,0.0,0,10,1,72.0,1268],["T-J3-IMPACT","m",2,0.545,1,10,1,67.5,1355],["T-J4-TESTS","m",2,0.0,0,0,0,6.7,115],["T-J5-BUGHUNT","m",2,0.583,1,10,1,119.9,1795],["T-J6-REVIEW","m",2,0.75,1,10,1,76.4,1359],["P-C1-XREF-ERROR","m",1,0.833,1,6,0,59.9,1009],["P-C2-PASSWORD-IMPACT","m",1,0.0,0,0,0,5.4,83],["P-C3-EXPORT","m",1,0.636,1,7,0,56.9,938],["P-J1-DELETE","m",1,0.0,0,7,0,67.9,993],["P-J2-REALM-CHECK","m",1,0.231,0,10,1,98.5,1588],["P-J3-DBTYPE","m",1,1.0,1,10,1,90.4,1173],["P-C1-XREF-ERROR","m",2,0.917,1,7,0,60.7,1129],["P-C2-PASSWORD-IMPACT","m",2,0.0,0,0,0,5.3,89],["P-C3-EXPORT","m",2,0.818,1,10,1,73.8,1140],["P-J1-DELETE","m",2,0.167,0,7,0,66.9,851],["P-J2-REALM-CHECK","m",2,0.923,1,10,1,99.3,1454],["P-J3-DBTYPE","m",2,0.364,0,10,1,99.5,1237]]}]};
+const ARMS = [
+  { key: 'n', name: 'ohne Werkzeuge', color: 'var(--none)', shape: 'tri' },
+  { key: 'l', name: 'Dateiwerkzeuge', color: 'var(--files)', shape: 'sq' },
+  { key: 'm', name: 'Doctus-MCP', color: 'var(--mcp)', shape: 'dot' },
+];
+const ARM = Object.fromEntries(ARMS.map(a => [a.key, a]));
+const XS = {
+  wall: { name: 'Sekunden je Sitzung', short: 's', fmt: v => `${Math.round(v)} s`, col: 7 },
+  tools: { name: 'Werkzeugaufrufe je Sitzung', short: 'Aufrufe', fmt: v => v.toFixed(1), col: 5 },
+  tok: { name: 'Ausgabetokens je Sitzung', short: 'Tokens', fmt: v => `${Math.round(v)}`, col: 8 },
+};
+const state = { set: 'all', lang: 'all', x: 'wall', labels: 'mcp', heatArm: 'm',
+  models: new Set(['pod_8b_q4_32k', 'pod_14b_32k', 'pod_32b_32k', 'pod_coder30b_32k']) };
+try { const saved = JSON.parse(localStorage.getItem('bench-state') || 'null'); if (saved) { Object.assign(state, saved, { models: new Set(saved.models) }); } } catch (e) { /* ohne Speicher gelten die Vorgaben */ }
+function persist() { try { localStorage.setItem('bench-state', JSON.stringify({ ...state, models: [...state.models] })); } catch (e) { /* egal */ } }
+
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+function rows(model, arm) {
+  return model.rows.filter(r => r[1] === arm && (state.set === 'all' || DATA.tasks[r[0]].set === state.set)
+    && (state.lang === 'all' || DATA.tasks[r[0]].lang === state.lang));
+}
+function byTask(rs, col) { const m = {}; rs.forEach(r => (m[r[0]] ||= []).push(r[col])); return m; }
+function ci(taskMeans, seed = 11) {
+  const keys = Object.keys(taskMeans); if (keys.length < 2) return null;
+  const r = rng(seed), boots = [];
+  for (let b = 0; b < 1500; b++) { let s = 0; for (let i = 0; i < keys.length; i++) s += taskMeans[keys[Math.floor(r() * keys.length)]]; boots.push(s / keys.length); }
+  boots.sort((a, b) => a - b); return [boots[Math.floor(0.025 * boots.length)], boots[Math.floor(0.975 * boots.length)]];
+}
+function summary(model, arm) {
+  const rs = rows(model, arm); if (!rs.length) return null;
+  const tm = Object.fromEntries(Object.entries(byTask(rs, 3)).map(([k, v]) => [k, mean(v)]));
+  return { n: rs.length, tasks: Object.keys(tm).length, rubric: mean(rs.map(r => r[3])), usable: rs.filter(r => r[4]).length,
+    tools: mean(rs.map(r => r[5])), limit: rs.filter(r => r[6]).length / rs.length, wall: mean(rs.map(r => r[7])),
+    tok: mean(rs.map(r => r[8])), ci: ci(tm), taskMeans: tm };
+}
+function diff(model, a, b) {
+  const A = summary(model, a), B = summary(model, b); if (!A || !B) return null;
+  const common = Object.keys(A.taskMeans).filter(k => k in B.taskMeans); if (common.length < 2) return null;
+  const d = Object.fromEntries(common.map(k => [k, A.taskMeans[k] - B.taskMeans[k]]));
+  return { mean: mean(Object.values(d)), ci: ci(d, 23), tasks: common.length };
+}
+const fmt2 = v => v.toFixed(2).replace('.', ',');
+const sgn = v => (v >= 0 ? '+' : '−') + fmt2(Math.abs(v));
+const modelById = Object.fromEntries(DATA.models.map(m => [m.id, m]));
+const visibleModels = () => DATA.models.filter(m => state.models.has(m.id));
+const fullLabel = m => m.id === 'local_8b_q4_8k' ? `${m.label} lokal` : m.label;
+
+// ── Kernaussagen (aus den Daten, alle Aufgaben) ───────────────────────────────
+function findings() {
+  const keep = { set: state.set, lang: state.lang }; state.set = 'all'; state.lang = 'all';
+  const c = modelById.pod_coder30b_32k, q = modelById.pod_32b_32k, e = modelById.pod_8b_q4_32k;
+  const cm = summary(c, 'm'), qm = summary(q, 'm'), em = summary(e, 'm'), en = summary(e, 'n');
+  const items = [
+    [`${fmt2(cm.rubric)} vs. ${fmt2(qm.rubric)}`, `Rubrik mit MCP: qwen3-coder:30b gegen qwen3:32b. ${cm.usable} von ${cm.n} Coder-Antworten brauchbar, bei 32B ${qm.usable} von ${qm.n}.`],
+    [`${sgn(em.rubric - en.rubric)}`, `MCP gegenüber ohne Werkzeuge bei qwen3:8b. Kleine Modelle beantworten mit einem MCP-Aufruf, was sie ohne Werkzeuge nicht wissen.`],
+    [`${Math.round(summary(c, 'm').wall)} s`, `je MCP-Sitzung bei Coder, bei 32B ${Math.round(qm.wall)} s. Coder rechnet je Token nur rund 3B aktive Parameter.`],
+    [`< 0,15`, `Rubrik aller Modelle ohne Werkzeuge. Ohne Zugriff auf den Code raten alle Modelle.`],
+  ];
+  Object.assign(state, keep);
+  document.getElementById('findings').innerHTML = items.map(([b, s]) => `<div class="finding"><b>${b}</b><span>${s}</span></div>`).join('');
+}
+
+// ── Steuerung ─────────────────────────────────────────────────────────────────
+function seg(id, options, key, after) {
+  const el = document.getElementById(id);
+  el.innerHTML = options.map(([v, l]) => `<button type="button" data-v="${v}" aria-pressed="${state[key] === v}">${l}</button>`).join('');
+  el.onclick = ev => { const b = ev.target.closest('button'); if (!b) return; state[key] = b.dataset.v; persist(); seg(id, options, key, after); after(); };
+}
+function chips() {
+  const el = document.getElementById('modelChips');
+  el.innerHTML = DATA.models.map(m => `<label class="chip"><input type="checkbox" id="m-${m.id}" data-id="${m.id}" ${state.models.has(m.id) ? 'checked' : ''}>${fullLabel(m)}${m.note ? '<span class="badge">' + (m.id.endsWith('v3') ? 'zurückgenommen' : 'Teillauf') + '</span>' : ''}</label>`).join('');
+  el.onchange = ev => { const id = ev.target.dataset.id; ev.target.checked ? state.models.add(id) : state.models.delete(id); persist(); renderAll(); };
+}
+function shape(s, x, y, r, color, extra = '') {
+  if (s === 'sq') return `<rect x="${x - r * 0.9}" y="${y - r * 0.9}" width="${r * 1.8}" height="${r * 1.8}" rx="1.5" fill="${color}" ${extra}/>`;
+  if (s === 'tri') return `<path d="M${x},${y - r * 1.15} L${x + r * 1.05},${y + r * 0.75} L${x - r * 1.05},${y + r * 0.75} Z" fill="${color}" ${extra}/>`;
+  return `<circle cx="${x}" cy="${y}" r="${r}" fill="${color}" ${extra}/>`;
+}
+function legend() {
+  document.getElementById('legend').innerHTML = ARMS.slice().reverse().map(a => `<span><i>${`<svg width="14" height="14" viewBox="0 0 14 14" style="display:inline;width:14px">${shape(a.shape, 7, 7, 5, a.color)}</svg>`}</i>${a.name}</span>`).join('');
+}
+function nice(max) { const p = Math.pow(10, Math.floor(Math.log10(max))); for (const m of [1, 2, 2.5, 5, 10]) if (m * p >= max) return m * p; return 10 * p; }
+
+// ── Hauptfigur ────────────────────────────────────────────────────────────────
+function frontier() {
+  const svg = document.getElementById('frontier');
+  const W = 900, H = 470, M = { l: 58, r: 150, t: 16, b: 50 };
+  const X = XS[state.x];
+  const pts = [];
+  visibleModels().forEach(m => ARMS.forEach(a => { const s = summary(m, a.key); if (s) pts.push({ m, a, s, x: s[state.x] }); }));
+  const xmax = nice(Math.max(1, ...pts.map(p => p.x)) * 1.08);
+  const ymax = Math.min(1, Math.max(0.4, Math.ceil(Math.max(...pts.map(p => p.s.ci ? p.s.ci[1] : p.s.rubric), 0.1) * 10 + 0.5) / 10));
+  const sx = v => M.l + (v / xmax) * (W - M.l - M.r), sy = v => H - M.b - (v / ymax) * (H - M.t - M.b);
+  let g = '';
+  for (let i = 0; i <= 5; i++) { const v = (xmax / 5) * i; g += `<g class="tick"><line x1="${sx(v)}" x2="${sx(v)}" y1="${M.t}" y2="${H - M.b}" stroke="var(--grid)"/><text x="${sx(v)}" y="${H - M.b + 18}" text-anchor="middle">${X.fmt(v)}</text></g>`; }
+  for (let v = 0; v <= ymax + 1e-9; v += 0.1) { g += `<g class="tick"><line x1="${M.l}" x2="${W - M.r}" y1="${sy(v)}" y2="${sy(v)}" stroke="var(--grid)"/><text x="${M.l - 8}" y="${sy(v) + 4}" text-anchor="end">${fmt2(v)}</text></g>`; }
+  g += `<line x1="${M.l}" x2="${W - M.r}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--line)"/>`;
+  g += `<text class="axis-label" x="${(M.l + W - M.r) / 2}" y="${H - 10}" text-anchor="middle">${X.name}</text>`;
+  g += `<text class="axis-label" transform="translate(16 ${(M.t + H - M.b) / 2}) rotate(-90)" text-anchor="middle">Rubrik (0–1)</text>`;
+  // Verbindungen je Modell
+  visibleModels().forEach(m => {
+    const mine = ARMS.map(a => pts.find(p => p.m === m && p.a === a)).filter(Boolean);
+    if (mine.length > 1) g += `<polyline points="${mine.map(p => `${sx(p.x)},${sy(p.s.rubric)}`).join(' ')}" fill="none" stroke="var(--fg-3)" stroke-width="1.2" stroke-dasharray="${m.id.endsWith('v3') ? '4 4' : '0'}" opacity="0.6"/>`;
+  });
+  // Intervalle
+  pts.forEach(p => { if (p.s.ci) g += `<line x1="${sx(p.x)}" x2="${sx(p.x)}" y1="${sy(p.s.ci[0])}" y2="${sy(p.s.ci[1])}" stroke="${p.a.color}" stroke-width="2" stroke-linecap="round" opacity="0.35"/>`; });
+  // Punkte
+  pts.forEach((p, i) => {
+    g += `<g class="pt" data-i="${i}">${shape(p.a.shape, sx(p.x), sy(p.s.rubric), 6.5, p.a.color, 'stroke="var(--surface)" stroke-width="2"')}<circle cx="${sx(p.x)}" cy="${sy(p.s.rubric)}" r="14" fill="transparent"/></g>`;
+  });
+  // Beschriftung: Modellname am MCP-Punkt (sonst am letzten), Tupel nach Wahl
+  const placed = [];
+  const place = (x, y, h = 13) => { let yy = y; for (let k = 0; k < 8 && placed.some(q => Math.abs(q.y - yy) < h && Math.abs(q.x - x) < 120); k++) yy += (k % 2 ? -1 : 1) * h * (k + 1) * 0.6; placed.push({ x, y: yy }); return yy; };
+  visibleModels().forEach(m => {
+    const anchor = pts.find(p => p.m === m && p.a.key === 'm') || pts.filter(p => p.m === m).pop(); if (!anchor) return;
+    const x = sx(anchor.x) + 12, y = place(x, sy(anchor.s.rubric) - 8);
+    g += `<text class="mname" x="${x}" y="${y}">${fullLabel(m)}</text>`;
+  });
+  pts.forEach(p => {
+    if (state.labels === 'none' || (state.labels === 'mcp' && p.a.key !== 'm')) return;
+    const x = sx(p.x) + 12, y = place(x, sy(p.s.rubric) + 14);
+    g += `<text class="tuple" x="${x}" y="${y}">(${X.fmt(p.x)}, ${fmt2(p.s.rubric)})</text>`;
+  });
+  svg.innerHTML = g;
+  const tip = document.getElementById('tip'), box = document.getElementById('frontierBox');
+  svg.onmousemove = ev => {
+    const el = ev.target.closest('.pt'); if (!el) { tip.hidden = true; return; }
+    const p = pts[+el.dataset.i], s = p.s, r = box.getBoundingClientRect();
+    tip.innerHTML = `<div class="tt-title">${fullLabel(p.m)} · ${p.a.name}</div>
+      <div class="tt-row">Tupel <b>(${X.fmt(p.x)}, ${fmt2(s.rubric)})</b></div>
+      <div class="tt-row">95-%-Intervall <b>${s.ci ? fmt2(s.ci[0]) + ' – ' + fmt2(s.ci[1]) : '—'}</b></div>
+      <div class="tt-row">brauchbar <b>${s.usable} / ${s.n}</b></div>
+      <div class="tt-row">Werkzeugaufrufe <b>${s.tools.toFixed(1)}</b></div>
+      <div class="tt-row">am Limit <b>${Math.round(s.limit * 100)} %</b></div>
+      <div class="tt-row">Aufgaben <b>${s.tasks}</b></div>
+      <div class="tt-row" style="margin-top:4px">${p.m.hw}</div>${p.m.note ? `<div class="tt-row" style="margin-top:4px">${p.m.note}</div>` : ''}`;
+    tip.hidden = false;
+    const x = ev.clientX - r.left + 14, y = ev.clientY - r.top + 14;
+    tip.style.left = Math.min(x, r.width - 240) + 'px'; tip.style.top = y + 'px';
+  };
+  svg.onmouseleave = () => { tip.hidden = true; };
+  const notes = visibleModels().filter(m => m.note).map(m => `${fullLabel(m)}: ${m.note}`);
+  document.getElementById('frontierNote').textContent = notes.join(' · ');
+}
+
+// ── Wirkung ───────────────────────────────────────────────────────────────────
+function gain() {
+  const svg = document.getElementById('gain'), ms = visibleModels().filter(m => summary(m, 'm'));
+  const row = 44, W = 900, M = { l: 190, r: 300, t: 28, b: 30 }, H = M.t + M.b + row * ms.length;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  const sx = v => M.l + v * (W - M.l - M.r);
+  let g = '';
+  for (let v = 0; v <= 1.0001; v += 0.2) g += `<g class="tick"><line x1="${sx(v)}" x2="${sx(v)}" y1="${M.t - 8}" y2="${H - M.b}" stroke="var(--grid)"/><text x="${sx(v)}" y="${H - M.b + 18}" text-anchor="middle">${fmt2(v)}</text></g>`;
+  g += `<text class="tick" x="${W - M.r + 20}" y="${M.t - 10}"><tspan class="axis-label">MCP − ohne</tspan><tspan class="axis-label" x="${W - M.r + 150}">MCP − Dateien</tspan></text>`;
+  ms.forEach((m, i) => {
+    const y = M.t + row * i + row / 2, ss = Object.fromEntries(ARMS.map(a => [a.key, summary(m, a.key)]));
+    const xs = ARMS.map(a => ss[a.key] ? sx(ss[a.key].rubric) : null).filter(v => v !== null);
+    g += `<text class="mname" x="${M.l - 14}" y="${y + 4}" text-anchor="end">${fullLabel(m)}</text>`;
+    if (xs.length > 1) g += `<line x1="${Math.min(...xs)}" x2="${Math.max(...xs)}" y1="${y}" y2="${y}" stroke="var(--line)" stroke-width="3" stroke-linecap="round"/>`;
+    ARMS.forEach(a => { if (ss[a.key]) g += shape(a.shape, sx(ss[a.key].rubric), y, 6.5, a.color, 'stroke="var(--surface)" stroke-width="2"'); });
+    [['n', W - M.r + 20], ['l', W - M.r + 150]].forEach(([b, x]) => {
+      const d = diff(m, 'm', b);
+      const proven = d && d.ci && (d.ci[0] > 0 || d.ci[1] < 0);
+      g += `<text class="tuple" x="${x}" y="${y + 4}" style="font-weight:${proven ? 600 : 400}">${d ? sgn(d.mean) + (d.ci ? ` [${sgn(d.ci[0])}, ${sgn(d.ci[1])}]` : '') : '—'}</text>`;
+    });
+  });
+  svg.innerHTML = g;
+}
+
+// ── Je Aufgabe ────────────────────────────────────────────────────────────────
+const SEQ = ['var(--seq-1)', 'var(--seq-2)', 'var(--seq-3)', 'var(--seq-4)', 'var(--seq-5)', 'var(--seq-6)', 'var(--seq-7)'];
+function heat() {
+  const svg = document.getElementById('heat'), ms = visibleModels();
+  const tasks = Object.keys(DATA.tasks).filter(t => (state.set === 'all' || DATA.tasks[t].set === state.set) && (state.lang === 'all' || DATA.tasks[t].lang === state.lang));
+  const cw = Math.max(90, Math.min(130, 640 / Math.max(1, ms.length))), ch = 30, M = { l: 250, t: 46 };
+  const W = Math.max(900, M.l + cw * ms.length + 10), H = M.t + ch * tasks.length + 10;
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`); svg.style.minWidth = Math.min(W, 640) + 'px';
+  let g = '';
+  ms.forEach((m, j) => g += `<text class="mname" x="${M.l + cw * j + cw / 2}" y="${M.t - 14}" text-anchor="middle" style="font-size:11.5px">${fullLabel(m).replace(' Q4', '')}</text>`);
+  tasks.forEach((t, i) => {
+    const y = M.t + ch * i, info = DATA.tasks[t];
+    g += `<text x="${M.l - 10}" y="${y + ch / 2 + 4}" text-anchor="end" style="font:500 11.5px var(--font-mono)">${t}<title>${info.q}</title></text>`;
+    ms.forEach((m, j) => {
+      const rs = m.rows.filter(r => r[0] === t && r[1] === state.heatArm), x = M.l + cw * j;
+      if (!rs.length) { g += `<rect x="${x + 1}" y="${y + 1}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="none" stroke="var(--grid)"/>`; return; }
+      const v = mean(rs.map(r => r[3])), k = Math.min(6, Math.floor(v * 7));
+      g += `<rect x="${x + 1}" y="${y + 1}" width="${cw - 2}" height="${ch - 2}" rx="3" fill="${SEQ[k]}"><title>${fullLabel(m)} · ${t}: ${fmt2(v)} (${rs.length} Sitzungen)</title></rect>`;
+      g += `<text x="${x + cw / 2}" y="${y + ch / 2 + 4}" text-anchor="middle" style="font:500 11.5px var(--font-mono);fill:${k >= 3 ? '#ffffff' : '#0d366b'}">${fmt2(v)}</text>`;
+    });
+  });
+  svg.innerHTML = g;
+}
+
+// ── Tabelle ───────────────────────────────────────────────────────────────────
+function table() {
+  let h = '<thead><tr><th>Modell</th><th>Gruppe</th><th>n</th><th>Rubrik</th><th>95-%-Intervall</th><th>brauchbar</th><th>Aufrufe</th><th>Limit</th><th>s je Sitzung</th></tr></thead><tbody>';
+  visibleModels().forEach(m => ARMS.slice().reverse().forEach(a => {
+    const s = summary(m, a.key); if (!s) return;
+    h += `<tr><td>${fullLabel(m)}</td><td><span class="armtag"><svg width="12" height="12" viewBox="0 0 14 14" style="width:12px">${shape(a.shape, 7, 7, 5, a.color)}</svg>${a.name}</span></td><td class="num">${s.n}</td><td class="num"><b>${fmt2(s.rubric)}</b></td><td class="num">${s.ci ? fmt2(s.ci[0]) + ' – ' + fmt2(s.ci[1]) : '—'}</td><td class="num">${s.usable}/${s.n}</td><td class="num">${s.tools.toFixed(1)}</td><td class="num">${Math.round(s.limit * 100)} %</td><td class="num">${Math.round(s.wall)}</td></tr>`;
+  }));
+  document.getElementById('table').innerHTML = h + '</tbody>';
+}
+
+function renderAll() { frontier(); gain(); heat(); table(); }
+seg('segSet', [['all', 'Alle 18'], ['team', 'Team (12)'], ['holdout', 'Prüfaufgaben (6)']], 'set', renderAll);
+seg('segLang', [['all', 'Beide'], ['COBOL', 'COBOL'], ['Java', 'Java']], 'lang', renderAll);
+seg('segX', [['wall', 'Zeit'], ['tools', 'Aufrufe'], ['tok', 'Tokens']], 'x', frontier);
+seg('segLabels', [['mcp', 'nur MCP'], ['all', 'alle'], ['none', 'keine']], 'labels', frontier);
+seg('segHeatArm', [['m', 'Doctus-MCP'], ['l', 'Dateiwerkzeuge'], ['n', 'ohne']], 'heatArm', heat);
+chips(); legend(); findings(); renderAll();
+
+document.getElementById('themeToggle').onclick = () => {
+  const root = document.documentElement, cur = root.getAttribute('data-theme')
+    || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  root.setAttribute('data-theme', cur === 'dark' ? 'light' : 'dark');
+};
+</script>
