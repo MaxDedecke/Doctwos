@@ -37,7 +37,7 @@ from doctus_models.database import (
 from services.mcp_audit import record_mcp_tool_call
 from services.mcp_tokens import find_token_user
 from services.mcp_project_evidence import register_change_package
-from services.concept_search import chunk_in_project, concept_hits
+from services.concept_search import chunk_in_project
 from services.ollama_client import search_project_chunks
 from services import drop as drop_view
 from services.source_access import source_visible as _source_visible
@@ -264,7 +264,7 @@ def answer_context(
     ] = None,
     max_chars: Annotated[int, Field(description="Evidence budget, 3000-14000.")] = 8000,
 ) -> dict:
-    """FIRST CHOICE for any question about code: pass the symbol names and a short topic. Returns, in one call, the source with line numbers, callers, callees (two hops), data access and users of each symbol. Answer from it and cite file:line."""
+    """CALL THIS FIRST for any question about code, also when no name is known yet: pass `question` verbatim, plus `symbols` if the question names any. Returns, in one call, the source with line numbers, callers, callees (two hops), data access and users of each symbol, or the best matching passages when nothing is named. Usually enough to answer; cite file:line."""
     max_chars = max(3000, min(max_chars, 14000))
     with _tool_context(ctx, "answer_context", project_id, {"max_chars": max_chars}) as (db, user):
         response = build_answer_context(
@@ -358,6 +358,29 @@ def list_visible_projects(ctx: Context, limit: int = 20, offset: int = 0) -> dic
         }
 
 
+_SEARCH_EVIDENCE_CHARS = 4500
+_IDENTIFIER = re.compile(
+    r"[A-Za-z0-9]+(?:[-_.#][A-Za-z0-9]+)+|[a-z]+[A-Z][A-Za-z0-9]*|[A-Z][a-z]+[A-Z][A-Za-z0-9]*"
+)
+
+
+def _describes(query: str) -> bool:
+    """Mehrere Wörter, überwiegend keine Bezeichner: eine Beschreibung, keine Namenssuche."""
+    if "|" in query:
+        return False
+    words = [w for w in re.split(r"\s+", query.strip()) if w]
+    if len(words) < 2:
+        return False
+    names = sum(bool(_IDENTIFIER.fullmatch(w)) or (w.isupper() and len(w) > 3) for w in words)
+    return names * 2 < len(words)
+
+
+def _symbol_matches_name(item: dict, alternative: str) -> bool:
+    wanted = alternative.strip().casefold()
+    qualified = (item.get("qualified_name") or "").casefold()
+    return bool(wanted) and (qualified == wanted or re.split(r"[.#]", qualified)[-1] == wanted)
+
+
 @mcp.tool(annotations=READ_ONLY)
 def search_code(
     ctx: Context,
@@ -366,13 +389,14 @@ def search_code(
     limit: int = 10,
     include_source: bool = True,
 ) -> dict:
-    """Find indexed code entities by NAME: symbol, qualified name or file path, not by description.
+    """Find indexed code entities by NAME: symbol, qualified name or file path. Not the first step for a question:
+    call ``answer_context`` with the question first, it usually answers in one call.
 
     Accepts ``Klasse.methode`` and ``Klasse#methode`` alike, several alternatives separated by ``|``,
     and short phrases such as ``authenticate AuthDataAccessor``. Identifiers are usually English
     (``CREDIT-LIMIT``, ``mustChangePassword``). For a question about a concept, call ``answer_context`` with
-    ``question`` instead: it returns the best passages. An empty result here lists similar names and, for a
-    description, ``concept_hits``. To understand a symbol use ``explain_symbol`` (source, callers, callees,
+    ``question`` instead: it returns the best passages. An empty result here lists similar names; for a
+    description it carries the ``answer_context`` evidence itself. To understand a symbol use ``explain_symbol`` (source, callers, callees,
     data access).
     """
     query = query.strip()
@@ -454,6 +478,24 @@ def search_code(
                     }
             visible.append(item)
         follow_up_actions = []
+        exact_names = [
+            item["qualified_name"]
+            for item in visible
+            if item.get("qualified_name")
+            and any(_symbol_matches_name(item, a) for a in alternatives)
+        ][:3]
+        if exact_names:
+            follow_up_actions.append(
+                {
+                    "tool": "answer_context",
+                    "arguments": {
+                        "project_id": project_id,
+                        "symbols": exact_names,
+                        "question": query,
+                    },
+                    "reason": "Source, callers, callees and data access of these symbols together, in one call.",
+                }
+            )
         for item in visible[:1]:
             follow_up_actions.append(
                 {
@@ -483,14 +525,25 @@ def search_code(
         }
         if not visible and suggestions:
             response["did_you_mean"] = suggestions[:5]
-        if not visible and "|" not in query:
-            found = concept_hits(db, user, project_id, query, limit=min(limit, 8))
-            if found:
-                response["concept_hits"] = found
-                response["hint"] = (
-                    "search_code matches names, not descriptions. These passages match the description; "
-                    "continue with explain_symbol on a unit from concept_hits."
-                )
+        # Eine Beschreibung statt eines Namens: Das Belegpaket gleich mitliefern. Modelle, die mit der Suche beginnen
+        # (Benchmark 17.11.: qwen3-coder in 33 von 36 Sitzungen), hangelten sich sonst von Symbol zu Symbol bis zum
+        # Werkzeuglimit. Es steht vor den Treffern, damit ein gekürztes Ergebnis die Belege behält.
+        if not exact_names and _describes(query):
+            evidence = build_answer_context(
+                db, user, project_id, question=query, max_chars=_SEARCH_EVIDENCE_CHARS
+            )
+            if evidence.get("resolved") or evidence.get("concept_hits") or evidence.get("evidence"):
+                for item in visible:
+                    item.pop("source_excerpt", None)
+                response = {
+                    "answer_context": evidence,
+                    "hint": (
+                        "search_code matches names, not descriptions. answer_context holds the evidence for this "
+                        "description: answer from it and cite its file:line. Next time call answer_context first."
+                    ),
+                    **response,
+                }
+                response["follow_up_actions"] = []
         _capture_mcp_result(ctx, db, project_id, response)
         return response
 

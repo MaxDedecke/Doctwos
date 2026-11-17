@@ -6,7 +6,7 @@
 set -u
 cd "$(dirname "$0")"
 TAG=$1; URL=$2; MODEL=$3; CTX=$4; PULL=${5:-}
-REPS=${REPS:-3}; STEPS=${STEPS:-"team holdout"}; RESUME=${RESUME:-}   # Wiederholungen und Aufgabensätze, z. B. REPS=2 STEPS=holdout
+REPS=${REPS:-3}; STEPS=${STEPS:-"team holdout"}; RESUME=${RESUME:-}; ARMS=${ARMS:-none,local,mcp}   # z. B. REPS=2 STEPS=holdout ARMS=mcp
 LOG=results/ch9n_${TAG}.log
 echo "start $(date +%H:%M:%S) $TAG $MODEL ctx=$CTX" >> "$LOG"
 
@@ -26,7 +26,7 @@ run() {  # <Aufgabendatei> <Festlegung> <Ausgabekennung>
   docker run --rm --name "bench-ch9n-$TAG-$3" --network host --memory 1g --cpus 1 --env-file .env.local \
     -e OLLAMA_URL="$URL" -e BENCH_MODEL="$MODEL" -e BENCH_NUM_CTX="$CTX" \
     -v "$PWD:/bench" -w /bench --entrypoint python doctus-backend-api:latest harness/run.py \
-    --lock "$2" --tasks-file "$1" --reps "$REPS" ${RESUME:+--resume} --out "ch9n_${TAG}_$3" >> "$LOG" 2>&1
+    --lock "$2" --tasks-file "$1" --reps "$REPS" --arms "$ARMS" ${RESUME:+--resume} --out "ch9n_${TAG}_$3" >> "$LOG" 2>&1
 }
 case " $STEPS " in *" team "*) run tasks_team.json manifest_ch9.json team;; esac
 case " $STEPS " in *" holdout "*) run tasks_team_holdout.json manifest_ch9_holdout.json holdout;; esac

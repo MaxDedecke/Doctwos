@@ -264,9 +264,13 @@ def test_search_code_falls_back_to_concept_hits_for_a_description_but_not_for_al
     )
 
     assert described["results"] == []
-    assert described["concept_hits"]["hits"][0]["cite"] == "app/cbl/COCRDUPC.cbl:913"
+    package = described["answer_context"]
+    assert package["concept_hits"]["hits"][0]["cite"] == "app/cbl/COCRDUPC.cbl:913"
     assert "names, not descriptions" in described["hint"]
-    assert "concept_hits" not in alternatives
+    assert (
+        list(described)[0] == "answer_context"
+    )  # vor den Treffern, damit Kürzen die Belege nicht trifft
+    assert "answer_context" not in alternatives
 
     db_session.query(CodeEntity).filter(CodeEntity.project_id == project_id).delete()
     db_session.query(DocumentChunk).filter(DocumentChunk.project_id == project_id).delete()
@@ -299,3 +303,43 @@ def test_concept_hits_become_clickable_sources(db_session):
     assert {(s["file"], tuple(s["lines"])) for s in sources} == {
         ("core/UserLogic.java", (121, 129))
     }
+
+
+def test_search_code_points_named_symbols_to_answer_context(
+    db_session,
+    mcp_project_context,  # noqa: F811
+    monkeypatch,
+):
+    mcp_tests._use_test_session(monkeypatch, db_session)
+    owner, _outsider, project_id, _foreign = mcp_project_context
+    _java(db_session, project_id)
+    context = mcp_tests._context(owner.id)
+
+    found = mcp_server.search_code(
+        context, project_id=project_id, query="UserLogic", include_source=False
+    )
+
+    first = found["follow_up_actions"][0]
+    assert first["tool"] == "answer_context"
+    assert first["arguments"]["symbols"] == ["app.UserLogic"]
+    assert "answer_context" not in found
+
+    db_session.query(CodeEntity).filter(CodeEntity.project_id == project_id).delete()
+    db_session.commit()
+
+
+@pytest.mark.parametrize(
+    "query, describes",
+    [
+        ("card expiry year validation", True),
+        ("Wie wird ein Benutzer gelöscht", True),
+        ("CARD-YEAR-CHECK VALID-YEAR", False),
+        ("COACTUPC 1250-EDIT-SIGNED-9V2", False),
+        ("authenticate AuthDataAccessor", False),
+        ("UserLogic#delete", False),
+        ("mustChangePassword", False),
+        ("Ablaufjahr|Kartenjahr", False),
+    ],
+)
+def test_descriptions_are_told_apart_from_names_in_cobol_and_java(query, describes):
+    assert mcp_server._describes(query) is describes
