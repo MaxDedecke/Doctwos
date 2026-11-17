@@ -1,0 +1,1124 @@
+{
+  "version": 1,
+  "purpose": "Kapitel 9 (Team-Aufgaben): zwölf Aufgaben aus dem Entwickleralltag (Einarbeitung, Änderungsstelle, Auswirkung, Fehlersuche, Jobs, Tests, Review-Vorbereitung). Die meisten nennen das Programm bzw. die Klasse bewusst nicht; das Finden ist Teil der Aufgabe. Prüfpunkte am indizierten Stand belegt, vor jedem Modelllauf festgelegt.",
+  "projects": {
+    "carddemo": {
+      "project_id": 1,
+      "corpus": "corpus/carddemo",
+      "language": "COBOL",
+      "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
+    },
+    "syncope": {
+      "project_id": 2,
+      "corpus": "corpus/syncope_2798",
+      "language": "Java",
+      "commit": "2798fa31fc3b61195817530197af8c90ea5838e6"
+    }
+  },
+  "scoring": {
+    "note": "Ein Item gilt als erfuellt, wenn JEDE Gruppe in `all` mindestens eine ihrer Regex-Alternativen in der Antwort trifft (case-insensitive). Penalties ziehen ihr Gewicht ab, wenn der Regex trifft. Rubrikwert = max(0, Summe erfuellter Gewichte - Penalties) / Summe aller Item-Gewichte.",
+    "usable_threshold": 0.5
+  },
+  "tasks": [
+    {
+      "id": "T-C1-ONBOARD",
+      "project": "carddemo",
+      "category": "Einarbeitung",
+      "prompt": "In AWS CardDemo: Ich bin neu im Team. Wie ist die Anwendung technisch aufgebaut? Erkläre den Online- und den Batch-Teil, über welche Transaktion und welches Programm man einsteigt, wohin man nach der Anmeldung geleitet wird und welche Jobs den fachlichen Kern der täglichen Batch-Verarbeitung bilden.",
+      "ground_truth": "README.md und app/cbl/COSGN00C.cbl: Online über CICS mit BMS-Masken, Daten in VSAM (KSDS mit AIX), Batch über JCL. Einstieg Transaktion CC00 -> COSGN00C; nach erfolgreicher Anmeldung XCTL zu COADM01C (Admin, CA00) bzw. COMEN01C (Benutzer, CM00), abhängig vom Benutzertyp aus USRSEC. Batch-Kern: POSTTRAN (Buchung, CBTRN02C), INTCALC (Zinsen, CBACT04C), CREASTMT (Kontoauszug, CBSTM03A); dazu Ladejobs (ACCTFILE, CARDFILE, ...).",
+      "items": [
+        {
+          "id": "tech",
+          "weight": 2,
+          "all": [
+            [
+              "CICS"
+            ],
+            [
+              "VSAM"
+            ]
+          ]
+        },
+        {
+          "id": "jcl",
+          "weight": 1,
+          "all": [
+            [
+              "JCL"
+            ]
+          ]
+        },
+        {
+          "id": "entry",
+          "weight": 2,
+          "all": [
+            [
+              "CC00"
+            ],
+            [
+              "COSGN00C"
+            ]
+          ]
+        },
+        {
+          "id": "menus",
+          "weight": 2,
+          "all": [
+            [
+              "COMEN01C"
+            ],
+            [
+              "COADM01C"
+            ]
+          ]
+        },
+        {
+          "id": "admin-decision",
+          "weight": 1,
+          "all": [
+            [
+              "Admin"
+            ],
+            [
+              "Benutzertyp",
+              "user ?type",
+              "USRTYP",
+              "USR-TYPE",
+              "Typ des Benutzers",
+              "Rolle",
+              "role"
+            ]
+          ]
+        },
+        {
+          "id": "posttran",
+          "weight": 2,
+          "all": [
+            [
+              "POSTTRAN",
+              "CBTRN02C"
+            ]
+          ]
+        },
+        {
+          "id": "intcalc",
+          "weight": 1,
+          "all": [
+            [
+              "INTCALC",
+              "CBACT04C"
+            ]
+          ]
+        },
+        {
+          "id": "creastmt",
+          "weight": 1,
+          "all": [
+            [
+              "CREASTMT",
+              "CBSTM03A"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-C2-CHANGEPOINT",
+      "project": "carddemo",
+      "category": "Änderungsstelle finden",
+      "prompt": "In AWS CardDemo: Neue Anforderung: Bei der Online-Aktualisierung eines Kontos darf das Kreditlimit künftig nicht über 50.000 gesetzt werden. In welchem Programm und in welchem Paragraphen muss ich die Prüfung einbauen, wie wird das Kreditlimit dort heute geprüft und wo wird das Konto am Ende zurückgeschrieben?",
+      "ground_truth": "app/cbl/COACTUPC.cbl: 1200-EDIT-MAP-INPUTS prüft 'Credit Limit' über 1250-EDIT-SIGNED-9V2 (ACUP-NEW-CREDIT-LIMIT-X), Ergebnis in WS-EDIT-CREDIT-LIMIT (FLG-CRED-LIMIT-NOT-OK/-ISVALID). Zurückschreiben in 9600-WRITE-PROCESSING (REWRITE ACCTFILE, ACCT-CREDIT-LIMIT aus CVACT01Y).",
+      "items": [
+        {
+          "id": "program",
+          "weight": 3,
+          "all": [
+            [
+              "COACTUPC"
+            ]
+          ]
+        },
+        {
+          "id": "edit-paragraph",
+          "weight": 2,
+          "all": [
+            [
+              "1200-EDIT-MAP-INPUTS"
+            ]
+          ]
+        },
+        {
+          "id": "numeric-edit",
+          "weight": 2,
+          "all": [
+            [
+              "1250-EDIT-SIGNED-9V2"
+            ]
+          ]
+        },
+        {
+          "id": "flag",
+          "weight": 1,
+          "all": [
+            [
+              "WS-EDIT-CREDIT-LIMIT",
+              "FLG-CRED-LIMIT"
+            ]
+          ]
+        },
+        {
+          "id": "new-field",
+          "weight": 1,
+          "all": [
+            [
+              "ACUP-NEW-CREDIT-LIMIT"
+            ]
+          ]
+        },
+        {
+          "id": "rewrite",
+          "weight": 2,
+          "all": [
+            [
+              "9600-WRITE-PROCESSING",
+              "REWRITE"
+            ]
+          ]
+        },
+        {
+          "id": "record-field",
+          "weight": 1,
+          "all": [
+            [
+              "ACCT-CREDIT-LIMIT"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-C3-IMPACT",
+      "project": "carddemo",
+      "category": "Auswirkung einer Änderung",
+      "prompt": "In AWS CardDemo: Ich möchte das Feld ACCT-CURR-BAL im Kontosatz um zwei Stellen verlängern. Welche Programme sind betroffen (welche rechnen mit dem Feld, welche binden den Satz nur ein und müssen neu übersetzt werden), und worauf muss ich beim Satzaufbau und bei der VSAM-Datei achten?",
+      "ground_truth": "app/cpy/CVACT01Y.cpy: ACCOUNT-RECORD (RECLN 300), ACCT-CURR-BAL PIC S9(10)V99, am Ende FILLER X(178); ACCTFILE.jcl RECORDSIZE(300 300). Rechnen mit dem Feld: CBTRN02C (ADD DALYTRAN-AMT TO ACCT-CURR-BAL), CBACT04C (ADD WS-TOTAL-INT), COBIL00C (Bezahlung), COACTUPC/COACTVWC (online), CBSTM03A, CBEXPORT/CBIMPORT, CBACT01C, COPAUA0C, COACCT01. Nur eingebunden: CBTRN01C, COCRDSLC, COCRDUPC, COTRN02C, COPAUS0C. Alle Einbinder neu übersetzen. VSAM: ACCTFILE.jcl definiert den Cluster per IDCAMS mit RECORDSIZE(300 300); bei längerem Satz Cluster neu definieren und Daten neu laden.",
+      "items": [
+        {
+          "id": "copybook",
+          "weight": 2,
+          "all": [
+            [
+              "CVACT01Y"
+            ]
+          ]
+        },
+        {
+          "id": "pic",
+          "weight": 1,
+          "all": [
+            [
+              "S9\\(10\\)V99"
+            ]
+          ]
+        },
+        {
+          "id": "record-length",
+          "weight": 2,
+          "all": [
+            [
+              "FILLER",
+              "RECLN",
+              "\\b300\\b"
+            ]
+          ]
+        },
+        {
+          "id": "posting",
+          "weight": 2,
+          "all": [
+            [
+              "CBTRN02C"
+            ]
+          ]
+        },
+        {
+          "id": "interest",
+          "weight": 1,
+          "all": [
+            [
+              "CBACT04C"
+            ]
+          ]
+        },
+        {
+          "id": "billpay",
+          "weight": 1,
+          "all": [
+            [
+              "COBIL00C"
+            ]
+          ]
+        },
+        {
+          "id": "online-account",
+          "weight": 1,
+          "all": [
+            [
+              "COACTUPC",
+              "COACTVWC"
+            ]
+          ]
+        },
+        {
+          "id": "other-batch",
+          "weight": 1,
+          "all": [
+            [
+              "CBSTM03A",
+              "CBEXPORT",
+              "CBIMPORT",
+              "CBACT01C"
+            ]
+          ]
+        },
+        {
+          "id": "include-only",
+          "weight": 1,
+          "all": [
+            [
+              "CBTRN01C",
+              "COCRDSLC",
+              "COCRDUPC",
+              "COTRN02C",
+              "COPAUS0C"
+            ]
+          ]
+        },
+        {
+          "id": "vsam-definition",
+          "weight": 1,
+          "all": [
+            [
+              "RECORDSIZE",
+              "ACCTFILE\\.jcl",
+              "DEFINE CLUSTER",
+              "IDCAMS"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-C4-BUGHUNT",
+      "project": "carddemo",
+      "category": "Fehlersuche",
+      "prompt": "In AWS CardDemo: Fehlermeldung aus dem Fachbereich: Bei der Online-Aktualisierung einer Kreditkarte lässt sich ein Ablaufjahr 2100 nicht speichern, es erscheint 'Invalid card expiry year'. Wo genau entsteht die Meldung, welche Grenzen gelten für Ablaufmonat und -jahr, und was müsste man ändern?",
+      "ground_truth": "app/cbl/COCRDUPC.cbl: 1200-EDIT-MAP-INPUTS ruft 1250-EDIT-EXPIRY-MON und 1260-EDIT-EXPIRY-YEAR auf. Jahr über CARD-YEAR-CHECK-N mit 88 VALID-YEAR VALUES 1950 THRU 2099; sonst CARD-EXPIRY-YEAR-NOT-VALID ('Invalid card expiry year'). Monat: 88 VALID-MONTH 1 THRU 12, Meldung 'Card expiry month must be between 1 and 12'. Änderung: Wertebereich von VALID-YEAR anpassen.",
+      "items": [
+        {
+          "id": "program",
+          "weight": 3,
+          "all": [
+            [
+              "COCRDUPC"
+            ]
+          ]
+        },
+        {
+          "id": "year-paragraph",
+          "weight": 2,
+          "all": [
+            [
+              "1260-EDIT-EXPIRY-YEAR"
+            ]
+          ]
+        },
+        {
+          "id": "valid-year",
+          "weight": 2,
+          "all": [
+            [
+              "VALID-YEAR"
+            ]
+          ]
+        },
+        {
+          "id": "range",
+          "weight": 2,
+          "all": [
+            [
+              "1950"
+            ],
+            [
+              "2099"
+            ]
+          ]
+        },
+        {
+          "id": "message-flag",
+          "weight": 1,
+          "all": [
+            [
+              "CARD-EXPIRY-YEAR-NOT-VALID",
+              "FLG-CARDEXPYEAR"
+            ]
+          ]
+        },
+        {
+          "id": "month",
+          "weight": 1,
+          "all": [
+            [
+              "1250-EDIT-EXPIRY-MON",
+              "VALID-MONTH",
+              "1 (and|bis|und) 12",
+              "1 THRU 12"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-C5-JOB",
+      "project": "carddemo",
+      "category": "Batch-Job verstehen",
+      "prompt": "In AWS CardDemo: Ich soll den Lauf übernehmen, der die Kontoauszüge für Kunden erzeugt. Welcher Job ist das, welche Schritte laufen darin nacheinander, welche Programme werden ausgeführt, welche Dateien werden gelesen und in welchen Formaten wird ausgegeben?",
+      "ground_truth": "app/jcl/CREASTMT.JCL: DELDEF01 (IDCAMS), STEP010 SORT der TRANSACT-Datei nach Karte und Transaktions-ID in TRXFL.SEQ, STEP020 IDCAMS REPRO in TRXFL.VSAM.KSDS, STEP030 IEFBR14 löscht alte Ausgaben, STEP040 CBSTM03A (ruft CBSTM03B für die Dateizugriffe) liest TRNXFILE, XREFFILE, ACCTFILE, CUSTFILE und schreibt STMTFILE (Text, STATEMNT.PS) und HTMLFILE (STATEMNT.HTML).",
+      "items": [
+        {
+          "id": "job",
+          "weight": 2,
+          "all": [
+            [
+              "CREASTMT"
+            ]
+          ]
+        },
+        {
+          "id": "program",
+          "weight": 2,
+          "all": [
+            [
+              "CBSTM03A"
+            ]
+          ]
+        },
+        {
+          "id": "subprogram",
+          "weight": 1,
+          "all": [
+            [
+              "CBSTM03B"
+            ]
+          ]
+        },
+        {
+          "id": "sort",
+          "weight": 1,
+          "all": [
+            [
+              "SORT"
+            ]
+          ]
+        },
+        {
+          "id": "transactions",
+          "weight": 1,
+          "all": [
+            [
+              "TRXFL",
+              "TRNXFILE",
+              "TRANSACT"
+            ]
+          ]
+        },
+        {
+          "id": "master-data",
+          "weight": 1,
+          "all": [
+            [
+              "CUSTFILE",
+              "CUSTDATA"
+            ],
+            [
+              "ACCTFILE",
+              "ACCTDATA",
+              "XREFFILE",
+              "CARDXREF"
+            ]
+          ]
+        },
+        {
+          "id": "formats",
+          "weight": 2,
+          "all": [
+            [
+              "HTML"
+            ],
+            [
+              "STMTFILE",
+              "STATEMNT\\.PS",
+              "Text",
+              "plain"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-C6-REVIEW",
+      "project": "carddemo",
+      "category": "Review-Vorbereitung",
+      "prompt": "In AWS CardDemo: Ein Kollege will das Unterprogramm CSUTLDTC (Datumsprüfung) umbauen. Bevor ich den Change reviewe: Wie ist die Schnittstelle (Parameter und Rückgabe), worauf stützt sich die Prüfung intern, und welche Programme rufen es auf und werten das Ergebnis wie aus?",
+      "ground_truth": "app/cbl/CSUTLDTC.cbl: PROCEDURE DIVISION USING LS-DATE X(10), LS-DATE-FORMAT X(10), LS-RESULT X(80); ruft die LE-API CEEDAYS, Schweregrad nach RETURN-CODE und in LS-RESULT. Aufrufer: COTRN02C (Orig/Proc-Datum, Zeilen 393/413) und CORPT00C (Start-/Enddatum, 392/412) über CSUTLDTC-PARM, Prüfung CSUTLDTC-RESULT-SEV-CD = '0000' bzw. MSG-NUM '2513'; COACTUPC über das Copybook CSUTLDPY. Format 'YYYY-MM-DD'.",
+      "items": [
+        {
+          "id": "ceedays",
+          "weight": 2,
+          "all": [
+            [
+              "CEEDAYS"
+            ]
+          ]
+        },
+        {
+          "id": "params",
+          "weight": 1,
+          "all": [
+            [
+              "LS-DATE",
+              "CSUTLDTC-DATE"
+            ],
+            [
+              "FORMAT"
+            ]
+          ]
+        },
+        {
+          "id": "result",
+          "weight": 1,
+          "all": [
+            [
+              "LS-RESULT",
+              "CSUTLDTC-RESULT",
+              "RETURN-CODE",
+              "SEV",
+              "Severity",
+              "Schweregrad"
+            ]
+          ]
+        },
+        {
+          "id": "caller-trn",
+          "weight": 2,
+          "all": [
+            [
+              "COTRN02C"
+            ]
+          ]
+        },
+        {
+          "id": "caller-rpt",
+          "weight": 2,
+          "all": [
+            [
+              "CORPT00C"
+            ]
+          ]
+        },
+        {
+          "id": "caller-copybook",
+          "weight": 2,
+          "all": [
+            [
+              "CSUTLDPY",
+              "COACTUPC"
+            ]
+          ]
+        },
+        {
+          "id": "msg-2513",
+          "weight": 1,
+          "all": [
+            [
+              "2513"
+            ]
+          ]
+        },
+        {
+          "id": "format",
+          "weight": 1,
+          "all": [
+            [
+              "YYYY-MM-DD"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-J1-ONBOARD",
+      "project": "syncope",
+      "category": "Einarbeitung",
+      "prompt": "In Apache Syncope: Ich bin neu im Team. Wie ist das Projekt aufgebaut? Welche Hauptbereiche gibt es, wo liegen REST-Schicht, Geschäftslogik, Provisionierung, Workflow und Persistenz im Core, welche Persistenz-Implementierungen gibt es, und wo liegen die Admin-Konsole und die Integrationstests?",
+      "ground_truth": "Syncope verwaltet digitale Identitäten (Identity Management) in Unternehmen. Wurzel: core, client, common, ext, fit, wa, docker, standalone, archetype. core/idrepo/rest-cxf (REST, CXF), core/idrepo/logic (UserLogic usw.), core/provisioning-api und -java, core/workflow-api und -java (Flowable als ext/flowable), core/persistence-api mit persistence-jpa und persistence-neo4j; client/idrepo/console (Wicket-Admin-Konsole); fit (Integrationstests, fit/core-reference); wa = Web Access (am).",
+      "items": [
+        {
+          "id": "domain",
+          "weight": 1,
+          "all": [
+            [
+              "Identit",
+              "identity"
+            ]
+          ]
+        },
+        {
+          "id": "rest",
+          "weight": 2,
+          "all": [
+            [
+              "rest-cxf"
+            ]
+          ]
+        },
+        {
+          "id": "logic",
+          "weight": 1,
+          "all": [
+            [
+              "idrepo/logic",
+              "core/.{0,12}logic",
+              "UserLogic"
+            ]
+          ]
+        },
+        {
+          "id": "provisioning",
+          "weight": 1,
+          "all": [
+            [
+              "provisioning-java",
+              "provisioning-api"
+            ]
+          ]
+        },
+        {
+          "id": "workflow",
+          "weight": 1,
+          "all": [
+            [
+              "workflow-java",
+              "workflow-api",
+              "Flowable"
+            ]
+          ]
+        },
+        {
+          "id": "persistence",
+          "weight": 2,
+          "all": [
+            [
+              "persistence-jpa",
+              "JPA"
+            ],
+            [
+              "persistence-neo4j",
+              "Neo4j"
+            ]
+          ]
+        },
+        {
+          "id": "console",
+          "weight": 1,
+          "all": [
+            [
+              "client/idrepo",
+              "Wicket",
+              "client/idm"
+            ]
+          ]
+        },
+        {
+          "id": "fit",
+          "weight": 1,
+          "all": [
+            [
+              "\\bfit\\b",
+              "fit/core-reference",
+              "ITCase"
+            ]
+          ]
+        },
+        {
+          "id": "wa",
+          "weight": 1,
+          "all": [
+            [
+              "\\bwa\\b",
+              "Web Access",
+              "core/am",
+              "\\bam\\b"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-J2-EXTENSION",
+      "project": "syncope",
+      "category": "Änderungsstelle finden",
+      "prompt": "In Apache Syncope: Wir müssen vor jeder Änderung eines Benutzers eine eigene fachliche Prüfung ausführen (zum Beispiel: die Kostenstelle muss gesetzt sein), möglichst ohne den Core-Code von Syncope zu ändern. Welche Erweiterungsstelle ist dafür vorgesehen, wie wird sie konfiguriert, und wo im Code wird sie beim Update aufgerufen?",
+      "ground_truth": "core/idrepo/logic/.../api/LogicActions.java (beforeCreate/afterCreate/beforeUpdate/afterUpdate/beforeDelete/afterDelete). Konfiguration als Implementation am Realm (realm.getActions()), instanziiert über ImplementationManager.build in AbstractAnyLogic.getActions; AbstractAnyLogic.beforeUpdate ruft action.beforeUpdate für alle Aktionen des Realms; AbstractUserLogic.doUpdate ruft beforeUpdate(userUR, userTO.getRealm()).",
+      "items": [
+        {
+          "id": "logic-actions",
+          "weight": 3,
+          "all": [
+            [
+              "LogicActions"
+            ]
+          ]
+        },
+        {
+          "id": "before-update",
+          "weight": 2,
+          "all": [
+            [
+              "beforeUpdate"
+            ]
+          ]
+        },
+        {
+          "id": "realm",
+          "weight": 2,
+          "all": [
+            [
+              "Realm"
+            ],
+            [
+              "getActions",
+              "Actions",
+              "Aktion"
+            ]
+          ]
+        },
+        {
+          "id": "abstract-any-logic",
+          "weight": 1,
+          "all": [
+            [
+              "AbstractAnyLogic"
+            ]
+          ]
+        },
+        {
+          "id": "do-update",
+          "weight": 1,
+          "all": [
+            [
+              "AbstractUserLogic",
+              "doUpdate"
+            ]
+          ]
+        },
+        {
+          "id": "implementation",
+          "weight": 1,
+          "all": [
+            [
+              "ImplementationManager",
+              "Implementation"
+            ]
+          ]
+        },
+        {
+          "id": "after-update",
+          "weight": 1,
+          "all": [
+            [
+              "afterUpdate"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-J3-IMPACT",
+      "project": "syncope",
+      "category": "Auswirkung einer Änderung",
+      "prompt": "In Apache Syncope: Ich möchte die Signatur von UserDAO.findByUsername ändern. Wo ist die Methode deklariert, wie wird sie in den Persistenz-Modulen umgesetzt, welche Klassen im Produktivcode rufen sie auf und welche Tests sind betroffen?",
+      "ground_truth": "core/persistence-api/.../dao/UserDAO.java:113 Optional<? extends User> findByUsername(String username); keine handgeschriebene Implementierung: Spring-Data-Ableitung aus dem Methodennamen in UserRepo (persistence-jpa und persistence-neo4j). Aufrufer u. a. AuthDataAccessor, UserLogic, UserDataBinderImpl, SecurityQuestionLogic, MfaLogic, DelegationLogic, UserRequestLogic, GroupLogic, InboundMatcher, DefaultMappingManager, SyncopeJWTSSOProvider, MSEntraJWTSSOProvider, FIQLQueryLogic, SyncopeUserQueryImpl. Tests u. a. UserTest, AnySearchTest, DelegationTest, ManagerTest (JPA und Neo4j).",
+      "items": [
+        {
+          "id": "declaration",
+          "weight": 1,
+          "all": [
+            [
+              "persistence-api",
+              "UserDAO\\.java"
+            ]
+          ]
+        },
+        {
+          "id": "spring-data",
+          "weight": 2,
+          "all": [
+            [
+              "UserRepo",
+              "Spring Data",
+              "abgeleitet",
+              "derived",
+              "Methodenname"
+            ]
+          ]
+        },
+        {
+          "id": "auth",
+          "weight": 2,
+          "all": [
+            [
+              "AuthDataAccessor"
+            ]
+          ]
+        },
+        {
+          "id": "user-logic",
+          "weight": 1,
+          "all": [
+            [
+              "UserLogic"
+            ]
+          ]
+        },
+        {
+          "id": "binder",
+          "weight": 1,
+          "all": [
+            [
+              "UserDataBinderImpl",
+              "UserDataBinder"
+            ]
+          ]
+        },
+        {
+          "id": "other-logic",
+          "weight": 1,
+          "all": [
+            [
+              "SecurityQuestionLogic",
+              "MfaLogic",
+              "DelegationLogic",
+              "UserRequestLogic",
+              "GroupLogic",
+              "FIQLQueryLogic"
+            ]
+          ]
+        },
+        {
+          "id": "sso",
+          "weight": 1,
+          "all": [
+            [
+              "SyncopeJWTSSOProvider",
+              "MSEntraJWTSSOProvider"
+            ]
+          ]
+        },
+        {
+          "id": "pushpull",
+          "weight": 1,
+          "all": [
+            [
+              "InboundMatcher",
+              "DefaultMappingManager"
+            ]
+          ]
+        },
+        {
+          "id": "tests",
+          "weight": 1,
+          "all": [
+            [
+              "UserTest",
+              "AnySearchTest",
+              "DelegationTest",
+              "ManagerTest",
+              "SecurityQuestionTest"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-J4-TESTS",
+      "project": "syncope",
+      "category": "Tests finden",
+      "prompt": "In Apache Syncope: Ich ändere die Passwort-Erzeugung (DefaultPasswordGenerator). Welche Tests muss ich danach laufen lassen, in welchen Modulen liegen sie und was genau prüfen sie?",
+      "ground_truth": "core/spring/src/test/.../security/PasswordGeneratorTest.java: digit, alphabetical, lowercase, uppercase, special, validateGenerated, issueSYNCOPE678 (Erzeugung ohne Richtlinie). core/persistence-jpa und core/persistence-neo4j: inner/UserTest testPasswordGenerator und passwordGeneratorFailing. DefaultPasswordGenerator liegt in core/spring (MIN_LENGTH_IF_ZERO 8, VERY_MAX_LENGTH 64).",
+      "items": [
+        {
+          "id": "generator-test",
+          "weight": 3,
+          "all": [
+            [
+              "PasswordGeneratorTest"
+            ]
+          ]
+        },
+        {
+          "id": "module",
+          "weight": 1,
+          "all": [
+            [
+              "core/spring",
+              "core-spring",
+              "syncope-core-spring"
+            ]
+          ]
+        },
+        {
+          "id": "char-classes",
+          "weight": 1,
+          "all": [
+            [
+              "digit",
+              "alphabetical",
+              "lowercase",
+              "uppercase",
+              "special"
+            ]
+          ]
+        },
+        {
+          "id": "validate",
+          "weight": 1,
+          "all": [
+            [
+              "validateGenerated"
+            ]
+          ]
+        },
+        {
+          "id": "issue",
+          "weight": 1,
+          "all": [
+            [
+              "SYNCOPE.?678"
+            ]
+          ]
+        },
+        {
+          "id": "user-test",
+          "weight": 2,
+          "all": [
+            [
+              "testPasswordGenerator",
+              "passwordGeneratorFailing"
+            ]
+          ]
+        },
+        {
+          "id": "both-persistence",
+          "weight": 1,
+          "all": [
+            [
+              "persistence-jpa",
+              "JPA"
+            ],
+            [
+              "persistence-neo4j",
+              "Neo4j"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-J5-BUGHUNT",
+      "project": "syncope",
+      "category": "Fehlersuche",
+      "prompt": "In Apache Syncope: Fehlermeldung aus dem Betrieb: Beim Pull aus dem LDAP werden Benutzer doppelt angelegt, obwohl es sie schon gibt; die Benutzernamen unterscheiden sich nur in der Groß- und Kleinschreibung. Wo wird entschieden, ob ein entfernter Eintrag zu einem vorhandenen Benutzer passt, wie läuft die Zuordnung ab und was kann man einstellen, damit das nicht mehr passiert?",
+      "ground_truth": "core/provisioning-java/.../pushpull/InboundMatcher.java: match(...) nutzt eine InboundCorrelationRule aus der InboundPolicy der Ressource, sonst den ConnObjectKey der Abbildung (Fallback __UID__) und matchByConnObjectKeyValue; für username: mit provision.isIgnoreCaseMatch() Suche über anySearchDAO mit AttrCond.Type.IEQ, sonst userDAO.findByUsername (exakt). Abhilfe: ignoreCaseMatch an der Provision setzen oder eine Korrelationsregel konfigurieren.",
+      "items": [
+        {
+          "id": "matcher",
+          "weight": 3,
+          "all": [
+            [
+              "InboundMatcher"
+            ]
+          ]
+        },
+        {
+          "id": "ignore-case",
+          "weight": 3,
+          "all": [
+            [
+              "ignoreCaseMatch",
+              "isIgnoreCaseMatch",
+              "ignore ?case"
+            ]
+          ]
+        },
+        {
+          "id": "conn-key",
+          "weight": 1,
+          "all": [
+            [
+              "matchByConnObjectKeyValue",
+              "ConnObjectKey"
+            ]
+          ]
+        },
+        {
+          "id": "correlation",
+          "weight": 2,
+          "all": [
+            [
+              "InboundCorrelationRule",
+              "Correlation ?Rule",
+              "Korrelationsregel"
+            ]
+          ]
+        },
+        {
+          "id": "policy",
+          "weight": 1,
+          "all": [
+            [
+              "InboundPolicy",
+              "Pull ?Policy"
+            ]
+          ]
+        },
+        {
+          "id": "exact",
+          "weight": 1,
+          "all": [
+            [
+              "findByUsername"
+            ]
+          ]
+        },
+        {
+          "id": "ieq",
+          "weight": 1,
+          "all": [
+            [
+              "IEQ",
+              "anySearchDAO"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "T-J6-REVIEW",
+      "project": "syncope",
+      "category": "Review-Vorbereitung",
+      "prompt": "In Apache Syncope: Ich soll einen Change am Ablauf 'Passwort muss beim nächsten Login geändert werden' reviewen. Über welchen REST-Endpunkt ändert der Benutzer sein Passwort in diesem Zustand, welche Logik-Methode läuft, welche Berechtigung ist nötig und woher bekommt der Benutzer sie, und was passiert nach der Änderung mit seinen Zugangstokens?",
+      "ground_truth": "UserSelfService (@Path users/self) POST mustChangePassword mit PasswordPatch -> UserSelfServiceImpl.mustChangePassword -> UserSelfLogic.mustChangePassword mit @PreAuthorize hasRole MUST_CHANGE_PASSWORD; die Berechtigung vergibt AuthDataAccessor (MUST_CHANGE_PASSWORD_AUTHORITIES) bei gesetztem mustChangePassword. Die Logik setzt onSyncope, alle Ressourcen (userDAO.findAllResourceKeys), mustChangePassword auf false (BooleanReplacePatchItem) und ruft update; danach accessTokenDAO.deleteByOwner.",
+      "items": [
+        {
+          "id": "endpoint",
+          "weight": 2,
+          "all": [
+            [
+              "mustChangePassword"
+            ],
+            [
+              "users/self",
+              "UserSelfService"
+            ]
+          ]
+        },
+        {
+          "id": "logic",
+          "weight": 2,
+          "all": [
+            [
+              "UserSelfLogic"
+            ]
+          ]
+        },
+        {
+          "id": "entitlement",
+          "weight": 2,
+          "all": [
+            [
+              "MUST_CHANGE_PASSWORD"
+            ]
+          ]
+        },
+        {
+          "id": "granted-by",
+          "weight": 1,
+          "all": [
+            [
+              "AuthDataAccessor"
+            ]
+          ]
+        },
+        {
+          "id": "patch",
+          "weight": 1,
+          "all": [
+            [
+              "PasswordPatch"
+            ]
+          ]
+        },
+        {
+          "id": "resources",
+          "weight": 1,
+          "all": [
+            [
+              "findAllResourceKeys",
+              "alle Ressourcen",
+              "all resources",
+              "allen Ressourcen"
+            ]
+          ]
+        },
+        {
+          "id": "reset-flag",
+          "weight": 1,
+          "all": [
+            [
+              "BooleanReplacePatchItem",
+              "value\\(false\\)",
+              "auf false",
+              "to false",
+              "zurückgesetzt",
+              "zurueckgesetzt"
+            ]
+          ]
+        },
+        {
+          "id": "tokens",
+          "weight": 2,
+          "all": [
+            [
+              "deleteByOwner",
+              "accessTokenDAO",
+              "AccessToken"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    }
+  ]
+}

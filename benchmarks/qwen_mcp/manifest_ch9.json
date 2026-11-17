@@ -1,0 +1,9 @@
+{
+ "chapter": 9,
+ "titel": "Team-Aufgaben: kleines Modell mit und ohne Doctus-MCP",
+ "stand": "2026-11-17T09:48:20+0100",
+ "tasks_file": "tasks_team.json",
+ "tasks_sha256": "8a1a67706538aea41d9e32242171ea9a8918ddaba32f866f06179407ad83f131",
+ "konfiguration": "Plain MCP wie ein IDE-Agent (kein Prefetch, kein Denkmodus, alle MCP-Werkzeuge), qwen3:8b, num_ctx 8192, T 0,3, 12 Aufgaben x 3 Gruppen x 3 Wiederholungen. Doctus-Stand: Commit e578b53.",
+ "hinweis_methodik": "Katalog und Prüfpunkte vor dem ersten gewerteten Lauf festgelegt; Musterlösungen am indizierten Stand (CardDemo 59cc6c2, Syncope 2798fa3) im Quelltext belegt."
+}

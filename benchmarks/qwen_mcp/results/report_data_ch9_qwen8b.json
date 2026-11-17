@@ -1,0 +1,2742 @@
+{
+ "meta": {
+  "model": "qwen3:8b",
+  "options": {
+   "temperature": 0.3,
+   "top_p": 0.9,
+   "num_ctx": 8192,
+   "num_predict": 1500
+  },
+  "run_id": "ch9_qwen8b_plain"
+ },
+ "arms": {
+  "none": {
+   "n": 36,
+   "rubric": 0.08239166666666667,
+   "usable": 0,
+   "tools": 0,
+   "with_tool": 0,
+   "wall_s": 19.285833333333333,
+   "tokens": 1204.4166666666667
+  },
+  "local": {
+   "n": 36,
+   "rubric": 0.12402777777777778,
+   "usable": 3,
+   "tools": 2.638888888888889,
+   "with_tool": 15,
+   "wall_s": 15.166666666666666,
+   "tokens": 3960.6111111111113
+  },
+  "mcp": {
+   "n": 36,
+   "rubric": 0.1724111111111111,
+   "usable": 4,
+   "tools": 1.6111111111111112,
+   "with_tool": 36,
+   "wall_s": 17.82111111111111,
+   "tokens": 8579.194444444445
+  }
+ },
+ "per_task": {
+  "T-C1-ONBOARD": {
+   "none": 0.0,
+   "local": 0.0,
+   "mcp": 0.08333333333333333
+  },
+  "T-C2-CHANGEPOINT": {
+   "none": 0.0,
+   "local": 0.0,
+   "mcp": 0.0
+  },
+  "T-C3-IMPACT": {
+   "none": 0.02563333333333333,
+   "local": 0.0,
+   "mcp": 0.48716666666666664
+  },
+  "T-C4-BUGHUNT": {
+   "none": 0.060599999999999994,
+   "local": 0.1515,
+   "mcp": 0.060599999999999994
+  },
+  "T-C5-JOB": {
+   "none": 0.06666666666666667,
+   "local": 0.06666666666666667,
+   "mcp": 0.0
+  },
+  "T-C6-REVIEW": {
+   "none": 0.0,
+   "local": 0.6944333333333333,
+   "mcp": 0.75
+  },
+  "T-J1-ONBOARD": {
+   "none": 0.12119999999999999,
+   "local": 0.1515,
+   "mcp": 0.0909
+  },
+  "T-J2-EXTENSION": {
+   "none": 0.030299999999999997,
+   "local": 0.0,
+   "mcp": 0.0
+  },
+  "T-J3-IMPACT": {
+   "none": 0.21209999999999998,
+   "local": 0.0909,
+   "mcp": 0.3636
+  },
+  "T-J4-TESTS": {
+   "none": 0.3333333333333333,
+   "local": 0.3333333333333333,
+   "mcp": 0.23333333333333334
+  },
+  "T-J5-BUGHUNT": {
+   "none": 0.08333333333333333,
+   "local": 0.0,
+   "mcp": 0.0
+  },
+  "T-J6-REVIEW": {
+   "none": 0.05553333333333333,
+   "local": 0.0,
+   "mcp": 0.0
+  }
+ },
+ "diffs": {
+  "mcp-local": {
+   "mean": 0.048383333333333334,
+   "lo": -0.031061111111111105,
+   "hi": 0.1527222222222222,
+   "better": 4,
+   "same": 4,
+   "worse": 4
+  },
+  "mcp-none": {
+   "mean": 0.09001944444444444,
+   "lo": -0.027941666666666663,
+   "hi": 0.24737777777777778,
+   "better": 4,
+   "same": 2,
+   "worse": 6
+  },
+  "local-none": {
+   "mean": 0.04163611111111112,
+   "lo": -0.040188888888888885,
+   "hi": 0.16979166666666667,
+   "better": 3,
+   "same": 4,
+   "worse": 5
+  }
+ },
+ "sessions": [
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 17.63,
+   "tokens": 1313,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0833,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": true,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [
+    "search_code",
+    "search_knowledge"
+   ],
+   "empty_results": 1,
+   "wall_s": 23.1,
+   "tokens": 10398,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 25.67,
+   "tokens": 1402,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 18.13,
+   "tokens": 1181,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 10.01,
+   "tokens": 1148,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [
+    "answer_context",
+    "search_code",
+    "search_code"
+   ],
+   "empty_results": 2,
+   "wall_s": 9.48,
+   "tokens": 12354,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": false,
+    "interest": false,
+    "billpay": false,
+    "online-account": false,
+    "other-batch": false,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 32.23,
+   "tokens": 1703,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.4615,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": true,
+    "record-length": false,
+    "posting": true,
+    "interest": true,
+    "billpay": true,
+    "online-account": false,
+    "other-batch": true,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 24.34,
+   "tokens": 7381,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": false,
+    "interest": false,
+    "billpay": false,
+    "online-account": false,
+    "other-batch": false,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 33.17,
+   "tokens": 1283,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 12.2,
+   "tokens": 5826,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.2727,
+   "usable": false,
+   "items": {
+    "program": true,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": false
+   },
+   "tools": [
+    "list_dir",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 10.52,
+   "tokens": 2630,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": true
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 15.67,
+   "tokens": 1093,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": false,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 15.87,
+   "tokens": 1074,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": false,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 18.7,
+   "tokens": 7398,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.1,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": true,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 13.18,
+   "tokens": 1226,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "ceedays": false,
+    "params": false,
+    "result": false,
+    "caller-trn": false,
+    "caller-rpt": false,
+    "caller-copybook": false,
+    "msg-2513": false,
+    "format": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 14.7,
+   "tokens": 1055,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.75,
+   "usable": true,
+   "items": {
+    "ceedays": true,
+    "params": false,
+    "result": true,
+    "caller-trn": true,
+    "caller-rpt": true,
+    "caller-copybook": true,
+    "msg-2513": false,
+    "format": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 15.79,
+   "tokens": 6811,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.5833,
+   "usable": true,
+   "items": {
+    "ceedays": false,
+    "params": true,
+    "result": true,
+    "caller-trn": true,
+    "caller-rpt": true,
+    "caller-copybook": false,
+    "msg-2513": true,
+    "format": false
+   },
+   "tools": [
+    "list_dir",
+    "grep",
+    "grep",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 14.26,
+   "tokens": 8726,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": false,
+    "rest": false,
+    "logic": false,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": true,
+    "wa": false
+   },
+   "tools": [
+    "search_code"
+   ],
+   "empty_results": 1,
+   "wall_s": 22.65,
+   "tokens": 5913,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": false,
+    "rest": false,
+    "logic": true,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": false,
+    "wa": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 13.17,
+   "tokens": 1199,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.1818,
+   "usable": false,
+   "items": {
+    "domain": true,
+    "rest": false,
+    "logic": true,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": false,
+    "wa": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 22.69,
+   "tokens": 1526,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 7.25,
+   "tokens": 1038,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 12.47,
+   "tokens": 884,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [
+    "search_code",
+    "search_code",
+    "search_code",
+    "explain_symbol"
+   ],
+   "empty_results": 2,
+   "wall_s": 12.27,
+   "tokens": 13507,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": false,
+    "binder": false,
+    "other-logic": false,
+    "sso": false,
+    "pushpull": false,
+    "tests": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 18.23,
+   "tokens": 1083,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.3636,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": true,
+    "binder": false,
+    "other-logic": true,
+    "sso": false,
+    "pushpull": false,
+    "tests": true
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 17.87,
+   "tokens": 7011,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": false,
+    "binder": false,
+    "other-logic": false,
+    "sso": false,
+    "pushpull": false,
+    "tests": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir"
+   ],
+   "empty_results": 0,
+   "wall_s": 16.05,
+   "tokens": 10352,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.3,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 24.94,
+   "tokens": 2004,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.4,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": true,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 18.79,
+   "tokens": 1257,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "generator-test": false,
+    "module": false,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [
+    "search_code",
+    "explain_symbol",
+    "search_code"
+   ],
+   "empty_results": 1,
+   "wall_s": 9.25,
+   "tokens": 15840,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir"
+   ],
+   "empty_results": 0,
+   "wall_s": 6.89,
+   "tokens": 5005,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 21.4,
+   "tokens": 1474,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [
+    "search_code"
+   ],
+   "empty_results": 0,
+   "wall_s": 10.29,
+   "tokens": 6021,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "local",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "grep",
+    "grep",
+    "grep",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 11.74,
+   "tokens": 10363,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "mcp",
+   "rep": 1,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 14.99,
+   "tokens": 6137,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "none",
+   "rep": 1,
+   "rubric": 0.0833,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": true,
+    "tokens": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 16.57,
+   "tokens": 1120,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 27.65,
+   "tokens": 1296,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 28.8,
+   "tokens": 1726,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.1667,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": true,
+    "entry": false,
+    "menus": false,
+    "admin-decision": true,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [
+    "search_code",
+    "search_knowledge"
+   ],
+   "empty_results": 1,
+   "wall_s": 30.74,
+   "tokens": 10407,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [
+    "answer_context",
+    "search_code",
+    "search_code"
+   ],
+   "empty_results": 2,
+   "wall_s": 13.52,
+   "tokens": 12375,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 32.42,
+   "tokens": 2130,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 12.48,
+   "tokens": 828,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": false,
+    "interest": false,
+    "billpay": false,
+    "online-account": false,
+    "other-batch": false,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 19.31,
+   "tokens": 1646,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.6154,
+   "usable": true,
+   "items": {
+    "copybook": true,
+    "pic": true,
+    "record-length": false,
+    "posting": true,
+    "interest": true,
+    "billpay": true,
+    "online-account": false,
+    "other-batch": true,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 30.85,
+   "tokens": 7639,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": false,
+    "interest": false,
+    "billpay": false,
+    "online-account": false,
+    "other-batch": false,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 39.28,
+   "tokens": 1730,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": true
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 40.22,
+   "tokens": 5973,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": true
+   },
+   "tools": [
+    "list_dir",
+    "grep",
+    "read_file"
+   ],
+   "empty_results": 0,
+   "wall_s": 13.02,
+   "tokens": 3996,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 13.62,
+   "tokens": 1037,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.1,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": true,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 15.25,
+   "tokens": 1119,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": false,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 17.29,
+   "tokens": 7435,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": false,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 13.33,
+   "tokens": 1383,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "ceedays": false,
+    "params": false,
+    "result": false,
+    "caller-trn": false,
+    "caller-rpt": false,
+    "caller-copybook": false,
+    "msg-2513": false,
+    "format": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 13.85,
+   "tokens": 1047,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.75,
+   "usable": true,
+   "items": {
+    "ceedays": true,
+    "params": false,
+    "result": true,
+    "caller-trn": true,
+    "caller-rpt": true,
+    "caller-copybook": true,
+    "msg-2513": false,
+    "format": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 18.44,
+   "tokens": 6947,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.75,
+   "usable": true,
+   "items": {
+    "ceedays": false,
+    "params": true,
+    "result": true,
+    "caller-trn": true,
+    "caller-rpt": true,
+    "caller-copybook": true,
+    "msg-2513": true,
+    "format": false
+   },
+   "tools": [
+    "list_dir",
+    "grep",
+    "grep",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 20.92,
+   "tokens": 8894,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.2727,
+   "usable": false,
+   "items": {
+    "domain": false,
+    "rest": false,
+    "logic": true,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": true,
+    "wa": true
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 17.43,
+   "tokens": 1361,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": true,
+    "rest": false,
+    "logic": false,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": false,
+    "wa": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 9.2,
+   "tokens": 0,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": false,
+    "rest": false,
+    "logic": false,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": true,
+    "wa": false
+   },
+   "tools": [
+    "search_code"
+   ],
+   "empty_results": 1,
+   "wall_s": 24.7,
+   "tokens": 5855,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 14.33,
+   "tokens": 815,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [
+    "search_code",
+    "search_code",
+    "search_code"
+   ],
+   "empty_results": 3,
+   "wall_s": 9.05,
+   "tokens": 10265,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 6.46,
+   "tokens": 994,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.3636,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": true,
+    "binder": false,
+    "other-logic": true,
+    "sso": false,
+    "pushpull": false,
+    "tests": true
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 11.42,
+   "tokens": 6693,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.1818,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": false,
+    "binder": false,
+    "other-logic": false,
+    "sso": false,
+    "pushpull": false,
+    "tests": true
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 16.19,
+   "tokens": 1070,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": false,
+    "binder": false,
+    "other-logic": false,
+    "sso": false,
+    "pushpull": false,
+    "tests": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir"
+   ],
+   "empty_results": 0,
+   "wall_s": 17.55,
+   "tokens": 10395,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.4,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": true,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [
+    "search_code",
+    "explain_symbol",
+    "search_code"
+   ],
+   "empty_results": 1,
+   "wall_s": 11.24,
+   "tokens": 15929,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.3,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 22.15,
+   "tokens": 1398,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.3,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 15.59,
+   "tokens": 1396,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir"
+   ],
+   "empty_results": 0,
+   "wall_s": 8.1,
+   "tokens": 5081,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [
+    "search_code"
+   ],
+   "empty_results": 0,
+   "wall_s": 9.15,
+   "tokens": 5928,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 25.06,
+   "tokens": 1590,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "none",
+   "rep": 2,
+   "rubric": 0.0833,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": true,
+    "tokens": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 14.68,
+   "tokens": 1032,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "mcp",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 11.68,
+   "tokens": 5987,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "local",
+   "rep": 2,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "grep",
+    "grep",
+    "grep",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 12.13,
+   "tokens": 10275,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [
+    "search_code",
+    "search_knowledge"
+   ],
+   "empty_results": 1,
+   "wall_s": 29.83,
+   "tokens": 10690,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 18.88,
+   "tokens": 1114,
+   "status": "ok"
+  },
+  {
+   "task": "T-C1-ONBOARD",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "tech": false,
+    "jcl": false,
+    "entry": false,
+    "menus": false,
+    "admin-decision": false,
+    "posttran": false,
+    "intcalc": false,
+    "creastmt": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 31.86,
+   "tokens": 1521,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [
+    "answer_context",
+    "search_code",
+    "search_code"
+   ],
+   "empty_results": 2,
+   "wall_s": 45.48,
+   "tokens": 12373,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 14.87,
+   "tokens": 1281,
+   "status": "ok"
+  },
+  {
+   "task": "T-C2-CHANGEPOINT",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "program": false,
+    "edit-paragraph": false,
+    "numeric-edit": false,
+    "flag": false,
+    "new-field": false,
+    "rewrite": false,
+    "record-field": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 10.48,
+   "tokens": 806,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.3846,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": true,
+    "interest": true,
+    "billpay": true,
+    "online-account": false,
+    "other-batch": true,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 17.34,
+   "tokens": 7333,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": false,
+    "interest": false,
+    "billpay": false,
+    "online-account": false,
+    "other-batch": false,
+    "include-only": false,
+    "vsam-definition": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 10.57,
+   "tokens": 1229,
+   "status": "ok"
+  },
+  {
+   "task": "T-C3-IMPACT",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0769,
+   "usable": false,
+   "items": {
+    "copybook": false,
+    "pic": false,
+    "record-length": false,
+    "posting": false,
+    "interest": false,
+    "billpay": false,
+    "online-account": false,
+    "other-batch": false,
+    "include-only": false,
+    "vsam-definition": true
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 25.32,
+   "tokens": 1730,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": true
+   },
+   "tools": [
+    "list_dir",
+    "grep",
+    "read_file"
+   ],
+   "empty_results": 0,
+   "wall_s": 8.87,
+   "tokens": 3843,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": true
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 14.95,
+   "tokens": 1047,
+   "status": "ok"
+  },
+  {
+   "task": "T-C4-BUGHUNT",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "program": false,
+    "year-paragraph": false,
+    "valid-year": false,
+    "range": false,
+    "message-flag": false,
+    "month": true
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 10.88,
+   "tokens": 6005,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.1,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": true,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 8.36,
+   "tokens": 1070,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": false,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 20.95,
+   "tokens": 7615,
+   "status": "ok"
+  },
+  {
+   "task": "T-C5-JOB",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.1,
+   "usable": false,
+   "items": {
+    "job": false,
+    "program": false,
+    "subprogram": false,
+    "sort": false,
+    "transactions": true,
+    "master-data": false,
+    "formats": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 16.64,
+   "tokens": 1181,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "ceedays": false,
+    "params": false,
+    "result": false,
+    "caller-trn": false,
+    "caller-rpt": false,
+    "caller-copybook": false,
+    "msg-2513": false,
+    "format": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 15.85,
+   "tokens": 1153,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.75,
+   "usable": true,
+   "items": {
+    "ceedays": true,
+    "params": false,
+    "result": true,
+    "caller-trn": true,
+    "caller-rpt": true,
+    "caller-copybook": true,
+    "msg-2513": false,
+    "format": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 16.74,
+   "tokens": 6836,
+   "status": "ok"
+  },
+  {
+   "task": "T-C6-REVIEW",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.75,
+   "usable": true,
+   "items": {
+    "ceedays": false,
+    "params": true,
+    "result": true,
+    "caller-trn": true,
+    "caller-rpt": true,
+    "caller-copybook": true,
+    "msg-2513": true,
+    "format": false
+   },
+   "tools": [
+    "list_dir",
+    "grep",
+    "grep",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 18.22,
+   "tokens": 8867,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": true,
+    "rest": false,
+    "logic": false,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": false,
+    "wa": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 27.23,
+   "tokens": 1474,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": false,
+    "rest": false,
+    "logic": true,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": false,
+    "wa": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 13.14,
+   "tokens": 1201,
+   "status": "ok"
+  },
+  {
+   "task": "T-J1-ONBOARD",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "domain": false,
+    "rest": false,
+    "logic": false,
+    "provisioning": false,
+    "workflow": false,
+    "persistence": false,
+    "console": false,
+    "fit": true,
+    "wa": false
+   },
+   "tools": [
+    "search_code"
+   ],
+   "empty_results": 1,
+   "wall_s": 24.92,
+   "tokens": 5943,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": true,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 14.47,
+   "tokens": 783,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [
+    "search_code",
+    "search_code",
+    "search_code"
+   ],
+   "empty_results": 2,
+   "wall_s": 12.76,
+   "tokens": 11366,
+   "status": "ok"
+  },
+  {
+   "task": "T-J2-EXTENSION",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "logic-actions": false,
+    "before-update": false,
+    "realm": false,
+    "abstract-any-logic": false,
+    "do-update": false,
+    "implementation": false,
+    "after-update": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 9.6,
+   "tokens": 989,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0909,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": false,
+    "binder": false,
+    "other-logic": false,
+    "sso": false,
+    "pushpull": false,
+    "tests": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir"
+   ],
+   "empty_results": 0,
+   "wall_s": 18.06,
+   "tokens": 10465,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.3636,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": true,
+    "auth": false,
+    "user-logic": false,
+    "binder": false,
+    "other-logic": false,
+    "sso": false,
+    "pushpull": false,
+    "tests": true
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 19.8,
+   "tokens": 1345,
+   "status": "ok"
+  },
+  {
+   "task": "T-J3-IMPACT",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.3636,
+   "usable": false,
+   "items": {
+    "declaration": true,
+    "spring-data": false,
+    "auth": false,
+    "user-logic": true,
+    "binder": false,
+    "other-logic": true,
+    "sso": false,
+    "pushpull": false,
+    "tests": true
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 10.36,
+   "tokens": 6686,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.3,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 20.31,
+   "tokens": 1361,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.4,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": true,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 25.58,
+   "tokens": 2105,
+   "status": "ok"
+  },
+  {
+   "task": "T-J4-TESTS",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.3,
+   "usable": false,
+   "items": {
+    "generator-test": true,
+    "module": false,
+    "char-classes": false,
+    "validate": false,
+    "issue": false,
+    "user-test": false,
+    "both-persistence": false
+   },
+   "tools": [
+    "search_code",
+    "explain_symbol",
+    "search_code"
+   ],
+   "empty_results": 1,
+   "wall_s": 12.16,
+   "tokens": 16037,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [
+    "search_code"
+   ],
+   "empty_results": 0,
+   "wall_s": 10.57,
+   "tokens": 6007,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.25,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": true,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 24.6,
+   "tokens": 1562,
+   "status": "ok"
+  },
+  {
+   "task": "T-J5-BUGHUNT",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "matcher": false,
+    "ignore-case": false,
+    "conn-key": false,
+    "correlation": false,
+    "policy": false,
+    "exact": false,
+    "ieq": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir"
+   ],
+   "empty_results": 0,
+   "wall_s": 4.92,
+   "tokens": 4933,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "local",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "list_dir",
+    "grep",
+    "grep",
+    "grep",
+    "grep"
+   ],
+   "empty_results": 0,
+   "wall_s": 12.21,
+   "tokens": 10351,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "mcp",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [
+    "answer_context"
+   ],
+   "empty_results": 0,
+   "wall_s": 10.34,
+   "tokens": 5930,
+   "status": "ok"
+  },
+  {
+   "task": "T-J6-REVIEW",
+   "arm": "none",
+   "rep": 3,
+   "rubric": 0.0,
+   "usable": false,
+   "items": {
+    "endpoint": false,
+    "logic": false,
+    "entitlement": false,
+    "granted-by": false,
+    "patch": false,
+    "resources": false,
+    "reset-flag": false,
+    "tokens": false
+   },
+   "tools": [],
+   "empty_results": 0,
+   "wall_s": 15.47,
+   "tokens": 1152,
+   "status": "ok"
+  }
+ ],
+ "tasks": {
+  "T-C1-ONBOARD": {
+   "project": "carddemo",
+   "category": "Einarbeitung"
+  },
+  "T-C2-CHANGEPOINT": {
+   "project": "carddemo",
+   "category": "Änderungsstelle finden"
+  },
+  "T-C3-IMPACT": {
+   "project": "carddemo",
+   "category": "Auswirkung einer Änderung"
+  },
+  "T-C4-BUGHUNT": {
+   "project": "carddemo",
+   "category": "Fehlersuche"
+  },
+  "T-C5-JOB": {
+   "project": "carddemo",
+   "category": "Batch-Job verstehen"
+  },
+  "T-C6-REVIEW": {
+   "project": "carddemo",
+   "category": "Review-Vorbereitung"
+  },
+  "T-J1-ONBOARD": {
+   "project": "syncope",
+   "category": "Einarbeitung"
+  },
+  "T-J2-EXTENSION": {
+   "project": "syncope",
+   "category": "Änderungsstelle finden"
+  },
+  "T-J3-IMPACT": {
+   "project": "syncope",
+   "category": "Auswirkung einer Änderung"
+  },
+  "T-J4-TESTS": {
+   "project": "syncope",
+   "category": "Tests finden"
+  },
+  "T-J5-BUGHUNT": {
+   "project": "syncope",
+   "category": "Fehlersuche"
+  },
+  "T-J6-REVIEW": {
+   "project": "syncope",
+   "category": "Review-Vorbereitung"
+  }
+ },
+ "mcp_tools": {
+  "search_code": 30,
+  "search_knowledge": 3,
+  "answer_context": 21,
+  "explain_symbol": 4
+ },
+ "mcp_empty": 22,
+ "mcp_calls": 58
+}

@@ -1,0 +1,78 @@
+{
+  "version": 1,
+  "note": "Erwartete Fundstellen je Aufgabe fuer die modellfreie Messung (harness/retrieval_eval.py). `expect` ist ein Regex gegen den Text eines Werkzeugergebnisses. Aufteilung: dev = Aufgaben, an denen der MCP-Umbau entwickelt wird; control = Aufgaben mit Symbolnennung, die nur auf Verschlechterung geprueft werden; holdout = neue Aufgaben, die erst nach dem Umbau gemessen werden.",
+  "tasks": {
+    "T-C2-CHANGEPOINT": {
+      "split": "dev",
+      "expect": "COACTUPC"
+    },
+    "T-C4-BUGHUNT": {
+      "split": "dev",
+      "expect": "COCRDUPC"
+    },
+    "T-C5-JOB": {
+      "split": "dev",
+      "expect": "CREASTMT|CBSTM03A"
+    },
+    "T-J2-EXTENSION": {
+      "split": "dev",
+      "expect": "LogicActions|AbstractAnyLogic"
+    },
+    "T-J5-BUGHUNT": {
+      "split": "dev",
+      "expect": "InboundMatcher"
+    },
+    "T-J6-REVIEW": {
+      "split": "dev",
+      "expect": "UserSelfLogic|UserSelfService"
+    },
+    "T-C1-ONBOARD": {
+      "split": "control",
+      "expect": "COSGN00C|COMEN01C|COADM01C"
+    },
+    "T-C3-IMPACT": {
+      "split": "control",
+      "expect": "CVACT01Y"
+    },
+    "T-C6-REVIEW": {
+      "split": "control",
+      "expect": "CSUTLDTC"
+    },
+    "T-J1-ONBOARD": {
+      "split": "control",
+      "expect": "rest-cxf|persistence-jpa|workflow-java"
+    },
+    "T-J3-IMPACT": {
+      "split": "control",
+      "expect": "UserDAO|AuthDataAccessor"
+    },
+    "T-J4-TESTS": {
+      "split": "control",
+      "expect": "PasswordGeneratorTest|DefaultPasswordGenerator"
+    },
+    "P-C1-XREF-ERROR": {
+      "split": "holdout",
+      "expect": "COTRN02C"
+    },
+    "P-C2-PASSWORD-IMPACT": {
+      "split": "holdout",
+      "expect": "CSUSR01Y|COSGN00C|COUSR02C"
+    },
+    "P-C3-EXPORT": {
+      "split": "holdout",
+      "expect": "CBEXPORT"
+    },
+    "P-J1-DELETE": {
+      "split": "holdout",
+      "expect": "doDelete|UserLogic"
+    },
+    "P-J2-REALM-CHECK": {
+      "split": "holdout",
+      "expect": "securityChecks|UserRepoExtImpl"
+    },
+    "P-J3-DBTYPE": {
+      "split": "holdout",
+      "expect": "PersistenceProperties|PGPersistenceContext|MariaDBPersistenceContext"
+    }
+  }
+}

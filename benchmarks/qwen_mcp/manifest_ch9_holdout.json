@@ -1,0 +1,8 @@
+{
+ "chapter": 9,
+ "titel": "Team-Aufgaben, Prüfstand nach dem MCP-Umbau (6 unberührte Aufgaben)",
+ "stand": "2026-11-17T11:56:06+0100",
+ "tasks_file": "tasks_team_holdout.json",
+ "tasks_sha256": "d2ea1b4b531e76815e643de07012b8cecf1ba5367c6a43a512a9840163fd80fa",
+ "hinweis_methodik": "Aufgaben, Ground Truth und Prüfpunkte vor jedem Umbau des MCP-Auffindens festgelegt und nie gegen Server oder Modell gelaufen; sie dürfen bis zur Endmessung nicht angepasst und nicht für die Entwicklung benutzt werden. Entwicklung an den sechs dev-Aufgaben aus tasks_team.json (retrieval_expect.json)."
+}

@@ -1,0 +1,546 @@
+{
+  "version": 1,
+  "purpose": "Kapitel 9, Prüfstand: sechs Aufgaben, die erst NACH dem Umbau des MCP-Auffindens gemessen werden. Ground Truth und Prüfpunkte am indizierten Stand belegt und vor jedem Modelllauf und vor jedem Umbau festgelegt. Die Aufgaben wurden nie gegen den Server oder ein Modell gelaufen.",
+  "projects": {
+    "carddemo": {
+      "project_id": 1,
+      "corpus": "corpus/carddemo",
+      "language": "COBOL",
+      "commit": "59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e"
+    },
+    "syncope": {
+      "project_id": 2,
+      "corpus": "corpus/syncope_2798",
+      "language": "Java",
+      "commit": "2798fa31fc3b61195817530197af8c90ea5838e6"
+    }
+  },
+  "scoring": {
+    "note": "Ein Item gilt als erfuellt, wenn JEDE Gruppe in `all` mindestens eine ihrer Regex-Alternativen in der Antwort trifft (case-insensitive). Penalties ziehen ihr Gewicht ab, wenn der Regex trifft. Rubrikwert = max(0, Summe erfuellter Gewichte - Penalties) / Summe aller Item-Gewichte.",
+    "usable_threshold": 0.5
+  },
+  "tasks": [
+    {
+      "id": "P-C1-XREF-ERROR",
+      "project": "carddemo",
+      "category": "Fehlersuche",
+      "prompt": "In AWS CardDemo: Bei der Online-Erfassung einer neuen Transaktion erscheint dem Operator die Meldung 'Unable to lookup Card # in XREF file...'. Wo entsteht diese Meldung, welche Datei wird dafür gelesen, mit welchem Schlüssel, und worin unterscheidet sie sich von der Meldung 'Card Number NOT found...'?",
+      "ground_truth": "app/cbl/COTRN02C.cbl: Absatz READ-CCXREF-FILE (ca. Zeile 618-640) liest per EXEC CICS READ DATASET(WS-CCXREF-FILE) INTO CARD-XREF-RECORD mit RIDFLD(XREF-CARD-NUM). EVALUATE WS-RESP-CD: DFHRESP(NOTFND) -> 'Card Number NOT found...' (Karte fehlt), WHEN OTHER -> 'Unable to lookup Card # in XREF file...' (anderer CICS-Fehler, mit DISPLAY RESP/REAS). Das Gegenstück für die Konto-ID ist READ-CXACAIX-FILE mit 'Account ID NOT found...' bzw. 'Unable to lookup Acct in XREF AIX file...'.",
+      "items": [
+        {
+          "id": "program",
+          "weight": 3,
+          "all": [
+            [
+              "COTRN02C"
+            ]
+          ]
+        },
+        {
+          "id": "paragraph",
+          "weight": 2,
+          "all": [
+            [
+              "READ-CCXREF-FILE"
+            ]
+          ]
+        },
+        {
+          "id": "dataset",
+          "weight": 1,
+          "all": [
+            [
+              "WS-CCXREF-FILE",
+              "CCXREF",
+              "CARDXREF"
+            ]
+          ]
+        },
+        {
+          "id": "key",
+          "weight": 2,
+          "all": [
+            [
+              "XREF-CARD-NUM"
+            ]
+          ]
+        },
+        {
+          "id": "notfnd",
+          "weight": 2,
+          "all": [
+            [
+              "NOTFND",
+              "DFHRESP"
+            ]
+          ]
+        },
+        {
+          "id": "other",
+          "weight": 1,
+          "all": [
+            [
+              "WHEN OTHER",
+              "anderer Fehler",
+              "sonstige",
+              "other (error|case|response)",
+              "jeder andere",
+              "alle anderen"
+            ]
+          ]
+        },
+        {
+          "id": "aix",
+          "weight": 1,
+          "all": [
+            [
+              "READ-CXACAIX-FILE",
+              "AIX",
+              "Account ID NOT found"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "P-C2-PASSWORD-IMPACT",
+      "project": "carddemo",
+      "category": "Auswirkung einer Änderung",
+      "prompt": "In AWS CardDemo: Das Sicherheitsteam verlangt, dass Passwörter nicht mehr im Klartext gespeichert werden. Welche Programme lesen oder schreiben das Passwortfeld des Benutzersatzes, wie lang ist das Feld heute und in welchem Copybook ist der Satz definiert, und was folgt daraus für eine Hash-Lösung?",
+      "ground_truth": "app/cpy/CSUSR01Y.cpy: SEC-USER-DATA, SEC-USR-PWD PIC X(08), daneben SEC-USR-ID X(08), FNAME/LNAME X(20), SEC-USR-TYPE X(01), FILLER X(23) (Satz 80 Byte). Programme: COSGN00C (Anmeldung, vergleicht SEC-USR-PWD = WS-USER-PWD), COUSR01C (Benutzer anlegen, MOVE PASSWDI TO SEC-USR-PWD), COUSR02C (Benutzer ändern: zeigt und überschreibt SEC-USR-PWD). Folge: 8 Stellen reichen für keinen Hash (Feld muss wachsen, der FILLER X(23) bietet Platz, oder Satzlänge der VSAM-Datei USRSEC ändern, Datei neu laden via DUSRSECJ); alle drei Programme und die Maske sind anzupassen.",
+      "items": [
+        {
+          "id": "copybook",
+          "weight": 2,
+          "all": [
+            [
+              "CSUSR01Y"
+            ]
+          ]
+        },
+        {
+          "id": "field",
+          "weight": 2,
+          "all": [
+            [
+              "SEC-USR-PWD"
+            ]
+          ]
+        },
+        {
+          "id": "length",
+          "weight": 2,
+          "all": [
+            [
+              "X\\(08\\)",
+              "8 Stellen",
+              "8 Zeichen",
+              "acht",
+              "8 characters",
+              "8 bytes",
+              "8 Byte"
+            ]
+          ]
+        },
+        {
+          "id": "signon",
+          "weight": 2,
+          "all": [
+            [
+              "COSGN00C"
+            ]
+          ]
+        },
+        {
+          "id": "user-add",
+          "weight": 1,
+          "all": [
+            [
+              "COUSR01C"
+            ]
+          ]
+        },
+        {
+          "id": "user-update",
+          "weight": 1,
+          "all": [
+            [
+              "COUSR02C"
+            ]
+          ]
+        },
+        {
+          "id": "filler-or-reload",
+          "weight": 1,
+          "all": [
+            [
+              "FILLER",
+              "USRSEC",
+              "DUSRSECJ",
+              "neu laden",
+              "reload",
+              "Satzlänge",
+              "record length"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "P-C3-EXPORT",
+      "project": "carddemo",
+      "category": "Batch-Job verstehen",
+      "prompt": "In AWS CardDemo: Für eine Migration sollen alle Stammdaten in eine einzige Austauschdatei exportiert werden. Welches Programm und welcher Job macht das, welche Datenarten (Satzarten) enthält die Datei und wie werden sie unterschieden, wie lang ist ein Satz, und welches Programm liest sie wieder ein?",
+      "ground_truth": "app/jcl/CBEXPORT.jcl führt in STEP02 das Programm CBEXPORT aus (STEP01 IDCAMS). app/cbl/CBEXPORT.cbl liest CUSTFILE, ACCTFILE, XREFFILE, TRANSACT, CARDFILE (2000-EXPORT-CUSTOMERS, 3000-EXPORT-ACCOUNTS, 4000-EXPORT-XREFS, 5000-EXPORT-TRANSACTIONS, 5500-EXPORT-CARDS) und schreibt EXPFILE (EXPORT-OUTPUT, RECORD CONTAINS 500 CHARACTERS). Satzart über EXPORT-REC-TYPE: 'C' Kunde, 'A' Konto, 'X' Kreuzreferenz, 'T' Transaktion, 'D' Karte; dazu EXPORT-TIMESTAMP und EXPORT-SEQUENCE-NUM. Wieder eingelesen von CBIMPORT (Job CBIMPORT.jcl) in getrennte Ausgabedateien (CUSTOUT, ACCTOUT, XREFOUT, TRNXOUT, ERROUT).",
+      "items": [
+        {
+          "id": "program",
+          "weight": 2,
+          "all": [
+            [
+              "CBEXPORT"
+            ]
+          ]
+        },
+        {
+          "id": "import",
+          "weight": 2,
+          "all": [
+            [
+              "CBIMPORT"
+            ]
+          ]
+        },
+        {
+          "id": "rec-type",
+          "weight": 2,
+          "all": [
+            [
+              "EXPORT-REC-TYPE"
+            ]
+          ]
+        },
+        {
+          "id": "types",
+          "weight": 2,
+          "all": [
+            [
+              "'C'",
+              "\\bC\\b.{0,12}(Kunde|Customer)"
+            ],
+            [
+              "'A'",
+              "\\bA\\b.{0,12}(Konto|Account)"
+            ],
+            [
+              "'X'",
+              "\\bX\\b.{0,12}(XREF|Kreuz)"
+            ]
+          ]
+        },
+        {
+          "id": "length",
+          "weight": 1,
+          "all": [
+            [
+              "\\b500\\b"
+            ]
+          ]
+        },
+        {
+          "id": "files",
+          "weight": 1,
+          "all": [
+            [
+              "EXPFILE",
+              "EXPORT-OUTPUT",
+              "EXPORT\\.DATA"
+            ]
+          ]
+        },
+        {
+          "id": "inputs",
+          "weight": 1,
+          "all": [
+            [
+              "CUSTFILE",
+              "ACCTFILE",
+              "XREFFILE",
+              "TRANSACT",
+              "CARDFILE"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "P-J1-DELETE",
+      "project": "syncope",
+      "category": "Einarbeitung",
+      "prompt": "In Apache Syncope: Wie läuft das Löschen eines Benutzers über die Verwaltungsschnittstelle ab? Welche Berechtigung ist nötig, welche Prüfungen laufen vor dem Löschen, welcher Sonderfall verhindert es, und welche Komponente führt das Löschen samt Weitergabe an angeschlossene Systeme aus?",
+      "ground_truth": "core/idrepo/logic/.../UserLogic.java: delete(key, nullPriorityAsync) mit @PreAuthorize hasRole USER_DELETE ruft doDelete(binder.getUserTO(key), false, nullPriorityAsync). AbstractUserLogic.doDelete: beforeDelete(userTO) (LogicActions), bei !self securityChecks über RealmUtils.getEffective(... USER_DELETE ...) und userDAO.securityChecks; wenn userDAO.isManager(key) -> SyncopeClientException ClientExceptionType.Management (Benutzer ist Manager eines anderen); provisioningManager.delete(key, nullPriorityAsync, username, REST_CONTEXT) liefert PropagationStatus-Liste; afterDelete(deletedTO, statuses, before.actions()).",
+      "items": [
+        {
+          "id": "entitlement",
+          "weight": 2,
+          "all": [
+            [
+              "USER_DELETE"
+            ]
+          ]
+        },
+        {
+          "id": "logic",
+          "weight": 1,
+          "all": [
+            [
+              "UserLogic"
+            ]
+          ]
+        },
+        {
+          "id": "do-delete",
+          "weight": 2,
+          "all": [
+            [
+              "doDelete"
+            ]
+          ]
+        },
+        {
+          "id": "before-after",
+          "weight": 1,
+          "all": [
+            [
+              "beforeDelete"
+            ],
+            [
+              "afterDelete"
+            ]
+          ]
+        },
+        {
+          "id": "security",
+          "weight": 1,
+          "all": [
+            [
+              "securityChecks",
+              "RealmUtils"
+            ]
+          ]
+        },
+        {
+          "id": "manager",
+          "weight": 2,
+          "all": [
+            [
+              "isManager"
+            ],
+            [
+              "Management",
+              "Manager"
+            ]
+          ]
+        },
+        {
+          "id": "provisioning",
+          "weight": 2,
+          "all": [
+            [
+              "provisioningManager",
+              "ProvisioningManager"
+            ]
+          ]
+        },
+        {
+          "id": "propagation",
+          "weight": 1,
+          "all": [
+            [
+              "PropagationStatus",
+              "Propagation"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "P-J2-REALM-CHECK",
+      "project": "syncope",
+      "category": "Review-Vorbereitung",
+      "prompt": "In Apache Syncope: Ich reviewe eine Änderung an der Zugriffsprüfung. Wie entscheidet Syncope, ob der angemeldete Administrator einen bestimmten Benutzer ändern oder löschen darf? Welche Fälle werden in welcher Reihenfolge geprüft und welche Ausnahme wird geworfen, wenn keiner zutrifft?",
+      "ground_truth": "core/persistence-jpa/.../dao/repo/UserRepoExtImpl.java securityChecks(authRealms, key, realm, groups) (gleiches in persistence-neo4j): 0. ist der Administrator Manager des Benutzers selbst (RealmUtils.ManagerRealm.of(authRealm), anyKey gleich key); 1. ist er Manager mindestens einer Gruppe, in der der Benutzer Mitglied ist (groups.contains); 2. liegt die Realm des Benutzers im Teilbaum einer Realm, für die er die Berechtigung hat (RealmUtils.SubtreePredicate.of(authRealms).test(realm)); sonst DelegatedAdministrationException(realm, USER, key). Aufruf aus AbstractUserLogic.doUpdate/doDelete mit RealmUtils.getEffective(...).",
+      "items": [
+        {
+          "id": "security-checks",
+          "weight": 2,
+          "all": [
+            [
+              "securityChecks"
+            ]
+          ]
+        },
+        {
+          "id": "impl",
+          "weight": 2,
+          "all": [
+            [
+              "UserRepoExtImpl",
+              "UserRepoExt"
+            ]
+          ]
+        },
+        {
+          "id": "manager-self",
+          "weight": 2,
+          "all": [
+            [
+              "ManagerRealm",
+              "Manager des Benutzers",
+              "manager of the (given )?user",
+              "Manager (des|der) Benutzers"
+            ]
+          ]
+        },
+        {
+          "id": "manager-group",
+          "weight": 2,
+          "all": [
+            [
+              "Gruppe",
+              "group"
+            ],
+            [
+              "Manager"
+            ]
+          ]
+        },
+        {
+          "id": "subtree",
+          "weight": 2,
+          "all": [
+            [
+              "SubtreePredicate",
+              "Teilbaum",
+              "subtree",
+              "descendants",
+              "Unterrealm"
+            ]
+          ]
+        },
+        {
+          "id": "exception",
+          "weight": 2,
+          "all": [
+            [
+              "DelegatedAdministrationException"
+            ]
+          ]
+        },
+        {
+          "id": "caller",
+          "weight": 1,
+          "all": [
+            [
+              "doUpdate",
+              "doDelete",
+              "AbstractUserLogic",
+              "RealmUtils\\.getEffective"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    },
+    {
+      "id": "P-J3-DBTYPE",
+      "project": "syncope",
+      "category": "Änderungsstelle finden",
+      "prompt": "In Apache Syncope: Wir wollen den Core statt mit der Standarddatenbank mit MariaDB betreiben. Mit welcher Konfigurationseigenschaft wird der Datenbanktyp gewählt, welche Datenbanken kennt die JPA-Persistenz, welche ist der Standard und welche Klassen aktivieren sich je nach Wert?",
+      "ground_truth": "core/persistence-jpa/.../PersistenceProperties.java: PREFIX 'persistence', DB_TYPE 'db-type' (Eigenschaft persistence.db-type). Je Datenbank eine Konfigurationsklasse mit @ConditionalOnProperty(prefix=persistence, name=db-type, havingValue=...): PGPersistenceContext (POSTGRESQL, matchIfMissing = true, also der Standard), MariaDBPersistenceContext, MySQLPersistenceContext, OraclePersistenceContext. Gemeinsame Basis PersistenceContext.",
+      "items": [
+        {
+          "id": "property",
+          "weight": 3,
+          "all": [
+            [
+              "db-type",
+              "DB_TYPE",
+              "dbType"
+            ]
+          ]
+        },
+        {
+          "id": "prefix",
+          "weight": 1,
+          "all": [
+            [
+              "persistence\\.",
+              "PREFIX",
+              "PersistenceProperties"
+            ]
+          ]
+        },
+        {
+          "id": "default",
+          "weight": 2,
+          "all": [
+            [
+              "POSTGRESQL",
+              "PostgreSQL"
+            ],
+            [
+              "matchIfMissing",
+              "Standard",
+              "default"
+            ]
+          ]
+        },
+        {
+          "id": "mariadb",
+          "weight": 1,
+          "all": [
+            [
+              "MariaDBPersistenceContext"
+            ]
+          ]
+        },
+        {
+          "id": "others",
+          "weight": 1,
+          "all": [
+            [
+              "OraclePersistenceContext",
+              "MySQLPersistenceContext",
+              "Oracle",
+              "MySQL"
+            ]
+          ]
+        },
+        {
+          "id": "conditional",
+          "weight": 2,
+          "all": [
+            [
+              "ConditionalOnProperty"
+            ]
+          ]
+        },
+        {
+          "id": "pg-class",
+          "weight": 1,
+          "all": [
+            [
+              "PGPersistenceContext"
+            ]
+          ]
+        }
+      ],
+      "penalties": []
+    }
+  ]
+}
