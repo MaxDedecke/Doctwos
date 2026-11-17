@@ -337,9 +337,19 @@ async def version():
     at image build time (see backend/Dockerfile), not read from a .git dir
     that doesn't exist in the deployed container.
     """
+    import doctus_models
+
+    try:
+        with engine.connect() as conn:
+            schema = conn.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    except Exception:  # noqa: BLE001 - /health meldet die Datenbank
+        schema = None
     return {
+        "doctus_version": os.environ.get("DOCTUS_VERSION", "unknown"),
         "git_sha": os.environ.get("GIT_SHA", "unknown"),
         "build_time": os.environ.get("BUILD_TIME", "unknown"),
+        "doctus_models": getattr(doctus_models, "__version__", "unknown"),
+        "schema": schema,
     }
 
 

@@ -24,6 +24,7 @@ Muster wie doctus_models/database.py).
 
 import csv
 import io
+import json
 import logging
 import os
 import re
@@ -35,7 +36,11 @@ from sqlalchemy import text
 
 from db import SessionLocal
 from doctus_models.database import (
+    AIProfile,
+    AISettings,
     DiagnosticsRun,
+    EmbeddingMigration,
+    EmbeddingProfile,
     KnowledgeSource,
     LinkBuilderRun,
     SourceScanFile,
@@ -44,6 +49,8 @@ from doctus_models.database import (
 logger = logging.getLogger(__name__)
 
 LOGS_ROOT = "/var/log/doctus"
+LOG_TAIL_BYTES = 8 * 1024 * 1024
+SYNC_LOG_TAIL_LINES = 400
 BUNDLE_OUTPUT_DIR = "/repos/diagnostics"
 
 SENSITIVE_ENV_MARKERS = ("PASSWORD", "SECRET", "KEY", "TOKEN")
@@ -69,29 +76,146 @@ def _collect_secrets_from_env() -> set[str]:
     return secrets
 
 
+# Zugangsdaten, die nicht als Umgebungsvariable bekannt sind (Quell-URLs mit Benutzer und Token, Header in Logzeilen).
+_GENERIC_SECRETS = (
+    (re.compile(r"(://)[^/\s:@]+:[^/\s@]+@"), r"\1[REDACTED]@"),
+    (re.compile(r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]{8,}"), r"\1[REDACTED]"),
+    (
+        re.compile(
+            r"(?i)((?:private-token|x-api-key|authorization)[\"']?\s*[:=]\s*[\"']?)[^\s\"',}]{6,}"
+        ),
+        r"\1[REDACTED]",
+    ),
+    (re.compile(r"(?i)((?:token|password|passwd|secret|api_key)=)[^&\s]{4,}"), r"\1[REDACTED]"),
+)
+
+
 def _sanitize(text_value: str, secrets: set[str]) -> str:
     if not text_value:
         return ""
     sanitized = text_value
     for secret in secrets:
         sanitized = sanitized.replace(secret, "[REDACTED]")
+    for pattern, replacement in _GENERIC_SECRETS:
+        sanitized = pattern.sub(replacement, sanitized)
     return sanitized
 
 
 def _rows_to_csv(rows, columns) -> str:
     buf = io.StringIO()
     writer = csv.writer(buf)
+    if columns is None:
+        columns = list(rows[0]) if rows else []
+        writer.writerow(columns)
+        for row in rows:
+            writer.writerow([row[col] for col in columns])
+        return buf.getvalue()
     writer.writerow(columns)
     for row in rows:
         writer.writerow([getattr(row, col) for col in columns])
     return buf.getvalue()
 
 
+def _write_versions(db, out_dir: str) -> None:
+    """Welche Stände laufen: Parser-Image, Backend-Image (über /version), Modellpaket, Datenbankschema."""
+    import platform
+
+    import httpx
+
+    import doctus_models
+
+    info = {
+        "collected_at": datetime.now(timezone.utc).isoformat(),
+        "parser": {
+            "git_sha": os.getenv("GIT_SHA", "unknown"),
+            "build_time": os.getenv("BUILD_TIME", "unknown"),
+            "doctus_models": getattr(doctus_models, "__version__", "unknown"),
+            "python": platform.python_version(),
+        },
+        "doctus_version": os.getenv("DOCTUS_VERSION", "unknown"),
+    }
+    try:
+        info["alembic"] = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
+    except Exception as exc:  # noqa: BLE001
+        info["alembic"] = f"error: {exc}"
+    for name, url in (
+        ("backend", "http://backend-api:8000/version"),
+        ("health", "http://backend-api:8000/health"),
+    ):
+        try:
+            info[name] = httpx.get(url, timeout=5.0).json()
+        except Exception as exc:  # noqa: BLE001
+            info[name] = f"error: {exc}"
+    with open(os.path.join(out_dir, "versions.json"), "w", encoding="utf-8") as f:
+        json.dump(info, f, indent=2, default=str)
+
+
 def _dump_db_tables(db, out_dir: str, secrets: set[str]) -> None:
     tables = {
         "db_knowledge_sources.csv": (
             KnowledgeSource,
-            ["id", "name", "type", "url", "sync_status", "last_synced_at", "last_error"],
+            [
+                "id",
+                "name",
+                "type",
+                "url",
+                "project_id",
+                "branch",
+                "sync_status",
+                "error_kind",
+                "failure_count",
+                "last_attempt_at",
+                "last_synced_at",
+                "indexed_at",
+                "sync_interval_minutes",
+                "embedding_model",
+                "progress_message",
+                "total_files",
+                "parsed_files",
+                "last_error",
+                "last_error_detail",
+            ],
+        ),
+        # Profile ohne Schlüssel: welcher Endpunkt, welches Modell, welche Fenster.
+        "db_embedding_profiles.csv": (
+            EmbeddingProfile,
+            ["id", "name", "provider", "model", "base_url", "path", "dimension", "context_length"],
+        ),
+        "db_ai_profiles.csv": (
+            AIProfile,
+            [
+                "id",
+                "name",
+                "kind",
+                "provider",
+                "protocol",
+                "llm_model",
+                "llm_base_url",
+                "llm_path",
+                "llm_context_length",
+                "llm_max_concurrency",
+                "llm_temperature",
+            ],
+        ),
+        "db_ai_settings.csv": (
+            AISettings,
+            ["id", "active_profile_id", "active_embedding_profile_id"],
+        ),
+        "db_embedding_migrations.csv": (
+            EmbeddingMigration,
+            [
+                "id",
+                "project_id",
+                "status",
+                "previous_model",
+                "target_model",
+                "target_dimension",
+                "total",
+                "done",
+                "error",
+                "created_at",
+                "switched_at",
+            ],
         ),
         "db_link_builder_runs.csv": (
             LinkBuilderRun,
@@ -124,6 +248,30 @@ def _dump_db_tables(db, out_dir: str, secrets: set[str]) -> None:
     with open(os.path.join(out_dir, "alembic_current.txt"), "w", encoding="utf-8") as f:
         f.write(str(alembic_version or "unknown"))
 
+    counts = db.execute(
+        text(
+            "SELECT embedding_model, embedding_dimension, count(*) FROM document_chunks "
+            "GROUP BY embedding_model, embedding_dimension ORDER BY 3 DESC"
+        )
+    ).all()
+    with open(os.path.join(out_dir, "db_chunks_per_model.csv"), "w", encoding="utf-8") as f:
+        f.write(
+            _rows_to_csv([dict(zip(("model", "dimension", "chunks"), r)) for r in counts], None)
+        )
+
+    # Die letzten Zeilen jedes Sync-Logs: dort steht, was beim Einlesen einer Quelle geschah.
+    logs_dir = os.path.join(out_dir, "sync_logs")
+    os.makedirs(logs_dir, exist_ok=True)
+    for source_id, name, log in db.query(
+        KnowledgeSource.id, KnowledgeSource.name, KnowledgeSource.sync_log
+    ):
+        if not log:
+            continue
+        tail = "\n".join(log.splitlines()[-SYNC_LOG_TAIL_LINES:])
+        safe = re.sub(r"[^A-Za-z0-9._-]+", "_", name or "")[:60]
+        with open(os.path.join(logs_dir, f"{source_id}_{safe}.txt"), "w", encoding="utf-8") as f:
+            f.write(_sanitize(tail, secrets))
+
 
 def _copy_service_logs(out_dir: str, secrets: set[str]) -> None:
     """Reads every service's own log file directly off the shared /var/log/doctus
@@ -137,14 +285,25 @@ def _copy_service_logs(out_dir: str, secrets: set[str]) -> None:
             continue
         for log_file in sorted(os.listdir(service_dir)):
             src_path = os.path.join(service_dir, log_file)
-            if not os.path.isfile(src_path):
+            # Aktuelle Datei und die letzte gekürzte (.1); ältere Stände bleiben auf dem Host.
+            if not os.path.isfile(src_path) or not (
+                log_file.endswith(".log") or log_file.endswith(".log.1")
+            ):
                 continue
             try:
-                with open(src_path, "r", encoding="utf-8", errors="ignore") as f:
-                    content = f.read()
+                with open(src_path, "rb") as f:
+                    f.seek(0, os.SEEK_END)
+                    size = f.tell()
+                    f.seek(max(0, size - LOG_TAIL_BYTES))
+                    content = f.read().decode("utf-8", errors="ignore")
+                if size > LOG_TAIL_BYTES:
+                    content = (
+                        f"[… nur die letzten {LOG_TAIL_BYTES // (1024 * 1024)} MB …]\n" + content
+                    )
             except OSError as e:
                 content = f"[Konnte {src_path} nicht lesen: {e}]"
-            with open(os.path.join(out_dir, f"logs_{service}.txt"), "w", encoding="utf-8") as f:
+            target = f"logs_{service}{'_previous' if log_file.endswith('.1') else ''}.txt"
+            with open(os.path.join(out_dir, target), "w", encoding="utf-8") as f:
                 f.write(_sanitize(content, secrets))
 
 
@@ -178,7 +337,8 @@ async def generate_diagnostics_bundle_async(run_id: int) -> None:
         os.makedirs(work_dir, exist_ok=True)
         secrets = _collect_secrets_from_env()
 
-        logger.info(f"[Diagnostics] Run {run_id}: sammle DB-Metadaten…")
+        logger.info(f"[Diagnostics] Run {run_id}: sammle Versionen und DB-Metadaten…")
+        _write_versions(db, work_dir)
         _dump_db_tables(db, work_dir, secrets)
 
         logger.info(f"[Diagnostics] Run {run_id}: sammle Service-Logs…")

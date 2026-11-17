@@ -61,4 +61,10 @@ COPY connectors/ connectors/
 COPY core/ core/
 COPY tasks/ tasks/
 
+# Wie im Backend-Image: Diagnosepaket und /version zeigen, ob Backend und Parser aus demselben Stand stammen.
+ARG GIT_SHA=unknown
+ARG BUILD_TIME=unknown
+ENV GIT_SHA=$GIT_SHA
+ENV BUILD_TIME=$BUILD_TIME
+
 CMD ["celery", "-A", "worker", "worker", "--loglevel=info"]

@@ -460,7 +460,7 @@ When the build machine can reach the target host:
 ssh root@<server> 'apt-get update && apt-get install -y docker.io docker-compose-v2 && mkdir -p /root/doctus'
 docker save doctus-backend-api:$DOCTUS_VERSION doctus-parser-worker:$DOCTUS_VERSION doctus-frontend:$DOCTUS_VERSION \
   | gzip | ssh root@<server> 'gunzip | docker load'
-scp -r docker-compose.yml .env.example config root@<server>:/root/doctus/
+scp -r docker-compose.yml docker-compose.gpu.yml .env.example config scripts/generate_diagnostics.py root@<server>:/root/doctus/
 ```
 
 Do not pipe `docker save` through Windows PowerShell 5.1 (it corrupts binary streams); run it from WSL/Linux or
@@ -486,7 +486,7 @@ for i in backend-api parser-worker frontend; do
 done
 ```
 
-Put `docker-compose.yml`, `.env.example` and `config/` into a private repository. Never commit a filled-in `.env`.
+Put `docker-compose.yml`, `docker-compose.gpu.yml`, `.env.example`, `config/` and `scripts/generate_diagnostics.py` into a private repository. Never commit a filled-in `.env`.
 
 Target host:
 
@@ -645,20 +645,39 @@ No monitoring stack ships with Doctus — that would be over-engineering for a s
 
 ## Diagnostics bundle
 
-**Before restarting or redeploying anything to "fix" a reported problem, run `python scripts/generate_diagnostics.py` from the repo root.** Logs are capped at 10MB × 3 files per service (see above) and a container restart clears its in-memory log buffer immediately — either way, whatever evidence explains the problem is gone the moment you act on it instead of capturing it first.
+**Before restarting or redeploying anything to "fix" a reported problem, collect the bundle.** A container restart
+clears its log buffer and Docker keeps only 3 × 10 MB per service; whatever explains the problem is gone the moment
+you act on it.
 
-The script collects, into a single `doctus-diagnostics-<timestamp>.tar.gz` in the current directory:
-- System specs (OS, CPU, memory, disk, GPU) and Docker/Compose versions.
-- Container status (`docker compose ps -a`) and image IDs (`docker compose images`), so you can tell whether a customer's install is actually running the build you think it is.
-- The last 2000 lines of every service's logs, including `frontend`.
-- Sanitized `.env` (secrets replaced with `[REDACTED]`).
-- Repository/knowledge-source sync state, `compliance_alerts` and `compliance_runs` rows, summary row counts, and the applied Alembic schema revision (`alembic current`) — all read directly from Postgres, skipped gracefully if the `db`/`backend-api` containers are down.
-- Loaded Ollama models.
+On the host, in the installation directory (next to `docker-compose.yml` and `.env`; every delivery path ships the
+script there, in the repository it is `scripts/generate_diagnostics.py`):
 
-It deliberately does **not** dump `document_chunks` or `chat_messages` (actual customer document/BIM content and chat text) — only metadata about sync state and schema. Safe to send for troubleshooting as-is.
+```sh
+python3 generate_diagnostics.py
+```
 
-Administrators can also generate a reduced bundle from **Settings → Logs**.
-That bundle contains database metadata and the shared service logs, but cannot
-include Docker container status, image IDs, or installed Ollama models because
-the worker intentionally has no Docker socket. Use the host-side script above
-when those details are needed.
+It needs only Python 3 and Docker and writes `doctus-diagnostics-<timestamp>.tar.gz` with:
+- host: OS, CPU, memory, disk of the data directories, `nvidia-smi`, Docker and Compose versions, `docker info`;
+- containers: status, **restart count, OOM kill, exit code**, health, image and memory limit per container, `docker
+  stats`, `docker compose images` and the pinned image references;
+- running version: `/version` (release, commit, build time, model package, schema) and `/health` (including failing,
+  paused and overdue sources) from inside the backend, `alembic current`;
+- database state, never content: knowledge sources with error kind, failures in a row, last attempt and index age;
+  AI and embedding profiles **without keys**; the active profiles; model changes; chunks per embedding model; link runs;
+  files that failed to parse; table sizes, connections and database size; the last part of every source's sync log;
+- Celery queue lengths, held sync locks and Redis memory;
+- Docker logs of every service (last 5000 lines with timestamps) and the last 8 MB of each file log under `data/logs`
+  (these survive restarts; see below);
+- loaded and running Ollama models and the GPU as seen from the Ollama container;
+- `.env` with secrets replaced; URL credentials, bearer tokens and `token=`/`password=` values in any collected text are
+  replaced as well.
+
+It does not include documents, chunks, vectors or chat text. Administrators can also generate a reduced bundle from
+**Settings → Logs** without shell access (versions, source state and sync logs, profiles, model changes, file logs);
+it cannot see container state, images or GPUs because the worker has no Docker socket.
+
+**Logs that survive restarts.** Backend, parser worker, link worker and beat also write to `data/logs/<service>/`.
+The worker caps these files hourly (`LOG_FILE_MAX_MB`, default 100, keeping `LOG_FILE_KEEP`, default 3, older parts
+as `.1`, `.2`, …). Every log line carries the request's trace ID, and the frontend shows the same ID with error
+messages, so a user's report can be matched to the exact log lines. `LOG_LEVEL=DEBUG` in `.env` plus
+`docker compose up -d --no-build` raises the detail level of backend and workers.

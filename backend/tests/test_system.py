@@ -138,16 +138,29 @@ def test_health_does_not_require_login(unauthenticated_client, monkeypatch):
 def test_version_reports_build_env_vars(unauthenticated_client, monkeypatch):
     monkeypatch.setenv("GIT_SHA", "abc1234")
     monkeypatch.setenv("BUILD_TIME", "2026-09-14T00:00:00Z")
+    monkeypatch.setenv("DOCTUS_VERSION", "pilot-20261117")
     res = unauthenticated_client.get("/version")
     assert res.status_code == 200
-    assert res.json() == {"git_sha": "abc1234", "build_time": "2026-09-14T00:00:00Z"}
+    body = res.json()
+    assert (body["git_sha"], body["build_time"], body["doctus_version"]) == (
+        "abc1234",
+        "2026-09-14T00:00:00Z",
+        "pilot-20261117",
+    )
+    # Modellpaket und angewandtes Schema: ob Backend, Parser und Datenbank zusammenpassen.
+    assert body["doctus_models"] and body["schema"]
 
 
 def test_version_defaults_to_unknown_without_build_env(unauthenticated_client, monkeypatch):
     monkeypatch.delenv("GIT_SHA", raising=False)
     monkeypatch.delenv("BUILD_TIME", raising=False)
-    res = unauthenticated_client.get("/version")
-    assert res.json() == {"git_sha": "unknown", "build_time": "unknown"}
+    monkeypatch.delenv("DOCTUS_VERSION", raising=False)
+    body = unauthenticated_client.get("/version").json()
+    assert (body["git_sha"], body["build_time"], body["doctus_version"]) == (
+        "unknown",
+        "unknown",
+        "unknown",
+    )
 
 
 # ── GET /model-info ────────────────────────────────────────────────────────

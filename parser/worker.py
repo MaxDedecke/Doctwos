@@ -57,7 +57,7 @@ if _log_file_path:
         pass
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
     format="%(asctime)s %(levelname)s %(name)s [%(trace_id)s]: %(message)s",
     handlers=_handlers,
     force=True,
@@ -148,8 +148,16 @@ def refresh_insight_embeddings_task():
     return asyncio.run(refresh_insight_embeddings())
 
 
+@app.task(name="trim_logs", time_limit=300)
+def trim_logs_task():
+    from tasks.log_retention import trim_logs
+
+    return {"trimmed": trim_logs()}
+
+
 app.conf.beat_schedule = {
     "insight-embeddings": {"task": "refresh_insight_embeddings", "schedule": crontab(minute="*/2")},
+    "trim-logs": {"task": "trim_logs", "schedule": crontab(minute=17)},
     # Ein einziger Pull-Scan für ALLE synchronisierbaren Quelltypen statt eines
     # Copy-Paste-Blocks pro Typ. Deckt automatisch jeden in der ConnectorRegistry
     # registrierten Connector ab (Git/FolderWatch/Confluence/Jira/WebDAV) — ein
