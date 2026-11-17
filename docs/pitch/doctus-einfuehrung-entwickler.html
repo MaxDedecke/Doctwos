@@ -121,6 +121,9 @@
   @media (max-width:820px){
     .map td:first-child,.map td:nth-child(2){white-space:normal;}
   }
+  .map.twin td{width:50%;font-size:1.25rem;line-height:1.4;padding-block:1.1rem;white-space:normal;}
+  .map.twin td:first-child{font-family:var(--font-body);color:var(--ink-muted);}
+  .map.twin td:nth-child(2){font-family:var(--font-display);font-weight:500;}
 
   /* Statement */
   .statement h2{font-size:clamp(2.4rem,5.4vw,4.6rem);max-width:18ch;line-height:1.04;}
@@ -279,7 +282,7 @@
     <div class="inner">
       <h1><span>Doctus</span></h1>
       <p class="claim">Fragen an gewachsenen Code stellen und Antworten bekommen, die man nachprüfen kann.</p>
-      <p class="who">Eine Einführung für alle, die mit Java, Maven, GitLab und Confluence arbeiten und mit Wissensmanagement bisher nichts zu tun hatten.</p>
+      <p class="who">Eine Einführung für das Team hinter SecDocs und DSEngine.</p>
     </div>
   </section>
 
@@ -288,11 +291,11 @@
       <h2>Ein ganz normaler Dienstag</h2>
       <div class="cols">
         <div>
-          <p class="lede" style="margin-bottom:1.5rem">Die Kundennummer in der Bestellschnittstelle soll von 8 auf 10 Stellen wachsen. Bevor du die erste Zeile änderst, willst du wissen:</p>
+          <p class="lede" style="margin-bottom:1.5rem">Neue Archivzeitstempel sollen mit SHA-512 statt SHA-256 entstehen. Bevor du die erste Zeile änderst, willst du wissen:</p>
           <ul class="rows q">
-            <li>Wo wird das Feld gelesen und geschrieben?</li>
-            <li>Welche Services und Endpunkte hängen daran?</li>
-            <li>Warum ist es heute 8 Stellen lang?</li>
+            <li>Wo wird der Algorithmus gewählt, und wo steht er fest im Code?</li>
+            <li>Welche Teile von SecDocs und DSEngine hängen daran?</li>
+            <li>Was passiert mit bestehenden Evidence Records?</li>
             <li>Gab es das Thema schon einmal als Issue?</li>
           </ul>
         </div>
@@ -326,7 +329,7 @@
           <thead><tr><th>Das kennt ihr</th><th>In Doctus</th><th>Was es dort tut</th></tr></thead>
           <tbody>
             <tr><td>git clone, git fetch</td><td>Git-Quelle</td><td>Doctus spiegelt ein Repository und verarbeitet bei jedem Sync nur geänderte Dateien.</td></tr>
-            <tr><td>Compiler, AST</td><td>Parser</td><td>Liest Java, POMs und COBOL und erzeugt Objekte und Beziehungen mit Zeilennummern.</td></tr>
+            <tr><td>Compiler, AST</td><td>Parser</td><td>Liest Java, POMs, WSDL und XSD und erzeugt Objekte und Beziehungen mit Zeilennummern.</td></tr>
             <tr><td>Find Usages</td><td>Code-Graph</td><td>Aufrufer und Abhängigkeiten über alle Repositories eines Projekts.</td></tr>
             <tr><td>grep</td><td>Semantische Suche</td><td>Findet auch Stellen, an denen etwas anders heißt.</td></tr>
             <tr><td>Merge Request</td><td>Erkenntnis</td><td>Wissen mit Belegen, freigegeben von einer zweiten Person.</td></tr>
@@ -345,20 +348,20 @@
         <div>
           <h3>Original</h3>
           <p>Die Datei so, wie sie in Git liegt. Sie bleibt immer die maßgebliche Quelle.</p>
-          <pre>OrderService.java
+          <pre>EvidenceService.java
 Zeile 142
-return orders.place(dto);</pre>
+return renewal.renew(record);</pre>
         </div>
         <div>
           <h3>Struktur</h3>
           <p>Was der Parser daraus erkennt: Klassen, Methoden und wer wen aufruft.</p>
-          <pre>OrderController.post
-  ruft OrderService.place
-  ruft CustomerRepository.findById</pre>
+          <pre>ArchiveEndpoint.archive
+  ruft EvidenceService.renew
+  ruft TimestampClient.request</pre>
         </div>
         <div>
           <h3>Bedeutung</h3>
-          <p>Textabschnitte als Zahlenvektoren. Damit findet die Frage „Bestellung anlegen“ diese Methode.</p>
+          <p>Textabschnitte als Zahlenvektoren. Damit findet die Frage „Beweisdaten erneuern“ diese Methode.</p>
           <pre>[0.031, -0.118, 0.274, …]
 1.024 Werte je Abschnitt</pre>
         </div>
@@ -385,24 +388,25 @@ return orders.place(dto);</pre>
     <div class="inner">
       <h2>Der Parser rät nicht</h2>
       <div class="cols">
-<pre class="code"><span class="a">@RestController</span>
-<span class="k">class</span> OrderController {
+<pre class="code"><span class="a">@WebService</span>(serviceName = "ArchiveService")
+<span class="k">public class</span> ArchiveEndpoint {
 
-  <span class="k">private final</span> OrderService orders;
+  <span class="a">@Inject</span>
+  EvidenceService evidence;
 
-  <span class="a">@PostMapping</span>("/orders")
-  Order post(<span class="a">@RequestBody</span> OrderDto dto) {
-    <span class="k">return</span> orders.place(dto);
+  <span class="a">@WebMethod</span>
+  <span class="k">public</span> EvidenceRecord getEvidence(String aoid) {
+    <span class="k">return</span> evidence.forArchiveObject(aoid);
   }
 }</pre>
         <div style="display:flex;flex-direction:column;gap:1.5rem">
           <ul class="found">
-            <li><span class="rel">INJECTS</span><span class="tgt">OrderService in OrderController</span></li>
-            <li><span class="rel">EXPOSES</span><span class="tgt">POST /orders auf OrderController.post</span></li>
-            <li><span class="rel">CALLS</span><span class="tgt">OrderController.post auf OrderService.place</span></li>
+            <li><span class="rel">INJECTS</span><span class="tgt">EvidenceService in ArchiveEndpoint</span></li>
+            <li><span class="rel">EXPOSES</span><span class="tgt">SOAP-Operation getEvidence auf ArchiveEndpoint.getEvidence</span></li>
+            <li><span class="rel">CALLS</span><span class="tgt">ArchiveEndpoint.getEvidence auf EvidenceService.forArchiveObject</span></li>
           </ul>
           <p>Das Parsen ist deterministisch und kommt ohne KI aus. Maven-Module, Parents, BOMs und Scopes werden statisch aus den POMs gelesen. Doctus führt beim Import weder Maven noch Plugins aus.</p>
-          <p>Was sich nicht eindeutig auflösen lässt, bleibt als offen markiert. Für COBOL gilt dasselbe mit Programmen, Sections, PERFORM und COPY.</p>
+          <p>Der Parser kennt Spring, CDI, JAX-RS und JAX-WS samt WSDL und XSD. Was sich nicht eindeutig auflösen lässt, bleibt als offen markiert.</p>
         </div>
       </div>
     </div>
@@ -411,13 +415,13 @@ return orders.place(dto);</pre>
   <section class="slide">
     <div class="inner">
       <h2>Suchen nach Bedeutung statt nach Zeichenketten</h2>
-      <div class="query">Wie wird eine Kündigung verarbeitet?</div>
+      <div class="query">Wie wird ein Beweisdatensatz erneuert?</div>
       <ul class="hits">
-        <li><span class="src">Java-Code</span><span class="what">ContractService.terminate()</span></li>
-        <li><span class="src">Confluence</span><span class="what">Vertragsende Privatkunden</span></li>
-        <li><span class="src">GitLab Issue</span><span class="what">Storno zum Monatsende schlägt fehl</span></li>
+        <li><span class="src">Java-Code</span><span class="what">HashTreeRenewal.execute()</span></li>
+        <li><span class="src">Confluence</span><span class="what">Übersignatur nach Algorithmenwechsel</span></li>
+        <li><span class="src">GitLab Issue</span><span class="what">ERS-Erneuerung bricht bei großen Hashbäumen ab</span></li>
       </ul>
-      <p class="lede">Keiner der drei Treffer enthält das Wort „Kündigung“. Ein Embedding-Modell bildet jeden Textabschnitt auf 1.024 Zahlen ab. Abschnitte mit ähnlicher Bedeutung liegen dabei nahe beieinander, auch über Sprachen und Schreibweisen hinweg. Doctus kombiniert diese Suche mit der klassischen Volltextsuche und mit der Struktur aus dem Parser.</p>
+      <p class="lede">Keiner der drei Treffer enthält das Wort „Beweisdatensatz“. Ein Embedding-Modell bildet jeden Textabschnitt auf 1.024 Zahlen ab. Abschnitte mit ähnlicher Bedeutung liegen dabei nahe beieinander, auch über Sprachen und Schreibweisen hinweg. Doctus kombiniert diese Suche mit der klassischen Volltextsuche und mit der Struktur aus dem Parser.</p>
     </div>
   </section>
 
@@ -448,11 +452,11 @@ return orders.place(dto);</pre>
     <div class="inner">
       <h2>Jede Aussage zeigt auf ihre Stelle</h2>
       <div class="chat">
-        <div class="ask">Wo wird die Kundennummer validiert?</div>
+        <div class="ask">Wo wird der Hashalgorithmus für neue Zeitstempel festgelegt?</div>
         <div class="answer">
-          <p>Die Prüfung liegt in <code>CustomerNumberValidator.validate</code> <span class="cite">CustomerNumberValidator.java:27</span>. Sie erwartet genau 8 Ziffern.</p>
-          <p>Aufgerufen wird sie aus <code>OrderService.place</code> <span class="cite">OrderService.java:142</span>, also für jede Bestellung über <code>POST /orders</code>.</p>
-          <p class="gap">Für den SOAP-Eingang über <code>CustomerEndpoint</code> habe ich im Index keine Validierung gefunden.</p>
+          <p>Der Standardwert steht in <code>CryptoPolicy.defaultDigest</code> <span class="cite">CryptoPolicy.java:41</span> und ist dort auf SHA-256 gesetzt.</p>
+          <p>Gelesen wird er von <code>TimestampClient.request</code> <span class="cite">TimestampClient.java:88</span>, also bei jeder Zeitstempelanfrage aus <code>EvidenceService.renew</code>.</p>
+          <p class="gap">In der DSEngine habe ich keine Stelle gefunden, die diesen Wert liest. Ob sie einen eigenen Standard verwendet, lässt sich aus dem Index nicht belegen.</p>
         </div>
       </div>
       <p class="lede">Ein Klick auf eine Quelle öffnet die Datei an genau dieser Zeile. Was sich nicht belegen lässt, nennt die Antwort ausdrücklich als Lücke, statt es zu ergänzen.</p>
@@ -480,10 +484,10 @@ return orders.place(dto);</pre>
       <div class="cols">
         <div style="display:flex;flex-direction:column;gap:1.5rem">
           <div class="quote">
-            Der nächtliche Export darf nicht parallel zum Rechnungslauf laufen. Beide sperren dieselbe Tabelle.
-            <div><span class="cite">ExportJob.java:58</span> <span class="cite">InvoiceRun.java:31</span></div>
+            Wird ein Hashalgorithmus schwach, reicht eine neue Zeitstempelkette nicht. Dann plant der RenewalPlanner eine Hashbaum-Erneuerung ein.
+            <div><span class="cite">RenewalPlanner.java:58</span> <span class="cite">Erneuerungsstrategie.adoc:12</span></div>
           </div>
-          <p class="lede">So etwas weiß meist nur eine Person. In Doctus wird es eine Erkenntnis mit Belegen im Code und in Dokumenten.</p>
+          <p class="lede">Die Regel steht in der Norm. Wie sie in eurem Code umgesetzt ist, weiß oft nur eine Person. In Doctus wird daraus eine Erkenntnis mit Belegen im Code und in Dokumenten.</p>
         </div>
         <ol class="cycle">
           <li><span class="n">1</span><div><h3>Entwurf</h3><p>Jemand schreibt die Aussage auf und hängt Belege an.</p></div></li>
@@ -493,6 +497,24 @@ return orders.place(dto);</pre>
         </ol>
       </div>
       <p class="lede">Nur freigegebene und aktuelle Erkenntnisse fließen in Chat-Antworten ein.</p>
+    </div>
+  </section>
+
+  <section class="slide">
+    <div class="inner">
+      <h2>Beweiswert, auf Code angewendet</h2>
+      <p class="lede">Das Prinzip kennt ihr aus eurer eigenen Arbeit. Doctus wendet es auf Wissen über Software an.</p>
+      <div class="map-wrap">
+        <table class="map twin">
+          <thead><tr><th>Beweiswerterhaltung</th><th>Doctus</th></tr></thead>
+          <tbody>
+            <tr><td>Ein Dokument ist so viel wert wie sein Nachweis.</td><td>Eine Antwort ist so viel wert wie ihr Beleg.</td></tr>
+            <tr><td>Der Evidence Record bindet einen Hashwert an einen Zeitpunkt.</td><td>Eine Erkenntnis bindet ihre Belege an einen Commit.</td></tr>
+            <tr><td>Wird ein Algorithmus schwach, wird erneuert.</td><td>Ändert sich der belegte Code, wird erneut geprüft.</td></tr>
+            <tr><td>Die Prüfung gelingt auch ohne den Hersteller.</td><td>Jede Quelle lässt sich im Original nachlesen.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </section>
 
