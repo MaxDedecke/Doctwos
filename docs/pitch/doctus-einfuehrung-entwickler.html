@@ -8,39 +8,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
   /* Layout: eine Folie pro Bildschirmhöhe, große Schrift, Linien statt Karten, Code als Primärmaterial */
+  /* Dunkel ist Standard, unabhängig vom System. Hell nur ausdrücklich (Taste T). */
   :root{
-    --canvas:#F5F1E7;
-    --surface:#FFFFFF;
-    --surface-2:#EAE3D2;
-    --ink:#171F1B;
-    --ink-muted:#4F574E;
-    --line:rgba(23,31,27,.16);
-    --line-strong:rgba(23,31,27,.32);
-    --signal:#E4002B;
-    --trace:#0064D2;
-    --ok:#1B7A4B;
-    --gradient:linear-gradient(120deg,#E4002B 0%,#7A2E8C 55%,#0064D2 100%);
-    --font-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
-    --font-body:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
-    --font-code:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
-  }
-  @media (prefers-color-scheme: dark){
-    :root:not([data-theme="light"]){
-      --canvas:#0B1210;
-      --surface:#121C19;
-      --surface-2:#1A2622;
-      --ink:#ECEEE8;
-      --ink-muted:#A7B2A9;
-      --line:rgba(236,238,232,.16);
-      --line-strong:rgba(236,238,232,.32);
-      --signal:#FF5470;
-      --trace:#5CA2FF;
-      --ok:#3FBE83;
-      --gradient:linear-gradient(120deg,#FF5470 0%,#C07FD1 55%,#5CA2FF 100%);
-      color-scheme:dark;
-    }
-  }
-  :root[data-theme="dark"]{
     --canvas:#0B1210;
     --surface:#121C19;
     --surface-2:#1A2622;
@@ -52,7 +21,24 @@
     --trace:#5CA2FF;
     --ok:#3FBE83;
     --gradient:linear-gradient(120deg,#FF5470 0%,#C07FD1 55%,#5CA2FF 100%);
+    --font-display:'Space Grotesk',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-body:'Archivo',system-ui,-apple-system,'Segoe UI',sans-serif;
+    --font-code:'IBM Plex Mono',ui-monospace,'SFMono-Regular',Consolas,monospace;
     color-scheme:dark;
+  }
+  :root[data-theme="light"]{
+    --canvas:#F5F1E7;
+    --surface:#FFFFFF;
+    --surface-2:#EAE3D2;
+    --ink:#171F1B;
+    --ink-muted:#4F574E;
+    --line:rgba(23,31,27,.16);
+    --line-strong:rgba(23,31,27,.32);
+    --signal:#E4002B;
+    --trace:#0064D2;
+    --ok:#1B7A4B;
+    --gradient:linear-gradient(120deg,#E4002B 0%,#7A2E8C 55%,#0064D2 100%);
+    color-scheme:light;
   }
 
   *{box-sizing:border-box;}
@@ -160,6 +146,8 @@
     background:var(--surface);border:1px solid var(--line-strong);
     font-size:1rem;line-height:1.65;overflow-x:auto;
   }
+  .cols.wide-left{grid-template-columns:1.3fr 1fr;}
+  @media (max-width:820px){.cols.wide-left{grid-template-columns:1fr;}}
   .code .k{color:var(--trace);}
   .code .a{color:var(--signal);}
   .code .c{color:var(--ink-muted);}
@@ -387,7 +375,7 @@ return renewal.renew(record);</pre>
   <section class="slide">
     <div class="inner">
       <h2>Der Parser rät nicht</h2>
-      <div class="cols">
+      <div class="cols wide-left">
 <pre class="code"><span class="a">@WebService</span>(serviceName = "ArchiveService")
 <span class="k">public class</span> ArchiveEndpoint {
 
@@ -651,6 +639,11 @@ return renewal.renew(record);</pre>
     else if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'PageUp' || (k === ' ' && e.shiftKey)) { e.preventDefault(); go(current() - 1); }
     else if (k === 'Home') { e.preventDefault(); go(0); }
     else if (k === 'End') { e.preventDefault(); go(slides.length - 1); }
+    else if (k === 't' || k === 'T') {
+      var root = document.documentElement;
+      if (root.getAttribute('data-theme') === 'light') root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme', 'light');
+    }
   });
   window.addEventListener('scroll', update, {passive:true});
   window.addEventListener('resize', update);
