@@ -21,6 +21,7 @@ from services.agent_prompt import build_system_prompt
 from services.agent_tool_defs import local_tool_definitions, select_tools_for_question
 from services.agent_tool_executor import AgentToolExecutor
 from services.agent_tool_results import _tool_result_was_truncated
+from services import agent_text_tool_calls as text_calls
 
 logger = logging.getLogger(__name__)
 
@@ -138,6 +139,7 @@ async def _research_loop(
       Standard-RAG zurück bzw. meldet Kapazitätsfehler.
     """
     retried = False
+    offered = text_calls.tool_names(adapter.tools)
     async with httpx.AsyncClient(timeout=120.0) as client:
         for turn_index in range(MAX_AGENT_TURNS):
             final = turn_index == MAX_AGENT_TURNS - 1
@@ -147,12 +149,34 @@ async def _research_loop(
             tool_choice = "none" if final else "required" if pending else None
 
             turn: Optional[ModelTurn] = None
+            recovered = False
             for attempt in range(2):
+                markup = text_calls.MarkupFilter()
                 async for item in adapter.complete(client, turn_index, tool_choice):
                     if isinstance(item, ModelTurn):
                         turn = item
                     elif not pending:
-                        yield {"type": "content_chunk", "content": item}
+                        visible = markup.feed(item)
+                        if visible:
+                            yield {"type": "content_chunk", "content": visible}
+                if not pending:
+                    rest = markup.flush()
+                    if rest:
+                        yield {"type": "content_chunk", "content": rest}
+                found = (
+                    None if turn.tool_calls else text_calls.recover(turn.text, offered, turn_index)
+                )
+                if found and final:
+                    # Im Abschlusszug gibt es keine Werkzeuge mehr; das Markup gehört nicht in die Antwort.
+                    turn.text = found[0]
+                elif found:
+                    logger.warning(
+                        "Modellzug %s schrieb Werkzeugaufrufe als Text; ausgeführt: %s",
+                        turn_index,
+                        [call.name for call in found[1]],
+                    )
+                    turn.text, turn.tool_calls = found
+                    recovered = True
                 yield {
                     "type": "model_usage",
                     "turn": turn_index,
@@ -190,7 +214,8 @@ async def _research_loop(
                     agent_steps.append(result_event)
                     yield dict(result_event)
                     results.append(result)
-                adapter.add_tool_results(calls, results, turn)
+                # Ein als Text erkannter Aufruf steht nicht in der Assistenten-Nachricht des Servers; sie wird nachgebildet.
+                adapter.add_tool_results(calls, results, None if recovered else turn)
                 researched = True
                 yield {"type": "turn_completed", "has_tool_calls": True}
                 continue

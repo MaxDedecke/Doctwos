@@ -690,3 +690,75 @@ def test_the_question_is_taken_from_the_prompt_without_its_context_and_answer_ma
     prompt = "Context:\n<untrusted_context>\nQuestion: alt\n</untrusted_context>\n\nQuestion: Was ist das?\nAnswer:"
     assert _question_of(prompt) == "Was ist das?"
     assert _question_of("Nur die Frage") == "Nur die Frage"
+
+
+_CODER_TEXT_CALL = (
+    "Ich suche zuerst die Stelle.\n\n<function=lookup>\n<parameter=project_id>\n1\n</parameter>\n"
+    "<parameter=question>\nKreditlimit Prüfung\n</parameter>\n</function>\n</tool_call>"
+)
+
+
+@pytest.mark.asyncio
+async def test_a_tool_call_written_as_text_is_executed_and_never_shown(monkeypatch):
+    """qwen3-coder schreibt seinen Aufruf manchmal ohne öffnendes <tool_call>; Ollama erkennt ihn dann nicht."""
+    pieces = [_CODER_TEXT_CALL[:30], _CODER_TEXT_CALL[30:42], _CODER_TEXT_CALL[42:]]
+    lines = [
+        json.dumps({"message": {"role": "assistant", "content": p}, "done": False}) for p in pieces
+    ]
+    lines.append(_ollama_line())
+    requests = _serve(monkeypatch, [lines, [_ollama_line(text="Antwort")]])
+
+    events = await _run("ollama")
+
+    calls = [e for e in events if e["type"] == "tool_call"]
+    assert [(c["name"], c["arguments"]) for c in calls] == [
+        ("lookup", {"project_id": 1, "question": "Kreditlimit Prüfung"})
+    ]
+    shown = "".join(e["content"] for e in events if e["type"] == "content_chunk")
+    assert "<function" not in shown and "<parameter" not in shown
+    assistant, tool = requests[1]["messages"][-2:]
+    assert assistant["tool_calls"][0]["function"]["name"] == "lookup"
+    assert tool["tool_call_id"] == assistant["tool_calls"][0]["id"]
+    assert events[-1]["content"] == "Antwort"
+
+
+@pytest.mark.asyncio
+async def test_hermes_style_json_call_in_text_is_executed(monkeypatch):
+    text = 'Moment.\n<tool_call>\n{"name": "lookup", "arguments": {"symbols": ["CBACT04C"]}}\n</tool_call>'
+    _serve(monkeypatch, [[_ollama_line(text=text)], [_ollama_line(text="Antwort")]])
+
+    events = await _run("ollama")
+
+    assert [(e["name"], e["arguments"]) for e in events if e["type"] == "tool_call"] == [
+        ("lookup", {"symbols": ["CBACT04C"]})
+    ]
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Die Methode `<function=x>` ist ein Beispiel aus der Doku.",  # nicht angebotenes Werkzeug
+        "Antwort ohne Aufruf, mit a < b.",
+        "<tool_call>{kaputt</tool_call>",
+    ],
+)
+def test_text_without_an_unambiguous_call_stays_an_answer(text):
+    from services.agent_text_tool_calls import recover
+
+    assert recover(text, {"lookup"}, 0) is None
+
+
+@pytest.mark.parametrize(
+    "pieces, expected",
+    [
+        (["Vorher <func", "tion=lookup> danach"], "Vorher "),
+        (["a < b und <to", "ol_call>{}"], "a < b und "),
+        (["Nur Text <b>fett</b>"], "Nur Text <b>fett</b>"),
+        (["Ende mit <fun"], "Ende mit <fun"),
+    ],
+)
+def test_markup_filter_holds_back_call_markup_across_chunks(pieces, expected):
+    from services.agent_text_tool_calls import MarkupFilter
+
+    markup = MarkupFilter()
+    assert "".join(markup.feed(p) for p in pieces) + markup.flush() == expected
