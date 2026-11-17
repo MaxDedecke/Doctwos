@@ -66,7 +66,7 @@
     border-bottom:1px solid var(--line);
   }
   .inner{width:100%;max-width:72rem;margin:0 auto;display:flex;flex-direction:column;gap:2rem;}
-  .say{font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.75rem);font-weight:500;line-height:1.3;color:var(--ink-muted);max-width:44ch;}
+  .say{font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.75rem);font-weight:500;line-height:1.35;color:var(--ink-muted);max-width:60ch;}
   .say strong{color:var(--ink);font-weight:600;}
 
   /* Diagramme */
@@ -197,6 +197,7 @@
       <h1><span>Doctus</span></h1>
       <p class="claim">Fragen an den eigenen Code. Antworten mit Beleg.</p>
       <p class="who">Für das Team hinter SecDocs und DSEngine</p>
+      <p class="say">Doctus liest euren Code, eure Wikiseiten und Issues und beantwortet Fragen dazu mit Verweis auf die Originalstelle.</p>
     </div>
   </section>
 
@@ -237,6 +238,7 @@
           <text class="m s" x="550" y="486" text-anchor="middle">im Urlaub</text>
         </svg>
       </figure>
+      <p class="say">Jede Quelle kennt einen Teil der Antwort, aber keine kennt die Zusammenhänge zwischen ihnen.</p>
     </div>
   </section>
 
@@ -267,6 +269,7 @@
           <text class="tr s" x="950" y="195" text-anchor="middle">+ Datei und Zeile</text>
         </svg>
       </figure>
+      <p class="say">Doctus verbindet die Quellen, die ihr ohnehin pflegt, statt ein weiteres System zum Befüllen einzuführen.</p>
     </div>
   </section>
 
@@ -283,6 +286,7 @@
         <li><span class="from">CI-Pipeline</span><span class="arrow">→</span><span class="to">Änderungspaket</span></li>
         <li><span class="from">docker compose</span><span class="arrow">→</span><span class="to">Betrieb im eigenen RZ</span></li>
       </ul>
+      <p class="say">Neu ist vor allem, dass diese Werkzeuge über alle Repos, Wikis und Issues hinweg zusammenarbeiten.</p>
     </div>
   </section>
 
@@ -339,6 +343,7 @@
         </svg>
       </figure>
       <p class="anchor">Gemeinsamer Anker <span class="pin">EvidenceService.java:142</span></p>
+      <p class="say">Deshalb führt jede Antwort, egal über welchen Weg sie gefunden wurde, zurück an die Originalzeile.</p>
     </div>
   </section>
 
@@ -384,6 +389,7 @@
           <text class="hi s" x="718" y="392" text-anchor="middle">nächster Sync: nur geänderte Dateien</text>
         </svg>
       </figure>
+      <p class="say">Das läuft im Hintergrund, setzt nach Abbrüchen wieder auf und ist auf Bestände bis 100 GB ausgelegt.</p>
     </div>
   </section>
 
@@ -423,7 +429,7 @@
           </svg>
         </figure>
       </div>
-      <p class="say"><strong>Ohne KI, ohne Maven-Lauf.</strong> Unklares bleibt als offen markiert.</p>
+      <p class="say"><strong>Ohne KI, ohne Maven-Lauf.</strong> Unklares bleibt als offen markiert. Er kennt Spring, CDI, JAX-RS und JAX-WS samt WSDL und XSD und liest Maven-Module statisch aus den POMs.</p>
     </div>
   </section>
 
@@ -473,7 +479,7 @@
           <text class="s" x="626" y="368">ERS-Erneuerung bricht ab</text>
         </svg>
       </figure>
-      <p class="say">Keiner der drei Treffer enthält das Wort <strong>„Beweisdatensatz“</strong>.</p>
+      <p class="say">Keiner der drei Treffer enthält das Wort <strong>„Beweisdatensatz“</strong>. Ein Embedding-Modell bildet jeden Textabschnitt auf 1.024 Zahlen ab, und ähnliche Bedeutung liegt nah beieinander, auch zwischen Deutsch und Englisch.</p>
     </div>
   </section>
 
@@ -521,7 +527,7 @@
           <line class="e" x1="1060" y1="195" x2="1106" y2="195" marker-end="url(#a)"/>
         </svg>
       </figure>
-      <p class="say"><strong>Das Modell kennt euren Code nicht.</strong> Es liest nur das Belegpaket.</p>
+      <p class="say"><strong>Das Modell kennt euren Code nicht.</strong> Es liest nur das Belegpaket. Der eigentliche Wert liegt im Zusammenstellen dieses Pakets, das Formulieren ist der kleinere Schritt.</p>
     </div>
   </section>
 
@@ -537,7 +543,7 @@
           <p class="gap">In der DSEngine keine Fundstelle. Nicht belegbar.</p>
         </div>
       </div>
-      <p class="say">Klick auf die Quelle öffnet die Zeile.</p>
+      <p class="say">Klick auf die Quelle öffnet die Zeile. Was sich nicht belegen lässt, nennt Doctus ausdrücklich als Lücke, statt es zu erfinden.</p>
     </div>
   </section>
 
@@ -588,6 +594,7 @@
           </div>
         </div>
       </div>
+      <p class="say">Wer ein Objekt auswählt, sieht es in allen offenen Ansichten zugleich, dazu kommen Wissensgraph, Link-Manager und Ablaufansicht.</p>
     </div>
   </section>
 
@@ -625,6 +632,7 @@
           <text class="hi s" x="750" y="400" text-anchor="middle">erneut prüfen</text>
         </svg>
       </figure>
+      <p class="say">Nur freigegebene Erkenntnisse, deren Belegcode sich seither nicht geändert hat, fließen in Antworten ein.</p>
     </div>
   </section>
 
@@ -664,6 +672,7 @@
           <text x="1040" y="326" text-anchor="middle">erneute Prüfung</text>
         </svg>
       </figure>
+      <p class="say">Wie ein Evidence Record einen Hash an einen Zeitpunkt bindet, bindet eine Erkenntnis ihre Belege an einen Commit.</p>
     </div>
   </section>
 
@@ -703,7 +712,7 @@
           <text class="tr s" x="708" y="408" text-anchor="middle">meldet</text>
         </svg>
       </figure>
-      <p class="say">Doctus startet selbst keinen Build.</p>
+      <p class="say">Doctus startet selbst keinen Build. Eure Pipeline meldet Maven- und Testergebnisse mit einem quellengebundenen Token, und Doctus hängt sie an genau diesen Commit.</p>
     </div>
   </section>
 
@@ -743,6 +752,7 @@
           <text class="hi" x="900" y="384" text-anchor="middle">1 Aufruf</text>
         </svg>
       </figure>
+      <p class="say">Agenten in IDE oder Terminal nutzen Doctus über das Model Context Protocol und bekommen dasselbe Belegpaket wie der Chat.</p>
     </div>
   </section>
 
@@ -801,7 +811,7 @@
           <text class="hi s" x="1080" y="254" text-anchor="middle">nur mit Freigabe</text>
         </svg>
       </figure>
-      <p class="say">Jede Person sieht nur ihre Projekte. <strong>Der Chat auch.</strong></p>
+      <p class="say">Jede Person sieht nur ihre Projekte. <strong>Der Chat auch.</strong> Alle Dienste laufen per docker compose im eigenen Netz, auch offline und nur mit Open-Source-Lizenzen.</p>
     </div>
   </section>
 
@@ -815,6 +825,7 @@
         <li><span>✕</span> Code-Generator</li>
         <li><span>✕</span> Orakel ohne Beleg</li>
       </ul>
+      <p class="say">Doctus verkürzt den Weg zu den richtigen Stellen, die Entscheidung bleibt bei euch.</p>
     </div>
   </section>
 
@@ -827,6 +838,7 @@
         <li>Auf die Quelle klicken.</li>
         <li>Prüfen. Fehler melden.</li>
       </ul>
+      <p class="say">Je echter die Frage, desto mehr lernen wir alle aus der Antwort.</p>
     </div>
   </section>
 
