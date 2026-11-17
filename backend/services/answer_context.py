@@ -26,6 +26,7 @@ from services.index_state import stale_sources
 from services.ollama_client import embed_text
 from doctus_models.language_profile import role_of
 from services import evidence as evidence_blocks
+from services.concept_search import concept_hits
 from services.evidence_overview import OVERVIEW_INTENT, project_overview
 from services.source_access import site_excerpt as _site_excerpt
 
@@ -399,6 +400,15 @@ def _build_code_answer_context(
             summary = project_overview(db, project_id, max_chars - 1200)
             if summary:
                 result["overview"] = summary
+        else:
+            # Keine Namen in der Frage: die besten Textstellen zur Beschreibung statt „nichts gefunden“.
+            found = concept_hits(db, user, project_id, text[:480])
+            if found:
+                result["concept_hits"] = found
+                result["hint"] = (
+                    "No named symbol found; concept_hits lists the best passages for the question. Name a unit "
+                    "from there in symbols for its source, callers and data access."
+                )
         return _with_index_status(db, project_id, result)
     # Method-level references first, then the rest; at most three entities share the budget.
     resolved.sort(key=lambda row: 0 if row[1].type in {"method", "paragraph"} else 1)

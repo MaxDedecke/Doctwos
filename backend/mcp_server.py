@@ -25,7 +25,6 @@ from api import entities as entity_api
 from api import graph as graph_api
 from core.db_setup import SessionLocal
 from core.projects import (
-    assert_knowledge_source_visible,
     get_visible_projects_page,
 )
 from doctus_models.database import (
@@ -38,6 +37,7 @@ from doctus_models.database import (
 from services.mcp_audit import record_mcp_tool_call
 from services.mcp_tokens import find_token_user
 from services.mcp_project_evidence import register_change_package
+from services.concept_search import chunk_in_project, concept_hits
 from services.ollama_client import search_project_chunks
 from services import drop as drop_view
 from services.source_access import source_visible as _source_visible
@@ -122,24 +122,7 @@ def _capture_mcp_result(ctx: Context, db: Session, project_id: int | None, resul
         logger.debug("Unable to capture MCP result metrics", exc_info=True)
 
 
-def _knowledge_chunk_in_project(
-    db: Session, user: User, project_id: int, chunk: DocumentChunk
-) -> bool:
-    """Require both the requested project scope and its optional source ACL."""
-    if chunk.project_id not in (None, project_id):
-        return False
-    if chunk.source_id is None:
-        # Source-less Git chunks belong to a project directly. Unscoped legacy
-        # chunks must not become visible just because they have no source ACL.
-        return chunk.project_id == project_id
-    source = db.query(KnowledgeSource).filter(KnowledgeSource.id == chunk.source_id).first()
-    if source is None or source.project_id != project_id:
-        return False
-    try:
-        assert_knowledge_source_visible(source, user, db)
-    except HTTPException:
-        return False
-    return True
+_knowledge_chunk_in_project = chunk_in_project
 
 
 def _lexical_project_chunks(
@@ -383,11 +366,14 @@ def search_code(
     limit: int = 10,
     include_source: bool = True,
 ) -> dict:
-    """Find indexed code entities by symbol, qualified name, or file path in one project.
+    """Find indexed code entities by NAME: symbol, qualified name or file path, not by description.
 
     Accepts ``Klasse.methode`` and ``Klasse#methode`` alike, several alternatives separated by ``|``,
-    and short phrases such as ``authenticate AuthDataAccessor``. An empty result lists similar names.
-    To understand a symbol use ``explain_symbol`` (source, callers, callees and data access in one call).
+    and short phrases such as ``authenticate AuthDataAccessor``. Identifiers are usually English
+    (``CREDIT-LIMIT``, ``mustChangePassword``). For a question about a concept, call ``answer_context`` with
+    ``question`` instead: it returns the best passages. An empty result here lists similar names and, for a
+    description, ``concept_hits``. To understand a symbol use ``explain_symbol`` (source, callers, callees,
+    data access).
     """
     query = query.strip()
     limit = max(1, min(limit, 20))
@@ -497,6 +483,14 @@ def search_code(
         }
         if not visible and suggestions:
             response["did_you_mean"] = suggestions[:5]
+        if not visible and "|" not in query:
+            found = concept_hits(db, user, project_id, query, limit=min(limit, 8))
+            if found:
+                response["concept_hits"] = found
+                response["hint"] = (
+                    "search_code matches names, not descriptions. These passages match the description; "
+                    "continue with explain_symbol on a unit from concept_hits."
+                )
         _capture_mcp_result(ctx, db, project_id, response)
         return response
 

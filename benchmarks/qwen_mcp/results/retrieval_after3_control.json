@@ -1,0 +1,172 @@
+[
+ {
+  "task": "T-C1-ONBOARD",
+  "split": "control",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 11126
+ },
+ {
+  "task": "T-C1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 6598,
+  "args": "{\"include_source\": true, \"limit\": 10, \"project_id\": 1, \"query\": \"CardDemo Online Batch Transaktion Programm Anmeldung Jo"
+ },
+ {
+  "task": "T-C1-ONBOARD",
+  "split": "control",
+  "tool": "search_knowledge",
+  "hit": false,
+  "chars": 9997,
+  "args": "{\"limit\": 10, \"project_id\": 1, \"query\": \"CardDemo Online Batch Transaktion Programm Anmeldung Jobs\"}"
+ },
+ {
+  "task": "T-C1-ONBOARD",
+  "split": "control",
+  "tool": "search_knowledge",
+  "hit": false,
+  "chars": 6269,
+  "args": "{\"limit\": 5, \"project_id\": 1, \"query\": \"CardDemo Online Batch Transaktion Programm Anmeldung Jobs\"}"
+ },
+ {
+  "task": "T-C3-IMPACT",
+  "split": "control",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 5791
+ },
+ {
+  "task": "T-C3-IMPACT",
+  "split": "control",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 5773,
+  "args": "{\"max_chars\": 14000, \"project_id\": 1, \"symbols\": [\"ACCT-CURR-BAL\"], \"topic\": \"field extension in CardDemo project\"}"
+ },
+ {
+  "task": "T-C3-IMPACT",
+  "split": "control",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 5773,
+  "args": "{\"max_chars\": 14000, \"project_id\": 1, \"symbols\": [\"ACCT-CURR-BAL\"], \"topic\": \"field extension in CardDemo\"}"
+ },
+ {
+  "task": "T-C6-REVIEW",
+  "split": "control",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 4880
+ },
+ {
+  "task": "T-C6-REVIEW",
+  "split": "control",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 5473,
+  "args": "{\"max_chars\": 14000, \"project_id\": 1, \"symbols\": [\"CSUTLDTC\"], \"topic\": \"Schnittstelle, interne Abhängigkeiten und Aufru"
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 9641
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 9256,
+  "args": "{\"include_source\": true, \"limit\": 10, \"project_id\": 2, \"query\": \"Apache Syncope Core REST Geschäftslogik Provisionierung"
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 7967,
+  "args": "{\"include_source\": true, \"limit\": 10, \"project_id\": 2, \"query\": \"Apache Syncope Projektstruktur Hauptbereiche REST Gesch"
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 7956,
+  "args": "{\"include_source\": true, \"limit\": 10, \"project_id\": 2, \"query\": \"Apache Syncope Projektstruktur Hauptbereiche REST Gesch"
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 7927,
+  "args": "{\"include_source\": true, \"limit\": 10, \"project_id\": 2, \"query\": \"Apache Syncope Projektstruktur\"}"
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 9256,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"Apache Syncope Core REST Geschäftslogik Provisionierung Workflow Per"
+ },
+ {
+  "task": "T-J1-ONBOARD",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 7967,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"Apache Syncope Projektstruktur Hauptbereiche REST Geschäftslogik Pro"
+ },
+ {
+  "task": "T-J3-IMPACT",
+  "split": "control",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 9096
+ },
+ {
+  "task": "T-J3-IMPACT",
+  "split": "control",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 8401,
+  "args": "{\"max_chars\": 14000, \"project_id\": 2, \"symbols\": [\"UserDAO.findByUsername\"], \"topic\": \"Signatur der Methode UserDAO.find"
+ },
+ {
+  "task": "T-J3-IMPACT",
+  "split": "control",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 8401,
+  "args": "{\"max_chars\": 14000, \"project_id\": 2, \"symbols\": [\"UserDAO.findByUsername\"], \"topic\": \"Signature change of UserDAO.findB"
+ },
+ {
+  "task": "T-J4-TESTS",
+  "split": "control",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 8461
+ },
+ {
+  "task": "T-J4-TESTS",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 3412,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"DefaultPasswordGenerator\"}"
+ },
+ {
+  "task": "T-J4-TESTS",
+  "split": "control",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 5086,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"DefaultPasswordGeneratorTest\"}"
+ }
+]

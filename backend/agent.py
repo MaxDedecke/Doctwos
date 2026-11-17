@@ -69,7 +69,11 @@ async def _prefetch_evidence(
         except Exception:
             pass
         return None
-    if not result.get("resolved") and not (overview and result.get("overview")):
+    if not (
+        result.get("resolved")
+        or result.get("concept_hits")
+        or (overview and result.get("overview"))
+    ):
         return None
     args = {"symbols": [item["symbol"] for item in result["resolved"]], "topic": question[:200]}
     return "answer_context", args, json.dumps(result, ensure_ascii=False)

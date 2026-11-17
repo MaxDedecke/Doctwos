@@ -18,7 +18,8 @@ import re
 from typing import Optional
 
 import httpx
-from sqlalchemy import and_, or_
+from pgvector.sqlalchemy import HALFVEC, Vector
+from sqlalchemy import and_, cast, or_, text
 from sqlalchemy.orm import Session
 
 import core.config as cfg
@@ -126,6 +127,84 @@ async def embed_text(
         return _validate_embedding(embedding, expected_dimension)
 
 
+def nearest_project_chunks(
+    db: Session,
+    project_id: int,
+    query_embedding: list,
+    limit: int = 6,
+    metadata_filters: Optional[dict] = None,
+    max_distance: Optional[float] = None,
+    embedding_model: Optional[str] = None,
+) -> list[DocumentChunk]:
+    """Nächste DocumentChunks eines Projekts zu einem fertigen Anfragevektor (synchroner Datenbankteil
+    von ``search_project_chunks``; der Aufrufer bettet die Anfrage selbst ein)."""
+    source_ids = [
+        s.id
+        for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).all()
+    ]
+    # Project scope is one grouped predicate.  In particular, do not combine
+    # it with model/dimension alternatives in a flat OR: those conditions must
+    # narrow the already scoped set, never broaden it to other projects.
+    project_scope = DocumentChunk.project_id == project_id
+    if source_ids:
+        project_scope = or_(
+            project_scope,
+            and_(
+                DocumentChunk.project_id.is_(None),
+                DocumentChunk.source_id.in_(source_ids),
+            ),
+        )
+    filters = [project_scope]
+    selected_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
+    if selected_model == cfg.OLLAMA_EMBED_MODEL:
+        model_scope = or_(
+            DocumentChunk.embedding_model == selected_model,
+            DocumentChunk.embedding_model.is_(None),
+        )
+    else:
+        model_scope = DocumentChunk.embedding_model == selected_model
+
+    # Die HNSW-Indizes liegen auf (embedding)::vector(1024) bzw. ::halfvec(2560) mit Teilprädikat auf die Dimension.
+    # Nur mit derselben Umwandlung nutzt die Abfrage den Index; ohne sie liest sie alle Abschnitte (Camel: 6,8 s statt 0,1 s).
+    dimension = len(query_embedding)
+    indexed_type = {1024: Vector(1024), 2560: HALFVEC(2560)}.get(dimension)
+    column = (
+        cast(DocumentChunk.embedding, indexed_type)
+        if indexed_type is not None
+        else DocumentChunk.embedding
+    )
+    distance = column.cosine_distance(query_embedding)
+    if indexed_type is not None:
+        # Der gefilterte Index liefert sonst die nächsten Nachbarn über alle Projekte und filtert danach: Kleine
+        # Projekte gingen leer aus. Die iterative Suche (pgvector 0.8) tastet weiter, bis genug Treffer passen.
+        db.execute(text("SET LOCAL hnsw.iterative_scan = 'relaxed_order'"))
+    dimension_scope = DocumentChunk.embedding_dimension == len(query_embedding)
+    # Größerer Kandidatenpool, falls danach noch in Python gefiltert wird
+    # (pgvector kennt keine nativen Filter auf JSON-Metadaten kombiniert mit Vektor-Sortierung).
+    pool_size = limit * 4 if (metadata_filters or max_distance is not None) else limit
+
+    rows = (
+        db.query(DocumentChunk, distance.label("distance"))
+        .filter(*filters, model_scope, dimension_scope)
+        .order_by(distance)
+        .limit(pool_size)
+        .all()
+    )
+
+    out = []
+    for chunk, dist in sorted(rows, key=lambda row: row[1]):
+        if max_distance is not None and dist > max_distance:
+            continue
+        if metadata_filters:
+            meta = chunk.metadata_json or {}
+            if not all(meta.get(k) == v for k, v in metadata_filters.items()):
+                continue
+        out.append(chunk)
+        if len(out) >= limit:
+            break
+    return out
+
+
 async def search_project_chunks(
     db: Session,
     project_id: int,
@@ -161,58 +240,15 @@ async def search_project_chunks(
         context_length=embedding_context_length,
     )
 
-    source_ids = [
-        s.id
-        for s in db.query(KnowledgeSource.id).filter(KnowledgeSource.project_id == project_id).all()
-    ]
-    # Project scope is one grouped predicate.  In particular, do not combine
-    # it with model/dimension alternatives in a flat OR: those conditions must
-    # narrow the already scoped set, never broaden it to other projects.
-    project_scope = DocumentChunk.project_id == project_id
-    if source_ids:
-        project_scope = or_(
-            project_scope,
-            and_(
-                DocumentChunk.project_id.is_(None),
-                DocumentChunk.source_id.in_(source_ids),
-            ),
-        )
-    filters = [project_scope]
-    selected_model = (embedding_model or cfg.OLLAMA_EMBED_MODEL).strip()
-    if selected_model == cfg.OLLAMA_EMBED_MODEL:
-        model_scope = or_(
-            DocumentChunk.embedding_model == selected_model,
-            DocumentChunk.embedding_model.is_(None),
-        )
-    else:
-        model_scope = DocumentChunk.embedding_model == selected_model
-
-    distance = DocumentChunk.embedding.cosine_distance(query_embedding)
-    dimension_scope = DocumentChunk.embedding_dimension == len(query_embedding)
-    # Größerer Kandidatenpool, falls danach noch in Python gefiltert wird
-    # (pgvector kennt keine nativen Filter auf JSON-Metadaten kombiniert mit Vektor-Sortierung).
-    pool_size = limit * 4 if (metadata_filters or max_distance is not None) else limit
-
-    rows = (
-        db.query(DocumentChunk, distance.label("distance"))
-        .filter(*filters, model_scope, dimension_scope)
-        .order_by(distance)
-        .limit(pool_size)
-        .all()
+    return nearest_project_chunks(
+        db,
+        project_id,
+        query_embedding,
+        limit=limit,
+        metadata_filters=metadata_filters,
+        max_distance=max_distance,
+        embedding_model=embedding_model,
     )
-
-    out = []
-    for chunk, dist in rows:
-        if max_distance is not None and dist > max_distance:
-            continue
-        if metadata_filters:
-            meta = chunk.metadata_json or {}
-            if not all(meta.get(k) == v for k, v in metadata_filters.items()):
-                continue
-        out.append(chunk)
-        if len(out) >= limit:
-            break
-    return out
 
 
 async def ask_llm_json(prompt: str, model: Optional[str] = None, timeout: float = 60.0) -> dict:

@@ -1,0 +1,44 @@
+[
+ {
+  "task": "P-C1-XREF-ERROR",
+  "split": "holdout",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 7864
+ },
+ {
+  "task": "P-C2-PASSWORD-IMPACT",
+  "split": "holdout",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 11125
+ },
+ {
+  "task": "P-C3-EXPORT",
+  "split": "holdout",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 7490
+ },
+ {
+  "task": "P-J1-DELETE",
+  "split": "holdout",
+  "tool": "answer_context(Frage)",
+  "hit": false,
+  "chars": 8611
+ },
+ {
+  "task": "P-J2-REALM-CHECK",
+  "split": "holdout",
+  "tool": "answer_context(Frage)",
+  "hit": false,
+  "chars": 5781
+ },
+ {
+  "task": "P-J3-DBTYPE",
+  "split": "holdout",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 8452
+ }
+]

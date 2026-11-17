@@ -134,6 +134,11 @@ def extract_tool_sources(event: dict, agent_sources: list, source_id: Optional[i
                 lines = item.get("lines") if isinstance(item, dict) else None
                 if lines and item.get("file"):
                     record_agent_source(agent_sources, item["file"], lines[0], lines[1], source_id)
+        concept = result.get("concept_hits") if isinstance(result.get("concept_hits"), dict) else {}
+        for item in concept.get("hits") or []:
+            lines = item.get("lines") if isinstance(item, dict) else None
+            if lines and item.get("file"):
+                record_agent_source(agent_sources, item["file"], lines[0], lines[1], source_id)
         for entry in result.get("evidence", []):
             if not isinstance(entry, dict):
                 continue

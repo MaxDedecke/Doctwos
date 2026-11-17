@@ -1,0 +1,324 @@
+[
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 7305
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 7479,
+  "args": "{\"max_chars\": 10000, \"project_id\": 1, \"question\": \"In AWS CardDemo: Neue Anforderung: Bei der Online-Aktualisierung eine"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 6825,
+  "args": "{\"max_chars\": 10000, \"project_id\": 1, \"symbols\": [\"CardDemo\", \"KontoAktualisieren\"], \"topic\": \"Kreditlimit-Prüfung und K"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": false,
+  "chars": 5280,
+  "args": "{\"max_chars\": 10000, \"project_id\": 1, \"symbols\": [\"CardDemo\", \"KreditlimitPruefung\", \"KontoAktualisierung\"], \"topic\": \"K"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 7305,
+  "args": "{\"max_chars\": 14000, \"project_id\": 1, \"question\": \"In AWS CardDemo: Neue Anforderung: Bei der Online-Aktualisierung eine"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": true,
+  "chars": 5718,
+  "args": "{\"include_source\": true, \"limit\": 10, \"project_id\": 1, \"query\": \"Kreditlimit Prüfung Konto Aktualisierung\"}"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 4659,
+  "args": "{\"include_source\": true, \"limit\": 100, \"project_id\": 1, \"query\": \"Kreditlimit|Konto|CardDemo\"}"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 1, \"query\": \"Konto\"}"
+ },
+ {
+  "task": "T-C2-CHANGEPOINT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 1, \"query\": \"Kreditlimit\"}"
+ },
+ {
+  "task": "T-C4-BUGHUNT",
+  "split": "dev",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 7150
+ },
+ {
+  "task": "T-C4-BUGHUNT",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 7150,
+  "args": "{\"max_chars\": 14000, \"project_id\": 1, \"question\": \"In AWS CardDemo: Fehlermeldung aus dem Fachbereich: Bei der Online-Ak"
+ },
+ {
+  "task": "T-C4-BUGHUNT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 862,
+  "args": "{\"include_source\": true, \"project_id\": 1, \"query\": \"Invalid card expiry year\"}"
+ },
+ {
+  "task": "T-C5-JOB",
+  "split": "dev",
+  "tool": "answer_context(Frage)",
+  "hit": true,
+  "chars": 11084
+ },
+ {
+  "task": "T-C5-JOB",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": true,
+  "chars": 11778,
+  "args": "{\"max_chars\": 14000, \"project_id\": 1, \"question\": \"In AWS CardDemo: Ich soll den Lauf übernehmen, der die Kontoauszüge f"
+ },
+ {
+  "task": "T-C5-JOB",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 1, \"query\": \"Kontoauszug erstellen\"}"
+ },
+ {
+  "task": "T-C5-JOB",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 1, \"query\": \"Kontoauszüge erzeugen\"}"
+ },
+ {
+  "task": "T-C5-JOB",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 1, \"query\": \"Kontoauszüge generieren\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "answer_context(Frage)",
+  "hit": false,
+  "chars": 7877
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"UserPreUpdate\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"UserPreUpdateHandler\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"UserPreUpdateValidation\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"UserPreUpdateValidator\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"UserValidation\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 1455,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"preUpdate User\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"preUpdate\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"preUpdateValidation\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 115,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"preUpdateValidator\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 1041,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"user pre update\"}"
+ },
+ {
+  "task": "T-J2-EXTENSION",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 771,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"user validation pre update\"}"
+ },
+ {
+  "task": "T-J5-BUGHUNT",
+  "split": "dev",
+  "tool": "answer_context(Frage)",
+  "hit": false,
+  "chars": 8716
+ },
+ {
+  "task": "T-J5-BUGHUNT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 2807,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"LDAP User Duplicate Creation Case Insensitive\"}"
+ },
+ {
+  "task": "T-J5-BUGHUNT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 7105,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"LDAP User duplicate creation case-insensitive username\"}"
+ },
+ {
+  "task": "T-J5-BUGHUNT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 7148,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"LDAP duplicate user creation case-insensitive username matching\"}"
+ },
+ {
+  "task": "T-J5-BUGHUNT",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 7520,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"LDAP duplicate user creation case-insensitive username resolution\"}"
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "answer_context(Frage)",
+  "hit": false,
+  "chars": 8207
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "answer_context",
+  "hit": false,
+  "chars": 8207,
+  "args": "{\"max_chars\": 14000, \"project_id\": 2, \"question\": \"In Apache Syncope: Ich soll einen Change am Ablauf 'Passwort muss bei"
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 5441,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"Passwort muss beim nächsten Login geändert werden\"}"
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 5014,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"Passwort ändern Berechtigung\"}"
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 5881,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"Passwort ändern Logik Methode\"}"
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 6821,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"Passwort ändern REST Endpunkt\"}"
+ },
+ {
+  "task": "T-J6-REVIEW",
+  "split": "dev",
+  "tool": "search_code",
+  "hit": false,
+  "chars": 6821,
+  "args": "{\"include_source\": true, \"project_id\": 2, \"query\": \"REST-Endpunkt Passwort ändern\"}"
+ }
+]
