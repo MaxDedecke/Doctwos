@@ -299,7 +299,10 @@ def _build_code_answer_context(
     they are taken from the free text. A question that names no symbol and asks about the project as a whole
     (or `overview`, the chat's fallback) gets the project overview instead."""
     text = " ".join(part for part in (question, topic) if part).strip()
-    relevance_query = (topic or question).strip()
+    named = " ".join(s.strip() for s in symbols or [] if isinstance(s, str) and s.strip())
+    # Nur Symbole ohne Frage ist ein gültiger Aufruf (Werkzeugbeschreibung, Folgevorschlag von search_code).
+    text = text or named
+    relevance_query = (topic or question or named).strip()
     max_chars = max(3000, min(max_chars, 14000))
     if not text or len(text) > 1500:
         raise ToolInputError("invalid query")

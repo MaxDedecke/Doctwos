@@ -1556,6 +1556,59 @@ def test_answer_context_accepts_symbols_and_topic_without_a_question(
     assert result["unresolved_terms"] == []
 
 
+@pytest.mark.parametrize(
+    "entity, chunk_path, symbol, expected",
+    [
+        (
+            ("authenticate", "org.demo.Auth#authenticate(String)", "src/Auth.java", "method"),
+            "src/Auth.java",
+            "Auth.authenticate",
+            "org.demo.Auth#authenticate(String)",
+        ),
+        (
+            (
+                "1050-UPDATE-ACCOUNT",
+                "CBACT04C.1050-UPDATE-ACCOUNT",
+                "app/cbl/CBACT04C.cbl",
+                "paragraph",
+            ),
+            "app/cbl/CBACT04C.cbl",
+            "CBACT04C.1050-UPDATE-ACCOUNT",
+            "CBACT04C.1050-UPDATE-ACCOUNT",
+        ),
+    ],
+)
+def test_answer_context_accepts_symbols_alone_in_java_and_cobol(
+    db_session, mcp_project_context, monkeypatch, entity, chunk_path, symbol, expected
+):
+    # search_code schlägt answer_context(symbols=[...]) als nächsten Schritt vor; das darf nicht abgelehnt werden.
+    _use_test_session(monkeypatch, db_session)
+    user, _outsider, project_id, _foreign = mcp_project_context
+    name, qualified, path, kind = entity
+    db_session.add_all(
+        [
+            _method(project_id, name, qualified, path, 1, 3, kind=kind),
+            _chunk(project_id, chunk_path, ["line one", "line two", "line three"]),
+        ]
+    )
+    db_session.commit()
+    monkeypatch.setattr(
+        call_flow_page,
+        "trace_call_flow",
+        lambda *_a, **_k: {
+            "status": "ok",
+            "root": None,
+            "nodes": [],
+            "edges": [],
+            "entry_candidates": [],
+        },
+    )
+
+    result = mcp_server.answer_context(_context(user.id), project_id=project_id, symbols=[symbol])
+
+    assert [r["symbol"] for r in result["resolved"]] == [expected]
+
+
 def test_answer_context_follows_the_call_chain_two_hops(
     db_session, mcp_project_context, monkeypatch
 ):
