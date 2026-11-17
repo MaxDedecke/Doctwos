@@ -52,7 +52,7 @@ describe('EmbeddingMigrationPanel', () => {
     apiMocks.getEmbeddingMigration.mockResolvedValue({ data: { ...base, migration: null } });
     render(<EmbeddingMigrationPanel projectId={5} isAdmin={false} />);
 
-    expect(await screen.findByText('settings.projects.embedding.title')).toBeInTheDocument();
+    expect(await screen.findByText('settings.projects.embedding.title')).toBeTruthy();
     expect(screen.queryByText('settings.projects.embedding.start')).toBeNull();
   });
 });

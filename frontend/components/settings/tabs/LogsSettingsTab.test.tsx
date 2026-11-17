@@ -266,9 +266,9 @@ describe('LogsSettingsTab source health', () => {
     render(<LogsSettingsTab />);
     fireEvent.click(await screen.findByText('Team-Wiki'));
 
-    expect(await screen.findByTestId('source-error-hint')).toHaveTextContent('settings.logsTab.errorKind.auth');
-    expect(screen.getByText('settings.logsTab.autoSyncPaused')).toBeInTheDocument();
-    expect(screen.getByText('settings.logsTab.failureCount:3')).toBeInTheDocument();
+    expect((await screen.findByTestId('source-error-hint')).textContent).toBe('settings.logsTab.errorKind.auth');
+    expect(screen.getByText('settings.logsTab.autoSyncPaused')).toBeTruthy();
+    expect(screen.getByText('settings.logsTab.failureCount:3')).toBeTruthy();
     expect(screen.getAllByText('settings.logsTab.statusPaused').length).toBeGreaterThan(0);
   });
 });
