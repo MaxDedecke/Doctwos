@@ -7,7 +7,7 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
-  /* Layout: eine Folie pro Bildschirmhöhe, große Schrift, Linien statt Karten, Code als Primärmaterial */
+  /* Layout: eine Folie pro Bildschirm, Diagramm im Zentrum, höchstens eine Zeile Text dazu */
   /* Dunkel ist Standard, unabhängig vom System. Hell nur ausdrücklich (Taste T). */
   :root{
     --canvas:#0B1210;
@@ -16,7 +16,7 @@
     --ink:#ECEEE8;
     --ink-muted:#A7B2A9;
     --line:rgba(236,238,232,.16);
-    --line-strong:rgba(236,238,232,.32);
+    --line-strong:rgba(236,238,232,.34);
     --signal:#FF5470;
     --trace:#5CA2FF;
     --ok:#3FBE83;
@@ -33,7 +33,7 @@
     --ink:#171F1B;
     --ink-muted:#4F574E;
     --line:rgba(23,31,27,.16);
-    --line-strong:rgba(23,31,27,.32);
+    --line-strong:rgba(23,31,27,.34);
     --signal:#E4002B;
     --trace:#0064D2;
     --ok:#1B7A4B;
@@ -43,339 +43,355 @@
 
   *{box-sizing:border-box;}
   html{font-size:clamp(16px,0.55vw + 11px,20px);scroll-behavior:smooth;}
-  @media (min-width:900px) and (min-height:680px){
-    html{scroll-snap-type:y mandatory;}
-  }
+  @media (min-width:900px) and (min-height:680px){html{scroll-snap-type:y mandatory;}}
   @media (prefers-reduced-motion: reduce){html{scroll-behavior:auto;}}
   body{
-    margin:0;
-    background:var(--canvas);
-    color:var(--ink);
-    font-family:var(--font-body);
-    font-size:1.15rem;
-    line-height:1.55;
+    margin:0;background:var(--canvas);color:var(--ink);
+    font-family:var(--font-body);font-size:1.2rem;line-height:1.5;
     -webkit-font-smoothing:antialiased;
   }
   h1,h2,h3{font-family:var(--font-display);margin:0;letter-spacing:-0.015em;text-wrap:balance;}
-  h2{font-size:clamp(2rem,3.6vw,3.1rem);line-height:1.08;max-width:22ch;}
-  h3{font-size:1.3rem;line-height:1.25;}
+  h2{font-size:clamp(2rem,3.6vw,3.1rem);line-height:1.08;}
   p{margin:0;}
-  code,pre{font-family:var(--font-code);}
-  code{font-size:.92em;background:var(--surface-2);padding:.08em .35em;border-radius:4px;}
+  code{font-family:var(--font-code);font-size:.92em;}
 
-  #progress{
-    position:fixed;inset:0 0 auto 0;height:4px;z-index:10;
-    background:var(--line);
-  }
+  #progress{position:fixed;inset:0 0 auto 0;height:4px;z-index:10;background:var(--line);}
   #progress span{display:block;height:100%;width:0;background:var(--gradient);transition:width .18s ease;}
 
   .slide{
-    min-height:100svh;
-    scroll-snap-align:start;
-    display:flex;
-    align-items:center;
-    padding-block:clamp(3rem,7vh,5rem);
+    min-height:100svh;scroll-snap-align:start;display:flex;align-items:center;
+    padding-block:clamp(2.5rem,6vh,4.5rem);
     padding-left:max(16px, env(safe-area-inset-left, 0px), 6vw);
     padding-right:max(16px, env(safe-area-inset-right, 0px), 6vw);
     border-bottom:1px solid var(--line);
   }
-  .inner{width:100%;max-width:70rem;margin:0 auto;display:flex;flex-direction:column;gap:2rem;}
-  .lede{font-size:1.3rem;color:var(--ink-muted);max-width:40rem;line-height:1.5;}
-  .cols{display:grid;grid-template-columns:1fr 1fr;gap:clamp(1.5rem,4vw,4rem);align-items:start;}
-  .cols > *{min-width:0;}
-  @media (max-width:820px){.cols{grid-template-columns:1fr;}}
+  .inner{width:100%;max-width:72rem;margin:0 auto;display:flex;flex-direction:column;gap:2rem;}
+  .say{font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.75rem);font-weight:500;line-height:1.3;color:var(--ink-muted);max-width:44ch;}
+  .say strong{color:var(--ink);font-weight:600;}
+
+  /* Diagramme */
+  .fig{margin:0;overflow-x:auto;}
+  .fig svg{display:block;width:100%;height:auto;max-height:62vh;}
+  svg text{fill:var(--ink);font-family:var(--font-body);font-size:22px;}
+  svg .b{font-family:var(--font-display);font-weight:600;font-size:26px;}
+  svg .xl{font-size:34px;}
+  svg .s{font-size:20px;}
+  svg .m{fill:var(--ink-muted);}
+  svg .c{font-family:var(--font-code);font-size:20px;}
+  svg .hi{fill:var(--signal);}
+  svg .tr{fill:var(--trace);}
+  svg .okc{fill:var(--ok);}
+  svg .box{fill:var(--surface);stroke:var(--line-strong);stroke-width:1.6;}
+  svg .box.hi{stroke:var(--signal);stroke-width:3;fill:var(--surface);}
+  svg .box.tr{stroke:var(--trace);stroke-width:2.5;fill:var(--surface);}
+  svg .box.ok{stroke:var(--ok);stroke-width:3;fill:var(--surface);}
+  svg .box.d{stroke-dasharray:8 7;}
+  svg .chip{fill:var(--surface-2);stroke:none;}
+  svg .frame{fill:none;stroke:var(--line-strong);stroke-width:1.6;stroke-dasharray:10 8;}
+  svg .e{fill:none;stroke:var(--ink-muted);stroke-width:2.5;}
+  svg .e.hi{stroke:var(--signal);fill:none;}
+  svg .e.tr{stroke:var(--trace);fill:none;}
+  svg .e.d{stroke-dasharray:8 7;}
+  svg .ah{fill:var(--ink-muted);}
+  svg .ahh{fill:var(--signal);}
+  svg .aht{fill:var(--trace);}
+  svg .dot{fill:var(--ink-muted);opacity:.55;}
+  svg .band-hi{fill:var(--signal);opacity:.18;}
+  svg .band-ok{fill:var(--ok);opacity:.18;}
+  svg .node{fill:var(--canvas);stroke:var(--ink);stroke-width:3;}
+  svg .node.hi{stroke:var(--signal);fill:var(--signal);}
 
   /* Titel */
   .title h1{font-size:clamp(3.6rem,10vw,8rem);line-height:.95;letter-spacing:-0.035em;}
   .title h1 span{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent;}
-  .title .claim{font-family:var(--font-display);font-size:clamp(1.5rem,2.8vw,2.3rem);line-height:1.2;max-width:28ch;font-weight:500;}
-  .title .who{font-size:1.25rem;color:var(--ink-muted);}
-
-  /* Listen mit Linien */
-  .rows{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-strong);}
-  .rows li{padding:1rem 0;border-bottom:1px solid var(--line);}
-  .rows li strong{font-family:var(--font-display);font-weight:600;}
-  .rows.q li{font-family:var(--font-display);font-size:1.35rem;font-weight:500;line-height:1.3;}
+  .title .claim{font-family:var(--font-display);font-size:clamp(1.5rem,2.8vw,2.3rem);line-height:1.2;max-width:26ch;font-weight:500;}
+  .title .who{font-size:1.3rem;color:var(--ink-muted);}
 
   /* Gegenüberstellung */
-  .map{width:100%;border-collapse:collapse;}
-  .map-wrap{overflow-x:auto;}
-  .map th{text-align:left;font-family:var(--font-display);font-weight:600;font-size:1.2rem;padding:0 1.5rem .8rem 0;border-bottom:1px solid var(--line-strong);}
-  .map td{padding:.85rem 1.5rem .85rem 0;border-bottom:1px solid var(--line);vertical-align:top;}
-  .map td:first-child{font-family:var(--font-code);font-size:1.02rem;white-space:nowrap;color:var(--ink-muted);}
-  .map td:nth-child(2){font-family:var(--font-display);font-weight:600;white-space:nowrap;}
-  @media (max-width:820px){
-    .map td:first-child,.map td:nth-child(2){white-space:normal;}
-  }
-  .map.twin td{width:50%;font-size:1.25rem;line-height:1.4;padding-block:1.1rem;white-space:normal;}
-  .map.twin td:first-child{font-family:var(--font-body);color:var(--ink-muted);}
-  .map.twin td:nth-child(2){font-family:var(--font-display);font-weight:500;}
-
-  /* Statement */
-  .statement h2{font-size:clamp(2.4rem,5.4vw,4.6rem);max-width:18ch;line-height:1.04;}
-  .statement .lede{font-size:1.4rem;max-width:44rem;color:var(--ink);}
-
-  /* Drei Ebenen */
-  .layers{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface);}
-  .layers > div{padding:1.6rem;display:flex;flex-direction:column;gap:.9rem;min-width:0;}
-  .layers > div + div{border-left:1px solid var(--line);}
-  .layers p{color:var(--ink-muted);}
-  .layers pre{margin:0;font-size:.95rem;line-height:1.55;white-space:pre-wrap;color:var(--ink);}
-  .anchor{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-size:1.2rem;}
-  .anchor code{font-size:1.05rem;color:var(--signal);background:transparent;border:1px solid var(--signal);padding:.25rem .6rem;}
-  @media (max-width:820px){
-    .layers{grid-template-columns:1fr;}
-    .layers > div + div{border-left:0;border-top:1px solid var(--line);}
-  }
-
-  /* Ablauf */
-  .flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:0;counter-reset:step;}
-  .flow li{position:relative;padding:1.2rem 1.4rem 1.2rem 0;border-top:2px solid var(--ink);min-width:0;}
-  .flow li::before{
-    counter-increment:step;content:counter(step);
-    display:block;font-family:var(--font-display);font-weight:700;font-size:2.2rem;line-height:1;color:var(--signal);margin-bottom:.8rem;
-  }
-  .flow h3{margin-bottom:.5rem;}
-  .flow p{color:var(--ink-muted);font-size:1.05rem;}
-  @media (max-width:980px){.flow{grid-template-columns:1fr 1fr;row-gap:1rem;}}
-  @media (max-width:560px){.flow{grid-template-columns:1fr;}}
+  .pairs{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:auto auto 1fr;column-gap:1.6rem;}
+  .pairs li{display:contents;}
+  .pairs span{padding:.75rem 0;border-bottom:1px solid var(--line);font-size:1.4rem;}
+  .pairs .from{font-family:var(--font-code);color:var(--ink-muted);}
+  .pairs .arrow{color:var(--signal);font-family:var(--font-display);}
+  .pairs .to{font-family:var(--font-display);font-weight:600;}
+  @media (max-width:560px){.pairs span{font-size:1.15rem;}}
 
   /* Code */
+  .split{display:grid;grid-template-columns:1.25fr 1fr;gap:clamp(1.5rem,4vw,3.5rem);align-items:center;}
+  .split > *{min-width:0;}
+  @media (max-width:860px){.split{grid-template-columns:1fr;}}
   .code{
-    margin:0;padding:1.4rem 1.5rem;border-radius:8px;
-    background:var(--surface);border:1px solid var(--line-strong);
-    font-size:1rem;line-height:1.65;overflow-x:auto;
+    margin:0;padding:1.4rem 1.5rem;border-radius:8px;background:var(--surface);border:1px solid var(--line-strong);
+    font-family:var(--font-code);font-size:1.02rem;line-height:1.65;overflow-x:auto;
   }
-  .cols.wide-left{grid-template-columns:1.3fr 1fr;}
-  @media (max-width:820px){.cols.wide-left{grid-template-columns:1fr;}}
   .code .k{color:var(--trace);}
   .code .a{color:var(--signal);}
-  .code .c{color:var(--ink-muted);}
-  .found{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:.2rem;border-top:1px solid var(--line-strong);}
-  .found li{display:grid;grid-template-columns:9rem 1fr;gap:1rem;padding:.75rem 0;border-bottom:1px solid var(--line);align-items:baseline;}
-  .found li > *{min-width:0;}
-  .found .rel{font-family:var(--font-code);font-weight:600;color:var(--trace);}
-  .found .tgt{font-family:var(--font-code);overflow-wrap:anywhere;}
-  @media (max-width:560px){.found li{grid-template-columns:1fr;gap:.2rem;}}
 
-  /* Semantische Suche */
+  /* Anker */
+  .anchor{display:flex;align-items:center;gap:1rem;flex-wrap:wrap;font-family:var(--font-display);font-size:1.5rem;}
+  .pin{font-family:var(--font-code);font-size:1.2rem;color:var(--signal);border:2px solid var(--signal);border-radius:6px;padding:.2rem .7rem;}
+
+  /* Suche */
   .query{
     font-family:var(--font-display);font-size:clamp(1.4rem,2.4vw,1.9rem);font-weight:500;
-    padding:1.1rem 1.4rem;border:2px solid var(--ink);border-radius:8px;background:var(--surface);
+    padding:1rem 1.4rem;border:2px solid var(--signal);border-radius:8px;background:var(--surface);align-self:flex-start;
   }
-  .hits{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(3,1fr);gap:1.5rem;}
-  .hits li{display:flex;flex-direction:column;gap:.5rem;min-width:0;padding-top:1rem;border-top:1px solid var(--line-strong);}
-  .hits .src{color:var(--ink-muted);}
-  .hits .what{font-family:var(--font-code);font-size:1.05rem;overflow-wrap:anywhere;}
-  @media (max-width:820px){.hits{grid-template-columns:1fr;}}
-
-  /* RAG */
-  .rag{display:grid;grid-template-columns:1fr auto 1.25fr auto 1fr;align-items:stretch;gap:1rem;}
-  .rag > div{min-width:0;padding:1.4rem;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);display:flex;flex-direction:column;gap:.7rem;}
-  .rag > div p{color:var(--ink-muted);}
-  .rag .pkg{border:2px solid var(--trace);}
-  .rag .pkg ul{margin:0;padding-left:1.1rem;display:flex;flex-direction:column;gap:.3rem;}
-  .rag .arrow{align-self:center;font-family:var(--font-display);font-size:2rem;color:var(--ink-muted);border:0;background:none;padding:0;}
-  @media (max-width:980px){
-    .rag{grid-template-columns:1fr;}
-    .rag .arrow{transform:rotate(90deg);justify-self:center;}
-  }
-  .key{font-family:var(--font-display);font-size:clamp(1.4rem,2.4vw,1.9rem);font-weight:500;line-height:1.3;max-width:36ch;}
 
   /* Chat */
   .chat{border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);overflow:hidden;}
-  .chat .ask{padding:1.2rem 1.5rem;background:var(--surface-2);font-family:var(--font-display);font-size:1.3rem;font-weight:500;}
-  .chat .answer{padding:1.5rem;display:flex;flex-direction:column;gap:1rem;font-size:1.15rem;}
-  .cite{
-    display:inline-block;font-family:var(--font-code);font-size:.95rem;
-    color:var(--trace);border:1px solid var(--trace);border-radius:5px;padding:0 .4rem;white-space:nowrap;
-  }
+  .chat .ask{padding:1.1rem 1.5rem;background:var(--surface-2);font-family:var(--font-display);font-size:1.4rem;font-weight:500;}
+  .chat .answer{padding:1.4rem 1.5rem;display:flex;flex-direction:column;gap:.9rem;font-size:1.3rem;}
+  .cite{display:inline-block;font-family:var(--font-code);font-size:1rem;color:var(--trace);border:1.5px solid var(--trace);border-radius:5px;padding:0 .45rem;white-space:nowrap;}
   .gap{color:var(--signal);}
 
-  /* Ansichten */
-  .views{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:1px solid var(--line-strong);}
-  .views > div{padding:1.3rem 1.5rem 1.3rem 0;border-bottom:1px solid var(--line);min-width:0;display:flex;flex-direction:column;gap:.45rem;}
-  .views p{color:var(--ink-muted);font-size:1.08rem;}
-  @media (max-width:900px){.views{grid-template-columns:1fr 1fr;}}
-  @media (max-width:560px){.views{grid-template-columns:1fr;}}
+  /* Arbeitsraum */
+  .ws{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:10px;border:1px solid var(--line-strong);border-radius:10px;background:var(--surface-2);}
+  .pane{background:var(--surface);border:1px solid var(--line);border-radius:6px;min-width:0;display:flex;flex-direction:column;}
+  .pane h3{font-size:1.15rem;padding:.55rem .9rem;border-bottom:1px solid var(--line);}
+  .pane .body{padding:.9rem;display:flex;flex-direction:column;gap:.6rem;min-height:9.5rem;justify-content:center;}
+  .bubble{padding:.5rem .8rem;border-radius:8px;background:var(--surface-2);font-size:1.05rem;align-self:flex-end;max-width:90%;}
+  .bubble.a{align-self:flex-start;background:transparent;border:1px solid var(--line);}
+  .codelines{font-family:var(--font-code);font-size:1rem;line-height:1.7;overflow-x:auto;white-space:pre;}
+  .codelines span{display:block;padding:0 .4rem;}
+  .codelines .n{color:var(--ink-muted);}
+  .codelines .hl{background:color-mix(in srgb,var(--signal) 20%,transparent);border-left:3px solid var(--signal);}
+  .bar{height:.7rem;border-radius:3px;background:var(--line-strong);}
+  .wiki-h{font-family:var(--font-display);font-weight:600;font-size:1.15rem;}
+  .wiki-link{color:var(--signal);font-family:var(--font-code);font-size:1rem;border-bottom:2px solid var(--signal);align-self:flex-start;}
+  .pane svg{width:100%;height:auto;max-height:11rem;}
+  @media (max-width:640px){.ws{grid-template-columns:1fr;}}
 
-  /* Lebenszyklus */
-  .cycle{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
-  .cycle li{display:grid;grid-template-columns:2.6rem 1fr;gap:1rem;padding:.9rem 0;border-bottom:1px solid var(--line);}
-  .cycle li > *{min-width:0;}
-  .cycle .n{font-family:var(--font-display);font-weight:700;font-size:1.6rem;line-height:1.1;color:var(--signal);}
-  .cycle p{color:var(--ink-muted);}
-  .quote{
-    font-family:var(--font-display);font-size:clamp(1.3rem,2.2vw,1.7rem);font-weight:500;line-height:1.35;
-    padding:1.4rem 1.5rem;border:1px solid var(--line-strong);border-radius:8px;background:var(--surface);
-  }
-  .quote .cite{margin-top:.8rem;}
-
-  /* Änderungspaket */
-  .pkg-out{list-style:none;margin:0;padding:0;border-top:1px solid var(--line-strong);}
-  .pkg-out li{padding:1rem 0;border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:.25rem;}
-  .pkg-out li strong{font-family:var(--font-display);font-size:1.25rem;}
-  .pkg-out li span{color:var(--ink-muted);}
-  .ci{margin:0;padding:1.2rem 1.4rem;border-radius:8px;background:var(--surface);border:1px solid var(--line-strong);font-size:1rem;line-height:1.6;overflow-x:auto;}
-
-  /* Stack */
-  .stack{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line-strong);border-radius:8px;overflow:hidden;background:var(--surface);}
-  .stack > div{padding:1.2rem 1.3rem;border-right:1px solid var(--line);border-bottom:1px solid var(--line);display:flex;flex-direction:column;gap:.3rem;min-width:0;}
-  .stack > div:nth-child(4n){border-right:0;}
-  .stack > div:nth-last-child(-n+4){border-bottom:0;}
-  .stack .svc{font-family:var(--font-code);font-weight:600;font-size:1.05rem;}
-  .stack p{color:var(--ink-muted);font-size:1.05rem;}
-  @media (max-width:900px){
-    .stack{grid-template-columns:1fr 1fr;}
-    .stack > div{border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
-    .stack > div:nth-child(2n){border-right:0;}
-    .stack > div:nth-last-child(-n+4){border-bottom:1px solid var(--line);}
-    .stack > div:nth-last-child(-n+2){border-bottom:0;}
-  }
-  @media (max-width:480px){
-    .stack{grid-template-columns:1fr;}
-    .stack > div{border-right:0 !important;border-bottom:1px solid var(--line) !important;}
-    .stack > div:last-child{border-bottom:0 !important;}
-  }
+  /* Erkenntnis */
+  .quote{display:flex;flex-wrap:wrap;align-items:center;gap:.8rem 1.2rem;font-family:var(--font-display);font-size:clamp(1.35rem,2.3vw,1.8rem);font-weight:500;}
 
   /* Nicht */
-  .nots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:2rem 3rem;}
-  .nots li{display:flex;flex-direction:column;gap:.5rem;min-width:0;}
-  .nots h3{font-size:1.55rem;}
-  .nots p{color:var(--ink-muted);}
+  .nots{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:0 3rem;}
+  .nots li{font-family:var(--font-display);font-size:clamp(1.5rem,2.6vw,2.1rem);font-weight:500;padding:1.2rem 0;border-bottom:1px solid var(--line);}
+  .nots li span{color:var(--signal);}
   @media (max-width:820px){.nots{grid-template-columns:1fr;}}
-
-  /* Glossar */
-  .gloss{margin:0;display:grid;grid-template-columns:1fr 1fr;gap:0 3rem;}
-  .gloss > div{padding:1rem 0;border-bottom:1px solid var(--line);min-width:0;}
-  .gloss dt{font-family:var(--font-display);font-weight:600;font-size:1.25rem;}
-  .gloss dd{margin:.25rem 0 0;color:var(--ink-muted);}
-  @media (max-width:820px){.gloss{grid-template-columns:1fr;}}
 
   /* Schluss */
   .steps{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;}
-  .steps li{font-family:var(--font-display);font-size:clamp(1.4rem,2.6vw,2.1rem);font-weight:500;line-height:1.25;padding:1rem 0;border-bottom:1px solid var(--line);}
+  .steps li{font-family:var(--font-display);font-size:clamp(1.6rem,3vw,2.5rem);font-weight:500;line-height:1.2;padding:1rem 0;border-bottom:1px solid var(--line);}
   .steps li:first-child{border-top:1px solid var(--line-strong);}
 
-  a{color:var(--trace);}
   :focus-visible{outline:2px solid var(--signal);outline-offset:3px;}
 </style>
 </head>
 <body>
 <div id="progress" aria-hidden="true"><span></span></div>
 
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ah" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="ahh" d="M0,0 L10,5 L0,10 z"/></marker>
+    <marker id="at" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="aht" d="M0,0 L10,5 L0,10 z"/></marker>
+  </defs>
+</svg>
+
 <main id="deck">
 
+  <!-- Titel -->
   <section class="slide title" aria-label="Titel">
     <div class="inner">
       <h1><span>Doctus</span></h1>
-      <p class="claim">Fragen an gewachsenen Code stellen und Antworten bekommen, die man nachprüfen kann.</p>
-      <p class="who">Eine Einführung für das Team hinter SecDocs und DSEngine.</p>
+      <p class="claim">Fragen an den eigenen Code. Antworten mit Beleg.</p>
+      <p class="who">Für das Team hinter SecDocs und DSEngine</p>
     </div>
   </section>
 
+  <!-- Problem -->
   <section class="slide">
     <div class="inner">
       <h2>Ein ganz normaler Dienstag</h2>
-      <div class="cols">
-        <div>
-          <p class="lede" style="margin-bottom:1.5rem">Neue Archivzeitstempel sollen mit SHA-512 statt SHA-256 entstehen. Bevor du die erste Zeile änderst, willst du wissen:</p>
-          <ul class="rows q">
-            <li>Wo wird der Algorithmus gewählt, und wo steht er fest im Code?</li>
-            <li>Welche Teile von SecDocs und DSEngine hängen daran?</li>
-            <li>Was passiert mit bestehenden Evidence Records?</li>
-            <li>Gab es das Thema schon einmal als Issue?</li>
-          </ul>
-        </div>
-        <div>
-          <p class="lede" style="margin-bottom:1.5rem">Und so sieht die Suche heute aus:</p>
-          <ul class="rows">
-            <li><strong>IDE.</strong> Kennt nur die Module, die gerade offen sind.</li>
-            <li><strong>GitLab-Suche.</strong> Findet Zeichenketten, aber keine Aufrufketten.</li>
-            <li><strong>Confluence.</strong> Die Seite gibt es. Ob sie noch stimmt, weiß niemand.</li>
-            <li><strong>Issues.</strong> Irgendwo, unter einem anderen Begriff.</li>
-            <li><strong>Die Kollegin, die es weiß.</strong> Diese Woche im Urlaub.</li>
-          </ul>
-        </div>
-      </div>
+      <figure class="fig">
+        <svg viewBox="0 0 1100 520" role="img" aria-label="Eine Frage zum Algorithmuswechsel, fünf mögliche Quellen, keine liefert die ganze Antwort">
+          <line class="e d" x1="550" y1="260" x2="180" y2="82"/>
+          <line class="e d" x1="550" y1="260" x2="920" y2="82"/>
+          <line class="e d" x1="550" y1="260" x2="180" y2="438"/>
+          <line class="e d" x1="550" y1="260" x2="920" y2="438"/>
+          <line class="e d" x1="550" y1="260" x2="550" y2="462"/>
+
+          <rect class="box hi" x="320" y="200" width="460" height="120" rx="10"/>
+          <text class="b xl" x="550" y="252" text-anchor="middle">SHA-256 → SHA-512</text>
+          <text class="m" x="550" y="292" text-anchor="middle">Was hängt alles daran?</text>
+
+          <rect class="box" x="60" y="40" width="240" height="84" rx="8"/>
+          <text class="b" x="180" y="76" text-anchor="middle">IDE</text>
+          <text class="m s" x="180" y="106" text-anchor="middle">nur offene Module</text>
+
+          <rect class="box" x="800" y="40" width="240" height="84" rx="8"/>
+          <text class="b" x="920" y="76" text-anchor="middle">GitLab-Suche</text>
+          <text class="m s" x="920" y="106" text-anchor="middle">nur Zeichenketten</text>
+
+          <rect class="box" x="60" y="396" width="240" height="84" rx="8"/>
+          <text class="b" x="180" y="432" text-anchor="middle">Confluence</text>
+          <text class="m s" x="180" y="462" text-anchor="middle">noch aktuell?</text>
+
+          <rect class="box" x="800" y="396" width="240" height="84" rx="8"/>
+          <text class="b" x="920" y="432" text-anchor="middle">Issues</text>
+          <text class="m s" x="920" y="462" text-anchor="middle">anderer Begriff</text>
+
+          <rect class="box" x="430" y="420" width="240" height="84" rx="8"/>
+          <text class="b" x="550" y="456" text-anchor="middle">Die Kollegin</text>
+          <text class="m s" x="550" y="486" text-anchor="middle">im Urlaub</text>
+        </svg>
+      </figure>
     </div>
   </section>
 
-  <section class="slide statement">
+  <!-- Idee -->
+  <section class="slide">
     <div class="inner">
-      <h2>Das Wissen ist schon da. Es liegt nur verteilt.</h2>
-      <p class="lede">Wissensmanagement heißt hier nicht, noch ein Wiki zu pflegen. Es heißt, das vorhandene Wissen aus Code, Wikiseiten und Tickets an einer Stelle auffindbar zu machen, die Zusammenhänge zwischen ihnen sichtbar zu machen und jede Antwort auf ihre Quelle zurückzuführen.</p>
-      <p class="lede">Genau das macht Doctus.</p>
+      <h2>Das Wissen ist da. Es liegt nur verteilt.</h2>
+      <figure class="fig">
+        <svg viewBox="0 0 1100 330" role="img" aria-label="Git, Confluence und Issues fließen in Doctus, heraus kommt eine Antwort mit Datei und Zeile">
+          <rect class="box" x="20" y="20" width="220" height="70" rx="8"/>
+          <text class="b" x="130" y="64" text-anchor="middle">Git-Repos</text>
+          <rect class="box" x="20" y="130" width="220" height="70" rx="8"/>
+          <text class="b" x="130" y="174" text-anchor="middle">Confluence</text>
+          <rect class="box" x="20" y="240" width="220" height="70" rx="8"/>
+          <text class="b" x="130" y="284" text-anchor="middle">GitLab Issues</text>
+
+          <path class="e" d="M240,55 C340,55 340,165 426,165" marker-end="url(#a)"/>
+          <path class="e" d="M240,165 L426,165" marker-end="url(#a)"/>
+          <path class="e" d="M240,275 C340,275 340,165 426,165" marker-end="url(#a)"/>
+
+          <rect class="box hi" x="430" y="100" width="240" height="130" rx="10"/>
+          <text class="b xl" x="550" y="177" text-anchor="middle">Doctus</text>
+
+          <path class="e hi" d="M670,165 L816,165" marker-end="url(#ah)"/>
+
+          <rect class="box" x="820" y="100" width="260" height="130" rx="10"/>
+          <text class="b" x="950" y="155" text-anchor="middle">Antwort</text>
+          <text class="tr s" x="950" y="195" text-anchor="middle">+ Datei und Zeile</text>
+        </svg>
+      </figure>
     </div>
   </section>
 
+  <!-- Vertrautes -->
   <section class="slide">
     <div class="inner">
       <h2>Ihr kennt die Bausteine schon</h2>
-      <div class="map-wrap">
-        <table class="map">
-          <thead><tr><th>Das kennt ihr</th><th>In Doctus</th><th>Was es dort tut</th></tr></thead>
-          <tbody>
-            <tr><td>git clone, git fetch</td><td>Git-Quelle</td><td>Doctus spiegelt ein Repository und verarbeitet bei jedem Sync nur geänderte Dateien.</td></tr>
-            <tr><td>Compiler, AST</td><td>Parser</td><td>Liest Java, POMs, WSDL und XSD und erzeugt Objekte und Beziehungen mit Zeilennummern.</td></tr>
-            <tr><td>Find Usages</td><td>Code-Graph</td><td>Aufrufer und Abhängigkeiten über alle Repositories eines Projekts.</td></tr>
-            <tr><td>grep</td><td>Semantische Suche</td><td>Findet auch Stellen, an denen etwas anders heißt.</td></tr>
-            <tr><td>Merge Request</td><td>Erkenntnis</td><td>Wissen mit Belegen, freigegeben von einer zweiten Person.</td></tr>
-            <tr><td>Pipeline</td><td>Änderungspaket</td><td>Was ein Commit berührt, mit den Maven- und Testergebnissen dazu.</td></tr>
-            <tr><td>docker compose up</td><td>Betrieb</td><td>Läuft vollständig im eigenen Rechenzentrum.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <ul class="pairs">
+        <li><span class="from">git fetch</span><span class="arrow">→</span><span class="to">Git-Quelle</span></li>
+        <li><span class="from">Compiler, AST</span><span class="arrow">→</span><span class="to">Parser</span></li>
+        <li><span class="from">Find Usages</span><span class="arrow">→</span><span class="to">Code-Graph über alle Repos</span></li>
+        <li><span class="from">grep</span><span class="arrow">→</span><span class="to">Suche nach Bedeutung</span></li>
+        <li><span class="from">Merge Request</span><span class="arrow">→</span><span class="to">Erkenntnis mit Freigabe</span></li>
+        <li><span class="from">CI-Pipeline</span><span class="arrow">→</span><span class="to">Änderungspaket</span></li>
+        <li><span class="from">docker compose</span><span class="arrow">→</span><span class="to">Betrieb im eigenen RZ</span></li>
+      </ul>
     </div>
   </section>
 
+  <!-- Drei Sichten -->
   <section class="slide">
     <div class="inner">
-      <h2>Drei Sichten auf dieselben Dateien</h2>
-      <div class="layers">
-        <div>
-          <h3>Original</h3>
-          <p>Die Datei so, wie sie in Git liegt. Sie bleibt immer die maßgebliche Quelle.</p>
-          <pre>EvidenceService.java
-Zeile 142
-return renewal.renew(record);</pre>
-        </div>
-        <div>
-          <h3>Struktur</h3>
-          <p>Was der Parser daraus erkennt: Klassen, Methoden und wer wen aufruft.</p>
-          <pre>ArchiveEndpoint.archive
-  ruft EvidenceService.renew
-  ruft TimestampClient.request</pre>
-        </div>
-        <div>
-          <h3>Bedeutung</h3>
-          <p>Textabschnitte als Zahlenvektoren. Damit findet die Frage „Beweisdaten erneuern“ diese Methode.</p>
-          <pre>[0.031, -0.118, 0.274, …]
-1.024 Werte je Abschnitt</pre>
-        </div>
-      </div>
-      <p class="anchor">Alle drei Sichten hängen am selben Anker: <code>Datei und Zeile</code></p>
+      <h2>Drei Sichten auf dieselbe Zeile</h2>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 470" role="img" aria-label="Dieselbe Codezeile als Originaltext, als Knoten im Aufrufgraphen und als Punkt im Bedeutungsraum">
+          <rect class="box" x="20" y="20" width="360" height="340" rx="10"/>
+          <rect class="box" x="420" y="20" width="360" height="340" rx="10"/>
+          <rect class="box" x="820" y="20" width="360" height="340" rx="10"/>
+
+          <rect class="band-hi" x="34" y="182" width="332" height="42" rx="4"/>
+          <text class="c m" x="44" y="110">140</text><text class="c" x="96" y="110">if (alg.isWeak()) {</text>
+          <text class="c m" x="44" y="160">141</text><text class="c" x="120" y="160">plan.add(tree);</text>
+          <text class="c m" x="44" y="210">142</text><text class="c" x="120" y="210">return renew(rec);</text>
+          <text class="c m" x="44" y="260">143</text><text class="c" x="96" y="260">}</text>
+
+          <rect class="box" x="490" y="60" width="220" height="56" rx="8"/>
+          <text class="c" x="600" y="95" text-anchor="middle">archive()</text>
+          <rect class="box hi" x="490" y="170" width="220" height="56" rx="8"/>
+          <text class="c" x="600" y="205" text-anchor="middle">renew()</text>
+          <rect class="box" x="490" y="280" width="220" height="56" rx="8"/>
+          <text class="c" x="600" y="315" text-anchor="middle">request()</text>
+          <line class="e" x1="600" y1="116" x2="600" y2="166" marker-end="url(#a)"/>
+          <line class="e" x1="600" y1="226" x2="600" y2="276" marker-end="url(#a)"/>
+          <text class="m s" x="614" y="148">ruft</text>
+          <text class="m s" x="614" y="258">ruft</text>
+
+          <circle class="dot" cx="870" cy="80" r="7"/>
+          <circle class="dot" cx="940" cy="300" r="7"/>
+          <circle class="dot" cx="1100" cy="80" r="7"/>
+          <circle class="dot" cx="1135" cy="250" r="7"/>
+          <circle class="dot" cx="895" cy="190" r="7"/>
+          <circle class="dot" cx="1005" cy="60" r="7"/>
+          <circle class="dot" cx="1070" cy="325" r="7"/>
+          <circle class="dot" cx="860" cy="330" r="7"/>
+          <circle class="dot" cx="1145" cy="160" r="7"/>
+          <circle class="dot" cx="975" cy="140" r="7"/>
+          <circle class="node hi" cx="1030" cy="205" r="11"/>
+          <text class="tr s" x="1030" y="250" text-anchor="middle">„Beweisdaten</text>
+          <text class="tr s" x="1030" y="276" text-anchor="middle">erneuern“</text>
+
+          <path class="e hi e d" d="M366,203 L486,198" marker-end="url(#ah)"/>
+          <path class="e hi e d" d="M710,198 L1016,205" marker-end="url(#ah)"/>
+
+          <text class="b" x="200" y="410" text-anchor="middle">Original</text>
+          <text class="b" x="600" y="410" text-anchor="middle">Struktur</text>
+          <text class="b" x="1000" y="410" text-anchor="middle">Bedeutung</text>
+          <text class="m s" x="200" y="444" text-anchor="middle">die Datei in Git</text>
+          <text class="m s" x="600" y="444" text-anchor="middle">wer ruft wen</text>
+          <text class="m s" x="1000" y="444" text-anchor="middle">Text als Vektor</text>
+        </svg>
+      </figure>
+      <p class="anchor">Gemeinsamer Anker <span class="pin">EvidenceService.java:142</span></p>
     </div>
   </section>
 
+  <!-- Pipeline -->
   <section class="slide">
     <div class="inner">
       <h2>Was mit einer Quelle passiert</h2>
-      <ol class="flow">
-        <li><h3>Anbinden</h3><p>Ein GitLab-Repository, ein Confluence-Bereich, GitLab Issues oder ein Ordner wird einem Projekt zugeordnet.</p></li>
-        <li><h3>Synchronisieren</h3><p>Ein Hintergrund-Job holt die Inhalte. Bei Abbruch setzt er dort wieder auf, wo er war.</p></li>
-        <li><h3>Parsen</h3><p>Code wird in Objekte und Beziehungen zerlegt, Dokumente in Abschnitte.</p></li>
-        <li><h3>Einbetten</h3><p>Ein lokales Modell rechnet jeden Abschnitt in einen Vektor um.</p></li>
-        <li><h3>Speichern</h3><p>Alles landet in PostgreSQL. Die Vektorsuche übernimmt pgvector.</p></li>
-      </ol>
-      <p class="lede">Das läuft wie eine Pipeline in Celery-Workern, nie im Web-Request. Ausgelegt ist es auf Bestände bis 100 GB. Den Fortschritt zeigt das Job-Center.</p>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 410" role="img" aria-label="Quellen werden in Hintergrund-Jobs synchronisiert, geparst und eingebettet und in PostgreSQL gespeichert; beim nächsten Sync nur geänderte Dateien">
+          <rect class="frame" x="270" y="20" width="610" height="300" rx="12"/>
+          <text class="m s" x="292" y="56">Hintergrund-Jobs</text>
+
+          <rect class="box" x="20" y="50" width="200" height="64" rx="8"/>
+          <text class="b" x="120" y="91" text-anchor="middle">Git</text>
+          <rect class="box" x="20" y="140" width="200" height="64" rx="8"/>
+          <text class="b" x="120" y="181" text-anchor="middle">Confluence</text>
+          <rect class="box" x="20" y="230" width="200" height="64" rx="8"/>
+          <text class="b" x="120" y="271" text-anchor="middle">Issues</text>
+
+          <path class="e" d="M220,82 C258,82 258,172 296,172" marker-end="url(#a)"/>
+          <path class="e" d="M220,172 L296,172" marker-end="url(#a)"/>
+          <path class="e" d="M220,262 C258,262 258,172 296,172" marker-end="url(#a)"/>
+
+          <rect class="box" x="300" y="130" width="150" height="84" rx="8"/>
+          <text class="b" x="375" y="166" text-anchor="middle">Sync</text>
+          <text class="m s" x="375" y="196" text-anchor="middle">Dateien</text>
+          <rect class="box" x="500" y="130" width="150" height="84" rx="8"/>
+          <text class="b" x="575" y="166" text-anchor="middle">Parser</text>
+          <text class="m s" x="575" y="196" text-anchor="middle">Struktur</text>
+          <rect class="box" x="700" y="130" width="150" height="84" rx="8"/>
+          <text class="b" x="775" y="166" text-anchor="middle">Embedding</text>
+          <text class="m s" x="775" y="196" text-anchor="middle">Vektoren</text>
+
+          <line class="e" x1="450" y1="172" x2="496" y2="172" marker-end="url(#a)"/>
+          <line class="e" x1="650" y1="172" x2="696" y2="172" marker-end="url(#a)"/>
+          <line class="e" x1="850" y1="172" x2="936" y2="172" marker-end="url(#a)"/>
+
+          <rect class="box tr" x="940" y="120" width="240" height="104" rx="10"/>
+          <text class="b" x="1060" y="165" text-anchor="middle">PostgreSQL</text>
+          <text class="m s" x="1060" y="197" text-anchor="middle">+ pgvector</text>
+
+          <path class="e hi" d="M1060,224 V355 H375 V218" marker-end="url(#ah)"/>
+          <text class="hi s" x="718" y="392" text-anchor="middle">nächster Sync: nur geänderte Dateien</text>
+        </svg>
+      </figure>
     </div>
   </section>
 
+  <!-- Parser -->
   <section class="slide">
     <div class="inner">
       <h2>Der Parser rät nicht</h2>
-      <div class="cols wide-left">
+      <div class="split">
 <pre class="code"><span class="a">@WebService</span>(serviceName = "ArchiveService")
 <span class="k">public class</span> ArchiveEndpoint {
 
@@ -387,227 +403,429 @@ return renewal.renew(record);</pre>
     <span class="k">return</span> evidence.forArchiveObject(aoid);
   }
 }</pre>
-        <div style="display:flex;flex-direction:column;gap:1.5rem">
-          <ul class="found">
-            <li><span class="rel">INJECTS</span><span class="tgt">EvidenceService in ArchiveEndpoint</span></li>
-            <li><span class="rel">EXPOSES</span><span class="tgt">SOAP-Operation getEvidence auf ArchiveEndpoint.getEvidence</span></li>
-            <li><span class="rel">CALLS</span><span class="tgt">ArchiveEndpoint.getEvidence auf EvidenceService.forArchiveObject</span></li>
-          </ul>
-          <p>Das Parsen ist deterministisch und kommt ohne KI aus. Maven-Module, Parents, BOMs und Scopes werden statisch aus den POMs gelesen. Doctus führt beim Import weder Maven noch Plugins aus.</p>
-          <p>Der Parser kennt Spring, CDI, JAX-RS und JAX-WS samt WSDL und XSD. Was sich nicht eindeutig auflösen lässt, bleibt als offen markiert.</p>
-        </div>
+        <figure class="fig">
+          <svg viewBox="0 0 660 480" role="img" aria-label="Aus dem Code entstehen drei Kanten: EXPOSES von der SOAP-Operation zur Methode, CALLS zum Service, INJECTS des Service in den Endpunkt">
+            <rect class="box tr" x="150" y="20" width="320" height="70" rx="8"/>
+            <text class="c" x="310" y="63" text-anchor="middle">SOAP getEvidence</text>
+            <rect class="box" x="150" y="200" width="320" height="86" rx="8"/>
+            <text class="c" x="310" y="236" text-anchor="middle">ArchiveEndpoint</text>
+            <text class="c" x="310" y="266" text-anchor="middle">.getEvidence</text>
+            <rect class="box" x="150" y="380" width="320" height="86" rx="8"/>
+            <text class="c" x="310" y="416" text-anchor="middle">EvidenceService</text>
+            <text class="c" x="310" y="446" text-anchor="middle">.forArchiveObject</text>
+
+            <line class="e tr" x1="310" y1="90" x2="310" y2="196" marker-end="url(#at)"/>
+            <text class="c tr" x="324" y="152">EXPOSES</text>
+            <line class="e tr" x1="310" y1="286" x2="310" y2="376" marker-end="url(#at)"/>
+            <text class="c tr" x="324" y="340">CALLS</text>
+            <path class="e tr e d" d="M470,423 C560,423 560,243 474,243" marker-end="url(#at)"/>
+            <text class="c tr" x="552" y="338">INJECTS</text>
+          </svg>
+        </figure>
       </div>
+      <p class="say"><strong>Ohne KI, ohne Maven-Lauf.</strong> Unklares bleibt als offen markiert.</p>
     </div>
   </section>
 
+  <!-- Suche -->
   <section class="slide">
     <div class="inner">
-      <h2>Suchen nach Bedeutung statt nach Zeichenketten</h2>
+      <h2>Suchen nach Bedeutung</h2>
       <div class="query">Wie wird ein Beweisdatensatz erneuert?</div>
-      <ul class="hits">
-        <li><span class="src">Java-Code</span><span class="what">HashTreeRenewal.execute()</span></li>
-        <li><span class="src">Confluence</span><span class="what">Übersignatur nach Algorithmenwechsel</span></li>
-        <li><span class="src">GitLab Issue</span><span class="what">ERS-Erneuerung bricht bei großen Hashbäumen ab</span></li>
-      </ul>
-      <p class="lede">Keiner der drei Treffer enthält das Wort „Beweisdatensatz“. Ein Embedding-Modell bildet jeden Textabschnitt auf 1.024 Zahlen ab. Abschnitte mit ähnlicher Bedeutung liegen dabei nahe beieinander, auch über Sprachen und Schreibweisen hinweg. Doctus kombiniert diese Suche mit der klassischen Volltextsuche und mit der Struktur aus dem Parser.</p>
+      <figure class="fig">
+        <svg viewBox="0 0 1100 460" role="img" aria-label="Im Bedeutungsraum liegen Java-Code, eine Confluence-Seite und ein Issue nah an der Frage, fachfremde Inhalte weit weg">
+          <circle class="dot" cx="250" cy="250" r="6"/>
+          <circle class="dot" cx="200" cy="330" r="6"/>
+          <circle class="dot" cx="380" cy="420" r="6"/>
+          <circle class="dot" cx="760" cy="60" r="6"/>
+          <circle class="dot" cx="420" cy="40" r="6"/>
+          <circle class="dot" cx="990" cy="190" r="6"/>
+          <circle class="dot" cx="150" cy="180" r="6"/>
+          <circle class="dot" cx="700" cy="425" r="6"/>
+          <circle class="dot" cx="950" cy="300" r="6"/>
+          <circle class="dot" cx="860" cy="250" r="6"/>
+
+          <circle class="e d" cx="550" cy="230" r="185"/>
+
+          <circle class="dot" cx="110" cy="70" r="6"/>
+          <text class="m s" x="128" y="77">LoginController</text>
+          <circle class="dot" cx="1040" cy="60" r="6"/>
+          <text class="m s" x="1024" y="67" text-anchor="end">Logging-Konfiguration</text>
+          <circle class="dot" cx="110" cy="410" r="6"/>
+          <text class="m s" x="128" y="417">Lizenzprüfung</text>
+          <circle class="dot" cx="1040" cy="410" r="6"/>
+          <text class="m s" x="1024" y="417" text-anchor="end">Build-Skripte</text>
+
+          <circle class="node hi" cx="550" cy="230" r="13"/>
+          <text class="b hi" x="550" y="276" text-anchor="middle">Frage</text>
+
+          <circle cx="440" cy="160" r="10" class="tr"/>
+          <text class="m s" x="424" y="140" text-anchor="end">Java</text>
+          <text class="c" x="424" y="166" text-anchor="end">HashTreeRenewal.execute()</text>
+
+          <circle cx="690" cy="170" r="10" class="tr"/>
+          <text class="m s" x="706" y="152">Confluence</text>
+          <text class="s" x="706" y="178">Übersignatur nach</text>
+          <text class="s" x="706" y="202">Algorithmenwechsel</text>
+
+          <circle cx="610" cy="350" r="10" class="tr"/>
+          <text class="m s" x="626" y="342">Issue</text>
+          <text class="s" x="626" y="368">ERS-Erneuerung bricht ab</text>
+        </svg>
+      </figure>
+      <p class="say">Keiner der drei Treffer enthält das Wort <strong>„Beweisdatensatz“</strong>.</p>
     </div>
   </section>
 
+  <!-- RAG -->
   <section class="slide">
     <div class="inner">
       <h2>Wie eine Antwort entsteht</h2>
-      <div class="rag">
-        <div><h3>Frage</h3><p>In normaler Sprache, im Kontext eines Projekts.</p></div>
-        <div class="arrow" aria-hidden="true">→</div>
-        <div class="pkg">
-          <h3>Belegpaket</h3>
-          <ul>
-            <li>passende Code-Ausschnitte</li>
-            <li>Aufrufer und Abhängigkeiten</li>
-            <li>Wikiseiten und Issues</li>
-            <li>jeweils mit Datei und Zeile</li>
-          </ul>
-        </div>
-        <div class="arrow" aria-hidden="true">→</div>
-        <div><h3>Antwort</h3><p>Ein Sprachmodell formuliert sie aus dem Paket, mit klickbaren Quellen.</p></div>
-      </div>
-      <p class="key">Das Sprachmodell kennt euren Code nicht. Es liest bei jeder Frage nur das Belegpaket, das Doctus vorher zusammengestellt hat.</p>
-      <p class="lede">Der Fachbegriff dafür ist Retrieval-Augmented Generation. Der wertvolle Teil ist das Zusammenstellen des Pakets. Das Formulieren ist der kleinere Schritt.</p>
+      <figure class="fig">
+        <svg viewBox="0 -30 1300 400" role="img" aria-label="Frage geht an den Index, der ein Belegpaket zusammenstellt; nur das Paket erreicht das Sprachmodell, das die Antwort mit Quellen formuliert">
+          <path class="e hi e d" d="M330,120 C330,10 975,10 975,148"/>
+          <line x1="640" y1="26" x2="664" y2="50" class="e hi" style="stroke-width:4"/>
+          <line x1="664" y1="26" x2="640" y2="50" class="e hi" style="stroke-width:4"/>
+          <text class="hi s" x="652" y="-6" text-anchor="middle">kein direkter Zugriff</text>
+
+          <rect class="box" x="10" y="150" width="170" height="90" rx="8"/>
+          <text class="b" x="95" y="204" text-anchor="middle">Frage</text>
+
+          <rect class="box" x="230" y="120" width="200" height="150" rx="8"/>
+          <text class="b" x="330" y="182" text-anchor="middle">Index</text>
+          <text class="m s" x="330" y="216" text-anchor="middle">Code, Wiki,</text>
+          <text class="m s" x="330" y="242" text-anchor="middle">Issues</text>
+
+          <rect class="box tr" x="490" y="70" width="340" height="270" rx="10"/>
+          <text class="b" x="660" y="112" text-anchor="middle">Belegpaket</text>
+          <rect class="chip" x="510" y="132" width="300" height="40" rx="5"/>
+          <rect class="chip" x="510" y="182" width="300" height="40" rx="5"/>
+          <rect class="chip" x="510" y="232" width="300" height="40" rx="5"/>
+          <rect class="chip" x="510" y="282" width="300" height="40" rx="5"/>
+          <text class="c tr" x="524" y="159" style="font-size:19px">EvidenceService.java:142</text>
+          <text class="c tr" x="524" y="209" style="font-size:19px">CryptoPolicy.java:41</text>
+          <text class="c tr" x="524" y="259" style="font-size:19px">Wiki: Erneuerung</text>
+          <text class="c tr" x="524" y="309" style="font-size:19px">Issue: ERS-Abbruch</text>
+
+          <rect class="box" x="890" y="150" width="170" height="90" rx="8"/>
+          <text class="b" x="975" y="192" text-anchor="middle">Modell</text>
+          <text class="m s" x="975" y="222" text-anchor="middle">lokal</text>
+
+          <rect class="box hi" x="1110" y="150" width="180" height="90" rx="8"/>
+          <text class="b" x="1200" y="190" text-anchor="middle">Antwort</text>
+          <text class="tr s" x="1200" y="222" text-anchor="middle">+ Quellen</text>
+
+          <line class="e" x1="180" y1="195" x2="226" y2="195" marker-end="url(#a)"/>
+          <line class="e" x1="430" y1="195" x2="486" y2="195" marker-end="url(#a)"/>
+          <line class="e" x1="830" y1="195" x2="886" y2="195" marker-end="url(#a)"/>
+          <line class="e" x1="1060" y1="195" x2="1106" y2="195" marker-end="url(#a)"/>
+        </svg>
+      </figure>
+      <p class="say"><strong>Das Modell kennt euren Code nicht.</strong> Es liest nur das Belegpaket.</p>
     </div>
   </section>
 
+  <!-- Chat -->
   <section class="slide">
     <div class="inner">
       <h2>Jede Aussage zeigt auf ihre Stelle</h2>
       <div class="chat">
         <div class="ask">Wo wird der Hashalgorithmus für neue Zeitstempel festgelegt?</div>
         <div class="answer">
-          <p>Der Standardwert steht in <code>CryptoPolicy.defaultDigest</code> <span class="cite">CryptoPolicy.java:41</span> und ist dort auf SHA-256 gesetzt.</p>
-          <p>Gelesen wird er von <code>TimestampClient.request</code> <span class="cite">TimestampClient.java:88</span>, also bei jeder Zeitstempelanfrage aus <code>EvidenceService.renew</code>.</p>
-          <p class="gap">In der DSEngine habe ich keine Stelle gefunden, die diesen Wert liest. Ob sie einen eigenen Standard verwendet, lässt sich aus dem Index nicht belegen.</p>
+          <p>In <code>CryptoPolicy.defaultDigest</code>, gesetzt auf SHA-256. <span class="cite">CryptoPolicy.java:41</span></p>
+          <p>Gelesen von <code>TimestampClient.request</code>. <span class="cite">TimestampClient.java:88</span></p>
+          <p class="gap">In der DSEngine keine Fundstelle. Nicht belegbar.</p>
         </div>
       </div>
-      <p class="lede">Ein Klick auf eine Quelle öffnet die Datei an genau dieser Zeile. Was sich nicht belegen lässt, nennt die Antwort ausdrücklich als Lücke, statt es zu ergänzen.</p>
+      <p class="say">Klick auf die Quelle öffnet die Zeile.</p>
     </div>
   </section>
 
+  <!-- Arbeitsraum -->
   <section class="slide">
     <div class="inner">
-      <h2>Der Arbeitsraum</h2>
-      <p class="lede">Bis zu vier Ansichten nebeneinander. Wer ein Objekt in den Fokus nimmt, sieht es in allen offenen Ansichten zugleich.</p>
-      <div class="views">
-        <div><h3>Chat</h3><p>Fragen stellen, Quellen anklicken, Code als Kontext anheften.</p></div>
-        <div><h3>Code-Editor</h3><p>Die Originaldatei mit Sprung zu Definitionen und Aufrufern.</p></div>
-        <div><h3>Web-Ansicht</h3><p>Wikiseiten und Issues im gewohnten Format, mit dem dort genannten Code verlinkt.</p></div>
-        <div><h3>Abhängigkeiten</h3><p>Wer ruft wen, über bis zu fünf Ebenen und alle Repositories.</p></div>
-        <div><h3>Wissensgraph</h3><p>Code, Dokumente und Themen als ein Netz, gruppiert nach Kopplung.</p></div>
-        <div><h3>Link-Manager</h3><p>Verbindungen zwischen Code und Dokumentation gezielt prüfen und pflegen.</p></div>
+      <h2>Ein Fokus, vier Ansichten</h2>
+      <div class="ws" role="img" aria-label="Arbeitsraum mit Chat, Code, Abhängigkeiten und Wiki, alle auf CryptoPolicy fokussiert">
+        <div class="pane">
+          <h3>Chat</h3>
+          <div class="body">
+            <div class="bubble">Wo wird der Algorithmus festgelegt?</div>
+            <div class="bubble a">In CryptoPolicy <span class="cite">CryptoPolicy.java:41</span></div>
+          </div>
+        </div>
+        <div class="pane">
+          <h3>Code</h3>
+          <div class="body">
+            <div class="codelines"><span><span class="n">39</span>  class CryptoPolicy {</span><span><span class="n">40</span>    // neue Zeitstempel</span><span class="hl"><span class="n">41</span>    DEFAULT = SHA_256;</span><span><span class="n">42</span>  }</span></div>
+          </div>
+        </div>
+        <div class="pane">
+          <h3>Abhängigkeiten</h3>
+          <div class="body">
+            <svg viewBox="0 0 520 190" aria-hidden="true">
+              <line class="e" x1="260" y1="95" x2="90" y2="40"/>
+              <line class="e" x1="260" y1="95" x2="430" y2="40"/>
+              <line class="e" x1="260" y1="95" x2="260" y2="165"/>
+              <rect class="box hi" x="170" y="72" width="180" height="46" rx="6"/>
+              <text class="c" x="260" y="102" text-anchor="middle">CryptoPolicy</text>
+              <rect class="box" x="10" y="18" width="160" height="44" rx="6"/>
+              <text class="c" x="90" y="47" text-anchor="middle" style="font-size:18px">Timestamp…</text>
+              <rect class="box" x="350" y="18" width="160" height="44" rx="6"/>
+              <text class="c" x="430" y="47" text-anchor="middle" style="font-size:18px">Evidence…</text>
+              <rect class="box" x="180" y="142" width="160" height="44" rx="6"/>
+              <text class="c" x="260" y="171" text-anchor="middle" style="font-size:18px">Config…</text>
+            </svg>
+          </div>
+        </div>
+        <div class="pane">
+          <h3>Wiki</h3>
+          <div class="body">
+            <div class="wiki-h">Krypto-Richtlinie</div>
+            <div class="bar" style="width:92%"></div>
+            <div class="bar" style="width:78%"></div>
+            <span class="wiki-link">CryptoPolicy</span>
+            <div class="bar" style="width:64%"></div>
+          </div>
+        </div>
       </div>
     </div>
   </section>
 
+  <!-- Erkenntnisse -->
   <section class="slide">
     <div class="inner">
       <h2>Erkenntnisse: Wissen, das nirgends steht</h2>
-      <div class="cols">
-        <div style="display:flex;flex-direction:column;gap:1.5rem">
-          <div class="quote">
-            Wird ein Hashalgorithmus schwach, reicht eine neue Zeitstempelkette nicht. Dann plant der RenewalPlanner eine Hashbaum-Erneuerung ein.
-            <div><span class="cite">RenewalPlanner.java:58</span> <span class="cite">Erneuerungsstrategie.adoc:12</span></div>
-          </div>
-          <p class="lede">Die Regel steht in der Norm. Wie sie in eurem Code umgesetzt ist, weiß oft nur eine Person. In Doctus wird daraus eine Erkenntnis mit Belegen im Code und in Dokumenten.</p>
-        </div>
-        <ol class="cycle">
-          <li><span class="n">1</span><div><h3>Entwurf</h3><p>Jemand schreibt die Aussage auf und hängt Belege an.</p></div></li>
-          <li><span class="n">2</span><div><h3>Prüfung</h3><p>Eine zweite Person gibt frei. Das Vier-Augen-Prinzip wie beim Merge Request.</p></div></li>
-          <li><span class="n">3</span><div><h3>Gebunden</h3><p>Die Freigabe gilt für genau den Commit, an dem die Belege geprüft wurden.</p></div></li>
-          <li><span class="n">4</span><div><h3>Veraltet</h3><p>Ändert sich der Code an einer Belegstelle, geht die Erkenntnis zurück in die Prüfung.</p></div></li>
-        </ol>
-      </div>
-      <p class="lede">Nur freigegebene und aktuelle Erkenntnisse fließen in Chat-Antworten ein.</p>
+      <div class="quote">Algorithmus schwach → Hashbaum erneuern, nicht nur Zeitstempel. <span class="cite">RenewalPlanner.java:58</span></div>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 420" role="img" aria-label="Lebenszyklus einer Erkenntnis: Entwurf, Prüfung durch zweite Person, freigegeben an einem Commit, veraltet wenn sich Belegcode ändert, dann erneute Prüfung; nur freigegebene erreichen Chat und Agenten">
+          <rect class="box" x="640" y="10" width="220" height="64" rx="8"/>
+          <text class="b" x="750" y="51" text-anchor="middle" style="font-size:23px">Chat &amp; Agenten</text>
+          <line class="e" x1="750" y1="150" x2="750" y2="78" marker-end="url(#a)"/>
+
+          <rect class="box" x="20" y="150" width="220" height="100" rx="10"/>
+          <text class="b" x="130" y="194" text-anchor="middle">Entwurf</text>
+          <text class="m s" x="130" y="228" text-anchor="middle">Aussage + Belege</text>
+
+          <rect class="box" x="330" y="150" width="220" height="100" rx="10"/>
+          <text class="b" x="440" y="194" text-anchor="middle">Prüfung</text>
+          <text class="m s" x="440" y="228" text-anchor="middle">zweite Person</text>
+
+          <rect class="box ok" x="640" y="150" width="220" height="100" rx="10"/>
+          <text class="b okc" x="750" y="194" text-anchor="middle">Freigegeben</text>
+          <text class="c tr" x="750" y="228" text-anchor="middle" style="font-size:19px">@ 3f9c2a1</text>
+
+          <rect class="box hi" x="950" y="150" width="220" height="100" rx="10"/>
+          <text class="b hi" x="1060" y="194" text-anchor="middle">Veraltet</text>
+          <text class="m s" x="1060" y="228" text-anchor="middle">Belegcode geändert</text>
+
+          <line class="e" x1="240" y1="200" x2="326" y2="200" marker-end="url(#a)"/>
+          <line class="e" x1="550" y1="200" x2="636" y2="200" marker-end="url(#a)"/>
+          <line class="e" x1="860" y1="200" x2="946" y2="200" marker-end="url(#a)"/>
+          <path class="e hi" d="M1060,250 C1060,365 440,365 440,256" marker-end="url(#ah)"/>
+          <text class="hi s" x="750" y="400" text-anchor="middle">erneut prüfen</text>
+        </svg>
+      </figure>
     </div>
   </section>
 
+  <!-- Analogie -->
   <section class="slide">
     <div class="inner">
       <h2>Beweiswert, auf Code angewendet</h2>
-      <p class="lede">Das Prinzip kennt ihr aus eurer eigenen Arbeit. Doctus wendet es auf Wissen über Software an.</p>
-      <div class="map-wrap">
-        <table class="map twin">
-          <thead><tr><th>Beweiswerterhaltung</th><th>Doctus</th></tr></thead>
-          <tbody>
-            <tr><td>Ein Dokument ist so viel wert wie sein Nachweis.</td><td>Eine Antwort ist so viel wert wie ihr Beleg.</td></tr>
-            <tr><td>Der Evidence Record bindet einen Hashwert an einen Zeitpunkt.</td><td>Eine Erkenntnis bindet ihre Belege an einen Commit.</td></tr>
-            <tr><td>Wird ein Algorithmus schwach, wird erneuert.</td><td>Ändert sich der belegte Code, wird erneut geprüft.</td></tr>
-            <tr><td>Die Prüfung gelingt auch ohne den Hersteller.</td><td>Jede Quelle lässt sich im Original nachlesen.</td></tr>
-          </tbody>
-        </table>
-      </div>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 370" role="img" aria-label="Parallele Abläufe: Dokument, Hash und Zeitstempel, Algorithmus schwach, Erneuerung entsprechen Aussage, Beleg und Commit, Code geändert, erneute Prüfung">
+          <text class="b" x="20" y="54">Beweiswerterhaltung</text>
+          <text class="b hi" x="20" y="234">Doctus</text>
+          <line class="e" x1="180" y1="100" x2="1160" y2="100"/>
+          <line class="e hi" x1="180" y1="280" x2="1160" y2="280"/>
+
+          <line class="e d" x1="290" y1="158" x2="290" y2="262"/>
+          <line class="e d" x1="540" y1="158" x2="540" y2="262"/>
+          <line class="e d" x1="790" y1="158" x2="790" y2="262"/>
+          <line class="e d" x1="1040" y1="158" x2="1040" y2="262"/>
+
+          <circle class="node" cx="290" cy="100" r="12"/>
+          <circle class="node" cx="540" cy="100" r="12"/>
+          <circle class="node" cx="790" cy="100" r="12"/>
+          <circle class="node" cx="1040" cy="100" r="12"/>
+          <circle class="node hi" cx="290" cy="280" r="12"/>
+          <circle class="node hi" cx="540" cy="280" r="12"/>
+          <circle class="node hi" cx="790" cy="280" r="12"/>
+          <circle class="node hi" cx="1040" cy="280" r="12"/>
+
+          <text x="290" y="146" text-anchor="middle">Dokument</text>
+          <text x="540" y="146" text-anchor="middle">Hash + Zeitstempel</text>
+          <text x="790" y="146" text-anchor="middle">Algorithmus schwach</text>
+          <text x="1040" y="146" text-anchor="middle">Erneuerung</text>
+
+          <text x="290" y="326" text-anchor="middle">Aussage</text>
+          <text x="540" y="326" text-anchor="middle">Beleg + Commit</text>
+          <text x="790" y="326" text-anchor="middle">Code geändert</text>
+          <text x="1040" y="326" text-anchor="middle">erneute Prüfung</text>
+        </svg>
+      </figure>
     </div>
   </section>
 
+  <!-- Änderungspaket -->
   <section class="slide">
     <div class="inner">
-      <h2>Das Änderungspaket: Was berührt mein Commit?</h2>
-      <div class="cols">
-        <ul class="pkg-out">
-          <li><strong>Betroffene Methoden</strong><span>Jede geänderte Zeile wird der Methode zugeordnet, in der sie steht.</span></li>
-          <li><strong>Aufrufer und Endpunkte</strong><span>Wer diese Methoden nutzt, bis hin zu REST- und SOAP-Schnittstellen.</span></li>
-          <li><strong>Erkenntnisse</strong><span>Welche festgehaltenen Aussagen sich auf genau diese Stellen stützen.</span></li>
-          <li><strong>Maven- und Testergebnisse</strong><span>Aus der Pipeline, fest an diesen Commit gebunden.</span></li>
-        </ul>
-        <div style="display:flex;flex-direction:column;gap:1.2rem">
-          <p>Die Ergebnisse kommen aus eurem eigenen Build. Ein kleines Skript im CI-Job startet <code>mvn clean verify</code> und meldet das Ergebnis mit einem Token, das an eine Quelle gebunden ist.</p>
-<pre class="ci">maven-verify:
-  stage: test
-  script:
-    - python3 "$DOCTUS_CI_RUNNER"
-        --variant jdk21-default
-        --java-version 21</pre>
-          <p>Beispiele für GitLab CI und GitHub Actions liegen bei. Doctus selbst startet nie einen Build.</p>
-        </div>
-      </div>
+      <h2>Was berührt mein Commit?</h2>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 430" role="img" aria-label="Ein Diff wird der Methode defaultDigest zugeordnet, daraus folgen Aufrufer, Erkenntnisse und Testergebnisse; die Testergebnisse meldet GitLab CI">
+          <rect class="box" x="20" y="40" width="320" height="300" rx="10"/>
+          <text class="b" x="40" y="82" style="font-size:23px">Commit 3f9c2a1</text>
+          <line x1="20" y1="100" x2="340" y2="100" class="e" style="stroke:var(--line);stroke-width:1.5"/>
+          <text class="c m" x="40" y="142">@@ CryptoPolicy</text>
+          <rect class="band-hi" x="30" y="162" width="300" height="38" rx="4"/>
+          <text class="c hi" x="40" y="188">- SHA_256</text>
+          <rect class="band-ok" x="30" y="210" width="300" height="38" rx="4"/>
+          <text class="c okc" x="40" y="236">+ SHA_512</text>
+          <text class="c m" x="40" y="290">  return digest;</text>
+
+          <line class="e" x1="340" y1="190" x2="396" y2="190" marker-end="url(#a)"/>
+          <rect class="box hi" x="400" y="150" width="260" height="80" rx="10"/>
+          <text class="c" x="530" y="197" text-anchor="middle" style="font-size:22px">defaultDigest()</text>
+
+          <rect class="box" x="760" y="20" width="420" height="76" rx="10"/>
+          <text class="b" x="970" y="67" text-anchor="middle" style="font-size:24px">Aufrufer und Endpunkte</text>
+          <rect class="box" x="760" y="150" width="420" height="76" rx="10"/>
+          <text class="b" x="970" y="197" text-anchor="middle" style="font-size:24px">Erkenntnisse zur Stelle</text>
+          <rect class="box ok" x="760" y="280" width="420" height="76" rx="10"/>
+          <text class="b" x="970" y="327" text-anchor="middle" style="font-size:24px">Tests und Build <tspan class="okc">✓</tspan></text>
+
+          <path class="e" d="M660,190 C710,190 710,58 756,58" marker-end="url(#a)"/>
+          <line class="e" x1="660" y1="190" x2="756" y2="189" marker-end="url(#a)"/>
+
+          <rect class="box" x="400" y="330" width="260" height="76" rx="10"/>
+          <text class="b" x="530" y="376" text-anchor="middle" style="font-size:24px">GitLab CI</text>
+          <path class="e tr" d="M660,368 C710,368 710,318 756,318" marker-end="url(#at)"/>
+          <text class="tr s" x="708" y="408" text-anchor="middle">meldet</text>
+        </svg>
+      </figure>
+      <p class="say">Doctus startet selbst keinen Build.</p>
     </div>
   </section>
 
+  <!-- MCP -->
   <section class="slide">
     <div class="inner">
       <h2>Auch Coding-Agenten fragen Doctus</h2>
-      <div class="cols">
-        <div style="display:flex;flex-direction:column;gap:1.4rem">
-          <p class="lede">Agenten in der IDE oder im Terminal sprechen Doctus über das Model Context Protocol an. Das ist eine offene Schnittstelle, über die ein Agent Werkzeuge aufrufen kann.</p>
-          <p class="lede">Der Aufruf <code>answer_context</code> liefert dasselbe Belegpaket wie im Chat. Ziel ist eine Frage mit einem einzigen Aufruf.</p>
-        </div>
-        <div style="display:flex;flex-direction:column;gap:1.4rem">
-          <p class="key">Der Agent muss sich nichts aus zehn Dateisuchen zusammensuchen.</p>
-          <p class="lede">Unsere Messungen zeigen: Wenn das Paket die Antwort schon enthält, bestehen auch kleine lokale Modelle die Prüfaufgaben zuverlässig.</p>
-        </div>
-      </div>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 400" role="img" aria-label="Ohne Doctus braucht ein Agent zehn Such- und Leseaufrufe, mit Doctus einen einzigen Aufruf answer_context, der das Belegpaket liefert">
+          <line x1="600" y1="20" x2="600" y2="380" class="e" style="stroke:var(--line-strong);stroke-width:1.5"/>
+          <text class="b" x="20" y="44">Ohne Doctus</text>
+          <text class="b hi" x="640" y="44">Mit Doctus</text>
+
+          <rect class="box" x="20" y="160" width="150" height="76" rx="8"/>
+          <text class="b" x="95" y="206" text-anchor="middle">Agent</text>
+          <line class="e" x1="170" y1="198" x2="234" y2="198" marker-end="url(#a)"/>
+
+          <rect class="box" x="240" y="70" width="130" height="44" rx="6"/><text class="c" x="305" y="99" text-anchor="middle">grep</text>
+          <rect class="box" x="240" y="128" width="130" height="44" rx="6"/><text class="c" x="305" y="157" text-anchor="middle">read</text>
+          <rect class="box" x="240" y="186" width="130" height="44" rx="6"/><text class="c" x="305" y="215" text-anchor="middle">grep</text>
+          <rect class="box" x="240" y="244" width="130" height="44" rx="6"/><text class="c" x="305" y="273" text-anchor="middle">read</text>
+          <rect class="box" x="240" y="302" width="130" height="44" rx="6"/><text class="c" x="305" y="331" text-anchor="middle">find</text>
+          <rect class="box" x="390" y="70" width="130" height="44" rx="6"/><text class="c" x="455" y="99" text-anchor="middle">read</text>
+          <rect class="box" x="390" y="128" width="130" height="44" rx="6"/><text class="c" x="455" y="157" text-anchor="middle">grep</text>
+          <rect class="box" x="390" y="186" width="130" height="44" rx="6"/><text class="c" x="455" y="215" text-anchor="middle">read</text>
+          <rect class="box" x="390" y="244" width="130" height="44" rx="6"/><text class="c" x="455" y="273" text-anchor="middle">read</text>
+          <rect class="box" x="390" y="302" width="130" height="44" rx="6"/><text class="c" x="455" y="331" text-anchor="middle">grep</text>
+          <text class="m" x="380" y="384" text-anchor="middle">10 Aufrufe, Agent puzzelt</text>
+
+          <rect class="box" x="640" y="160" width="150" height="76" rx="8"/>
+          <text class="b" x="715" y="206" text-anchor="middle">Agent</text>
+          <line class="e hi" x1="790" y1="198" x2="976" y2="198" marker-end="url(#ah)"/>
+          <text class="c tr" x="884" y="184" text-anchor="middle" style="font-size:19px">answer_context</text>
+          <rect class="box tr" x="980" y="130" width="200" height="136" rx="10"/>
+          <text class="b" x="1080" y="192" text-anchor="middle">Beleg-</text>
+          <text class="b" x="1080" y="224" text-anchor="middle">paket</text>
+          <text class="hi" x="900" y="384" text-anchor="middle">1 Aufruf</text>
+        </svg>
+      </figure>
     </div>
   </section>
 
+  <!-- Betrieb -->
   <section class="slide">
     <div class="inner">
-      <h2>Läuft bei uns, nicht in der Cloud</h2>
-      <div class="stack">
-        <div><span class="svc">frontend</span><p>Next.js mit Monaco als Editor</p></div>
-        <div><span class="svc">backend</span><p>FastAPI, Rechte, Suche, Chat, MCP</p></div>
-        <div><span class="svc">parser-worker</span><p>Celery: Sync, Parsen, Einbetten</p></div>
-        <div><span class="svc">parser-beat</span><p>Wiederkehrende Aufgaben</p></div>
-        <div><span class="svc">link-worker</span><p>Verknüpfungen berechnen</p></div>
-        <div><span class="svc">db</span><p>PostgreSQL mit pgvector</p></div>
-        <div><span class="svc">redis</span><p>Valkey als Queue</p></div>
-        <div><span class="svc">ollama</span><p>Optional, oder ein interner Modellserver</p></div>
-      </div>
-      <div class="cols">
-        <ul class="rows">
-          <li>Alles startet mit <code>docker compose</code> und läuft auch offline aus einem Bundle.</li>
-          <li>Cloud-Modelle sind nur nach ausdrücklicher Freigabe möglich, nie als Standard.</li>
-        </ul>
-        <ul class="rows">
-          <li>Jede Person sieht nur die Projekte ihrer Teams. Der Chat hält sich an dieselben Rechte.</li>
-          <li>Nur Abhängigkeiten unter MIT, BSD oder Apache-2.0.</li>
-        </ul>
-      </div>
+      <h2>Läuft bei euch, nicht in der Cloud</h2>
+      <figure class="fig">
+        <svg viewBox="0 0 1200 470" role="img" aria-label="Alle Dienste laufen im eigenen Rechenzentrum per docker compose; ein Cloud-Modell ist nur nach Freigabe angebunden">
+          <rect class="frame" x="10" y="20" width="920" height="440" rx="14"/>
+          <text class="m s" x="32" y="440">Euer Rechenzentrum · docker compose</text>
+
+          <path class="e" d="M380,100 C380,52 835,52 835,96" marker-end="url(#a)"/>
+
+          <rect class="box" x="40" y="100" width="180" height="80" rx="8"/>
+          <text class="b" x="130" y="136" text-anchor="middle" style="font-size:24px">Frontend</text>
+          <text class="m s" x="130" y="164" text-anchor="middle">Next.js</text>
+
+          <rect class="box" x="290" y="100" width="180" height="80" rx="8"/>
+          <text class="b" x="380" y="136" text-anchor="middle" style="font-size:24px">Backend</text>
+          <text class="m s" x="380" y="164" text-anchor="middle">FastAPI, MCP</text>
+
+          <rect class="box tr" x="540" y="100" width="180" height="80" rx="8"/>
+          <text class="b" x="630" y="136" text-anchor="middle" style="font-size:24px">PostgreSQL</text>
+          <text class="m s" x="630" y="164" text-anchor="middle">pgvector</text>
+
+          <rect class="box d" x="760" y="100" width="150" height="80" rx="8"/>
+          <text class="b" x="835" y="136" text-anchor="middle" style="font-size:24px">Modell</text>
+          <text class="m s" x="835" y="164" text-anchor="middle">lokal</text>
+
+          <rect class="box" x="290" y="290" width="180" height="80" rx="8"/>
+          <text class="b" x="380" y="326" text-anchor="middle" style="font-size:24px">Valkey</text>
+          <text class="m s" x="380" y="354" text-anchor="middle">Queue</text>
+
+          <rect class="box" x="540" y="290" width="180" height="80" rx="8"/>
+          <text class="b" x="630" y="326" text-anchor="middle" style="font-size:24px">Worker</text>
+          <text class="m s" x="630" y="354" text-anchor="middle">Sync, Parser</text>
+
+          <rect class="box" x="760" y="290" width="150" height="80" rx="8"/>
+          <text class="b" x="835" y="326" text-anchor="middle" style="font-size:24px">Quellen</text>
+          <text class="m s" x="835" y="354" text-anchor="middle">Git, Wiki</text>
+
+          <line class="e" x1="220" y1="140" x2="286" y2="140" marker-end="url(#a)"/>
+          <line class="e" x1="470" y1="140" x2="536" y2="140" marker-end="url(#a)"/>
+          <line class="e" x1="380" y1="180" x2="380" y2="286" marker-end="url(#a)"/>
+          <text class="m s" x="394" y="240">Jobs</text>
+          <line class="e" x1="470" y1="330" x2="536" y2="330" marker-end="url(#a)"/>
+          <line class="e" x1="630" y1="290" x2="630" y2="184" marker-end="url(#a)"/>
+          <text class="m s" x="644" y="240">schreibt</text>
+          <line class="e" x1="760" y1="330" x2="724" y2="330" marker-end="url(#a)"/>
+          <line class="e" x1="720" y1="296" x2="796" y2="184" marker-end="url(#a)"/>
+
+          <path class="e hi e d" d="M910,150 C950,150 950,230 976,230" marker-end="url(#ah)"/>
+          <rect class="box hi d" x="980" y="180" width="200" height="100" rx="10"/>
+          <text class="b" x="1080" y="222" text-anchor="middle" style="font-size:24px">Cloud-LLM</text>
+          <text class="hi s" x="1080" y="254" text-anchor="middle">nur mit Freigabe</text>
+        </svg>
+      </figure>
+      <p class="say">Jede Person sieht nur ihre Projekte. <strong>Der Chat auch.</strong></p>
     </div>
   </section>
 
+  <!-- Nicht -->
   <section class="slide">
     <div class="inner">
       <h2>Was Doctus nicht ist</h2>
       <ul class="nots">
-        <li><h3>Kein Ersatz für Review und Tests</h3><p>Doctus verkürzt den Weg zu den richtigen Stellen. Die Entscheidung trefft weiterhin ihr.</p></li>
-        <li><h3>Kein weiteres Wiki</h3><p>Es liest, was in GitLab und Confluence schon steht. Gepflegt wird dort, wo ihr ohnehin arbeitet.</p></li>
-        <li><h3>Kein Code-Generator</h3><p>Doctus erklärt und belegt bestehenden Code. Es schreibt keinen.</p></li>
-        <li><h3>Kein Orakel</h3><p>Ohne Beleg keine Behauptung. Eine Antwort ohne Quelle ist ein Fehler, den wir hören wollen.</p></li>
+        <li><span>✕</span> Ersatz für Review und Tests</li>
+        <li><span>✕</span> noch ein Wiki zum Pflegen</li>
+        <li><span>✕</span> Code-Generator</li>
+        <li><span>✕</span> Orakel ohne Beleg</li>
       </ul>
     </div>
   </section>
 
+  <!-- Schluss -->
   <section class="slide">
     <div class="inner">
-      <h2>Die wichtigsten Begriffe</h2>
-      <dl class="gloss">
-        <div><dt>Wissensquelle</dt><dd>Ein angebundenes System: Git-Repository, Confluence, Jira, GitLab Issues oder ein Ordner.</dd></div>
-        <div><dt>Projekt</dt><dd>Zusammengehörige Quellen mit eigenen Mitgliedern und Rechten.</dd></div>
-        <div><dt>Objekt und Beziehung</dt><dd>Was der Parser erkennt, etwa eine Methode und ihre Aufrufe. Immer mit Datei und Zeile.</dd></div>
-        <div><dt>Embedding</dt><dd>Ein Textabschnitt als Zahlenvektor, damit Suche nach Bedeutung möglich wird.</dd></div>
-        <div><dt>Belegpaket</dt><dd>Das, was Doctus zu einer Frage aus dem Index zusammenstellt. Chat und Agenten lesen nur das.</dd></div>
-        <div><dt>Erkenntnis</dt><dd>Festgehaltenes Wissen mit Belegen und Vier-Augen-Freigabe, gebunden an einen Commit.</dd></div>
-        <div><dt>Änderungspaket</dt><dd>Alles, was ein Commit berührt, mit Erkenntnissen und CI-Ergebnissen.</dd></div>
-        <div><dt>MCP</dt><dd>Die Schnittstelle, über die Coding-Agenten Doctus als Werkzeug nutzen.</dd></div>
-      </dl>
-    </div>
-  </section>
-
-  <section class="slide">
-    <div class="inner">
-      <h2>Probiert es mit einer echten Frage aus</h2>
+      <h2>Probiert es aus</h2>
       <ul class="steps">
-        <li>Nehmt eine Frage, für die ihr diese Woche GitLab und Confluence durchsucht habt.</li>
-        <li>Stellt sie in Doctus.</li>
-        <li>Klickt auf die Quellen und prüft, ob die Antwort stimmt.</li>
-        <li>Wo sie nicht stimmt, sagt uns Bescheid.</li>
+        <li>Eine echte Frage aus dieser Woche stellen.</li>
+        <li>Auf die Quelle klicken.</li>
+        <li>Prüfen. Fehler melden.</li>
       </ul>
     </div>
   </section>
@@ -618,16 +836,12 @@ return renewal.renew(record);</pre>
 (function(){
   var slides = Array.prototype.slice.call(document.querySelectorAll('.slide'));
   var bar = document.querySelector('#progress span');
-
   function current(){
     var mid = window.innerHeight / 3, idx = 0;
     slides.forEach(function(s, i){ if (s.getBoundingClientRect().top <= mid) idx = i; });
     return idx;
   }
-  function update(){
-    var i = current();
-    bar.style.width = ((i + 1) / slides.length * 100) + '%';
-  }
+  function update(){ bar.style.width = ((current() + 1) / slides.length * 100) + '%'; }
   function go(i){
     i = Math.max(0, Math.min(slides.length - 1, i));
     slides[i].scrollIntoView({behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
