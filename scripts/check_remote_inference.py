@@ -6,6 +6,30 @@ import sys
 import httpx
 
 
+PROBE_TOOL = {
+    "type": "function",
+    "function": {
+        "name": "doctus_profile_probe",
+        "description": "Connection test. Do not perform external actions.",
+        "parameters": {"type": "object", "properties": {}, "required": []},
+    },
+}
+
+
+def check_tool_call(client, chat_url, chat_model, headers):
+    """The chat agent needs server-side tool calling; plain answers are not enough."""
+    response = client.post(chat_url.rstrip("/") + "/chat/completions", headers=headers,
+        json={"model": chat_model, "messages": [{"role": "user", "content": "Call the probe tool now."}],
+              "tools": [PROBE_TOOL], "tool_choice": "required", "stream": False, "max_tokens": 512})
+    response.raise_for_status()
+    choices = response.json().get("choices") or [{}]
+    calls = (choices[0].get("message") or {}).get("tool_calls") or []
+    if not any((call.get("function") or {}).get("name") == "doctus_profile_probe" for call in calls):
+        raise ValueError("Chat answered without a tool call. Enable tool calling on the model server "
+                         "(vLLM: --enable-auto-tool-choice --tool-call-parser qwen3_coder for Qwen3-Coder; "
+                         "llama.cpp: --jinja)")
+
+
 def check(client, *, chat_url, chat_model, chat_provider, embedding_url, embedding_model, embedding_provider):
     chat_key = os.getenv('LLM_API_KEY') or os.getenv('OLLAMA_API_KEY', '')
     embed_key = os.getenv('EMBEDDING_API_KEY') or os.getenv('OLLAMA_API_KEY', '')
@@ -18,6 +42,8 @@ def check(client, *, chat_url, chat_model, chat_provider, embedding_url, embeddi
     data = response.json()
     if not ((data.get("message") or {}).get("content") if native else data.get("choices")):
         raise ValueError("Chat returned no answer")
+    if not native:
+        check_tool_call(client, chat_url, chat_model, chat_headers)
     native = embedding_provider == "ollama"
     response = client.post(embedding_url.rstrip("/") + ("/api/embed" if native else "/embeddings"),
         headers=embed_headers, json={"model": embedding_model, "input": "Doctus connectivity test"})
@@ -46,9 +72,13 @@ def main(argv=None):
         with httpx.Client(timeout=120, verify=ca or True) as client:
             check(client, **values)
     except (httpx.HTTPError, ValueError, KeyError, TypeError) as exc:
-        print(f'FAILED: {type(exc).__name__}', file=sys.stderr)
+        detail = f'HTTP {exc.response.status_code}' if isinstance(exc, httpx.HTTPStatusError) else str(exc)
+        print(f'FAILED: {type(exc).__name__}: {detail}', file=sys.stderr)
+        if isinstance(exc, httpx.ConnectError) and 'localhost' in f'{args.chat_url}{args.embedding_url}':
+            print('Hint: localhost is the container itself; use host.docker.internal (docs/PILOT_DEPLOYMENT.md).',
+                  file=sys.stderr)
         return 1
-    print('OK: chat answer and 1024-dimensional embedding received')
+    print('OK: chat answer, tool call (OpenAI-compatible) and 1024-dimensional embedding received')
     return 0
 
 

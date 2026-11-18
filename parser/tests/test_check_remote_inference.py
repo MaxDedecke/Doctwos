@@ -22,6 +22,9 @@ def test_remote_probe_exercises_chat_and_separate_embeddings(provider, monkeypat
         assert "Authorization" not in request.headers
         paths.append((request.url.host, request.url.path))
         if request.url.host == "chat":
+            if b'"tools"' in request.content:
+                call = {"function": {"name": "doctus_profile_probe", "arguments": "{}"}}
+                return httpx.Response(200, json={"choices": [{"message": {"tool_calls": [call]}}]})
             return httpx.Response(
                 200,
                 json={"message": {"content": "OK"}}
@@ -40,17 +43,39 @@ def test_remote_probe_exercises_chat_and_separate_embeddings(provider, monkeypat
             embedding_model="embed",
             embedding_provider="openai",
         )
-    assert paths == [
-        ("chat", "/v1/api/chat" if provider == "ollama" else "/v1/chat/completions"),
-        ("embed", "/v1/embeddings"),
-    ]
+    chat = (
+        [("chat", "/v1/api/chat")]
+        if provider == "ollama"
+        else [("chat", "/v1/chat/completions")] * 2
+    )
+    assert paths == [*chat, ("embed", "/v1/embeddings")]
+
+
+def test_remote_probe_requires_a_tool_call_from_openai_compatible_chat():
+    def handler(request):
+        if request.url.host == "chat":
+            return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+        return httpx.Response(200, json={"data": [{"embedding": [0.01] * 1024}]})
+
+    with httpx.Client(transport=httpx.MockTransport(handler)) as client:
+        with pytest.raises(ValueError, match="tool call"):
+            probe().check(
+                client,
+                chat_url="http://chat/v1",
+                chat_model="pilot",
+                chat_provider="vllm",
+                embedding_url="http://embed/v1",
+                embedding_model="embed",
+                embedding_provider="openai",
+            )
 
 
 def test_remote_probe_rejects_wrong_vector_dimensions():
     def handler(request):
+        call = {"function": {"name": "doctus_profile_probe"}}
         return httpx.Response(
             200,
-            json={"choices": [{}]}
+            json={"choices": [{"message": {"tool_calls": [call]}}]}
             if request.url.host == "chat"
             else {"data": [{"embedding": [0] * 768}]},
         )

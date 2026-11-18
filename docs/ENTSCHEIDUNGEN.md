@@ -18,6 +18,7 @@ Entscheidung revidiert, ändert hier den Eintrag — nicht nur den Code.
 | E-10 | Confluence/Jira-MCP-Anbindung: Cloud-vs-Server/DC-Erkennung | eigene Domain-Suffix-Heuristik statt Import aus `mcp_atlassian.utils` | umgesetzt (08.08.2026) |
 | E-11 | Bilderschließung nach O-074 | späterer lokaler Vision-Import; Open-Source-kompatible Lizenz und On-Premise-Betrieb sind Pflicht, Apache-2.0-Mistral-Modelle (z. B. Pixtral) sind Kandidaten | entschieden (06.09.2026), Umsetzung ausstehend |
 | E-16 | Lokale LLM-Deployments (Ollama, vLLM, llama.cpp) statt fest verdrahtetem Ollama-Container | Standard-Stack ohne LLM-Container; ein eigener Deployer-Dienst startet Engines auf Anforderung des Admins | umgesetzt (06.10.2026), Offline-Bundle offen; Deployer seit 28.10.2026 nur per Compose-Profil `deployer` |
+| E-17 | Mindestmodellklasse | Code-Modell der 30B-Klasse mit Tool-Aufrufen und ≥ 32k Kontext, Referenz `qwen3-coder:30b`; `qwen3:8b` nur Demo | entschieden (18.11.2026), UI-Hinweis und README offen |
 
 ---
 
@@ -802,6 +803,34 @@ Deployer aufruft, nicht was ein kompromittiertes Backend oder ein kompromittiert
 tun kann. Ohne Profil läuft die Anwendung unverändert; nur lokale Deployments aus Einstellungen > KI
 fehlen, und der Dialog meldet „Lokale Deployments sind nicht aktiviert“. Ein Socket-Proxy, der nur
 die festen Engine-Images zulässt, folgt nach OSS-Prüfung.
+
+## E-17 — Mindestmodellklasse (18.11.2026)
+
+**Entscheidung.** Produktvoraussetzung für Chat und MCP-Antworten ist ein Code-Modell der 30B-Klasse mit
+serverseitigen Tool-Aufrufen und mindestens 32k Kontext. Referenz und Modell des Fujitsu-Java-Pilots ist
+`qwen3-coder:30b` (MoE, rund 3B aktive Parameter, Q4 rund 19 GB). `qwen3:8b` gilt nur für Demo- und Notbetrieb.
+Das dichte `qwen3:32b` ist kein Ersatz: Bei Java war keine seiner Antworten mit MCP brauchbar. Mehr Hardware als
+für die 30B-Klasse steht im Pilot nicht zur Verfügung; ein größeres Modell ist daher nicht vorgesehen.
+
+**Messgrundlage** (Kapitel 9 vom 17.11.2026, `benchmarks/qwen_mcp/`; Rubrik 0–1 / Anteil Antworten mit Rubrik ≥ 0,5):
+
+| Modell | Java mit MCP | Java mit Dateizugriff | COBOL mit MCP |
+|---|---|---|---|
+| qwen3:8b | 0,27 / 11 % | 0,09 / 0 % | 0,41 / 39 % |
+| qwen3:32b | 0,18 / 0 % | 0,16 / 11 % | 0,44 / 61 % |
+| qwen3-coder:30b | 0,53 / 67 % | 0,50 / 56 % | 0,70 / 78 % |
+
+**Hardware.** Q4 plus 32k KV-Cache passen auf eine 24-GB-Karte (z. B. Quadro RTX 6000); bge-m3 läuft auf einer
+zweiten Karte oder der CPU. Das ist gerechnet, nicht gemessen. Median der Antwortzeit im Benchmark mit MCP: rund 72 s.
+
+**Betrieb.** Der Modellserver ist ein Remote-Profil im OpenAI-Format mit API-Key (`docs/PILOT_DEPLOYMENT.md`).
+`OLLAMA_NUM_CTX` muss die Kontextlänge des Servers tragen, weil sie das Beweispaket bemisst. Tool-Aufrufe muss
+der Server selbst zerlegen (vLLM: `--tool-call-parser qwen3_coder`).
+
+**Offen.** Der MCP-Vorsprung gegenüber reinem Dateizugriff liegt bei Java bei 11 statt der geforderten
+15 Prozentpunkte. Der interne Web-Chat mit diesem Modell ist an Java noch nicht gemessen (`scripts/eval_chat.py`).
+Der Hinweis in der Oberfläche beim 8B-Modell sowie die Nennung in README und Handbuch stehen aus
+(`docs/ARBEITSLEITLINIE.md`, Tag 4).
 
 ## E-19 — Transaktionsgrenzen des Imports und sichtbarer Indexstand statt atomarer Umschaltung
 

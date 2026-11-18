@@ -32,6 +32,23 @@ EMBEDDING_API_KEY=
 EMBEDDING_AUTO_PULL=false
 ```
 
+### Modellserver als Container auf demselben Host (OpenAI-Format, API-Key)
+
+`localhost` ist in den Doctus-Containern der jeweilige Container selbst; `http://localhost:<port>/v1` erreicht den Modellserver deshalb nicht. Zwei Wege:
+
+1. **Port auf allen Schnittstellen veröffentlicht** (`-p 8000:8000`, nicht `-p 127.0.0.1:8000:8000`): `LLM_BASE_URL=http://host.docker.internal:8000/v1`. Das Remote-Overlay (`docker-compose.remote-inference.yml`) trägt `host.docker.internal` für API, Parser und Link-Worker ein. Eine Host-Firewall muss Verbindungen aus dem Docker-Bridge-Netz auf diesen Port zulassen.
+2. **Port nur an 127.0.0.1 gebunden:** Den Modellcontainer ins Doctus-Netz hängen (`docker network connect doctus_default <modellcontainer>`) und `LLM_BASE_URL=http://<modellcontainer>:<interner port>/v1` setzen. Nach einer Neuanlage des Modellcontainers die Verbindung wiederholen.
+
+```dotenv
+LLM_PROVIDER=vllm            # jeder selbst betriebene OpenAI-kompatible Server; llamacpp für llama-server
+LLM_BASE_URL=http://host.docker.internal:8000/v1
+LLM_MODEL=<exakte Modellkennung des Servers, z. B. qwen3-coder:30b>
+LLM_API_KEY=<Schlüssel>      # wird als Bearer-Token gesendet
+OLLAMA_NUM_CTX=32768         # Kontextlänge des Servers, bemisst das Beweispaket; später im Profil änderbar
+```
+
+Ein solches Profil ist „Remote“, nicht „Cloud“; eine Cloud-Freigabe ist nicht nötig. Der Server muss **Tool-Aufrufe** im OpenAI-Format liefern, sonst arbeitet der Chat-Agent nicht. Qwen3-Coder unter vLLM: `--enable-auto-tool-choice --tool-call-parser qwen3_coder`; llama.cpp: `--jinja`; Ollama unterstützt das ohne Zusatz. Ein vorgeschaltetes Gateway muss `tools` und `tool_calls` unverändert durchreichen. `./test-remote-inference.sh` prüft Chat, einen erzwungenen Tool-Aufruf und das Embedding; Einstellungen > KI > Profil testen prüft dasselbe am angelegten Profil. Embeddings (bge-m3, 1024 Dimensionen) brauchen einen eigenen Endpunkt, wenn der Modellserver keine liefert.
+
 Die URLs müssen zur tatsächlichen Reverse-Proxy-Konfiguration passen. Chat und Embeddings dürfen verschiedene Server/Schlüssel verwenden. Ein neues Embedding-Profil gilt nur für neue Projekte; bestehende Projekte wechseln ihr Modell einzeln unter Einstellungen > Projekte > Embedding-Modell (neue Vektoren entstehen neben den alten, Umschalten und Rücknahme in einem Schritt, siehe `docs/ENTSCHEIDUNGEN.md` E-20). Modell und Dimension eines bereits genutzten Profils lassen sich nicht ändern.
 
 Für interne HTTPS-Zertifikate ein PEM-Bundle bereitstellen (bei Bedarf Unternehmens- und öffentliche Root-CAs zusammen):

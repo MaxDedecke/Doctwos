@@ -1,13 +1,19 @@
 # Disable bundled Ollama. Configure independent chat/embedding profiles through env or Settings > AI.
+# `host.docker.internal` reaches a model server published on this host's port (bound to 0.0.0.0,
+# not 127.0.0.1); `localhost` inside a container is the container itself. See docs/PILOT_DEPLOYMENT.md.
+x-host-gateway: &host-gateway
+  - "host.docker.internal:host-gateway"
 services:
   ollama:
     profiles: ["local-ollama"]
   backend-api:
+    extra_hosts: *host-gateway
     environment:
       LEGACY_OLLAMA_SERVICE: "false"
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-${OLLAMA_BASE_URL:-}}
   parser-worker:
+    extra_hosts: *host-gateway
     environment:
       LEGACY_OLLAMA_SERVICE: "false"
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
@@ -16,3 +22,5 @@ services:
     environment:
       LEGACY_OLLAMA_SERVICE: "false"
       OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+  link-worker:
+    extra_hosts: *host-gateway
