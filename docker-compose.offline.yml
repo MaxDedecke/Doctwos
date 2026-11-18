@@ -67,6 +67,8 @@ services:
     image: doctus-backend-api:${DOCTUS_VERSION:-latest}
     mem_limit: ${BACKEND_MEM_LIMIT:-3g}
     container_name: doctus-backend
+    extra_hosts:
+    - host.docker.internal:host-gateway
     restart: always
     logging: *id001
     depends_on:
@@ -150,6 +152,8 @@ services:
   parser-worker:
     image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
     container_name: doctus-parser
+    extra_hosts:
+    - host.docker.internal:host-gateway
     restart: always
     logging: *id001
     depends_on:

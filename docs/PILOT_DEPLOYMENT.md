@@ -36,7 +36,7 @@ EMBEDDING_AUTO_PULL=false
 
 `localhost` ist in den Doctus-Containern der jeweilige Container selbst; `http://localhost:<port>/v1` erreicht den Modellserver deshalb nicht. Zwei Wege:
 
-1. **Port auf allen Schnittstellen veröffentlicht** (`-p 8000:8000`, nicht `-p 127.0.0.1:8000:8000`): `LLM_BASE_URL=http://host.docker.internal:8000/v1`. Das Remote-Overlay (`docker-compose.remote-inference.yml`) trägt `host.docker.internal` für API, Parser und Link-Worker ein. Eine Host-Firewall muss Verbindungen aus dem Docker-Bridge-Netz auf diesen Port zulassen.
+1. **Port auf allen Schnittstellen veröffentlicht** (`-p 8000:8000`, nicht `-p 127.0.0.1:8000:8000`): `LLM_BASE_URL=http://host.docker.internal:8000/v1`. Die Compose-Dateien tragen `host.docker.internal` für API, Parser und Link-Worker ein, mit und ohne `--remote-inference`. Eine Host-Firewall muss Verbindungen aus dem Docker-Bridge-Netz auf diesen Port zulassen.
 2. **Port nur an 127.0.0.1 gebunden:** Den Modellcontainer ins Doctus-Netz hängen (`docker network connect doctus_default <modellcontainer>`) und `LLM_BASE_URL=http://<modellcontainer>:<interner port>/v1` setzen. Nach einer Neuanlage des Modellcontainers die Verbindung wiederholen.
 
 ```dotenv
@@ -48,6 +48,31 @@ OLLAMA_NUM_CTX=32768         # Kontextlänge des Servers, bemisst das Beweispake
 ```
 
 Ein solches Profil ist „Remote“, nicht „Cloud“; eine Cloud-Freigabe ist nicht nötig. Der Server muss **Tool-Aufrufe** im OpenAI-Format liefern, sonst arbeitet der Chat-Agent nicht. Qwen3-Coder unter vLLM: `--enable-auto-tool-choice --tool-call-parser qwen3_coder`; llama.cpp: `--jinja`; Ollama unterstützt das ohne Zusatz. Ein vorgeschaltetes Gateway muss `tools` und `tool_calls` unverändert durchreichen. `./test-remote-inference.sh` prüft Chat, einen erzwungenen Tool-Aufruf und das Embedding; Einstellungen > KI > Profil testen prüft dasselbe am angelegten Profil. Embeddings (bge-m3, 1024 Dimensionen) brauchen einen eigenen Endpunkt, wenn der Modellserver keine liefert.
+
+### Beispiel: Ollama mit Qwen3-Coder und bge-m3 plus Firmen-LLM im OpenAI-Format
+
+Unter Einstellungen > KI entstehen dafür zwei KI-Profile und ein Embedding-Profil:
+
+| Profil | Art | Einstellungen |
+|---|---|---|
+| Chat „Qwen3-Coder 30B“ | Lokal, wenn es das mitgelieferte Ollama (`http://ollama:11434`) ist; sonst Remote mit Protokoll Ollama und `http://host.docker.internal:11434` | Modell `qwen3-coder:30b`; unter Erweitert LLM-Kontext `32768` (Vorgabe 8192) |
+| Embedding „bge-m3“ | Embedding-Profil, kein KI-Profil | Ollama, Modell `bge-m3`, 1024 Dimensionen; gilt für neue Projekte, unabhängig vom aktiven Chat-Profil |
+| Chat „Firmen-LLM“ | Remote, Protokoll „OpenAI-kompatibel“ oder „vLLM“ | URL `http://host.docker.internal:<port>/v1`, API-Key, exakte Modellkennung, LLM-Kontext des Servers; unter Erweitert die Embedding-URL des Ollama eintragen (Pflichtfeld, wird beim Profiltest geprüft) |
+
+Die Art **Cloud** passt für das Firmen-LLM nicht: Sie ist fest an die Adressen von OpenAI, Anthropic und Gemini
+gebunden (OpenAI über die Responses-API), hat kein URL-Feld und verlangt die Cloud-Freigabe. Technisch nutzt
+„Remote, OpenAI-kompatibel“ denselben Anfrageweg wie ein OpenAI-Cloud-Profil mit Bearer-Key. Mit „vLLM“ prüft der
+Profiltest zusätzlich einen Tool-Aufruf; bei „OpenAI-kompatibel“ übernimmt das `./test-remote-inference.sh`.
+
+Der Chat nutzt das **aktive** KI-Profil; ein Wechsel gilt für alle Nutzer zugleich. Ein Vergleich beider Modelle in
+der Evaluierung braucht daher getrennte Zeitfenster. Läuft hinter dem
+OpenAI-Container ein Modell auf denselben GPUs, konkurriert es mit Qwen3-Coder um den Speicher: Das mitgelieferte
+Ollama hält Modelle dauerhaft geladen (`OLLAMA_KEEP_ALIVE=-1`), und zwei Modelle der 30B-Klasse passen nicht
+gleichzeitig auf 24 + 16 GB.
+
+Mit mitgeliefertem Ollama wird das Paket ohne `--remote-inference` gebaut, `LLM_MODEL=qwen3-coder:30b
+./scripts/build-offline-bundle.sh <version>`; es enthält dann rund 20 GB Modellgewichte. Die GPU-Ergänzung
+richtet der Installer bei vorhandenem NVIDIA Container Toolkit selbst ein.
 
 Die URLs müssen zur tatsächlichen Reverse-Proxy-Konfiguration passen. Chat und Embeddings dürfen verschiedene Server/Schlüssel verwenden. Ein neues Embedding-Profil gilt nur für neue Projekte; bestehende Projekte wechseln ihr Modell einzeln unter Einstellungen > Projekte > Embedding-Modell (neue Vektoren entstehen neben den alten, Umschalten und Rücknahme in einem Schritt, siehe `docs/ENTSCHEIDUNGEN.md` E-20). Modell und Dimension eines bereits genutzten Profils lassen sich nicht ändern.
 

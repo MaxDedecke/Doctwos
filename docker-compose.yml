@@ -142,6 +142,10 @@ services:
     # WSL-VM samt Host. Normalbetrieb liegt weit darunter.
     mem_limit: ${BACKEND_MEM_LIMIT:-3g}
     container_name: doctus-backend
+    # Modellserver auf demselben Host (Port auf 0.0.0.0) über host.docker.internal; `localhost`
+    # ist im Container der Container selbst (docs/PILOT_DEPLOYMENT.md).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: always
     logging: *default-logging
     # Wait until the deps pass their healthcheck, not just until they're created:
@@ -245,6 +249,10 @@ services:
         BUILD_TIME: ${BUILD_TIME:-}
     image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
     container_name: doctus-parser
+    # Modellserver auf demselben Host (Port auf 0.0.0.0) über host.docker.internal; `localhost`
+    # ist im Container der Container selbst (docs/PILOT_DEPLOYMENT.md).
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     restart: always
     logging: *default-logging
     # Also waits for backend-api to be healthy: backend-api owns the Alembic
