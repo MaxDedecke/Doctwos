@@ -1,4 +1,5 @@
 import importlib.util
+import json
 from pathlib import Path
 import httpx
 import pytest
@@ -23,8 +24,7 @@ def test_remote_probe_exercises_chat_and_separate_embeddings(provider, monkeypat
         paths.append((request.url.host, request.url.path))
         if request.url.host == "chat":
             if b'"tools"' in request.content:
-                call = {"function": {"name": "doctus_profile_probe", "arguments": "{}"}}
-                return httpx.Response(200, json={"choices": [{"message": {"tool_calls": [call]}}]})
+                return tool_stream()
             return httpx.Response(
                 200,
                 json={"message": {"content": "OK"}}
@@ -51,14 +51,32 @@ def test_remote_probe_exercises_chat_and_separate_embeddings(provider, monkeypat
     assert paths == [*chat, ("embed", "/v1/embeddings")]
 
 
-def test_remote_probe_requires_a_tool_call_from_openai_compatible_chat():
+def tool_stream(name="doctus_profile_probe"):
+    delta = {"tool_calls": [{"index": 0, "function": {"name": name, "arguments": "{}"}}]}
+    body = f"data: {json.dumps({'choices': [{'delta': delta}]})}\n\ndata: [DONE]\n\n"
+    return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())
+
+
+@pytest.mark.parametrize(
+    "answer, message",
+    [
+        (lambda: tool_stream("other"), "tool call"),
+        (lambda: httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]}), "events"),
+        (lambda: httpx.Response(400, json={"error": "unknown field stream_options"}), "HTTP 400"),
+    ],
+)
+def test_remote_probe_requires_the_streamed_tool_call_of_the_chat_agent(answer, message):
     def handler(request):
         if request.url.host == "chat":
+            if b'"tools"' in request.content:
+                body = json.loads(request.content)
+                assert body["stream"] is True and body["stream_options"] == {"include_usage": True}
+                return answer()
             return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
         return httpx.Response(200, json={"data": [{"embedding": [0.01] * 1024}]})
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
-        with pytest.raises(ValueError, match="tool call"):
+        with pytest.raises(ValueError, match=message):
             probe().check(
                 client,
                 chat_url="http://chat/v1",
@@ -72,13 +90,11 @@ def test_remote_probe_requires_a_tool_call_from_openai_compatible_chat():
 
 def test_remote_probe_rejects_wrong_vector_dimensions():
     def handler(request):
-        call = {"function": {"name": "doctus_profile_probe"}}
-        return httpx.Response(
-            200,
-            json={"choices": [{"message": {"tool_calls": [call]}}]}
-            if request.url.host == "chat"
-            else {"data": [{"embedding": [0] * 768}]},
-        )
+        if request.url.host == "chat":
+            if b'"tools"' in request.content:
+                return tool_stream()
+            return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
+        return httpx.Response(200, json={"data": [{"embedding": [0] * 768}]})
 
     with httpx.Client(transport=httpx.MockTransport(handler)) as client:
         with pytest.raises(ValueError, match="1024"):

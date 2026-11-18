@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Exercise independent on-prem chat and embeddings from the application container."""
 import argparse
+import json
 import os
 import sys
 import httpx
@@ -17,17 +18,38 @@ PROBE_TOOL = {
 
 
 def check_tool_call(client, chat_url, chat_model, headers):
-    """The chat agent needs server-side tool calling; plain answers are not enough."""
-    response = client.post(chat_url.rstrip("/") + "/chat/completions", headers=headers,
-        json={"model": chat_model, "messages": [{"role": "user", "content": "Call the probe tool now."}],
-              "tools": [PROBE_TOOL], "tool_choice": "required", "stream": False, "max_tokens": 512})
-    response.raise_for_status()
-    choices = response.json().get("choices") or [{}]
-    calls = (choices[0].get("message") or {}).get("tool_calls") or []
-    if not any((call.get("function") or {}).get("name") == "doctus_profile_probe" for call in calls):
+    """Send the chat agent's request shape: streamed, with usage and a forced tool call.
+
+    A bridge that answers plain requests but drops streaming, ``stream_options`` or
+    ``tools`` would otherwise pass this probe and fail in the first chat.
+    """
+    payload = {"model": chat_model, "messages": [{"role": "user", "content": "Call the probe tool now."}],
+               "tools": [PROBE_TOOL], "tool_choice": "required", "stream": True,
+               "stream_options": {"include_usage": True}, "max_tokens": 512}
+    names = set()
+    with client.stream("POST", chat_url.rstrip("/") + "/chat/completions", headers=headers, json=payload) as response:
+        if response.status_code >= 400:
+            raise ValueError(f"Streamed tool-call request rejected (HTTP {response.status_code}); the server or "
+                             "bridge must accept stream, stream_options, tools and tool_choice")
+        if "text/event-stream" not in response.headers.get("content-type", ""):
+            raise ValueError("Streamed request was not answered as server-sent events; the chat needs streaming")
+        for line in response.iter_lines():
+            if not line.startswith("data: "):
+                continue
+            data = line[6:].strip()
+            if data == "[DONE]":
+                break
+            try:
+                chunk = json.loads(data)
+            except json.JSONDecodeError:
+                continue
+            for choice in chunk.get("choices") or []:
+                for part in (choice.get("delta") or {}).get("tool_calls") or []:
+                    names.add((part.get("function") or {}).get("name"))
+    if "doctus_profile_probe" not in names:
         raise ValueError("Chat answered without a tool call. Enable tool calling on the model server "
                          "(vLLM: --enable-auto-tool-choice --tool-call-parser qwen3_coder for Qwen3-Coder; "
-                         "llama.cpp: --jinja)")
+                         "llama.cpp: --jinja) and let a bridge pass tools and tool_calls through")
 
 
 def check(client, *, chat_url, chat_model, chat_provider, embedding_url, embedding_model, embedding_provider):
@@ -78,7 +100,7 @@ def main(argv=None):
             print('Hint: localhost is the container itself; use host.docker.internal (docs/PILOT_DEPLOYMENT.md).',
                   file=sys.stderr)
         return 1
-    print('OK: chat answer, tool call (OpenAI-compatible) and 1024-dimensional embedding received')
+    print('OK: chat answer, streamed tool call (OpenAI-compatible) and 1024-dimensional embedding received')
     return 0
 
 

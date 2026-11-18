@@ -47,7 +47,7 @@ LLM_API_KEY=<Schlüssel>      # wird als Bearer-Token gesendet
 OLLAMA_NUM_CTX=32768         # Kontextlänge des Servers, bemisst das Beweispaket; später im Profil änderbar
 ```
 
-Ein solches Profil ist „Remote“, nicht „Cloud“; eine Cloud-Freigabe ist nicht nötig. Der Server muss **Tool-Aufrufe** im OpenAI-Format liefern, sonst arbeitet der Chat-Agent nicht. Qwen3-Coder unter vLLM: `--enable-auto-tool-choice --tool-call-parser qwen3_coder`; llama.cpp: `--jinja`; Ollama unterstützt das ohne Zusatz. Ein vorgeschaltetes Gateway muss `tools` und `tool_calls` unverändert durchreichen. `./test-remote-inference.sh` prüft Chat, einen erzwungenen Tool-Aufruf und das Embedding; Einstellungen > KI > Profil testen prüft dasselbe am angelegten Profil. Embeddings (bge-m3, 1024 Dimensionen) brauchen einen eigenen Endpunkt, wenn der Modellserver keine liefert.
+Ein solches Profil ist „Remote“, nicht „Cloud“; eine Cloud-Freigabe ist nicht nötig. Der Server muss **Tool-Aufrufe** im OpenAI-Format liefern, sonst arbeitet der Chat-Agent nicht. Qwen3-Coder unter vLLM: `--enable-auto-tool-choice --tool-call-parser qwen3_coder`; llama.cpp: `--jinja`; Ollama unterstützt das ohne Zusatz. Ein vorgeschaltetes Gateway muss `tools` und `tool_calls` unverändert durchreichen. `./test-remote-inference.sh` prüft Chat, einen erzwungenen Tool-Aufruf in der gestreamten Form des Chats und das Embedding; Einstellungen > KI > Profil testen prüft am angelegten Profil Erreichbarkeit und Modell, bei vLLM und llama.cpp auch einen ungestreamten Tool-Aufruf. Embeddings (bge-m3, 1024 Dimensionen) brauchen einen eigenen Endpunkt, wenn der Modellserver keine liefert.
 
 ### Beispiel: Ollama mit Qwen3-Coder und bge-m3 plus Firmen-LLM im OpenAI-Format
 
@@ -62,13 +62,27 @@ Unter Einstellungen > KI entstehen dafür zwei KI-Profile und ein Embedding-Prof
 Die Art **Cloud** passt für das Firmen-LLM nicht: Sie ist fest an die Adressen von OpenAI, Anthropic und Gemini
 gebunden (OpenAI über die Responses-API), hat kein URL-Feld und verlangt die Cloud-Freigabe. Technisch nutzt
 „Remote, OpenAI-kompatibel“ denselben Anfrageweg wie ein OpenAI-Cloud-Profil mit Bearer-Key. Mit „vLLM“ prüft der
-Profiltest zusätzlich einen Tool-Aufruf; bei „OpenAI-kompatibel“ übernimmt das `./test-remote-inference.sh`.
+Profiltest zusätzlich einen (ungestreamten) Tool-Aufruf; `./test-remote-inference.sh` prüft ihn bei beiden gestreamt.
 
 Der Chat nutzt das **aktive** KI-Profil; ein Wechsel gilt für alle Nutzer zugleich. Ein Vergleich beider Modelle in
-der Evaluierung braucht daher getrennte Zeitfenster. Läuft hinter dem
-OpenAI-Container ein Modell auf denselben GPUs, konkurriert es mit Qwen3-Coder um den Speicher: Das mitgelieferte
-Ollama hält Modelle dauerhaft geladen (`OLLAMA_KEEP_ALIVE=-1`), und zwei Modelle der 30B-Klasse passen nicht
-gleichzeitig auf 24 + 16 GB.
+der Evaluierung braucht daher getrennte Zeitfenster.
+
+Ist der OpenAI-Container nur eine **Brücke zu einem Firmen-LLM**, belegt er keine GPU; Qwen3-Coder und Firmen-LLM
+sind dann beide nutzbar. Fragen, Belegauszüge aus Code und Dokumenten sowie Werkzeugergebnisse gehen in diesem Fall an
+den Firmendienst; ob das zulässig ist, entscheidet dessen Betreiber. Der Chat sendet **gestreamt**
+(`stream`, `stream_options.include_usage`) mit `tools` und `tool_choice`; die Brücke muss das unverändert
+durchreichen und Tool-Aufrufe als `tool_calls` im Stream zurückgeben. Der Profiltest in der Oberfläche fragt
+ungestreamt; nur `./test-remote-inference.sh` prüft genau die Anfrageform des Chats. Als LLM-Kontext die echte
+Fensterlänge des Firmenmodells eintragen. Prüfen, wenn der Schlüssel nicht in der `.env` steht:
+
+```sh
+LLM_API_KEY=<schlüssel> ./test-remote-inference.sh --chat-url http://host.docker.internal:<port>/v1 \
+  --chat-model <modellkennung> --chat-provider vllm \
+  --embedding-url http://ollama:11434 --embedding-model bge-m3 --embedding-provider ollama
+```
+
+Läuft dagegen hinter dem Container ein Modell auf denselben GPUs, konkurriert es mit Qwen3-Coder um den Speicher: Das mitgelieferte Ollama hält Modelle dauerhaft geladen
+(`OLLAMA_KEEP_ALIVE=-1`), und zwei Modelle der 30B-Klasse passen nicht gleichzeitig auf 24 + 16 GB.
 
 Mit mitgeliefertem Ollama wird das Paket ohne `--remote-inference` gebaut, `LLM_MODEL=qwen3-coder:30b
 ./scripts/build-offline-bundle.sh <version>`; es enthält dann rund 20 GB Modellgewichte. Die GPU-Ergänzung
