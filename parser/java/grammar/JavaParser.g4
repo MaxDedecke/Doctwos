@@ -689,8 +689,11 @@ expression
     | lambdaExpression                                        #ExpressionLambda
     ;
 
+// Doctus: `var` type patterns and the match-all `_` (JLS 14.30.1) inside record
+// patterns. `_` lexes as IDENTIFIER, hence the plain identifier alternative.
 pattern
     : variableModifier* typeType annotation* variableDeclarators
+    | variableModifier* VAR identifier
     | typeType '(' componentPatternList? ')'
     ;
 
@@ -698,8 +701,9 @@ componentPatternList :
     componentPattern ( ',' componentPattern )*
     ;
 
-componentPattern :
-    pattern
+componentPattern
+    : pattern
+    | identifier
     ;
 
 lambdaExpression

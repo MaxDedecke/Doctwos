@@ -182,6 +182,17 @@ aufgelöste geerbte SAM-Verträge erzeugen keine behauptete Bindung. Die Ableitu
 wird beim globalen Auflösen neu berechnet, sodass Wiederholung und Reparse keine
 doppelten oder veralteten Verbindungen hinterlassen.
 
+Strukturversion 18 (18.11.2026) erlaubt `var` und das Auffangmuster `_` in
+Record-Patterns (`case Line(var start, _) ->`, `instanceof Rect(var w, var h)`,
+verschachtelt und in der Doppelpunktform). Vorher brach die Grammatik dort ab;
+im `switch` gingen dabei alle folgenden Member der Klasse verloren. Eine
+`var`-Bindung trägt `record_pattern_type` und `record_component_index`. Aufrufe
+auf ihr werden über den Komponententyp im Importkontext der Record-Datei aufgelöst
+(`resolution_reason = record_component_type`). Komponenten, deren Typ ein
+Typparameter des Records ist, bleiben offen statt geraten. Abnahme:
+`parser/tests/test_java_pattern_inference.py`, neuer Golden
+`java25_record_patterns`; bestehende Goldens unverändert.
+
 Das Datenflusslimit bleibt bei 80 Anweisungen. Überschreitungen tragen jetzt
 `data_flow_truncated`, `data_flow_omitted` und eine explizite Warnungsdiagnose.
 MCP-Methodenmetadaten und Herkunftsbeweise geben die Einschränkung weiter, auch

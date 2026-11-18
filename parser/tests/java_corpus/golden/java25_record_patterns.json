@@ -1,0 +1,1073 @@
+{
+  "chunks": [
+    {
+      "content": "package corpus.records;\n",
+      "end_line": 2,
+      "meta": {
+        "container_path": null,
+        "end_line": 2,
+        "language": "java",
+        "start_line": 1,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 1
+    },
+    {
+      "content": "record Point(double x, double y) {",
+      "end_line": 3,
+      "meta": {
+        "container_path": "corpus.records.Point",
+        "end_line": 3,
+        "language": "java",
+        "start_line": 3,
+        "symbol_name": "x",
+        "symbol_qualified_name": "corpus.records.Point#x()",
+        "symbol_type": "method"
+      },
+      "start_line": 3
+    },
+    {
+      "content": "record Point(double x, double y) {",
+      "end_line": 3,
+      "meta": {
+        "container_path": "corpus.records.Point",
+        "end_line": 3,
+        "language": "java",
+        "start_line": 3,
+        "symbol_name": "y",
+        "symbol_qualified_name": "corpus.records.Point#y()",
+        "symbol_type": "method"
+      },
+      "start_line": 3
+    },
+    {
+      "content": "    double distanceTo(Point other) {\n        return Math.hypot(x - other.x(), y - other.y());\n    }",
+      "end_line": 6,
+      "meta": {
+        "container_path": "corpus.records.Point",
+        "end_line": 6,
+        "language": "java",
+        "start_line": 4,
+        "symbol_name": "distanceTo",
+        "symbol_qualified_name": "corpus.records.Point#distanceTo(Point)",
+        "symbol_type": "method"
+      },
+      "start_line": 4
+    },
+    {
+      "content": "}\n",
+      "end_line": 8,
+      "meta": {
+        "container_path": "corpus.records.Point",
+        "end_line": 8,
+        "language": "java",
+        "start_line": 7,
+        "symbol_qualified_name": "corpus.records.Point",
+        "symbol_type": "context"
+      },
+      "start_line": 7
+    },
+    {
+      "content": "record Line(Point start, Point end) {}",
+      "end_line": 9,
+      "meta": {
+        "container_path": "corpus.records.Line",
+        "end_line": 9,
+        "language": "java",
+        "start_line": 9,
+        "symbol_name": "start",
+        "symbol_qualified_name": "corpus.records.Line#start()",
+        "symbol_type": "method"
+      },
+      "start_line": 9
+    },
+    {
+      "content": "record Line(Point start, Point end) {}",
+      "end_line": 9,
+      "meta": {
+        "container_path": "corpus.records.Line",
+        "end_line": 9,
+        "language": "java",
+        "start_line": 9,
+        "symbol_name": "end",
+        "symbol_qualified_name": "corpus.records.Line#end()",
+        "symbol_type": "method"
+      },
+      "start_line": 9
+    },
+    {
+      "content": "record Box(Object content, Object label) {}",
+      "end_line": 11,
+      "meta": {
+        "container_path": "corpus.records.Box",
+        "end_line": 11,
+        "language": "java",
+        "start_line": 11,
+        "symbol_name": "content",
+        "symbol_qualified_name": "corpus.records.Box#content()",
+        "symbol_type": "method"
+      },
+      "start_line": 11
+    },
+    {
+      "content": "record Box(Object content, Object label) {}",
+      "end_line": 11,
+      "meta": {
+        "container_path": "corpus.records.Box",
+        "end_line": 11,
+        "language": "java",
+        "start_line": 11,
+        "symbol_name": "label",
+        "symbol_qualified_name": "corpus.records.Box#label()",
+        "symbol_type": "method"
+      },
+      "start_line": 11
+    },
+    {
+      "content": "\nfinal class Geometry {",
+      "end_line": 13,
+      "meta": {
+        "container_path": null,
+        "end_line": 13,
+        "language": "java",
+        "start_line": 12,
+        "symbol_qualified_name": null,
+        "symbol_type": "context"
+      },
+      "start_line": 12
+    },
+    {
+      "content": "    static double length(Object value) {\n        return switch (value) {\n            case Line(var start, var end) -> start.distanceTo(end);\n            case Box(Line(Point(var x, var y), _), _) -> x + y;\n            default -> 0;\n        };\n    }",
+      "end_line": 20,
+      "meta": {
+        "container_path": "corpus.records.Geometry",
+        "end_line": 20,
+        "language": "java",
+        "start_line": 14,
+        "symbol_name": "length",
+        "symbol_qualified_name": "corpus.records.Geometry#length(Object)",
+        "symbol_type": "method"
+      },
+      "start_line": 14
+    },
+    {
+      "content": "    static double width(Object value) {\n        if (value instanceof Line(final var start, Point end)) {\n            return end.x() - start.x();\n        }\n        switch (value) {\n            case Box(var content, _):\n                return content.hashCode();\n            default:\n                return 0;\n        }\n    }",
+      "end_line": 32,
+      "meta": {
+        "container_path": "corpus.records.Geometry",
+        "end_line": 32,
+        "language": "java",
+        "start_line": 22,
+        "symbol_name": "width",
+        "symbol_qualified_name": "corpus.records.Geometry#width(Object)",
+        "symbol_type": "method"
+      },
+      "start_line": 22
+    },
+    {
+      "content": "    static int after() {\n        return 1;\n    }",
+      "end_line": 36,
+      "meta": {
+        "container_path": "corpus.records.Geometry",
+        "end_line": 36,
+        "language": "java",
+        "start_line": 34,
+        "symbol_name": "after",
+        "symbol_qualified_name": "corpus.records.Geometry#after()",
+        "symbol_type": "method"
+      },
+      "start_line": 34
+    },
+    {
+      "content": "}",
+      "end_line": 37,
+      "meta": {
+        "container_path": "corpus.records.Geometry",
+        "end_line": 37,
+        "language": "java",
+        "start_line": 37,
+        "symbol_qualified_name": "corpus.records.Geometry",
+        "symbol_type": "context"
+      },
+      "start_line": 37
+    }
+  ],
+  "diagnostics": [],
+  "entities": [
+    {
+      "end_line": 38,
+      "meta": {
+        "is_file_root": true,
+        "language": "java"
+      },
+      "name": "java25_record_patterns.java",
+      "parent_qualified_name": null,
+      "qualified_name": "java25_record_patterns.java",
+      "start_line": 1,
+      "type": "compilation_unit"
+    },
+    {
+      "end_line": 1,
+      "meta": {
+        "language": "java",
+        "package": "corpus.records"
+      },
+      "name": "corpus.records",
+      "parent_qualified_name": "java25_record_patterns.java",
+      "qualified_name": "corpus.records",
+      "start_line": 1,
+      "type": "package"
+    },
+    {
+      "end_line": 7,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Point",
+      "parent_qualified_name": "corpus.records",
+      "qualified_name": "corpus.records.Point",
+      "start_line": 3,
+      "type": "record"
+    },
+    {
+      "end_line": 3,
+      "meta": {
+        "component_type": "double",
+        "index": 0,
+        "language": "java"
+      },
+      "name": "x",
+      "parent_qualified_name": "corpus.records.Point",
+      "qualified_name": "corpus.records.Point#component:x",
+      "start_line": 3,
+      "type": "record_component"
+    },
+    {
+      "end_line": 3,
+      "meta": {
+        "component_type": "double",
+        "index": 1,
+        "language": "java"
+      },
+      "name": "y",
+      "parent_qualified_name": "corpus.records.Point",
+      "qualified_name": "corpus.records.Point#component:y",
+      "start_line": 3,
+      "type": "record_component"
+    },
+    {
+      "end_line": 6,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 5,
+            "line": 5,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "unknown",
+                "name": "Math",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "Math.hypot"
+              },
+              {
+                "kind": "unknown",
+                "name": "x",
+                "via": "call:hypot"
+              },
+              {
+                "kind": "parameter",
+                "name": "other",
+                "qualified_name": "corpus.records.Point#distanceTo(Point)@param:other",
+                "via": "call:hypot"
+              },
+              {
+                "kind": "call",
+                "name": "other.x",
+                "via": "call:hypot"
+              },
+              {
+                "kind": "unknown",
+                "name": "y",
+                "via": "call:hypot"
+              },
+              {
+                "kind": "call",
+                "name": "other.y",
+                "via": "call:hypot"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return Math.hypot(x - other.x(), y - other.y());"
+          }
+        ],
+        "exception_flow": [],
+        "language": "java",
+        "modifiers": [],
+        "parameter_types": [
+          "Point"
+        ],
+        "return_expressions": [
+          {
+            "end_line": 5,
+            "expression": "Math.hypot(x - other.x(), y - other.y())",
+            "start_line": 5
+          }
+        ],
+        "return_type": "double",
+        "signature": "distanceTo(Point)",
+        "throws_types": [],
+        "visibility": "package"
+      },
+      "name": "distanceTo",
+      "parent_qualified_name": "corpus.records.Point",
+      "qualified_name": "corpus.records.Point#distanceTo(Point)",
+      "start_line": 4,
+      "type": "method"
+    },
+    {
+      "end_line": 4,
+      "meta": {
+        "declaration_column": 33,
+        "declaration_line": 4,
+        "index": 0,
+        "language": "java",
+        "parameter_type": "Point",
+        "scope_end_column": 1000000,
+        "scope_end_line": 6,
+        "scope_start_column": 0,
+        "scope_start_line": 4
+      },
+      "name": "other",
+      "parent_qualified_name": "corpus.records.Point#distanceTo(Point)",
+      "qualified_name": "corpus.records.Point#distanceTo(Point)@param:other",
+      "start_line": 4,
+      "type": "parameter"
+    },
+    {
+      "end_line": 3,
+      "meta": {
+        "component_type": "double",
+        "generated_by": "record",
+        "index": 0,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "double",
+        "signature": "x()",
+        "source_component": "corpus.records.Point#component:x",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "x",
+      "parent_qualified_name": "corpus.records.Point",
+      "qualified_name": "corpus.records.Point#x()",
+      "start_line": 3,
+      "type": "method"
+    },
+    {
+      "end_line": 3,
+      "meta": {
+        "component_type": "double",
+        "generated_by": "record",
+        "index": 1,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "double",
+        "signature": "y()",
+        "source_component": "corpus.records.Point#component:y",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "y",
+      "parent_qualified_name": "corpus.records.Point",
+      "qualified_name": "corpus.records.Point#y()",
+      "start_line": 3,
+      "type": "method"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Line",
+      "parent_qualified_name": "corpus.records",
+      "qualified_name": "corpus.records.Line",
+      "start_line": 9,
+      "type": "record"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "component_type": "Point",
+        "index": 0,
+        "language": "java"
+      },
+      "name": "start",
+      "parent_qualified_name": "corpus.records.Line",
+      "qualified_name": "corpus.records.Line#component:start",
+      "start_line": 9,
+      "type": "record_component"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "component_type": "Point",
+        "index": 1,
+        "language": "java"
+      },
+      "name": "end",
+      "parent_qualified_name": "corpus.records.Line",
+      "qualified_name": "corpus.records.Line#component:end",
+      "start_line": 9,
+      "type": "record_component"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "component_type": "Point",
+        "generated_by": "record",
+        "index": 0,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "Point",
+        "signature": "start()",
+        "source_component": "corpus.records.Line#component:start",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "start",
+      "parent_qualified_name": "corpus.records.Line",
+      "qualified_name": "corpus.records.Line#start()",
+      "start_line": 9,
+      "type": "method"
+    },
+    {
+      "end_line": 9,
+      "meta": {
+        "component_type": "Point",
+        "generated_by": "record",
+        "index": 1,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "Point",
+        "signature": "end()",
+        "source_component": "corpus.records.Line#component:end",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "end",
+      "parent_qualified_name": "corpus.records.Line",
+      "qualified_name": "corpus.records.Line#end()",
+      "start_line": 9,
+      "type": "method"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "language": "java",
+        "modifiers": [],
+        "visibility": "package"
+      },
+      "name": "Box",
+      "parent_qualified_name": "corpus.records",
+      "qualified_name": "corpus.records.Box",
+      "start_line": 11,
+      "type": "record"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "component_type": "Object",
+        "index": 0,
+        "language": "java"
+      },
+      "name": "content",
+      "parent_qualified_name": "corpus.records.Box",
+      "qualified_name": "corpus.records.Box#component:content",
+      "start_line": 11,
+      "type": "record_component"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "component_type": "Object",
+        "index": 1,
+        "language": "java"
+      },
+      "name": "label",
+      "parent_qualified_name": "corpus.records.Box",
+      "qualified_name": "corpus.records.Box#component:label",
+      "start_line": 11,
+      "type": "record_component"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "component_type": "Object",
+        "generated_by": "record",
+        "index": 0,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "Object",
+        "signature": "content()",
+        "source_component": "corpus.records.Box#component:content",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "content",
+      "parent_qualified_name": "corpus.records.Box",
+      "qualified_name": "corpus.records.Box#content()",
+      "start_line": 11,
+      "type": "method"
+    },
+    {
+      "end_line": 11,
+      "meta": {
+        "component_type": "Object",
+        "generated_by": "record",
+        "index": 1,
+        "language": "java",
+        "modifiers": [
+          "public"
+        ],
+        "parameter_types": [],
+        "return_type": "Object",
+        "signature": "label()",
+        "source_component": "corpus.records.Box#component:label",
+        "synthetic": true,
+        "visibility": "public"
+      },
+      "name": "label",
+      "parent_qualified_name": "corpus.records.Box",
+      "qualified_name": "corpus.records.Box#label()",
+      "start_line": 11,
+      "type": "method"
+    },
+    {
+      "end_line": 37,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "language": "java",
+        "modifiers": [
+          "final"
+        ],
+        "visibility": "package"
+      },
+      "name": "Geometry",
+      "parent_qualified_name": "corpus.records",
+      "qualified_name": "corpus.records.Geometry",
+      "start_line": 13,
+      "type": "class"
+    },
+    {
+      "end_line": 20,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 19,
+            "line": 15,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "parameter",
+                "name": "value",
+                "qualified_name": "corpus.records.Geometry#length(Object)@param:value"
+              },
+              {
+                "kind": "local_variable",
+                "name": "start",
+                "qualified_name": "corpus.records.Geometry#length(Object)@pattern:start:16:26",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "start.distanceTo"
+              },
+              {
+                "kind": "local_variable",
+                "name": "end",
+                "qualified_name": "corpus.records.Geometry#length(Object)@pattern:end:16:37",
+                "via": "call:distanceTo"
+              },
+              {
+                "kind": "local_variable",
+                "name": "x",
+                "qualified_name": "corpus.records.Geometry#length(Object)@pattern:x:17:36"
+              },
+              {
+                "kind": "local_variable",
+                "name": "y",
+                "qualified_name": "corpus.records.Geometry#length(Object)@pattern:y:17:43"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return switch (value) { case Line(var start, var end) -> start.distanceTo(end); case Box(Line(Point(var x, var y), _), …"
+          }
+        ],
+        "exception_flow": [],
+        "language": "java",
+        "modifiers": [
+          "static"
+        ],
+        "parameter_types": [
+          "Object"
+        ],
+        "return_expressions": [
+          {
+            "end_line": 19,
+            "expression": "switch (value) { case Line(var start, var end) -> start.distanceTo(end); case Box(Line(Point(var x, var y), _), _) -> x + y; default -> 0; }",
+            "start_line": 15
+          }
+        ],
+        "return_type": "double",
+        "signature": "length(Object)",
+        "throws_types": [],
+        "visibility": "package"
+      },
+      "name": "length",
+      "parent_qualified_name": "corpus.records.Geometry",
+      "qualified_name": "corpus.records.Geometry#length(Object)",
+      "start_line": 14,
+      "type": "method"
+    },
+    {
+      "end_line": 14,
+      "meta": {
+        "declaration_column": 37,
+        "declaration_line": 14,
+        "index": 0,
+        "language": "java",
+        "parameter_type": "Object",
+        "scope_end_column": 1000000,
+        "scope_end_line": 20,
+        "scope_start_column": 0,
+        "scope_start_line": 14
+      },
+      "name": "value",
+      "parent_qualified_name": "corpus.records.Geometry#length(Object)",
+      "qualified_name": "corpus.records.Geometry#length(Object)@param:value",
+      "start_line": 14,
+      "type": "parameter"
+    },
+    {
+      "end_line": 16,
+      "meta": {
+        "declaration_column": 31,
+        "declaration_line": 16,
+        "language": "java",
+        "pattern_binding": true,
+        "record_component_index": 0,
+        "record_pattern_type": "Line",
+        "scope_end_column": 5,
+        "scope_end_line": 20,
+        "scope_start_column": 39,
+        "scope_start_line": 14,
+        "variable_type": "var",
+        "visibility_ranges": [
+          {
+            "end_column": 67,
+            "end_line": 16,
+            "start_column": 45,
+            "start_line": 16
+          }
+        ]
+      },
+      "name": "start",
+      "parent_qualified_name": "corpus.records.Geometry#length(Object)",
+      "qualified_name": "corpus.records.Geometry#length(Object)@pattern:start:16:26",
+      "start_line": 16,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 16,
+      "meta": {
+        "declaration_column": 40,
+        "declaration_line": 16,
+        "language": "java",
+        "pattern_binding": true,
+        "record_component_index": 1,
+        "record_pattern_type": "Line",
+        "scope_end_column": 5,
+        "scope_end_line": 20,
+        "scope_start_column": 39,
+        "scope_start_line": 14,
+        "variable_type": "var",
+        "visibility_ranges": [
+          {
+            "end_column": 67,
+            "end_line": 16,
+            "start_column": 45,
+            "start_line": 16
+          }
+        ]
+      },
+      "name": "end",
+      "parent_qualified_name": "corpus.records.Geometry#length(Object)",
+      "qualified_name": "corpus.records.Geometry#length(Object)@pattern:end:16:37",
+      "start_line": 16,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 17,
+      "meta": {
+        "declaration_column": 37,
+        "declaration_line": 17,
+        "language": "java",
+        "pattern_binding": true,
+        "record_component_index": 0,
+        "record_pattern_type": "Point",
+        "scope_end_column": 5,
+        "scope_end_line": 20,
+        "scope_start_column": 39,
+        "scope_start_line": 14,
+        "variable_type": "var",
+        "visibility_ranges": [
+          {
+            "end_column": 63,
+            "end_line": 17,
+            "start_column": 57,
+            "start_line": 17
+          }
+        ]
+      },
+      "name": "x",
+      "parent_qualified_name": "corpus.records.Geometry#length(Object)",
+      "qualified_name": "corpus.records.Geometry#length(Object)@pattern:x:17:36",
+      "start_line": 17,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 17,
+      "meta": {
+        "declaration_column": 44,
+        "declaration_line": 17,
+        "language": "java",
+        "pattern_binding": true,
+        "record_component_index": 1,
+        "record_pattern_type": "Point",
+        "scope_end_column": 5,
+        "scope_end_line": 20,
+        "scope_start_column": 39,
+        "scope_start_line": 14,
+        "variable_type": "var",
+        "visibility_ranges": [
+          {
+            "end_column": 63,
+            "end_line": 17,
+            "start_column": 57,
+            "start_line": 17
+          }
+        ]
+      },
+      "name": "y",
+      "parent_qualified_name": "corpus.records.Geometry#length(Object)",
+      "qualified_name": "corpus.records.Geometry#length(Object)@pattern:y:17:43",
+      "start_line": 17,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 32,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 24,
+            "line": 24,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "local_variable",
+                "name": "end",
+                "qualified_name": "corpus.records.Geometry#width(Object)@pattern:end:23:57",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "end.x"
+              },
+              {
+                "kind": "local_variable",
+                "name": "start",
+                "qualified_name": "corpus.records.Geometry#width(Object)@pattern:start:23:44",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "start.x"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return end.x() - start.x();"
+          },
+          {
+            "end_line": 28,
+            "line": 28,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "local_variable",
+                "name": "content",
+                "qualified_name": "corpus.records.Geometry#width(Object)@pattern:content:27:25",
+                "via": "receiver"
+              },
+              {
+                "kind": "call",
+                "name": "content.hashCode"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return content.hashCode();"
+          },
+          {
+            "end_line": 30,
+            "line": 30,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "literal",
+                "name": "0"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return 0;"
+          }
+        ],
+        "exception_flow": [],
+        "language": "java",
+        "modifiers": [
+          "static"
+        ],
+        "parameter_types": [
+          "Object"
+        ],
+        "return_expressions": [
+          {
+            "end_line": 24,
+            "expression": "end.x() - start.x()",
+            "start_line": 24
+          },
+          {
+            "end_line": 28,
+            "expression": "content.hashCode()",
+            "start_line": 28
+          },
+          {
+            "end_line": 30,
+            "expression": "0",
+            "start_line": 30
+          }
+        ],
+        "return_type": "double",
+        "signature": "width(Object)",
+        "throws_types": [],
+        "visibility": "package"
+      },
+      "name": "width",
+      "parent_qualified_name": "corpus.records.Geometry",
+      "qualified_name": "corpus.records.Geometry#width(Object)",
+      "start_line": 22,
+      "type": "method"
+    },
+    {
+      "end_line": 22,
+      "meta": {
+        "declaration_column": 36,
+        "declaration_line": 22,
+        "index": 0,
+        "language": "java",
+        "parameter_type": "Object",
+        "scope_end_column": 1000000,
+        "scope_end_line": 32,
+        "scope_start_column": 0,
+        "scope_start_line": 22
+      },
+      "name": "value",
+      "parent_qualified_name": "corpus.records.Geometry#width(Object)",
+      "qualified_name": "corpus.records.Geometry#width(Object)@param:value",
+      "start_line": 22,
+      "type": "parameter"
+    },
+    {
+      "end_line": 23,
+      "meta": {
+        "declaration_column": 49,
+        "declaration_line": 23,
+        "language": "java",
+        "pattern_binding": true,
+        "record_component_index": 0,
+        "record_pattern_type": "Line",
+        "scope_end_column": 5,
+        "scope_end_line": 32,
+        "scope_start_column": 38,
+        "scope_start_line": 22,
+        "variable_type": "var",
+        "visibility_ranges": [
+          {
+            "end_column": 9,
+            "end_line": 25,
+            "start_column": 63,
+            "start_line": 23
+          }
+        ]
+      },
+      "name": "start",
+      "parent_qualified_name": "corpus.records.Geometry#width(Object)",
+      "qualified_name": "corpus.records.Geometry#width(Object)@pattern:start:23:44",
+      "start_line": 23,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 23,
+      "meta": {
+        "declaration_column": 60,
+        "declaration_line": 23,
+        "language": "java",
+        "pattern_binding": true,
+        "scope_end_column": 5,
+        "scope_end_line": 32,
+        "scope_start_column": 38,
+        "scope_start_line": 22,
+        "variable_type": "Point",
+        "visibility_ranges": [
+          {
+            "end_column": 9,
+            "end_line": 25,
+            "start_column": 63,
+            "start_line": 23
+          }
+        ]
+      },
+      "name": "end",
+      "parent_qualified_name": "corpus.records.Geometry#width(Object)",
+      "qualified_name": "corpus.records.Geometry#width(Object)@pattern:end:23:57",
+      "start_line": 23,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 27,
+      "meta": {
+        "declaration_column": 32,
+        "declaration_line": 27,
+        "language": "java",
+        "pattern_binding": true,
+        "record_component_index": 0,
+        "record_pattern_type": "Box",
+        "scope_end_column": 5,
+        "scope_end_line": 32,
+        "scope_start_column": 38,
+        "scope_start_line": 22,
+        "variable_type": "var",
+        "visibility_ranges": [
+          {
+            "end_column": 42,
+            "end_line": 28,
+            "start_column": 16,
+            "start_line": 28
+          }
+        ]
+      },
+      "name": "content",
+      "parent_qualified_name": "corpus.records.Geometry#width(Object)",
+      "qualified_name": "corpus.records.Geometry#width(Object)@pattern:content:27:25",
+      "start_line": 27,
+      "type": "local_variable"
+    },
+    {
+      "end_line": 36,
+      "meta": {
+        "annotation_details": [],
+        "annotations": [],
+        "data_flow": [
+          {
+            "end_line": 35,
+            "line": 35,
+            "operation": "return",
+            "sources": [
+              {
+                "kind": "literal",
+                "name": "1"
+              }
+            ],
+            "target": {
+              "kind": "return",
+              "name": "return"
+            },
+            "text": "return 1;"
+          }
+        ],
+        "exception_flow": [],
+        "language": "java",
+        "modifiers": [
+          "static"
+        ],
+        "parameter_types": [],
+        "return_expressions": [
+          {
+            "end_line": 35,
+            "expression": "1",
+            "start_line": 35
+          }
+        ],
+        "return_type": "int",
+        "signature": "after()",
+        "throws_types": [],
+        "visibility": "package"
+      },
+      "name": "after",
+      "parent_qualified_name": "corpus.records.Geometry",
+      "qualified_name": "corpus.records.Geometry#after()",
+      "start_line": 34,
+      "type": "method"
+    }
+  ]
+}

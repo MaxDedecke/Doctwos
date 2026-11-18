@@ -114,3 +114,85 @@ void use(boolean flag){a(); var value=flag?a():b(); value.run();}}""",
     )
     assert not result.diagnostics
     assert calls(result, "run")[0].resolution == "unresolved"
+
+
+def methods(result):
+    return sorted(entity.name for entity in result.entities if entity.type == "method")
+
+
+def bindings(result):
+    return {
+        (entity.parent_name, entity.name): entity.meta
+        for entity in result.entities
+        if entity.meta.get("pattern_binding")
+    }
+
+
+def test_var_record_patterns_parse_without_losing_following_members():
+    result = parse_java_file(
+        """record Circle(double r) {}
+record Rect(double w, double h) {}
+record Box(Object content, Object label) {}
+class C {
+ double rule(Object x){return switch(x){case Circle(var r)->r; case Box(Circle(var r), _)->r; default->0;};}
+ double colon(Object x){switch(x){case Rect(final var w, double h): return w*h; default: return 0;}}
+ double test(Object x){if(x instanceof Rect(var w, var h)) return w*h; return 0;}
+ int match(Object x){return switch(x){case Box(_, var label)->1; case Box(_, _)->2; default->0;};}
+ int after(){return 1;}
+}""",
+        "C.java",
+    )
+    assert not result.diagnostics
+    assert {"rule", "colon", "test", "match", "after"} <= set(methods(result))
+    declared = bindings(result)
+    width = declared[("colon", "w")]
+    assert width["variable_type"] == "var"
+    assert (width["record_pattern_type"], width["record_component_index"]) == ("Rect", 0)
+    assert declared[("colon", "h")]["variable_type"] == "double"
+    assert "record_pattern_type" not in declared[("colon", "h")]
+    assert declared[("test", "h")]["record_component_index"] == 1
+    label = declared[("match", "label")]
+    assert (label["record_pattern_type"], label["record_component_index"]) == ("Box", 1)
+    nested = [
+        entity.meta
+        for entity in result.entities
+        if entity.meta.get("pattern_binding") and entity.name == "r"
+    ]
+    assert [item["record_pattern_type"] for item in nested] == ["Circle", "Circle"]
+
+
+def test_var_record_component_receiver_uses_the_component_type_from_the_record_file():
+    point = parse_java_file(
+        """package geo;
+public record Point(double x, double y) {
+  public double distanceTo(Point other){return 0;}
+}""",
+        "geo/Point.java",
+    )
+    line = parse_java_file(
+        "package geo; public record Line(Point start, Point end) {}", "geo/Line.java"
+    )
+    pair = parse_java_file(
+        "package geo; public record Pair<A, B>(A first, B second) {}", "geo/Pair.java"
+    )
+    client = parse_java_file(
+        """package app;
+import geo.Line;
+import geo.Pair;
+class C {
+ double a(Object o){return switch(o){case Line(var start, var end)->start.distanceTo(end); default->0;};}
+ double b(Object o){if(o instanceof Line(Point(var x, var y), var end)) return end.distanceTo(end); return 0;}
+ int c(Object o){if(o instanceof Pair<?, ?>(var first, var second)) return first.distanceTo(null); return 0;}
+}""",
+        "app/C.java",
+    )
+    assert not client.diagnostics
+    resolve_global_edges([client, line, pair, point])
+    edges = calls(client, "distanceTo")
+    assert [edge.meta.get("target_qualified_name") for edge in edges[:2]] == [
+        "geo.Point#distanceTo(Point)",
+        "geo.Point#distanceTo(Point)",
+    ]
+    assert edges[0].meta["resolution_reason"] == "record_component_type"
+    # A component typed by a record type parameter is left unresolved instead of guessed.
+    assert edges[2].resolution == "unresolved"

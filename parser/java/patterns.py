@@ -101,19 +101,45 @@ def visibility_ranges(pattern):
     return ranges
 
 
+def _record_component(context):
+    """Return the enclosing record pattern type and component index of a binding."""
+    component = context.parentCtx
+    if not isinstance(component, JavaParser.ComponentPatternContext):
+        return None
+    record = component.parentCtx.parentCtx
+    if not isinstance(record, JavaParser.PatternContext) or record.typeType() is None:
+        return None
+    siblings = component.parentCtx.componentPattern()
+    index = next(i for i, sibling in enumerate(siblings) if sibling is component)
+    return record.typeType().getText(), index
+
+
 def add_pattern_declarations(visitor, context):
-    declarations = context.variableDeclarators()
-    if declarations is None or visitor.parent.type not in {
+    if visitor.parent.type not in {
         "method",
         "constructor",
         "lambda",
         "initializer",
     }:
         return
+    record_meta = {}
+    if context.VAR() is not None:
+        identifiers = [context.identifier()]
+        variable_type = "var"
+        record = _record_component(context)
+        if record is not None:
+            record_meta = {"record_pattern_type": record[0], "record_component_index": record[1]}
+    else:
+        declarations = context.variableDeclarators()
+        if declarations is None:
+            return
+        identifiers = [
+            item.variableDeclaratorId().identifier() for item in declarations.variableDeclarator()
+        ]
+        variable_type = context.typeType().getText()
     from core.model import Entity
 
-    for item in declarations.variableDeclarator():
-        identifier = item.variableDeclaratorId().identifier()
+    for identifier in identifiers:
         name = identifier.getText()
         visitor.entities.append(
             Entity(
@@ -126,8 +152,9 @@ def add_pattern_declarations(visitor, context):
                 qualified_name=f"{visitor.parent.qualified_name}@pattern:{name}:{identifier.start.line}:{identifier.start.column}",
                 meta=visitor._java_meta(
                     {
-                        "variable_type": context.typeType().getText(),
+                        "variable_type": variable_type,
                         "pattern_binding": True,
+                        **record_meta,
                         **visitor._lexical_scope(context),
                         "declaration_line": identifier.stop.line,
                         "declaration_column": identifier.stop.column + len(identifier.stop.text),

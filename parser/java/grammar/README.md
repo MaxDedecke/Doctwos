@@ -35,6 +35,13 @@ by dotted segments. Repeating the undelimited leading group incorrectly consumed
 `Service s` as a type after `instanceof`, hiding the pattern variable from visitors.
 The upstream source pin above remains the provenance of this locally patched grammar.
 
+Local correction (18.11.2026): `pattern` accepts `variableModifier* VAR identifier`
+and `componentPattern` accepts a bare identifier for the match-all `_` (JLS 14.30.1).
+Upstream rejected `case Circle(var r) ->`, and error recovery then dropped every
+following class member. The regenerated parser was produced with ANTLR 4.13.2
+(`antlr4-4.13.2-complete.jar`, SHA-1 `7df86c341abb175a0f4b76a7845074cc45f82ff8`);
+regenerating the unchanged grammar reproduced the checked-in files byte for byte.
+
 `parser/java/generate_parser.sh` is the supported offline regeneration entry
 point. Provide a local ANTLR 4.13.2 complete JAR through `ANTLR_JAR`; the script
 generates the Python 3 lexer, parser and visitor under `parser/java/_antlr/`.

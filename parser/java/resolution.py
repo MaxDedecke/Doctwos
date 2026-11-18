@@ -689,6 +689,15 @@ def _receiver_type_candidates(
         declared_type = _entity_type_name(declaration)
         if not declared_type or declared_type == "var":
             declared_type = (declaration.meta or {}).get("inferred_type")
+        if not declared_type and (declaration.meta or {}).get("record_pattern_type"):
+            return _record_component_receiver(
+                declaration,
+                result=result,
+                source_owner=source_owner,
+                types_by_qname=types_by_qname,
+                types_by_name=types_by_name,
+                result_by_type=result_by_type,
+            )
         if not declared_type:
             from .factory_inference import factory_receiver
 
@@ -726,6 +735,56 @@ def _receiver_type_candidates(
         types_by_qname=types_by_qname,
         types_by_name=types_by_name,
     )
+
+
+def _record_component_receiver(
+    declaration: Entity,
+    *,
+    result: ParseResult,
+    source_owner: str | None,
+    types_by_qname: dict[str, list[Entity]],
+    types_by_name: dict[str, list[Entity]],
+    result_by_type: dict[str, ParseResult],
+) -> tuple[list[Entity], str | None]:
+    """Type a ``var`` record-pattern binding by the matched record's component."""
+    meta = declaration.meta or {}
+    records, reason = _global_type_candidates(
+        meta["record_pattern_type"],
+        result=result,
+        source_owner=source_owner,
+        types_by_qname=types_by_qname,
+        types_by_name=types_by_name,
+    )
+    records = [record for record in records if record.type == "record"]
+    if len(records) != 1:
+        return [], "record_pattern_type_not_resolved" if not records else "ambiguous_record_pattern"
+    record = records[0]
+    record_result = result_by_type.get(record.qualified_name or "", result)
+    component = next(
+        (
+            entity
+            for entity in record_result.entities
+            if entity.type == "record_component"
+            and entity.parent_qualified_name == record.qualified_name
+            and entity.meta.get("index") == meta.get("record_component_index")
+        ),
+        None,
+    )
+    component_type = (component.meta or {}).get("component_type") if component else None
+    if not component_type:
+        return [], "record_component_not_found"
+    # A component typed by the record's own type parameter needs the pattern's type
+    # arguments, which a static parse cannot bind reliably.
+    if _base_type(component_type) in (record.meta or {}).get("type_parameters", []):
+        return [], "record_component_type_parameter"
+    types, type_reason = _global_type_candidates(
+        component_type,
+        result=record_result,
+        source_owner=record.qualified_name,
+        types_by_qname=types_by_qname,
+        types_by_name=types_by_name,
+    )
+    return types, "record_component_type" if types else type_reason
 
 
 def _source_owner(edge: ParsedEdge) -> str | None:
