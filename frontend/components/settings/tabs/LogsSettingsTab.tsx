@@ -43,7 +43,7 @@ export const LogsSettingsTab: React.FC = () => {
   // Gewählter Eintrag der linken Spalte: Quelle (Sync-Log) oder lokales Deployment (Container-Log).
   const [selected, setSelected] = useState<{ kind: 'source' | 'deployment'; id: string } | null>(null);
   const isAdmin = Boolean(currentUser?.is_admin);
-  const { deployments, error: deployerError, refresh: refreshDeployments } = useLlmDeployments(isAdmin);
+  const { deployments, error: deployerError, available: deployerAvailable, refresh: refreshDeployments } = useLlmDeployments(isAdmin);
   const health = useServiceHealth(true);
   const [containerLog, setContainerLog] = useState('');
   const [refreshingLogs, setRefreshingLogs] = useState<boolean>(false);
@@ -142,7 +142,7 @@ export const LogsSettingsTab: React.FC = () => {
     ...Object.entries(health ?? {}).map(([name, value]) => ({
       key: `health-${name}`, label: HEALTH_LABEL[name] ?? name, value: value === 'ok' ? '' : value, ok: value === 'ok', text: checkText(value),
     })),
-    ...(isAdmin ? [{
+    ...(isAdmin && deployerAvailable ? [{
       key: 'deployer', label: 'Deployer', value: deployerError ?? '', ok: !deployerError, text: deployerError ? t('settings.logsTab.statusError') : t('settings.logsTab.statusOnline'),
     }] : []),
   ];
@@ -255,7 +255,7 @@ export const LogsSettingsTab: React.FC = () => {
           </div>
 
           {/* Lokale Deployments (Ollama, vLLM, llama.cpp) mit laufend aktualisiertem Status */}
-          {isAdmin && (
+          {isAdmin && deployerAvailable && (
             <div className="flex max-h-[45%] shrink-0 flex-col gap-2" data-testid="deployment-status-list">
               <h4 className={sectionTitleClass(theme)}>{t('settings.logsTab.deploymentsTitle')}</h4>
               <div className="min-h-0 space-y-2 overflow-y-auto overscroll-contain pr-1">

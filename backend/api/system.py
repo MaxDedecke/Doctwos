@@ -835,7 +835,7 @@ def _activate_embedding_if_first(db: Session, profile: EmbeddingProfile) -> None
 
 def _remove_deployment(name: str | None) -> None:
     """Entfernt den Container eines lokalen Deployments; ein bereits fehlender gilt als erledigt."""
-    if not name:
+    if not name or not cfg.DEPLOYER_ENABLED:
         return
     try:
         deployer_client.delete_deployment(name)
@@ -845,6 +845,8 @@ def _remove_deployment(name: str | None) -> None:
 
 
 def _deployer_call(fn, *args, **kwargs):
+    if not cfg.DEPLOYER_ENABLED:
+        raise HTTPException(status_code=404, detail="Lokale Deployments sind nicht aktiviert")
     try:
         return fn(*args, **kwargs)
     except DeployerError as exc:
@@ -854,8 +856,14 @@ def _deployer_call(fn, *args, **kwargs):
 @router.get("/llm-deployments")
 def list_llm_deployments(_user: User = Depends(require_admin)):
     """Status aller lokalen Deployments plus Fähigkeiten des Hosts (GPU)."""
+    if not cfg.DEPLOYER_ENABLED:
+        return {"enabled": False, "capabilities": {"gpu": False}, "deployments": []}
     caps = _deployer_call(deployer_client.capabilities)
-    return {"capabilities": caps, "deployments": _deployer_call(deployer_client.list_deployments)}
+    return {
+        "enabled": True,
+        "capabilities": caps,
+        "deployments": _deployer_call(deployer_client.list_deployments),
+    }
 
 
 @router.post("/llm-deployments/{name}/{action}")

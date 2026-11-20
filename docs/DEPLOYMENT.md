@@ -69,8 +69,12 @@ To let administrators start local model containers from the UI, switch the deplo
 ```bash
 # .env
 COMPOSE_PROFILES=deployer
+DEPLOYER_ENABLED=true
 docker compose up -d
 ```
+
+Without `DEPLOYER_ENABLED=true` the backend never contacts the deployer, and the UI shows neither the deployer
+status nor local deployments, so a stack without the deployer reports no deployer error.
 
 > **Security:** the deployer mounts `/var/run/docker.sock`. Access to the Docker socket is root on the host: whoever
 > controls the deployer — or the backend, which holds `DEPLOYER_TOKEN` — can start a privileged container that mounts

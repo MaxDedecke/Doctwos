@@ -21,7 +21,7 @@ export const AiSettingsTab: React.FC = () => {
   const { t } = useLanguage();
   const features = useFeatures();
   const { theme, showToast, llmProfiles, setLlmProfiles, activeProfileId, setActiveProfileId, embeddingProfiles, setEmbeddingProfiles, activeEmbeddingProfileId, setActiveEmbeddingProfileId } = useSettings();
-  const { deployments, capabilities, error: deployerError, refresh: refreshDeployments } = useLlmDeployments(true);
+  const { deployments, capabilities, error: deployerError, available: deployerAvailable, refresh: refreshDeployments } = useLlmDeployments(true);
   const [editing, setEditing] = useState<LlmProfile | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
@@ -75,7 +75,7 @@ export const AiSettingsTab: React.FC = () => {
   const startAdd = () => {
     setEditing(null); setName(''); setApiKey(''); setEmbeddingKey('');
     setEmbeddingModel(DEFAULT_EMBEDDING_MODEL); setDimension(1024); setEmbeddingContext(8192); setLlmContext(8192);
-    applyKind('local'); setShowForm(true);
+    applyKind(deployerAvailable ? 'local' : 'remote'); setShowForm(true);
   };
 
   const startEdit = (profile: LlmProfile) => {
@@ -135,11 +135,11 @@ export const AiSettingsTab: React.FC = () => {
             <SelectField label={t('settings.profilesTab.profileType')}>
               <Select value={kind} onValueChange={value => applyKind(value as ProfileKind)} disabled={Boolean(editing?.isSystem || editing?.deploymentName)}>
                 <SelectTrigger className={selectTriggerClass}><SelectValue /></SelectTrigger>
-                <SelectContent><SelectItem value="local">{t('settings.profilesTab.local')}</SelectItem><SelectItem value="remote">{t('settings.profilesTab.remote')}</SelectItem>{features.llm.allowCloudProviders && <SelectItem value="cloud">{t('settings.profilesTab.cloud')}</SelectItem>}</SelectContent>
+                <SelectContent>{(deployerAvailable || kind === 'local') && <SelectItem value="local">{t('settings.profilesTab.local')}</SelectItem>}<SelectItem value="remote">{t('settings.profilesTab.remote')}</SelectItem>{features.llm.allowCloudProviders && <SelectItem value="cloud">{t('settings.profilesTab.cloud')}</SelectItem>}</SelectContent>
               </Select>
             </SelectField>
   );
-  const isNewLocal = showForm && !editing && kind === 'local';
+  const isNewLocal = showForm && !editing && kind === 'local' && deployerAvailable;
 
   const onDeploymentCreated = ({ profile }: { profile: Record<string, unknown> }) => {
     const saved = profileFromApi(profile);
@@ -167,12 +167,12 @@ export const AiSettingsTab: React.FC = () => {
               <span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>
               <span className={badgeClass('neutral')}>{profile.kind}</span>
               {ENGINE_LABEL[profile.provider] && <span className={badgeClass('accent')}>{ENGINE_LABEL[profile.provider]}</span>}
-              {profile.deploymentName && <DeploymentBadge deployment={deployments.find(item => item.name === profile.deploymentName)} />}
+              {deployerAvailable && profile.deploymentName && <DeploymentBadge deployment={deployments.find(item => item.name === profile.deploymentName)} />}
               {profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}
             </div>
             <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div>
           </div>
-          {profile.deploymentName && <DeploymentControls name={profile.deploymentName} deployment={deployments.find(item => item.name === profile.deploymentName)} showToast={showToast} onChanged={refreshDeployments} />}
+          {deployerAvailable && profile.deploymentName && <DeploymentControls name={profile.deploymentName} deployment={deployments.find(item => item.name === profile.deploymentName)} showToast={showToast} onChanged={refreshDeployments} />}
           <Button variant="ghost" size="icon" onClick={() => testProfile(profile)} title={t('settings.profilesTab.testProfile')} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
           {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>{t('settings.profilesTab.activate')}</Button>}
           <Button variant="ghost" size="icon" onClick={() => startEdit(profile)} className={ghostIconButtonClass}><Edit className="w-3.5 h-3.5" /></Button>
@@ -247,6 +247,7 @@ export const AiSettingsTab: React.FC = () => {
       deployments={deployments}
       capabilities={capabilities}
       deployerError={deployerError}
+      deployerAvailable={deployerAvailable}
       refreshDeployments={refreshDeployments}
     />
   </div>;
@@ -254,11 +255,12 @@ export const AiSettingsTab: React.FC = () => {
 
 function EmbeddingProfilesPanel({
   theme, showToast, profiles = [], setProfiles, activeProfileId, setActiveProfileId,
-  deployments, capabilities, deployerError, refreshDeployments,
+  deployments, capabilities, deployerError, deployerAvailable, refreshDeployments,
 }: {
   deployments: LlmDeployment[];
   capabilities: { gpu: boolean };
   deployerError: string | null;
+  deployerAvailable: boolean;
   refreshDeployments: () => void;
   theme: string;
   showToast: (message: string, kind?: 'success' | 'error', error?: unknown) => void;
@@ -340,20 +342,20 @@ function EmbeddingProfilesPanel({
     </div>
     {!showForm ? <div className="max-h-[28rem] space-y-2 overflow-y-auto pr-1">{profiles.map(profile => <div key={profile.id} className={cn(profile.id === activeProfileId ? activeCardClass(theme) : cardClass(theme), 'p-3.5 flex flex-wrap items-center gap-2')}>
       <div className="flex-1 min-w-0">
-        <div className="flex gap-2 items-center"><span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>{profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}{profile.deploymentName && <DeploymentBadge deployment={deployments.find(item => item.name === profile.deploymentName)} />}</div>
+        <div className="flex gap-2 items-center"><span className={cn('text-xs truncate', strongTextClass(theme))}>{profile.name}</span>{profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}{deployerAvailable && profile.deploymentName && <DeploymentBadge deployment={deployments.find(item => item.name === profile.deploymentName)} />}</div>
         <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model} · {profile.provider} · {profile.dimension}D</div>
       </div>
-      {profile.deploymentName && <DeploymentControls name={profile.deploymentName} deployment={deployments.find(item => item.name === profile.deploymentName)} showToast={showToast} onChanged={refreshDeployments} />}
+      {deployerAvailable && profile.deploymentName && <DeploymentControls name={profile.deploymentName} deployment={deployments.find(item => item.name === profile.deploymentName)} showToast={showToast} onChanged={refreshDeployments} />}
       <Button variant="ghost" size="icon" onClick={() => test(profile)} title={t('settings.embeddingTab.testTitle')} aria-label={t('settings.embeddingTab.testTitle')} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>
       {profile.id !== activeProfileId && <Button variant="outline" size="sm" onClick={() => activate(profile)} className={secondaryButtonClass(theme)}>{t('settings.embeddingTab.activate')}</Button>}
       <Button variant="ghost" size="icon" onClick={() => edit(profile)} title={t('settings.embeddingTab.editTitle')} aria-label={t('settings.embeddingTab.editTitle')} className={ghostIconButtonClass}><Edit className="w-3.5 h-3.5" /></Button>
       <Button variant="ghost" size="icon" disabled={profile.isSystem || profile.id === activeProfileId} onClick={() => removeProfile(profile)} title={t('settings.embeddingTab.deleteTitle')} aria-label={t('settings.embeddingTab.deleteTitle')} className={dangerIconButtonClass}><Trash2 className="w-3.5 h-3.5" /></Button>
-    </div>)}{profiles.length === 0 && <p className={cn(cardClass(theme), 'border-dashed p-4 text-center text-xs text-ds-zinc-500')}>{t('settings.deployments.emptyEmbedding')}</p>}</div> : !editing && mode === 'local' ? <div className="space-y-3">
+    </div>)}{profiles.length === 0 && <p className={cn(cardClass(theme), 'border-dashed p-4 text-center text-xs text-ds-zinc-500')}>{t('settings.deployments.emptyEmbedding')}</p>}</div> : !editing && mode === 'local' && deployerAvailable ? <div className="space-y-3">
       <ModeSwitch theme={theme} mode={mode} setMode={setMode} />
       <LocalDeploymentForm theme={theme} role="embedding" capabilities={capabilities} existing={deployments} deployerError={deployerError}
         onCreated={onDeploymentCreated} onCancel={() => { setShowForm(false); reset(); }} showToast={showToast} />
     </div> : <div className={cn(cardClass(theme), 'p-4 grid sm:grid-cols-2 gap-3')}>
-      {!editing && <div className="sm:col-span-2"><ModeSwitch theme={theme} mode={mode} setMode={setMode} /></div>}
+      {!editing && deployerAvailable && <div className="sm:col-span-2"><ModeSwitch theme={theme} mode={mode} setMode={setMode} /></div>}
       <Field label={t('settings.embeddingTab.nameLabel')} value={name} set={setName} />
       <SelectField label={t('settings.embeddingTab.providerLabel')}>
         <Select value={provider} onValueChange={value => { const next = value as 'ollama' | 'openai'; setProvider(next); setPath(next === 'openai' ? '/embeddings' : '/api/embed'); }}>

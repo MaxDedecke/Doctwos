@@ -77,6 +77,9 @@ BOOTSTRAP_EMBEDDING_ENDPOINT: bool = (
     or LEGACY_OLLAMA_SERVICE
 )
 # Deployer-Dienst (startet lokale LLM-Container); siehe deployer/ und docs/ENTSCHEIDUNGEN.md E-12.
+# Aus, solange der Betreiber den Deployer nicht ausdrücklich zuschaltet (Compose-Profil `deployer` plus
+# DEPLOYER_ENABLED=true). Ausgeschaltet fragt das Backend ihn nie an und die Oberfläche blendet ihn aus.
+DEPLOYER_ENABLED: bool = os.getenv("DEPLOYER_ENABLED", "false").lower() in ("1", "true", "yes")
 DEPLOYER_URL: str = os.getenv("DEPLOYER_URL", "http://deployer:9000").rstrip("/")
 DEPLOYER_TOKEN: str = os.getenv("DEPLOYER_TOKEN", "")
 

@@ -1,7 +1,7 @@
 import { axiosResponse } from '@/test/http';
 import { createSettingsContextValue } from '@/test/settingsContext';
 import { DEFAULT_FEATURES, type FeaturesConfig } from '@/lib/features';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 
@@ -29,8 +29,8 @@ describe('AiSettingsTab server profiles', () => {
     apiMocks.getLlmDeployments.mockResolvedValue(axiosResponse({ capabilities: { gpu: false }, deployments: [] }));
   });
 
-  it('shows the three simple deployment types only when cloud is enabled', () => {
-    render(<AiSettingsTab />);
+  it('shows the three simple deployment types only when cloud is enabled', async () => {
+    await act(async () => { render(<AiSettingsTab />); });
     fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
     fireEvent.click(screen.getAllByRole('combobox')[0]);
     expect(within(screen.getByRole('listbox')).getByText('settings.profilesTab.local')).toBeTruthy();
@@ -45,7 +45,7 @@ describe('AiSettingsTab server profiles', () => {
       llm_api_key_set: true, embedding_provider: 'ollama', embedding_model: 'qwen3-embedding:4b',
       embedding_dimension: 1024, embedding_context_length: 8192, llm_context_length: 8192,
     }));
-    render(<AiSettingsTab />);
+    await act(async () => { render(<AiSettingsTab />); });
     fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
     fireEvent.click(screen.getAllByRole('combobox')[0]);
     fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.profilesTab.remote'));
@@ -59,6 +59,17 @@ describe('AiSettingsTab server profiles', () => {
     fireEvent.click(screen.getByText('settings.profilesTab.saveProfile'));
     await waitFor(() => expect(apiMocks.createAiProfile).toHaveBeenCalledWith(expect.objectContaining({ kind: 'remote', protocol: 'openai_chat', llm_api_key: 'secret' })));
     expect(localStorage.getItem('doctus-llm-profiles')).toBeNull();
+  });
+
+  it('hides local deployments entirely when the deployer is not enabled', async () => {
+    apiMocks.getLlmDeployments.mockResolvedValue(axiosResponse({ enabled: false, capabilities: { gpu: false }, deployments: [] }));
+    await act(async () => { render(<AiSettingsTab />); });
+    fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
+    expect(screen.getByLabelText('settings.profilesTab.baseUrlLabel')).toBeTruthy();
+    expect(screen.queryByText('settings.deployments.create')).toBeNull();
+    fireEvent.click(screen.getAllByRole('combobox')[0]);
+    expect(within(screen.getByRole('listbox')).queryByText('settings.profilesTab.local')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
   });
 
   it('activates a remote profile through the API', async () => {
@@ -84,8 +95,8 @@ describe('AiSettingsTab server profiles', () => {
   });
 
   describe('local deployments', () => {
-    const openLocalForm = () => {
-      render(<AiSettingsTab />);
+    const openLocalForm = async () => {
+      await act(async () => { render(<AiSettingsTab />); });
       fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
     };
 
@@ -94,7 +105,7 @@ describe('AiSettingsTab server profiles', () => {
         deployment: { name: 'qwen-lokal' },
         profile: { id: 9, name: 'Qwen lokal', kind: 'local', provider: 'llamacpp', protocol: 'openai_chat', llm_model: 'org/m', deployment_name: 'qwen-lokal' },
       }));
-      openLocalForm();
+      await openLocalForm();
       fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'Qwen lokal' } });
       fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'org/m' } });
       fireEvent.click(screen.getByText('settings.deployments.create'));
@@ -106,7 +117,7 @@ describe('AiSettingsTab server profiles', () => {
     });
 
     it('requires a GPU for vLLM and blocks creation on hosts without one', async () => {
-      openLocalForm();
+      await openLocalForm();
       fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'Schnell' } });
       fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'org/m' } });
       fireEvent.click(screen.getAllByRole('combobox')[1]);
@@ -117,7 +128,7 @@ describe('AiSettingsTab server profiles', () => {
 
     it('explains an unavailable deployer and keeps creation disabled', async () => {
       apiMocks.getLlmDeployments.mockRejectedValue({ response: { data: { detail: 'DEPLOYER_TOKEN fehlt' } } });
-      openLocalForm();
+      await openLocalForm();
       fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'X' } });
       fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'm' } });
       expect(await screen.findByRole('alert')).toBeTruthy();

@@ -30,6 +30,11 @@ class FakeDeployer:
         self.deleted.append(name)
 
 
+@pytest.fixture(autouse=True)
+def deployer_enabled(monkeypatch):
+    monkeypatch.setattr(cfg, "DEPLOYER_ENABLED", True)
+
+
 @pytest.fixture
 def deployer(monkeypatch):
     fake = FakeDeployer()
@@ -240,3 +245,18 @@ def test_a_deployer_outside_the_compose_profile_is_reported_as_not_enabled(clien
 
 def test_unknown_control_action_is_rejected(client):
     assert client.post("/llm-deployments/x/destroy").status_code == 404
+
+
+def test_disabled_deployer_is_never_contacted_and_reported_as_off(client, monkeypatch):
+    monkeypatch.setattr(cfg, "DEPLOYER_ENABLED", False)
+
+    def fail(*_args, **_kwargs):
+        raise AssertionError("deployer must not be called")
+
+    for name in ("capabilities", "list_deployments", "create_deployment", "start_deployment"):
+        monkeypatch.setattr(f"api.system.deployer_client.{name}", fail)
+    listing = client.get("/llm-deployments")
+    assert listing.status_code == 200
+    assert listing.json() == {"enabled": False, "capabilities": {"gpu": False}, "deployments": []}
+    assert client.post("/llm-deployments", json=_body()).status_code == 404
+    assert client.post("/llm-deployments/x/start").status_code == 404

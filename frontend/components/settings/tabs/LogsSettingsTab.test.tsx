@@ -245,6 +245,14 @@ describe('LogsSettingsTab live status', () => {
     await waitFor(() => expect(apiMocks.controlLlmDeployment).toHaveBeenCalledWith('emb', 'stop'));
   });
 
+  it('shows neither the deployer entry nor deployments when the deployer is not enabled', async () => {
+    apiMocks.getLlmDeployments.mockResolvedValue({ data: { enabled: false, capabilities: { gpu: false }, deployments: [] } });
+    render(<LogsSettingsTab />);
+    await waitFor(() => expect(apiMocks.getLlmDeployments).toHaveBeenCalled());
+    await waitFor(() => expect(screen.queryByText('Deployer')).toBeNull());
+    expect(screen.queryByTestId('deployment-status-list')).toBeNull();
+  });
+
   it('hides deployments and the deployer entry from non-admin users', async () => {
     settingsState.currentUser = { id: 2, username: 'viewer', is_admin: false };
     render(<LogsSettingsTab />);
