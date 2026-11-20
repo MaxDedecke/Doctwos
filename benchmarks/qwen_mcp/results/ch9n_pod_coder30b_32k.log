@@ -1,0 +1,215 @@
+start 16:29:30 pod_coder30b_32k qwen3-coder:30b ctx=32768
+[1/72] T-C1-ONBOARD     local rep1 ok           50.4s turns=11 tools=10 tok=40710+1263
+[2/72] T-C1-ONBOARD     mcp   rep1 ok           88.3s turns=11 tools=10 tok=128126+1285
+[3/72] T-C1-ONBOARD     none  rep1 ok           22.9s turns=1 tools=0 tok=218+827
+[4/72] T-C2-CHANGEPOINT none  rep1 ok           12.7s turns=1 tools=0 tok=225+445
+[5/72] T-C2-CHANGEPOINT local rep1 ok            3.1s turns=1 tools=0 tok=857+85
+[6/72] T-C2-CHANGEPOINT mcp   rep1 ok           82.5s turns=11 tools=10 tok=122407+1457
+[7/72] T-C3-IMPACT      none  rep1 ok           26.6s turns=1 tools=0 tok=222+970
+[8/72] T-C3-IMPACT      mcp   rep1 ok           88.0s turns=11 tools=10 tok=111968+1719
+[9/72] T-C3-IMPACT      local rep1 ok           34.9s turns=4 tools=3 tok=8119+1099
+[10/72] T-C4-BUGHUNT     mcp   rep1 ok           61.9s turns=11 tools=10 tok=90900+1307
+[11/72] T-C4-BUGHUNT     local rep1 ok           47.8s turns=11 tools=10 tok=34981+1216
+[12/72] T-C4-BUGHUNT     none  rep1 ok           24.0s turns=1 tools=0 tok=227+807
+[13/72] T-C5-JOB         none  rep1 ok           13.3s turns=1 tools=0 tok=206+479
+[14/72] T-C5-JOB         mcp   rep1 ok           67.7s turns=10 tools=9 tok=112859+1261
+[15/72] T-C5-JOB         local rep1 ok           52.3s turns=11 tools=10 tok=46605+1301
+[16/72] T-C6-REVIEW      none  rep1 ok           17.3s turns=1 tools=0 tok=214+614
+[17/72] T-C6-REVIEW      mcp   rep1 ok           81.3s turns=11 tools=10 tok=98113+1583
+[18/72] T-C6-REVIEW      local rep1 ok           45.3s turns=8 tools=7 tok=35573+1173
+[19/72] T-J1-ONBOARD     mcp   rep1 ok           53.1s turns=2 tools=5 tok=12205+1051
+[20/72] T-J1-ONBOARD     local rep1 ok           29.9s turns=11 tools=10 tok=14022+1027
+[21/72] T-J1-ONBOARD     none  rep1 ok           16.9s turns=1 tools=0 tok=213+606
+[22/72] T-J2-EXTENSION   local rep1 ok           22.9s turns=1 tools=0 tok=891+802
+[23/72] T-J2-EXTENSION   none  rep1 ok           19.3s turns=1 tools=0 tok=228+691
+  + Exception Group Traceback (most recent call last):
+  |   File "/bench/harness/run.py", line 378, in <module>
+  |     asyncio.run(main())
+  |   File "/usr/local/lib/python3.11/asyncio/runners.py", line 190, in run
+  |     return runner.run(main)
+  |            ^^^^^^^^^^^^^^^^
+  |   File "/usr/local/lib/python3.11/asyncio/runners.py", line 118, in run
+  |     return self._loop.run_until_complete(task)
+  |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/usr/local/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+  |     return future.result()
+  |            ^^^^^^^^^^^^^^^
+  |   File "/bench/harness/run.py", line 373, in main
+  |     await mcp.__aexit__(None, None, None)
+  |   File "/bench/harness/run.py", line 182, in __aexit__
+  |     await self._stack.aclose()
+  |   File "/usr/local/lib/python3.11/contextlib.py", line 687, in aclose
+  |     await self.__aexit__(None, None, None)
+  |   File "/usr/local/lib/python3.11/contextlib.py", line 745, in __aexit__
+  |     raise exc_details[1]
+  |   File "/usr/local/lib/python3.11/contextlib.py", line 728, in __aexit__
+  |     cb_suppress = await cb(*exc_details)
+  |                   ^^^^^^^^^^^^^^^^^^^^^^
+  |   File "/usr/local/lib/python3.11/contextlib.py", line 231, in __aexit__
+  |     await self.gen.athrow(typ, value, traceback)
+  |   File "/root/.local/lib/python3.11/site-packages/mcp/client/streamable_http.py", line 717, in streamablehttp_client
+  |     async with streamable_http_client(
+  |   File "/usr/local/lib/python3.11/contextlib.py", line 231, in __aexit__
+  |     await self.gen.athrow(typ, value, traceback)
+  |   File "/root/.local/lib/python3.11/site-packages/mcp/client/streamable_http.py", line 647, in streamable_http_client
+  |     async with anyio.create_task_group() as tg:
+  |   File "/root/.local/lib/python3.11/site-packages/anyio/_backends/_asyncio.py", line 847, in __aexit__
+  |     raise BaseExceptionGroup(
+  | ExceptionGroup: unhandled errors in a TaskGroup (1 sub-exception)
+  +-+---------------- 1 ----------------
+    | Traceback (most recent call last):
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 101, in map_httpcore_exceptions
+    |     yield
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 394, in handle_async_request
+    |     resp = await self._pool.handle_async_request(req)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 256, in handle_async_request
+    |     raise exc from None
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection_pool.py", line 236, in handle_async_request
+    |     response = await connection.handle_async_request(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/connection.py", line 103, in handle_async_request
+    |     return await self._connection.handle_async_request(request)
+    |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/http11.py", line 136, in handle_async_request
+    |     raise exc
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/http11.py", line 106, in handle_async_request
+    |     ) = await self._receive_response_headers(**kwargs)
+    |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/http11.py", line 177, in _receive_response_headers
+    |     event = await self._receive_event(timeout=timeout)
+    |             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpcore/_async/http11.py", line 231, in _receive_event
+    |     raise RemoteProtocolError(msg)
+    | httpcore.RemoteProtocolError: Server disconnected without sending a response.
+    | 
+    | The above exception was the direct cause of the following exception:
+    | 
+    | Traceback (most recent call last):
+    |   File "/root/.local/lib/python3.11/site-packages/anyio/_core/_tasks.py", line 327, in _run_coro
+    |     retval = await self._coro
+    |              ^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/mcp/client/streamable_http.py", line 565, in handle_request_async
+    |     await self._handle_post_request(ctx)
+    |   File "/root/.local/lib/python3.11/site-packages/mcp/client/streamable_http.py", line 340, in _handle_post_request
+    |     async with ctx.client.stream(
+    |   File "/usr/local/lib/python3.11/contextlib.py", line 210, in __aenter__
+    |     return await anext(self.gen)
+    |            ^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1583, in stream
+    |     response = await self.send(
+    |                ^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1629, in send
+    |     response = await self._send_handling_auth(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1657, in _send_handling_auth
+    |     response = await self._send_handling_redirects(
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1694, in _send_handling_redirects
+    |     response = await self._send_single_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_client.py", line 1730, in _send_single_request
+    |     response = await transport.handle_async_request(request)
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 393, in handle_async_request
+    |     with map_httpcore_exceptions():
+    |   File "/usr/local/lib/python3.11/contextlib.py", line 158, in __exit__
+    |     self.gen.throw(typ, value, traceback)
+    |   File "/root/.local/lib/python3.11/site-packages/httpx/_transports/default.py", line 118, in map_httpcore_exceptions
+    |     raise mapped_exc(message) from exc
+    | httpx.RemoteProtocolError: Server disconnected without sending a response.
+    +------------------------------------
+[1/36] P-C1-XREF-ERROR  local rep1 ok           32.7s turns=8 tools=7 tok=19407+884
+[2/36] P-C1-XREF-ERROR  mcp   rep1 ok           81.3s turns=11 tools=10 tok=108987+1620
+[3/36] P-C1-XREF-ERROR  none  rep1 ok           15.2s turns=1 tools=0 tok=220+515
+[4/36] P-C2-PASSWORD-IMPACT none  rep1 ok           21.6s turns=1 tools=0 tok=219+741
+[5/36] P-C2-PASSWORD-IMPACT local rep1 ok           38.7s turns=11 tools=10 tok=30247+1108
+[6/36] P-C2-PASSWORD-IMPACT mcp   rep1 ok           72.4s turns=11 tools=10 tok=95797+1497
+[7/36] P-C3-EXPORT      none  rep1 ok           10.0s turns=1 tools=0 tok=212+308
+[8/36] P-C3-EXPORT      mcp   rep1 ok           66.5s turns=11 tools=10 tok=107410+1183
+[9/36] P-C3-EXPORT      local rep1 ok           51.6s turns=11 tools=10 tok=57063+1049
+[10/36] P-J1-DELETE      mcp   rep1 ok           44.7s turns=8 tools=7 tok=43503+897
+[11/36] P-J1-DELETE      local rep1 ok           75.9s turns=10 tools=9 tok=49014+1798
+[12/36] P-J1-DELETE      none  rep1 ok           23.4s turns=1 tools=0 tok=219+742
+[13/36] P-J2-REALM-CHECK none  rep1 ok           21.9s turns=1 tools=0 tok=218+924
+[14/36] P-J2-REALM-CHECK mcp   rep1 ok           81.6s turns=11 tools=10 tok=81352+1589
+[15/36] P-J2-REALM-CHECK local rep1 ok           80.8s turns=11 tools=15 tok=87815+1801
+[16/36] P-J3-DBTYPE      none  rep1 ok           25.3s turns=1 tools=0 tok=206+773
+[17/36] P-J3-DBTYPE      mcp   rep1 ok           74.5s turns=11 tools=10 tok=89418+1031
+[18/36] P-J3-DBTYPE      local rep1 ok           51.0s turns=11 tools=10 tok=52440+1186
+[19/36] P-C1-XREF-ERROR  mcp   rep2 ok           59.4s turns=9 tools=8 tok=73460+1123
+[20/36] P-C1-XREF-ERROR  local rep2 ok           32.2s turns=6 tools=7 tok=11731+958
+[21/36] P-C1-XREF-ERROR  none  rep2 ok           17.9s turns=1 tools=0 tok=220+688
+[22/36] P-C2-PASSWORD-IMPACT local rep2 ok           39.4s turns=7 tools=6 tok=22703+1124
+[23/36] P-C2-PASSWORD-IMPACT none  rep2 ok           18.8s turns=1 tools=0 tok=219+653
+[24/36] P-C2-PASSWORD-IMPACT mcp   rep2 ok           77.7s turns=11 tools=10 tok=110665+1359
+[25/36] P-C3-EXPORT      none  rep2 ok           12.2s turns=1 tools=0 tok=212+466
+[26/36] P-C3-EXPORT      mcp   rep2 ok           65.2s turns=11 tools=10 tok=114540+1205
+[27/36] P-C3-EXPORT      local rep2 ok           45.9s turns=10 tools=9 tok=58252+1074
+[28/36] P-J1-DELETE      local rep2 ok           38.0s turns=11 tools=10 tok=13333+1246
+[29/36] P-J1-DELETE      none  rep2 ok           13.3s turns=1 tools=0 tok=219+542
+[30/36] P-J1-DELETE      mcp   rep2 ok           39.8s turns=8 tools=7 tok=43503+847
+[31/36] P-J2-REALM-CHECK local rep2 ok           48.0s turns=11 tools=10 tok=48100+1156
+[32/36] P-J2-REALM-CHECK none  rep2 ok           19.3s turns=1 tools=0 tok=218+729
+[33/36] P-J2-REALM-CHECK mcp   rep2 ok           67.7s turns=11 tools=10 tok=86918+1318
+[34/36] P-J3-DBTYPE      local rep2 ok           59.5s turns=10 tools=9 tok=59270+1327
+[35/36] P-J3-DBTYPE      mcp   rep2 ok            3.3s turns=1 tools=0 tok=3541+93
+[36/36] P-J3-DBTYPE      none  rep2 ok           13.9s turns=1 tools=0 tok=206+489
+fertig: /bench/results/raw/ch9n_pod_coder30b_32k_holdout.jsonl
+start 17:13:28 pod_coder30b_32k qwen3-coder:30b ctx=32768
+fortgesetzt: 23 Sitzungen vorhanden, 49 offen
+[1/49] T-J2-EXTENSION   mcp   rep1 ok           77.2s turns=11 tools=10 tok=92050+1382
+[2/49] T-J3-IMPACT      none  rep1 ok           21.7s turns=1 tools=0 tok=200+721
+[3/49] T-J3-IMPACT      mcp   rep1 ok           79.3s turns=11 tools=10 tok=107826+1577
+[4/49] T-J3-IMPACT      local rep1 ok           32.1s turns=2 tools=4 tok=5061+907
+[5/49] T-J4-TESTS       local rep1 ok           30.2s turns=5 tools=4 tok=11120+1042
+[6/49] T-J4-TESTS       none  rep1 ok           17.2s turns=1 tools=0 tok=187+654
+[7/49] T-J4-TESTS       mcp   rep1 ok           72.4s turns=11 tools=10 tok=97018+1350
+[8/49] T-J5-BUGHUNT     local rep1 ok           68.9s turns=10 tools=9 tok=80057+1598
+[9/49] T-J5-BUGHUNT     none  rep1 ok           22.9s turns=1 tools=0 tok=237+758
+start 17:21:04 pod_coder30b_32k qwen3-coder:30b ctx=32768
+fortgesetzt: 32 Sitzungen vorhanden, 40 offen
+[1/40] T-J5-BUGHUNT     mcp   rep1 ok           63.3s turns=11 tools=10 tok=70708+1331
+[2/40] T-J6-REVIEW      local rep1 ok           45.7s turns=11 tools=10 tok=46111+1014
+[3/40] T-J6-REVIEW      mcp   rep1 ok           68.6s turns=11 tools=10 tok=75663+1312
+[4/40] T-J6-REVIEW      none  rep1 ok           16.2s turns=1 tools=0 tok=231+529
+[5/40] T-C1-ONBOARD     local rep2 ok           49.5s turns=11 tools=10 tok=42479+1209
+[6/40] T-C1-ONBOARD     none  rep2 ok           19.7s turns=1 tools=0 tok=218+665
+[7/40] T-C1-ONBOARD     mcp   rep2 ok           72.7s turns=11 tools=10 tok=125096+1216
+[8/40] T-C2-CHANGEPOINT mcp   rep2 ok           72.3s turns=11 tools=10 tok=114221+1388
+[9/40] T-C2-CHANGEPOINT local rep2 ok           72.3s turns=11 tools=10 tok=62382+1424
+[10/40] T-C2-CHANGEPOINT none  rep2 ok            8.6s turns=1 tools=0 tok=225+274
+[11/40] T-C3-IMPACT      local rep2 ok           46.6s turns=6 tools=5 tok=14747+1392
+[12/40] T-C3-IMPACT      mcp   rep2 ok           80.6s turns=11 tools=10 tok=118446+1658
+[13/40] T-C3-IMPACT      none  rep2 ok           26.5s turns=1 tools=0 tok=222+861
+[14/40] T-C4-BUGHUNT     mcp   rep2 ok           67.7s turns=11 tools=10 tok=88024+1529
+[15/40] T-C4-BUGHUNT     local rep2 ok           43.1s turns=11 tools=10 tok=36715+1121
+[16/40] T-C4-BUGHUNT     none  rep2 ok           12.6s turns=1 tools=0 tok=227+476
+[17/40] T-C5-JOB         none  rep2 ok           12.9s turns=1 tools=0 tok=206+504
+[18/40] T-C5-JOB         mcp   rep2 ok           83.6s turns=11 tools=10 tok=120190+1330
+[19/40] T-C5-JOB         local rep2 ok           38.7s turns=11 tools=10 tok=38848+1295
+[20/40] T-C6-REVIEW      none  rep2 ok            6.5s turns=1 tools=0 tok=214+195
+[21/40] T-C6-REVIEW      mcp   rep2 ok           85.2s turns=11 tools=10 tok=105137+1503
+[22/40] T-C6-REVIEW      local rep2 ok           55.6s turns=11 tools=10 tok=53568+1400
+[23/40] T-J1-ONBOARD     local rep2 ok           33.8s turns=11 tools=10 tok=14844+1015
+[24/40] T-J1-ONBOARD     none  rep2 ok           23.4s turns=1 tools=0 tok=213+824
+[25/40] T-J1-ONBOARD     mcp   rep2 ok           30.9s turns=4 tools=3 tok=17996+670
+[26/40] T-J2-EXTENSION   none  rep2 ok           14.4s turns=1 tools=0 tok=228+632
+[27/40] T-J2-EXTENSION   mcp   rep2 ok           77.4s turns=11 tools=10 tok=104976+1258
+[28/40] T-J2-EXTENSION   local rep2 ok           63.8s turns=7 tools=7 tok=20058+1975
+[29/40] T-J3-IMPACT      mcp   rep2 ok           88.8s turns=11 tools=10 tok=110150+1568
+[30/40] T-J3-IMPACT      none  rep2 ok           23.5s turns=1 tools=0 tok=200+781
+[31/40] T-J3-IMPACT      local rep2 ok           18.4s turns=3 tools=5 tok=7769+515
+[32/40] T-J4-TESTS       mcp   rep2 ok           60.7s turns=10 tools=9 tok=89451+1083
+[33/40] T-J4-TESTS       none  rep2 ok           19.1s turns=1 tools=0 tok=187+675
+[34/40] T-J4-TESTS       local rep2 ok           34.0s turns=6 tools=5 tok=19020+942
+[35/40] T-J5-BUGHUNT     local rep2 ok           46.4s turns=11 tools=10 tok=37924+1186
+[36/40] T-J5-BUGHUNT     mcp   rep2 ok           69.0s turns=11 tools=10 tok=76006+1562
+[37/40] T-J5-BUGHUNT     none  rep2 ok           23.4s turns=1 tools=0 tok=237+747
+[38/40] T-J6-REVIEW      none  rep2 ok           15.8s turns=1 tools=0 tok=231+551
+[39/40] T-J6-REVIEW      mcp   rep2 ok           59.0s turns=11 tools=10 tok=75638+1300
+[40/40] T-J6-REVIEW      local rep2 ok           61.9s turns=11 tools=10 tok=66123+1325
+fertig: /bench/results/raw/ch9n_pod_coder30b_32k_team.jsonl
+fortgesetzt: 36 Sitzungen vorhanden, 0 offen
+fertig: /bench/results/raw/ch9n_pod_coder30b_32k_holdout.jsonl
+exit 0

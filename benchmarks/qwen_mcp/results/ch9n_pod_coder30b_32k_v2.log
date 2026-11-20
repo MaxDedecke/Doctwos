@@ -1,0 +1,21 @@
+start 18:21:14 pod_coder30b_32k_v2 qwen3-coder:30b ctx=32768
+[1/24] T-C1-ONBOARD     mcp   rep1 ok           74.5s turns=11 tools=10 tok=109694+1254
+[2/24] T-C2-CHANGEPOINT mcp   rep1 ok            6.0s turns=1 tools=0 tok=3612+105
+[3/24] T-C3-IMPACT      mcp   rep1 ok           70.8s turns=11 tools=10 tok=82329+1430
+[4/24] T-C4-BUGHUNT     mcp   rep1 ok           59.0s turns=7 tools=6 tok=58818+1109
+[5/24] T-C5-JOB         mcp   rep1 ok           78.5s turns=11 tools=10 tok=109375+1267
+[6/24] T-C6-REVIEW      mcp   rep1 ok           77.6s turns=11 tools=10 tok=91211+1695
+[7/24] T-J1-ONBOARD     mcp   rep1 ok           32.1s turns=4 tools=3 tok=23665+546
+[8/24] T-J2-EXTENSION   mcp   rep1 ok           57.4s turns=7 tools=6 tok=59176+1019
+[9/24] T-J3-IMPACT      mcp   rep1 ok           66.0s turns=11 tools=10 tok=74685+1416
+[10/24] T-J4-TESTS       mcp   rep1 ok           57.1s turns=8 tools=7 tok=61391+1025
+[11/24] T-J5-BUGHUNT     mcp   rep1 ok           75.1s turns=11 tools=10 tok=100673+1399
+[12/24] T-J6-REVIEW      mcp   rep1 ok           62.5s turns=11 tools=10 tok=81576+1202
+[13/24] T-C1-ONBOARD     mcp   rep2 ok           75.0s turns=11 tools=12 tok=132234+1204
+[14/24] T-C2-CHANGEPOINT mcp   rep2 ok           90.9s turns=11 tools=10 tok=129129+1495
+[15/24] T-C3-IMPACT      mcp   rep2 ok           77.2s turns=11 tools=10 tok=82032+1707
+[16/24] T-C4-BUGHUNT     mcp   rep2 ok           44.2s turns=7 tools=6 tok=45647+1004
+[17/24] T-C5-JOB         mcp   rep2 ok           78.1s turns=11 tools=10 tok=102369+1451
+[18/24] T-C6-REVIEW      mcp   rep2 ok           76.6s turns=11 tools=10 tok=91298+1487
+[19/24] T-J1-ONBOARD     mcp   rep2 ok           36.4s turns=2 tools=1 tok=8765+836
+[20/24] T-J2-EXTENSION   mcp   rep2 ok           93.0s turns=11 tools=10 tok=96596+1268

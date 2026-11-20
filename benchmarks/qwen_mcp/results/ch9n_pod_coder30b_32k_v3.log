@@ -1,0 +1,40 @@
+start 18:43:47 pod_coder30b_32k_v3 qwen3-coder:30b ctx=32768
+[1/24] T-C1-ONBOARD     mcp   rep1 ok           75.0s turns=11 tools=10 tok=114883+1136
+[2/24] T-C2-CHANGEPOINT mcp   rep1 ok          102.3s turns=11 tools=10 tok=140201+1572
+[3/24] T-C3-IMPACT      mcp   rep1 ok            6.7s turns=1 tools=0 tok=3609+110
+[4/24] T-C4-BUGHUNT     mcp   rep1 ok           89.6s turns=11 tools=10 tok=114961+1431
+[5/24] T-C5-JOB         mcp   rep1 ok           78.1s turns=11 tools=10 tok=109482+1368
+[6/24] T-C6-REVIEW      mcp   rep1 ok           96.9s turns=11 tools=10 tok=108568+1630
+[7/24] T-J1-ONBOARD     mcp   rep1 ok           36.1s turns=2 tools=1 tok=8745+718
+[8/24] T-J2-EXTENSION   mcp   rep1 ok           61.6s turns=7 tools=6 tok=59176+1019
+[9/24] T-J3-IMPACT      mcp   rep1 ok           84.6s turns=11 tools=10 tok=72975+1849
+[10/24] T-J4-TESTS       mcp   rep1 ok           86.0s turns=11 tools=10 tok=95502+1485
+[11/24] T-J5-BUGHUNT     mcp   rep1 ok          106.9s turns=11 tools=10 tok=105795+1617
+[12/24] T-J6-REVIEW      mcp   rep1 ok           86.2s turns=11 tools=10 tok=84690+1464
+[13/24] T-C1-ONBOARD     mcp   rep2 ok           70.4s turns=11 tools=10 tok=102104+1072
+[14/24] T-C2-CHANGEPOINT mcp   rep2 ok           86.2s turns=11 tools=10 tok=120960+1352
+[15/24] T-C3-IMPACT      mcp   rep2 ok          105.3s turns=11 tools=10 tok=104533+1745
+[16/24] T-C4-BUGHUNT     mcp   rep2 ok           85.3s turns=11 tools=10 tok=98672+1373
+[17/24] T-C5-JOB         mcp   rep2 ok           80.5s turns=11 tools=10 tok=128260+1358
+[18/24] T-C6-REVIEW      mcp   rep2 ok           70.3s turns=10 tools=9 tok=90336+1569
+[19/24] T-J1-ONBOARD     mcp   rep2 ok           44.4s turns=2 tools=1 tok=8827+778
+[20/24] T-J2-EXTENSION   mcp   rep2 ok           72.0s turns=11 tools=10 tok=96596+1268
+[21/24] T-J3-IMPACT      mcp   rep2 ok           67.5s turns=11 tools=10 tok=83456+1355
+[22/24] T-J4-TESTS       mcp   rep2 ok            6.7s turns=1 tools=0 tok=3574+115
+[23/24] T-J5-BUGHUNT     mcp   rep2 ok          119.9s turns=11 tools=10 tok=120402+1795
+[24/24] T-J6-REVIEW      mcp   rep2 ok           76.4s turns=11 tools=10 tok=83945+1359
+fertig: /bench/results/raw/ch9n_pod_coder30b_32k_v3_team.jsonl
+[1/12] P-C1-XREF-ERROR  mcp   rep1 ok           59.9s turns=7 tools=6 tok=63443+1009
+[2/12] P-C2-PASSWORD-IMPACT mcp   rep1 ok            5.4s turns=1 tools=0 tok=3606+83
+[3/12] P-C3-EXPORT      mcp   rep1 ok           56.9s turns=8 tools=7 tok=76326+938
+[4/12] P-J1-DELETE      mcp   rep1 ok           67.9s turns=8 tools=7 tok=67524+993
+[5/12] P-J2-REALM-CHECK mcp   rep1 ok           98.5s turns=11 tools=10 tok=110333+1588
+[6/12] P-J3-DBTYPE      mcp   rep1 ok           90.4s turns=11 tools=10 tok=96236+1173
+[7/12] P-C1-XREF-ERROR  mcp   rep2 ok           60.7s turns=8 tools=7 tok=71710+1129
+[8/12] P-C2-PASSWORD-IMPACT mcp   rep2 ok            5.3s turns=1 tools=0 tok=3606+89
+[9/12] P-C3-EXPORT      mcp   rep2 ok           73.8s turns=11 tools=10 tok=118195+1140
+[10/12] P-J1-DELETE      mcp   rep2 ok           66.9s turns=8 tools=7 tok=67524+851
+[11/12] P-J2-REALM-CHECK mcp   rep2 ok           99.3s turns=11 tools=10 tok=106408+1454
+[12/12] P-J3-DBTYPE      mcp   rep2 ok           99.5s turns=11 tools=10 tok=109281+1237
+fertig: /bench/results/raw/ch9n_pod_coder30b_32k_v3_holdout.jsonl
+exit 0
