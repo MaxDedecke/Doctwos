@@ -486,12 +486,12 @@ for i in backend-api parser-worker frontend; do
 done
 ```
 
-Put `docker-compose.yml`, `docker-compose.gpu.yml`, `.env.example`, `config/` and `scripts/generate_diagnostics.py` into a private repository. Never commit a filled-in `.env`.
+Put `docker-compose.yml`, `docker-compose.gpu.yml`, `.env.example`, `config/` and `scripts/generate_diagnostics.py` into a private repository. For a separate OpenAI-compatible model endpoint, add `scripts/test-remote-inference.sh` and `scripts/check_remote_inference.py` next to `docker-compose.yml`. Never commit a filled-in `.env`.
 
 Target host:
 
 ```sh
-apt-get update && apt-get install -y docker.io docker-compose-v2 git
+apt-get update && apt-get install -y docker.io docker-compose-v2 git   # skip docker.io/compose if Docker is already installed
 git clone https://github.com/<owner>/<companion-repo>.git /root/doctus
 docker login ghcr.io -u <owner>          # password: the read token
 V=pilot-20261116
@@ -543,6 +543,19 @@ sed -i \
 
   With a separate model server, leave these out and set the `LLM_*`/`EMBEDDING_*` endpoints instead
   (`docs/REMOTE_INFERENCE.md`).
+- For a local chat model on NVIDIA GPUs (driver and NVIDIA Container Toolkit installed, `docker info | grep -i nvidia`
+  lists the runtime), additionally give Ollama the GPUs and set the model and its context before the first start;
+  the first start then creates a ready chat profile (decision E-17):
+
+  ```sh
+  sed -i -e "s|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml|" \
+         -e "s|^LLM_MODEL=.*|LLM_MODEL=qwen3-coder:30b|" \
+         -e "s|^OLLAMA_NUM_CTX=.*|OLLAMA_NUM_CTX=32768|" .env
+  ```
+
+  Without the GPU file Ollama runs on the CPU, which is unusable for a 30B model. Pull the model after the start
+  (`docker exec doctus-ollama ollama pull qwen3-coder:30b`, about 19 GB) and check in `docker logs doctus-ollama`
+  that the inference compute lines list the GPUs.
 
 ### 4. Start and verify
 
