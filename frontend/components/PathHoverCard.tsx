@@ -65,6 +65,8 @@ interface PathHoverCardProps {
   note?: string;
   /** Ohne Angabe gibt es die Aktion „Ansehen“ nicht. */
   onView?: () => void;
+  /** Wird erst beim Öffnen der Karte gerendert (z. B. die zitierten Zeilen). */
+  preview?: React.ReactNode;
   children: (trigger: PathCardTrigger) => React.ReactNode;
 }
 
@@ -73,7 +75,7 @@ interface PathHoverCardProps {
  * Aktionen „Pfad kopieren“ und „Ansehen“. Die Karte liegt im Portal, damit Tabellen und
  * Scrollbereiche sie nicht abschneiden.
  */
-export const PathHoverCard: React.FC<PathHoverCardProps> = ({ path, theme, note, onView, children }) => {
+export const PathHoverCard: React.FC<PathHoverCardProps> = ({ path, theme, note, onView, preview, children }) => {
   const { t } = useLanguage();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const [copied, setCopied] = useState(false);
@@ -143,6 +145,7 @@ export const PathHoverCard: React.FC<PathHoverCardProps> = ({ path, theme, note,
         >
           <p className="break-all px-2 py-1 font-mono">{path}</p>
           {note && <p className="px-2 pb-1 text-[0.6875rem] opacity-70">{note}</p>}
+          {preview}
           <div className="mt-1 flex flex-wrap items-center gap-1">
             <button
               type="button"

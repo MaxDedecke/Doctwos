@@ -1388,7 +1388,9 @@
       "commentPlaceholder": "Optional: Was genau? (bleibt in Doctus)",
       "skip": "Ohne Grund",
       "send": "Senden"
-    }
+    },
+    "mentionsLabel": "Codeobjekte zum Erwähnen",
+    "inputHint": "@ erwähnt ein Codeobjekt · ↑ bearbeitet die letzte Frage · Esc stoppt"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",
@@ -1669,7 +1671,9 @@
   },
   "pathCard": {
     "copy": "Pfad kopieren",
-    "view": "Ansehen"
+    "view": "Ansehen",
+    "preview": "Zitierte Zeilen",
+    "loadingPreview": "Lädt Zeilen …"
   },
   "knowledgeGraphView": {
     "filters": "Filter",

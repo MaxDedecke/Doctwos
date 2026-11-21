@@ -1388,7 +1388,9 @@
       "commentPlaceholder": "Optional: what exactly? (stays in Doctus)",
       "skip": "No reason",
       "send": "Send"
-    }
+    },
+    "mentionsLabel": "Code objects to mention",
+    "inputHint": "@ mentions a code object · ↑ edits the last question · Esc stops"
   },
   "openGraphDialog": {
     "title": "Open knowledge graph",
@@ -1669,7 +1671,9 @@
   },
   "pathCard": {
     "copy": "Copy path",
-    "view": "View"
+    "view": "View",
+    "preview": "Cited lines",
+    "loadingPreview": "Loading lines …"
   },
   "knowledgeGraphView": {
     "filters": "Filters",

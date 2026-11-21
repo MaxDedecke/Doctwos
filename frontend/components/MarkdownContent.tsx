@@ -3,6 +3,8 @@ import { FILE_LIKE_RE } from '@/lib/citationLabel';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn, copyToClipboard } from "@/lib/utils";
 import { MermaidDiagram } from '@/components/MermaidDiagram';
+import { HighlightedCode } from '@/components/HighlightedCode';
+import { highlightLanguage } from '@/lib/codeHighlight';
 import { Check, Layers } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -74,12 +76,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ language, code, theme, sho
         "p-4 overflow-x-auto max-w-full text-sm font-mono leading-relaxed no-scrollbar",
         theme === 'dark' ? "text-ds-zinc-300 bg-ds-black/20" : "text-ds-zinc-800 bg-ds-black/5"
       )}>
-        <code>{showLineNumbers ? code.split('\n').map((line, index) => (
-          <span key={index} className="grid grid-cols-[2.5rem_minmax(0,1fr)] gap-3">
-            <span aria-hidden="true" className="select-none text-right text-ds-zinc-500/70">{startLine + index}</span>
-            <span>{line || ' '}</span>
-          </span>
-        )) : code}</code>
+        <code><HighlightedCode code={code} language={highlightLanguage(language)} firstLine={showLineNumbers ? startLine : undefined} /></code>
       </pre>
     </div>
   );

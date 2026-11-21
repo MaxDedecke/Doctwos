@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { KnowledgeSource, Project } from '@/types/domain';
+import type { KnowledgeSource, Project, SearchResult } from '@/types/domain';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,7 +14,9 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
-import { BookOpen, Check, Code, Cpu, Pencil, Plus, Send, Square, X } from 'lucide-react';
+import { AtSign, BookOpen, Check, Code, Cpu, Pencil, Plus, Send, Square, X } from 'lucide-react';
+import { applyMention, useEntityMentions } from '@/hooks/useEntityMentions';
+import { useState } from 'react';
 
 export interface ChatComposerProps {
   theme: string;
@@ -51,6 +53,18 @@ export function ChatComposer({
   handleSourceFocusChange, sessionChatMode, activeChatMode, activeProfileId, setActiveProfileId, llmProfiles, showToast,
 }: ChatComposerProps) {
   const { t } = useLanguage();
+  const [caret, setCaret] = useState(0);
+  const mentions = useEntityMentions(currentMessage, caret, selectedProject?.id);
+  const chooseMention = (item: SearchResult) => {
+    const next = applyMention(currentMessage, caret, item.node_label);
+    if (!next) return;
+    setCurrentMessage(next.text);
+    setCaret(next.caret);
+    requestAnimationFrame(() => {
+      const field = document.getElementById('chat-textarea') as HTMLTextAreaElement | null;
+      field?.setSelectionRange(next.caret, next.caret);
+    });
+  };
   // Bewusst kompakt: Im Viertelraster (4 Ansichten) ist die Höhe des Chats knapp, und Container-Queries sehen
   // nur die Breite.
   return (
@@ -59,6 +73,20 @@ export function ChatComposer({
       theme === 'dark' ? "border-ds-zinc-900/40" : "border-ds-zinc-200"
     )}>
       <div className="w-[92%] max-w-3xl mx-auto relative group">
+        {mentions.open && (
+          <ul role="listbox" aria-label={t('chatView.mentionsLabel')} className={cn("absolute bottom-full left-0 right-0 mb-1 max-h-56 overflow-y-auto rounded-lg border p-1 text-xs shadow-xl",
+            theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800" : "bg-ds-white border-ds-zinc-200")}>
+            {mentions.items.map((item, index) => (
+              <li key={`${item.node_type}:${item.node_id}`} role="option" aria-selected={index === mentions.active}
+                onMouseDown={(event) => { event.preventDefault(); chooseMention(item); }}
+                className={cn("flex cursor-pointer items-center gap-2 rounded px-2 py-1", index === mentions.active && "bg-ds-indigo-500/10")}>
+                <AtSign className="w-3 h-3 shrink-0 text-ds-indigo-500" />
+                <span className="font-mono font-semibold">{item.node_label}</span>
+                <span className="truncate text-ds-zinc-500">{[item.node_meta.type, item.node_meta.file_path].filter(Boolean).join(' · ')}</span>
+              </li>
+            ))}
+          </ul>
+        )}
 
         <div className={cn(
           "border rounded-lg shadow-2xl transition-all shadow-ds-black/40 backdrop-blur-xl w-full max-w-full overflow-hidden",
@@ -118,6 +146,7 @@ export function ChatComposer({
           )}
 
           <textarea
+            onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
             rows={1}
             id="chat-textarea"
             className={cn(
@@ -128,11 +157,20 @@ export function ChatComposer({
             value={currentMessage}
             onChange={(e) => {
               setCurrentMessage(e.target.value);
+              setCaret(e.target.selectionStart ?? e.target.value.length);
               // Wächst bis max-h-40 (160 px, ~8 Zeilen) mit und scrollt dann innen; im Viertelraster ist die Höhe knapp.
               e.target.style.height = 'auto';
               e.target.style.height = `${Math.min(e.target.scrollHeight, 160)}px`;
             }}
             onKeyDown={(e) => {
+              if (mentions.open && ['ArrowDown', 'ArrowUp', 'Enter', 'Tab', 'Escape'].includes(e.key)) {
+                e.preventDefault();
+                if (e.key === 'ArrowDown') mentions.move(1);
+                else if (e.key === 'ArrowUp') mentions.move(-1);
+                else if (e.key === 'Escape') mentions.dismiss();
+                else chooseMention(mentions.items[mentions.active]);
+                return;
+              }
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
                 if (!isLoading) handleSendChat();
@@ -278,6 +316,7 @@ export function ChatComposer({
         {/* AI Warning Disclaimer */}
         <div className="mt-1 text-[0.625rem] leading-snug text-ds-zinc-500 text-center px-3">
           {t(activeChatMode === 'normal' ? 'chatView.mode.normalDescription' : 'chatView.mode.evidenceDescription')}
+          <span className="hidden @md/chat:inline"> · {t('chatView.inputHint')}</span>
         </div>
       </div>
     </div>

@@ -43,3 +43,23 @@ describe('ChatComposer', () => {
     expect(onCancelEdit).toHaveBeenCalled();
   });
 });
+
+describe('ChatComposer mentions', () => {
+  it('suggests code objects after @ and inserts the chosen name', async () => {
+    const { api } = await import('@/app/services/api');
+    const { axiosResponse } = await import('@/test/http');
+    vi.spyOn(api, 'searchGlobal').mockResolvedValue(axiosResponse({ results: [
+      { node_type: 'entity', node_id: 5, node_label: 'COSGN00C', node_url: null, node_meta: { type: 'program', file_path: 'app/cbl/COSGN00C.cbl' } },
+    ], total: 1, counts: {} }) as never);
+    const setCurrentMessage = vi.fn();
+    render(<ChatComposer {...props({ currentMessage: 'Wer ruft @COS', setCurrentMessage, selectedProject: { id: 1, name: 'CardDemo' } })} />);
+    const field = screen.getByRole('textbox') as HTMLTextAreaElement;
+    field.setSelectionRange(13, 13);
+    fireEvent.select(field);
+
+    const option = await screen.findByRole('option', {}, { timeout: 2000 });
+    fireEvent.mouseDown(option);
+
+    expect(setCurrentMessage).toHaveBeenCalledWith('Wer ruft `COSGN00C` ');
+  });
+});

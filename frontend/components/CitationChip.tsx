@@ -3,6 +3,7 @@ import { compactCitationLabel, splitPlainPaths } from '@/lib/citationLabel';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { PathHoverCard, type PathCardTrigger } from '@/components/PathHoverCard';
+import { CitedLinesPreview } from '@/components/CitedLinesPreview';
 import type { KnownSource } from '@/components/MarkdownContent';
 import { BookOpen, Code } from 'lucide-react';
 import React, { createContext, useContext } from 'react';
@@ -65,7 +66,10 @@ export const CitationChip: React.FC<CitationChipProps> = ({ cited, path, line, i
     </button>
   );
   if (!compact) return renderChip();
-  return <PathHoverCard path={path} theme={theme} note={statusNote} onView={open}>{renderChip}</PathHoverCard>;
+  const preview = !isDoc && line && source?.source_id != null
+    ? <CitedLinesPreview sourceId={source.source_id} path={source.file || path} line={line} />
+    : undefined;
+  return <PathHoverCard path={path} theme={theme} note={statusNote} onView={open} preview={preview}>{renderChip}</PathHoverCard>;
 };
 
 /** Ein Pfad gehört nur dann zu einer bekannten Quelle, wenn er sie vollständig oder als Pfadende trifft. */

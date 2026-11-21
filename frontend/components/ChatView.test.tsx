@@ -178,7 +178,10 @@ describe('ChatView', () => {
 
       expect(screen.getByText('Was macht DISPATCHER.cbl?')).toBeTruthy();
       expect(screen.getByText('wichtig')).toBeTruthy();
-      expect(screen.getByText('MOVE 1 TO WS-FLAG.')).toBeTruthy();
+      const code = document.querySelector('pre code');
+      expect(code?.textContent?.trim()).toBe('MOVE 1 TO WS-FLAG.');
+      // COBOL wird hervorgehoben: MOVE und TO sind Schlüsselwörter.
+      expect(code?.querySelectorAll('.font-semibold').length).toBe(2);
     });
 
     it('kürzt Dateizitate im Antworttext und zeigt auf Wunsch den Originaltext', () => {
