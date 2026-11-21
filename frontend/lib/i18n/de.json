@@ -766,7 +766,24 @@
       "profilePlaceholder": "Profil auswählen",
       "temperatureLabel": "Kreativität (Temp)",
       "systemPromptLabel": "System Prompt",
-      "saveAiSettings": "AI-Einstellungen speichern"
+      "saveAiSettings": "AI-Einstellungen speichern",
+      "capabilities": {
+        "title": "Geprüfte Fähigkeiten",
+        "check": "Fähigkeiten prüfen",
+        "checking": "Prüfe …",
+        "unchecked": "Nicht geprüft",
+        "checked": "Geprüft am {{date}}",
+        "failed": "Prüfung fehlgeschlagen: {{error}}",
+        "tools": "Werkzeuge",
+        "tool_arguments": "Argumente",
+        "tool_roundtrip": "Ergebnisnutzung",
+        "streaming": "Streaming",
+        "reasoning": "Denken getrennt",
+        "reasoning_summary": "Denkzusammenfassung",
+        "noTools": "Das Modell bedient Werkzeuge nicht zuverlässig; der Evidenzmodus antwortet aus dem abgerufenen Kontext ohne Agent.",
+        "checkedToast": "Fähigkeiten des Profils geprüft",
+        "checkFailedToast": "Fähigkeitsprüfung fehlgeschlagen"
+      }
     },
     "logsTab": {
       "systemEnvTitle": "Systemumgebung & Status",
@@ -1340,7 +1357,9 @@
       "navigateMainframeCode": "Mainframe-Code verständlich navigieren",
       "unlockLegacySystems": "Legacy-Systeme erschließen",
       "programsCopybooksRelations": "Programme, Copybooks, Zusammenhänge"
-    }
+    },
+    "loadOlderMessages": "Ältere Nachrichten laden",
+    "loadingOlderMessages": "Lädt ältere Nachrichten …"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",
@@ -1494,7 +1513,14 @@
     "toolsFailed": "{{count}}× Werkzeug fehlgeschlagen",
     "toolFailed": "fehlgeschlagen",
     "toolRunning": "läuft …",
-    "toolAborted": "abgebrochen, kein Ergebnis"
+    "toolAborted": "abgebrochen, kein Ergebnis",
+    "reasoningTitle": "Überlegungen des Modells (vom Anbieter freigegeben)",
+    "showMore": "Mehr anzeigen",
+    "compaction": {
+      "running": "Älterer Verlauf wird zusammengefasst ({{count}} Nachrichten) …",
+      "ok": "Älterer Verlauf zusammengefasst ({{count}} Nachrichten); das Modell sieht ihn als Zusammenfassung.",
+      "failed": "Zusammenfassen des älteren Verlaufs fehlgeschlagen; {{count}} ältere Nachrichten fehlen dem Modell in dieser Runde."
+    }
   },
   "flowchartView": {
     "title": "Ablaufdiagramm",

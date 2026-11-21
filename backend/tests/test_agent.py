@@ -439,52 +439,38 @@ async def test_openai_compatible_agent_uses_profile_subpath(monkeypatch):
     assert events[-1]["type"] == "answer"
 
 
-@pytest.mark.asyncio
-async def test_openai_responses_agent_executes_function_call(monkeypatch):
+def _serve_responses(monkeypatch, reply) -> list[dict]:
+    """Ersetzt den Responses-Stream: ``reply(payload)`` liefert die Ausgabe-Items eines Zugs."""
     requests = []
 
-    class FakeResponse:
-        is_success = True
+    @contextlib.asynccontextmanager
+    async def mock_stream(_client, url, **kwargs):
+        payload = json.loads(json.dumps(kwargs["json"]))
+        requests.append(payload)
+        completed = {
+            "type": "response.completed",
+            "response": {"status": "completed", "output": reply(payload)},
+        }
 
-        def __init__(self, data):
-            self._data = data
+        async def lines():
+            yield "data: " + json.dumps(completed)
 
-        def raise_for_status(self):
-            return None
+        yield SimpleNamespace(is_success=True, aiter_lines=lines)
 
-        def json(self):
-            return self._data
+    monkeypatch.setattr("services.agent_providers_hosted.admitted_stream", mock_stream)
+    return requests
 
-    async def mock_post(self, url, **kwargs):
-        requests.append(json.loads(json.dumps(kwargs["json"])))
-        if len(requests) == 1:
-            return FakeResponse(
-                {
-                    "output": [
-                        {
-                            "type": "function_call",
-                            "call_id": "call-1",
-                            "name": "big_lookup",
-                            "arguments": "{}",
-                        }
-                    ]
-                }
-            )
-        return FakeResponse(
-            {
-                "output": [
-                    {
-                        "type": "message",
-                        "content": [{"type": "output_text", "text": "Fertig"}],
-                    }
-                ],
-                "output_text": "Fertig",
-            }
-        )
 
-    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+def _message(text: str) -> list[dict]:
+    return [{"type": "message", "content": [{"type": "output_text", "text": text}]}]
 
-    events = [
+
+def _function_call(call_id: str) -> list[dict]:
+    return [{"type": "function_call", "call_id": call_id, "name": "big_lookup", "arguments": "{}"}]
+
+
+async def _run_responses() -> list[dict]:
+    return [
         event
         async for event in run_agent_loop(
             provider="openai_responses",
@@ -501,11 +487,24 @@ async def test_openai_responses_agent_executes_function_call(monkeypatch):
         )
     ]
 
+
+@pytest.mark.asyncio
+async def test_openai_responses_agent_executes_function_call(monkeypatch):
+    requests = _serve_responses(
+        monkeypatch,
+        lambda payload: (
+            _function_call("call-1") if len(payload["input"]) == 1 else _message("Fertig")
+        ),
+    )
+
+    events = await _run_responses()
+
     assert events[-1]["type"] == "answer"
     assert events[-1]["content"] == "Fertig"
     assert any(event["type"] == "tool_call" for event in events)
     assert any(event["type"] == "tool_result" for event in events)
     assert requests[0]["tools"][0]["type"] == "function"
+    assert requests[0]["stream"] is True and requests[0]["instructions"].startswith("System")
     assert requests[1]["input"][-1] == {
         "type": "function_call_output",
         "call_id": "call-1",
@@ -519,65 +518,16 @@ async def test_openai_responses_agent_forces_an_answer_when_the_research_budget_
     monkeypatch,
 ):
     """Ein Modell, das nur Werkzeuge aufruft, liefert in der letzten Runde eine Antwort aus den Belegen."""
-    requests = []
+    requests = _serve_responses(
+        monkeypatch,
+        lambda payload: (
+            _message("Teilantwort aus Belegen")
+            if payload.get("tool_choice") == "none"
+            else _function_call(f"call-{len(payload['input'])}")
+        ),
+    )
 
-    class FakeResponse:
-        is_success = True
-
-        def __init__(self, data):
-            self._data = data
-
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return self._data
-
-    async def mock_post(self, url, **kwargs):
-        payload = json.loads(json.dumps(kwargs["json"]))
-        requests.append(payload)
-        if payload.get("tool_choice") == "none":
-            return FakeResponse(
-                {
-                    "output": [
-                        {
-                            "type": "message",
-                            "content": [{"type": "output_text", "text": "Teilantwort aus Belegen"}],
-                        }
-                    ]
-                }
-            )
-        return FakeResponse(
-            {
-                "output": [
-                    {
-                        "type": "function_call",
-                        "call_id": f"call-{len(requests)}",
-                        "name": "big_lookup",
-                        "arguments": "{}",
-                    }
-                ]
-            }
-        )
-
-    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
-
-    events = [
-        event
-        async for event in run_agent_loop(
-            provider="openai_responses",
-            model_name="gpt-5.6-luna",
-            api_key="secret",
-            base_url="https://api.openai.com/v1",
-            endpoint_path="/responses",
-            system_prompt="System",
-            prompt="Frage",
-            temperature=0.2,
-            repo_id=None,
-            db_session=SimpleNamespace(),
-            mcp_clients=[_FakeMcpClient("Ergebnis")],
-        )
-    ]
+    events = await _run_responses()
 
     assert events[-1]["type"] == "answer"
     assert events[-1]["content"] == "Teilantwort aus Belegen"
@@ -710,14 +660,19 @@ async def test_every_provider_answers_from_evidence_when_the_budget_is_used_up(
     """Recherchebudget und Abschlussrunde gelten für alle Anbieter, nicht nur für OpenAI."""
     requests = []
 
-    async def mock_post(self, url, **kwargs):
-        payload = json.loads(json.dumps(kwargs["json"]))
-        requests.append(payload)
+    def reply(payload):
         if _wants_no_tools(provider, payload):
-            return _JsonResponse(_non_streaming_reply(provider, text="Antwort aus Belegen"))
-        return _JsonResponse(_non_streaming_reply(provider, call="big_lookup"))
+            return _non_streaming_reply(provider, text="Antwort aus Belegen")
+        return _non_streaming_reply(provider, call="big_lookup")
 
-    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+    async def mock_post(self, url, **kwargs):
+        requests.append(json.loads(json.dumps(kwargs["json"])))
+        return _JsonResponse(reply(requests[-1]))
+
+    if provider == "openai_responses":
+        requests = _serve_responses(monkeypatch, lambda payload: reply(payload)["output"])
+    else:
+        monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
 
     events = [
         event
@@ -886,10 +841,7 @@ async def test_required_research_retries_once_and_then_accepts_the_answer(monkey
 
 @pytest.mark.asyncio
 async def test_required_research_gives_a_fixed_notice_when_the_retry_is_ignored_too(monkeypatch):
-    async def mock_post(self, url, **kwargs):
-        return _JsonResponse(_non_streaming_reply("openai_responses", text="Vermutung"))
-
-    monkeypatch.setattr(httpx.AsyncClient, "post", mock_post)
+    _serve_responses(monkeypatch, lambda _payload: _message("Vermutung"))
 
     events = [
         event

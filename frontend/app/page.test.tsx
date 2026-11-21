@@ -51,7 +51,7 @@ vi.mock('@/app/services/api', () => ({
     getProjectReferences: vi.fn(),
     getChatSessionsPage: vi.fn(),
     getChatSessionByUuid: vi.fn(),
-    getChatMessages: vi.fn(),
+    getChatMessagesPage: vi.fn(),
     updateChatMessageFeedback: vi.fn(),
     getKnowledgeSourceContent: vi.fn(),
     resolveWebOrigin: vi.fn(),
@@ -181,7 +181,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     mockedApi.getKnowledgeSources.mockResolvedValue(axiosResponse([]));
     mockedApi.getProjectReferences.mockResolvedValue(axiosResponse([]));
     mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [], has_more: false, limit: 30 }));
-    mockedApi.getChatMessages.mockResolvedValue(axiosResponse([]));
+    mockedApi.getChatMessagesPage.mockResolvedValue(axiosResponse({ messages: [], has_more: false }));
     mockedApi.getKnowledgeSourceContent.mockResolvedValue(axiosResponse({ content: 'code', format: 'text' }));
     mockedApi.updateChatSessionSnapshot.mockResolvedValue(axiosResponse({}));
   });
@@ -258,10 +258,10 @@ describe('app/page.tsx — Orchestrierung', () => {
     async function loginWithActiveSession(session: ChatSession, projects: Project[] = [projectA, projectB]) {
       mockedApi.getProjects.mockResolvedValue(axiosResponse(projects));
       mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [session], has_more: false, limit: 30 }));
-      mockedApi.getChatMessages.mockResolvedValue(axiosResponse([
+      mockedApi.getChatMessagesPage.mockResolvedValue(axiosResponse({ messages: [
         { id: 1, role: 'user', content: 'Wie hoch ist der Zins?', metadata_json: {} },
         { id: 2, role: 'assistant', content: 'Antwort', sources_json: [] },
-      ]));
+      ], has_more: false }));
       renderApp();
       await screen.findByTestId('sidebar');
 
@@ -387,9 +387,9 @@ describe('app/page.tsx — Orchestrierung', () => {
       mockedApi.getProjects.mockResolvedValue(axiosResponse([projectA]));
       const looseSession = chatSession({ id: 9, uuid: 'chat-9', project_id: null });
       mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [looseSession], has_more: false, limit: 30 }));
-      mockedApi.getChatMessages.mockResolvedValue(axiosResponse([
+      mockedApi.getChatMessagesPage.mockResolvedValue(axiosResponse({ messages: [
         { id: 1, role: 'user', content: 'Allgemeine Frage', metadata_json: {} },
-      ]));
+      ], has_more: false }));
       mockedApi.getProjectFiles.mockResolvedValue(axiosResponse(['ACCOUNT.cbl']));
       renderApp();
       await screen.findByTestId('sidebar');
@@ -439,7 +439,7 @@ describe('app/page.tsx — Orchestrierung', () => {
       searchParamsValue = new URLSearchParams('chat=chat-7');
       mockedApi.getProjects.mockResolvedValue(axiosResponse([projectA]));
       mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [chatSession()], has_more: false, limit: 30 }));
-      mockedApi.getChatMessages.mockResolvedValue(axiosResponse([{ id: 1, role: 'assistant', content: 'Antwort', sources_json: [] }]));
+      mockedApi.getChatMessagesPage.mockResolvedValue(axiosResponse({ messages: [{ id: 1, role: 'assistant', content: 'Antwort', sources_json: [] }], has_more: false }));
 
       renderApp();
 

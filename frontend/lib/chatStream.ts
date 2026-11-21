@@ -86,6 +86,11 @@ function contextTrimmed(value: Record<string, unknown>): Extract<AgentStep, { ty
   };
 }
 
+function historyCompacted(value: Record<string, unknown>): Extract<AgentStep, { type: 'history_compacted' }> | null {
+  if (!Number.isSafeInteger(value.messages) || !['running', 'ok', 'failed'].includes(String(value.status))) return null;
+  return { type: 'history_compacted', messages: value.messages as number, status: value.status as 'running' | 'ok' | 'failed' };
+}
+
 function toolResultDetails(value: Record<string, unknown>): { status?: ToolResultStatus; duration_ms?: number } {
   return {
     ...(value.status === 'ok' || value.status === 'error' ? { status: value.status } : {}),
@@ -98,6 +103,8 @@ function isAgentStep(value: unknown): value is AgentStep {
   if (value.type === 'view_action') return isAgentViewAction(value);
   if (value.type === 'thought') return typeof value.content === 'string';
   if (value.type === 'context_trimmed') return Array.isArray(value.parts);
+  if (value.type === 'reasoning') return typeof value.content === 'string';
+  if (value.type === 'history_compacted') return historyCompacted(value) !== null;
   if (typeof value.name !== 'string' || (value.id !== undefined && typeof value.id !== 'string')) return false;
   return value.type === 'tool_call' || (value.type === 'tool_result' && typeof value.result === 'string');
 }
@@ -127,6 +134,11 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
       return typeof value.content === 'string' ? { type: 'content_chunk', content: value.content } : null;
     case 'content_reset':
       return { type: 'content_reset' };
+    case 'reasoning_chunk':
+      return typeof value.content === 'string'
+        ? { type: 'reasoning_chunk', turn: Number.isSafeInteger(value.turn) ? value.turn as number : 0, content: value.content } : null;
+    case 'history_compacted':
+      return historyCompacted(value);
     case 'context_trimmed':
       return contextTrimmed(value);
     case 'tool_call':

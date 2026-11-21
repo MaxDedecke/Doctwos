@@ -9,8 +9,9 @@ import {
   createChatTurnFocus,
   getChatTurnFocus,
 } from '@/lib/chatFocus';
-import { normalizeInitialUserMessage } from '@/lib/chatMessage';
+import { fromStoredMessages, normalizeInitialUserMessage } from '@/lib/chatMessage';
 import { parseChatStreamEvent } from '@/lib/chatStream';
+import { withCompaction, withReasoningChunk } from '@/lib/chatSteps';
 import { extractCallFlowData } from '@/lib/callFlow';
 import type { CallFlowData } from '@/lib/callFlow';
 import { copyToClipboard } from '@/lib/utils';
@@ -18,7 +19,10 @@ import { lockedChatMode } from '@/lib/chatMode';
 import type { AgentStep, AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
-import { useCallback, useLayoutEffect, useRef } from 'react';
+import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+
+/** Nachrichten je Seite beim Öffnen und Nachladen einer Sitzung. */
+const MESSAGE_PAGE_SIZE = 40;
 
 type Translator = (key: string, vars?: Record<string, string | number>) => string;
 type Toast = ShowToast;
@@ -95,11 +99,13 @@ export function useChatController({
   const chatGenerationRef = useRef(0);
   const streamAbortRef = useRef<AbortController | null>(null);
   /** Entwertet und beendet einen laufenden Chat-Stream (neuer Chat, andere Sitzung, Projektwechsel). */
+  const [olderPages, setOlderPages] = useState({ hasMore: false, loading: false });
   const invalidateChat = useCallback(() => {
     chatGenerationRef.current += 1;
     streamAbortRef.current?.abort();
     streamAbortRef.current = null;
     setIsLoading(false);
+    setOlderPages({ hasMore: false, loading: false });
   }, [setIsLoading]);
   useLayoutEffect(() => {
     if (activeSessionIdRef.current !== activeSessionId) {
@@ -373,6 +379,11 @@ export function useChatController({
                 updateTarget(target => ({ ...showSteps(target), content: '' }));
               } else if (data.type === 'tool_result' || data.type === 'context_trimmed') {
                 accumulatedSteps = [...accumulatedSteps, data];
+                updateTarget(showSteps);
+              } else if (data.type === 'reasoning_chunk' || data.type === 'history_compacted') {
+                accumulatedSteps = data.type === 'reasoning_chunk'
+                  ? withReasoningChunk(accumulatedSteps, data.turn, data.content)
+                  : withCompaction(accumulatedSteps, data);
                 updateTarget(showSteps);
               } else if (data.type === 'view_action') {
                 if (handledViewActionIdsRef.current.has(data.action_id)) {
@@ -704,30 +715,36 @@ export function useChatController({
 
     const generation = chatGenerationRef.current;
     try {
-      const res = await api.getChatMessages(session.id);
+      const res = await api.getChatMessagesPage(session.id, { limit: MESSAGE_PAGE_SIZE });
       // Inzwischen eine andere Sitzung oder ein neuer Chat: diese Nachrichten nicht mehr zeigen.
       if (generation !== chatGenerationRef.current) return;
-      let hasUserMessage = false;
-      const formatted = res.data.map((message) => {
-        const isFirstUserMessage = message.role === 'user' && !hasUserMessage;
-        if (message.role === 'user') hasUserMessage = true;
-
-        return {
-          id: message.id,
-          role: message.role,
-          content: normalizeInitialUserMessage(message.content, isFirstUserMessage),
-          sources: message.sources_json || undefined,
-          metadata: message.metadata_json || undefined,
-          feedback: message.feedback || undefined
-        };
-      });
-      setChatMessages(formatted);
+      setChatMessages(fromStoredMessages(res.data.messages, !res.data.has_more));
+      setOlderPages({ hasMore: res.data.has_more, loading: false });
       showToast(t('page.toast.sessionLoaded', { title: session.title }), 'success');
     } catch (error) {
       console.error(error);
       showToast(t('page.toast.sessionLoadFailed'), 'error', error);
     }
   }, [connectedSources, handleProjectSelect, invalidateChat, ignoreUrlSyncRef, pathname, projects, restoreWorkspaceSnapshot, router, setActiveSessionId, setChatMessages, setSelectedSource, showToast, t]);
+
+  // Ältere Seite vor die geladenen Nachrichten. Nicht während einer laufenden Antwort: Sie schreibt in ihre
+  // Position im Verlauf, und das Voranstellen würde diese verschieben.
+  const loadOlderMessages = useCallback(async () => {
+    const sessionId = activeSessionIdRef.current;
+    const oldestId = chatMessagesRef.current[0]?.id;
+    if (sessionId == null || oldestId == null || isLoading || olderPages.loading) return;
+    const generation = chatGenerationRef.current;
+    setOlderPages(current => ({ ...current, loading: true }));
+    try {
+      const res = await api.getChatMessagesPage(sessionId, { limit: MESSAGE_PAGE_SIZE, before_id: oldestId });
+      if (generation !== chatGenerationRef.current) return;
+      setChatMessages(prev => [...fromStoredMessages(res.data.messages, !res.data.has_more), ...prev]);
+      setOlderPages({ hasMore: res.data.has_more, loading: false });
+    } catch (error) {
+      if (generation === chatGenerationRef.current) setOlderPages(current => ({ ...current, loading: false }));
+      showToast(t('page.toast.sessionLoadFailed'), 'error', error);
+    }
+  }, [isLoading, olderPages.loading, setChatMessages, showToast, t]);
 
   const handleRemoveSession = useCallback(async (id: number, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -754,5 +771,6 @@ export function useChatController({
     handleRemoveSession,
     recordAgentViewActionOutcome,
     invalidateChat,
+    olderMessages: { ...olderPages, load: loadOlderMessages },
   };
 }

@@ -267,6 +267,7 @@ async def test_responses_stream_does_not_send_temperature(monkeypatch):
         async def lines():
             yield "event: response.output_text.delta"
             yield 'data: {"type":"response.output_text.delta","delta":"Hallo"}'
+            yield 'data: {"type":"response.completed","response":{"status":"completed"}}'
 
         response.aiter_lines = lines
         yield response

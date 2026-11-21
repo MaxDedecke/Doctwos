@@ -217,6 +217,24 @@ def get_chat_messages(
     return sessions.serialize_messages(session_id, db)
 
 
+@router.get("/chat/sessions/{session_id}/messages/page")
+def get_chat_messages_page(
+    session_id: int,
+    limit: int = Query(default=40, ge=2, le=200),
+    before_id: int | None = Query(default=None, ge=1),
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Nachrichten seitenweise, jüngste zuerst geladen (lange Chats).
+
+    `before_id` ist die kleinste bereits geladene Nachrichten-ID; `has_more` sagt, ob ältere folgen.
+    """
+    with _http_errors():
+        sessions.get_accessible_session(db, user, session_id=session_id)
+    messages, has_more = sessions.page_messages(db, session_id, limit=limit, before_id=before_id)
+    return {"messages": messages, "has_more": has_more}
+
+
 @router.post("/chat/sessions/{session_id}/share")
 def share_chat_session(
     session_id: int, db: Session = Depends(get_db), user: User = Depends(get_current_user)

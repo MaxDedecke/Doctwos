@@ -1,13 +1,13 @@
 """
 backend/services/think_filter.py
 ================================
-Denkabschnitte (``<think>…</think>``) aus Modellausgaben entfernen, gestreamt und am Ende.
+Denkabschnitte (``<think>…</think>``) aus Modellausgaben lösen, gestreamt und am Ende.
 
 Server ohne Reasoning-Parser (vLLM ohne ``--reasoning-parser``, ältere Ollama-Versionen) liefern das
 Denken von Qwen3 als ``<think>…</think>`` im Antworttext. Füllt das Chat-Template das öffnende Tag
 selbst vor, kommt nur das schließende an; dann ist alles davor Denken. Live-Filter und abschließende
 Bereinigung müssen dieselbe Regel anwenden, sonst zeigt die Live-Anzeige etwas anderes als die fertige
-Antwort.
+Antwort. Das Denken wird nicht verworfen, sondern getrennt gesammelt (Reasoning-Kanal).
 """
 
 import re
@@ -35,16 +35,18 @@ def _partial_tag_length(buffer: str, *tags: str) -> int:
 
 
 class ThinkFilter:
-    """Entfernt ``<think>…</think>`` aus gestreamtem Text, auch wenn ein Tag über eine Stückgrenze läuft.
+    """Trennt ``<think>…</think>`` von gestreamtem Text, auch wenn ein Tag über eine Stückgrenze läuft.
 
-    Ein schließendes Tag ohne öffnendes macht bereits ausgegebenen Text nachträglich zu Denken.
-    ``take_reset()`` meldet das einmal; der Aufrufer verwirft dann die bisherige Live-Anzeige.
+    ``feed()`` liefert den sichtbaren Text, ``take_reasoning()`` das seither erkannte Denken. Ein
+    schließendes Tag ohne öffnendes macht bereits ausgegebenen Text nachträglich zu Denken; ``take_reset()``
+    meldet das einmal, der Aufrufer verwirft dann die bisherige Live-Anzeige.
     """
 
     def __init__(self) -> None:
         self._buffer = ""
         self._inside = False
-        self._emitted = False
+        self._shown: list[str] = []
+        self._reasoning: list[str] = []
         self._reset = False
 
     def feed(self, piece: str) -> str:
@@ -54,17 +56,19 @@ class ThinkFilter:
             if self._inside:
                 index = self._buffer.find(_CLOSE)
                 if index < 0:
-                    keep = _partial_tag_length(self._buffer, _CLOSE)
-                    self._buffer = self._buffer[len(self._buffer) - keep :]
+                    cut = len(self._buffer) - _partial_tag_length(self._buffer, _CLOSE)
+                    self._reasoning.append(self._buffer[:cut])
+                    self._buffer = self._buffer[cut:]
                     break
+                self._reasoning.append(self._buffer[:index])
                 self._buffer = self._buffer[index + len(_CLOSE) :]
                 self._inside = False
                 continue
             open_at, close_at = self._buffer.find(_OPEN), self._buffer.find(_CLOSE)
             if close_at >= 0 and (open_at < 0 or close_at < open_at):
-                out.clear()
-                self._reset = self._reset or self._emitted
-                self._emitted = False
+                self._reset = self._reset or any(self._shown)
+                self._reasoning.append("".join(self._shown + out) + self._buffer[:close_at])
+                self._shown, out = [], []
                 self._buffer = self._buffer[close_at + len(_CLOSE) :]
                 continue
             if open_at >= 0:
@@ -77,7 +81,7 @@ class ThinkFilter:
             self._buffer = self._buffer[cut:]
             break
         text = "".join(out)
-        self._emitted = self._emitted or bool(text)
+        self._shown.append(text)
         return text
 
     def take_reset(self) -> bool:
@@ -85,6 +89,28 @@ class ThinkFilter:
         reset, self._reset = self._reset, False
         return reset
 
+    def take_reasoning(self) -> str:
+        """Seit dem letzten Abruf erkanntes Denken."""
+        reasoning, self._reasoning = "".join(self._reasoning), []
+        return reasoning
+
     def flush(self) -> str:
         rest, self._buffer = self._buffer, ""
-        return "" if self._inside else rest
+        if self._inside:
+            self._reasoning.append(rest)
+            return ""
+        return rest
+
+
+# Je Modellzug gespeichertes Denken; der Rest ist für die Nachvollziehbarkeit entbehrlich und bläht die Nachricht.
+MAX_REASONING_STEP_CHARS = 8000
+
+
+def reasoning_step(turn: int, text: str) -> dict | None:
+    """Arbeitsschritt für das Denken eines Modellzugs, gekürzt; None, wenn es keins gab."""
+    text = text.strip()
+    if not text:
+        return None
+    if len(text) > MAX_REASONING_STEP_CHARS:
+        text = text[:MAX_REASONING_STEP_CHARS].rstrip() + " […]"
+    return {"type": "reasoning", "turn": turn, "content": text}

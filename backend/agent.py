@@ -11,9 +11,11 @@ from doctus_models.database import User
 from services.agent_providers import (
     ModelTurn,
     ProviderAdapter,
+    Reasoning,
     ToolCall,
     make_provider_adapter,
 )
+from services.think_filter import reasoning_step
 
 from services import agent_repo_tools as repo_tools
 from services.agent_bootstrap import plan_bootstrap
@@ -164,6 +166,9 @@ async def _research_loop(
                 async for item in adapter.complete(client, turn_index, tool_choice):
                     if isinstance(item, ModelTurn):
                         turn = item
+                    elif isinstance(item, Reasoning):
+                        # Denken ist keine Antwort und unterliegt nicht der Quellenprüfung; es läuft live mit.
+                        yield {"type": "reasoning_chunk", "turn": turn_index, "content": item.text}
                     elif not pending:
                         visible = markup.feed(item)
                         if visible:
@@ -208,6 +213,9 @@ async def _research_loop(
                 trimmed = {"type": "context_trimmed", "turn": turn_index, "parts": cut}
                 agent_steps.append(trimmed)
                 yield dict(trimmed)
+            thinking = reasoning_step(turn_index, turn.reasoning)
+            if thinking:
+                agent_steps.append(thinking)
             calls = [] if final else turn.tool_calls
             if turn.text and (calls or not pending):
                 # Text vor Werkzeugaufrufen ist Zwischenstand; ohne Aufrufe ist er die Antwort selbst.
@@ -281,6 +289,7 @@ async def run_agent_loop(
     mcp_initialization_status: Optional[List[Dict[str, Any]]] = None,
     evidence_chars: Optional[int] = None,
     context_length: Optional[int] = None,
+    reasoning_summary: bool = False,
 ) -> AsyncGenerator[Dict[str, Any], None]:
     """
     Runs the agent loop. Automatically combines local repository tools and MCP tools,
@@ -391,6 +400,7 @@ async def run_agent_loop(
         prompt=prompt,
         temperature=temperature,
         context_length=context_length,
+        reasoning_summary=reasoning_summary,
     )
     if adapter is None:
         return

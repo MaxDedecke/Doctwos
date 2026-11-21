@@ -5,6 +5,7 @@ import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import {
   AlertTriangle,
+  Archive,
   Brain,
   CheckCircle2,
   ChevronDown,
@@ -28,6 +29,9 @@ interface AgentStepsProps {
     theme: string;
     isLive?: boolean;
 }
+
+// Längeres Denken zeigt zuerst nur den Anfang; der Rest kommt auf Klick.
+const REASONING_PREVIEW_CHARS = 600;
 
 function formatDuration(ms: number, language: string): string {
     if (ms < 1000) return `${ms} ms`;
@@ -144,8 +148,10 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                         const isCall = step.type === 'tool_call';
                         const isResult = step.type === 'tool_result';
                         const isTrim = step.type === 'context_trimmed';
+                        const isReasoning = step.type === 'reasoning';
+                        const isCompaction = step.type === 'history_compacted';
                         // Ansichtsaktionen und unbekannte Schritte haben hier keine eigene Darstellung.
-                        if (!isThought && !isCall && !isResult && !isTrim) return null;
+                        if (!isThought && !isCall && !isResult && !isTrim && !isReasoning && !isCompaction) return null;
                         const failed = isResult && step.status === 'error';
                         // Ohne Ergebnis: läuft noch (live) oder wurde mit der Runde abgebrochen.
                         const pending = isCall && !!step.id && !answeredCallIds.has(step.id);
@@ -155,8 +161,10 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                 {/* Timeline Icon */}
                                 <div className={cn(
                                     "w-5 h-5 rounded-full flex items-center justify-center shrink-0 z-10 shadow-sm border",
-                                    isThought
+                                    isThought || isReasoning
                                         ? (theme === 'dark' ? "bg-ds-purple-950/60 border-ds-purple-500/30 text-ds-purple-400" : "bg-ds-purple-50 border-ds-purple-200 text-ds-purple-600")
+                                        : isCompaction
+                                        ? (theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-700 text-ds-zinc-400" : "bg-ds-zinc-100 border-ds-zinc-300 text-ds-zinc-600")
                                         : failed
                                         ? (theme === 'dark' ? "bg-ds-red-950/60 border-ds-red-500/30 text-ds-red-400" : "bg-ds-red-50 border-ds-red-200 text-ds-red-600")
                                         : isTrim
@@ -165,7 +173,8 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                         ? (theme === 'dark' ? "bg-ds-blue-950/60 border-ds-blue-500/30 text-ds-blue-400" : "bg-ds-blue-50 border-ds-blue-200 text-ds-blue-600")
                                         : (theme === 'dark' ? "bg-ds-emerald-950/60 border-ds-emerald-500/30 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-600")
                                 )}>
-                                    {isThought && <Brain className="w-2.5 h-2.5" />}
+                                    {(isThought || isReasoning) && <Brain className="w-2.5 h-2.5" />}
+                                    {isCompaction && (step.status === 'running' && isLive ? <Loader2 className="w-2.5 h-2.5 animate-spin" /> : <Archive className="w-2.5 h-2.5" />)}
                                     {isCall && getToolIcon(step.name)}
                                     {isResult && (failed ? <XCircle className="w-2.5 h-2.5" /> : <CheckCircle2 className="w-2.5 h-2.5" />)}
                                     {isTrim && <Scissors className="w-2.5 h-2.5" />}
@@ -206,6 +215,28 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                             )}>
                                                 {JSON.stringify(step.arguments, null, 2)}
                                             </pre>
+                                        </div>
+                                    )}
+
+                                    {isReasoning && (
+                                        <div className="space-y-1">
+                                            <span className={cn("font-semibold", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
+                                                {t('agentSteps.reasoningTitle')}
+                                            </span>
+                                            <p className={cn("whitespace-pre-wrap font-sans leading-relaxed", theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-600")}>
+                                                {expandedResults[idx] || step.content.length <= REASONING_PREVIEW_CHARS ? step.content : `${step.content.slice(0, REASONING_PREVIEW_CHARS)} …`}
+                                            </p>
+                                            {step.content.length > REASONING_PREVIEW_CHARS && (
+                                                <button type="button" onClick={() => toggleResult(idx)} className="text-[0.625rem] font-bold text-ds-indigo-500 hover:text-ds-indigo-400">
+                                                    {t(expandedResults[idx] ? 'agentSteps.hide' : 'agentSteps.showMore')}
+                                                </button>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {isCompaction && (
+                                        <div className={cn("font-medium", step.status === 'failed' ? "text-ds-amber-500" : theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-600")}>
+                                            {t(`agentSteps.compaction.${step.status}`, { count: step.messages })}
                                         </div>
                                     )}
 

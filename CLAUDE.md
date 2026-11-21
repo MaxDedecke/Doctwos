@@ -116,6 +116,12 @@ Regeln dafür:
 - **Expliziter Auftrag 06.11.2026 (Benutzerinfo):** Klick auf den Nutzer in der Sidebar öffnet einen kleinen Dialog mit
   Benutzername, E-Mail, Rolle, Anmeldeart, Teams, letzter Anmeldung und Anlagedatum (`/auth/me` liefert die Felder).
 
+- **Expliziter Auftrag 21.11.2026 (Chat langfristig):** Aus dem Chat-Review (Astra) beauftragt und vom Feature-Stopp
+  ausgenommen: Compacting des Gesprächsverlaufs (`services/chat_compaction.py`), Streaming und Kontextgrenze für die
+  Responses API (`services/agent_providers_hosted.py`), Fähigkeitsprüfung je KI-Profil als gemeinsamer Vertrag von
+  Profil und Chat (`services/profile_capabilities.py`), getrennter Reasoning-Kanal und seitenweises Laden langer
+  Chats. Einrichtung und Grenzen: `docs/REMOTE_INFERENCE.md`.
+
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
   `parser`-Service, nie in einen Request-Handler.

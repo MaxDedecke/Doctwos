@@ -335,10 +335,10 @@ describe('useChatController', () => {
   });
 
   it('loads a session, restores its workspace and normalizes its first message', async () => {
-    vi.spyOn(api, 'getChatMessages').mockResolvedValue(axiosResponse([
+    vi.spyOn(api, 'getChatMessagesPage').mockResolvedValue(axiosResponse({ messages: [
         { id: 1, role: 'user', content: '0 Wer bist du ?', metadata_json: { refs: [] } },
         { id: 2, role: 'assistant', content: 'Ich bin Doctus.', sources_json: [] },
-      ]));
+      ], has_more: false }));
     const handleProjectSelect = vi.fn();
     const restoreWorkspaceSnapshot = vi.fn();
     const { result } = renderHook(() => useControllerHarness({
@@ -532,6 +532,46 @@ describe('useChatController', () => {
     expect(result.current.showToast).toHaveBeenCalledWith('page.toast.aiQueryFailed', 'error', expect.anything());
   });
 
+  it('collects live reasoning and compaction as steps before the answer', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
+      { type: 'history_compacted', messages: 6, status: 'running' },
+      { type: 'history_compacted', messages: 6, status: 'ok' },
+      { type: 'reasoning_chunk', turn: 0, content: 'Ich ' },
+      { type: 'reasoning_chunk', turn: 0, content: 'prüfe' },
+    ])));
+    const { result } = renderHook(() => useControllerHarness({ currentMessage: 'Frage' }));
+
+    await act(async () => { await result.current.controller.handleSendChat(); });
+
+    expect(result.current.chatMessages[1].metadata?.agent_steps).toEqual([
+      { type: 'history_compacted', messages: 6, status: 'ok' },
+      { type: 'reasoning', turn: 0, content: 'Ich prüfe' },
+    ]);
+  });
+
+  it('opens long sessions with the latest page and prepends older pages on request', async () => {
+    const page = vi.spyOn(api, 'getChatMessagesPage')
+      .mockResolvedValueOnce(axiosResponse({ messages: [
+        { id: 30, role: 'user', content: 'Neu', metadata_json: {} },
+        { id: 31, role: 'assistant', content: 'Antwort neu', sources_json: [] },
+      ], has_more: true }) as never)
+      .mockResolvedValueOnce(axiosResponse({ messages: [
+        { id: 1, role: 'user', content: '0 Wer bist du ?', metadata_json: {} },
+        { id: 2, role: 'assistant', content: 'Doctus', sources_json: [] },
+      ], has_more: false }) as never);
+    const { result } = renderHook(() => useControllerHarness());
+
+    await act(async () => { await result.current.controller.handleSessionSelect({ id: 4, uuid: 'd', title: 'D' } as ChatSession); });
+    expect(result.current.controller.olderMessages.hasMore).toBe(true);
+    expect(result.current.chatMessages.map(message => message.content)).toEqual(['Neu', 'Antwort neu']);
+
+    await act(async () => { await result.current.controller.olderMessages.load(); });
+
+    expect(page).toHaveBeenLastCalledWith(4, { limit: 40, before_id: 30 });
+    expect(result.current.chatMessages.map(message => message.content)).toEqual(['Wer bist du ?', 'Doctus', 'Neu', 'Antwort neu']);
+    expect(result.current.controller.olderMessages.hasMore).toBe(false);
+  });
+
   it('stops a running answer from writing into the chat that replaced it', async () => {
     const stream = controllableStream();
     const fetchMock = vi.fn().mockResolvedValue(stream.response);
@@ -563,15 +603,15 @@ describe('useChatController', () => {
 
   it('shows the session chosen last when an earlier session loads late', async () => {
     let releaseA: (value: unknown) => void = () => {};
-    vi.spyOn(api, 'getChatMessages')
+    vi.spyOn(api, 'getChatMessagesPage')
       .mockImplementationOnce(() => new Promise(resolve => { releaseA = resolve; }) as never)
-      .mockResolvedValueOnce(axiosResponse([{ role: 'user', content: 'aus B' }]) as never);
+      .mockResolvedValueOnce(axiosResponse({ messages: [{ role: 'user', content: 'aus B' }], has_more: false }) as never);
     const { result } = renderHook(() => useControllerHarness());
 
     let first: Promise<void> = Promise.resolve();
     act(() => { first = result.current.controller.handleSessionSelect({ id: 1, uuid: 'a', title: 'A' } as ChatSession); });
     await act(async () => { await result.current.controller.handleSessionSelect({ id: 2, uuid: 'b', title: 'B' } as ChatSession); });
-    await act(async () => { releaseA(axiosResponse([{ role: 'user', content: 'aus A' }])); await first; });
+    await act(async () => { releaseA(axiosResponse({ messages: [{ role: 'user', content: 'aus A' }], has_more: false })); await first; });
 
     expect(result.current.activeSessionId).toBe(2);
     expect(result.current.chatMessages.map(message => message.content)).toEqual(['aus B']);

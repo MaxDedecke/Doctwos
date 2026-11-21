@@ -575,6 +575,7 @@ function AppContent() {
     handleRemoveSession,
     recordAgentViewActionOutcome,
     invalidateChat,
+    olderMessages,
   } = useChatController({
     t,
     showToast,
@@ -609,10 +610,8 @@ function AppContent() {
 
   useEffect(() => {
     handleSessionSelectRef.current = handleSessionSelect;
-  }, [handleSessionSelect]);
-  useEffect(() => {
     invalidateChatRef.current = invalidateChat;
-  }, [invalidateChat]);
+  }, [handleSessionSelect, invalidateChat]);
 
   // File-reference loading lives in useKnowledgeSources.
 
@@ -1028,6 +1027,7 @@ function AppContent() {
       chatMode={chatMode}
       setChatMode={changeChatMode}
       handleRetryMessage={handleRetryMessage}
+      olderMessages={olderMessages}
       handleFeedback={handleFeedback}
       addAssistantHint={addAssistantHint}
       handlePanelFileSelect={handlePanelFileSelect}

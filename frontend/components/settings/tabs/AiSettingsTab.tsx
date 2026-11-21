@@ -12,6 +12,7 @@ import { useFeatures } from '@/lib/FeaturesContext';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from '@/lib/utils';
 import { LocalDeploymentForm } from '@/components/settings/tabs/LocalDeploymentForm';
+import { ProfileCapabilities } from '@/components/settings/ProfileCapabilities';
 import { Check, ChevronRight, Edit, FileText, Play, Plus, PlugZap, Square, Trash2 } from 'lucide-react';
 import React, { useState } from 'react';
 
@@ -171,6 +172,8 @@ export const AiSettingsTab: React.FC = () => {
               {profile.id === activeProfileId && <Check className="w-3.5 h-3.5 text-ds-indigo-500" />}
             </div>
             <div className="font-mono text-[0.6875rem] text-ds-zinc-500 mt-1 truncate">{profile.model}{profile.baseUrl ? ` · ${profile.baseUrl}` : ''}</div>
+            <ProfileCapabilities profile={profile} showToast={showToast}
+              onChecked={checked => setLlmProfiles(llmProfiles.map(item => item.id === checked.id ? { ...item, capabilities: checked.capabilities } : item))} />
           </div>
           {deployerAvailable && profile.deploymentName && <DeploymentControls name={profile.deploymentName} deployment={deployments.find(item => item.name === profile.deploymentName)} showToast={showToast} onChanged={refreshDeployments} />}
           <Button variant="ghost" size="icon" onClick={() => testProfile(profile)} title={t('settings.profilesTab.testProfile')} className={ghostIconButtonClass}><PlugZap className="w-3.5 h-3.5" /></Button>

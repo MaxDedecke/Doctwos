@@ -360,7 +360,7 @@ async def test_standard_chat_sends_the_ollama_temperature_inside_options(monkeyp
         response.aiter_lines = aiter_lines
         yield response
 
-    monkeypatch.setattr("services.chat_service.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.standard_chat.admitted_stream", mock_admitted_stream)
     events = [
         event
         async for event in stream_standard_rag_events(
@@ -395,7 +395,7 @@ async def test_standard_chat_strips_inline_thinking_from_stream_and_answer(monke
         response.aiter_lines = aiter_lines
         yield response
 
-    monkeypatch.setattr("services.chat_service.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.standard_chat.admitted_stream", mock_admitted_stream)
     events = [
         event
         async for event in stream_standard_rag_events(
@@ -638,7 +638,7 @@ async def test_standard_chat_drops_history_before_the_question_and_disables_sile
         response.aiter_lines = aiter_lines
         yield response
 
-    monkeypatch.setattr("services.chat_service.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.standard_chat.admitted_stream", mock_admitted_stream)
     history = [SimpleNamespace(role="user", content="alt " * 3000)]
     [
         event
@@ -665,7 +665,7 @@ async def test_standard_chat_reports_an_oversized_request_instead_of_answering_b
     async def mock_admitted_stream(_client, _url, **_kwargs):
         yield _rejected(9000, 2048)
 
-    monkeypatch.setattr("services.chat_service.admitted_stream", mock_admitted_stream)
+    monkeypatch.setattr("services.standard_chat.admitted_stream", mock_admitted_stream)
     events = [
         event
         async for event in stream_standard_rag_events(

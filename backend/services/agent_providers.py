@@ -22,12 +22,8 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Optional, Union
 
 import core.config as cfg
-from doctus_models.inference_admission import admitted_post, admitted_stream
-from core.inference_errors import (
-    ContextWindowExceeded,
-    raise_for_inference_status,
-    raise_for_stream_status,
-)
+from doctus_models.inference_admission import admitted_stream
+from core.inference_errors import ContextWindowExceeded, raise_for_stream_status
 from core.llm_providers import is_self_hosted_openai
 from services.think_filter import ThinkFilter, strip_thinking
 
@@ -56,6 +52,20 @@ class ModelTurn:
     prompt_tokens: Optional[int] = None
     completion_tokens: Optional[int] = None
     finish_reason: Optional[str] = None
+    # Getrennt geliefertes Denken des Zugs (siehe Reasoning); leer, wenn der Server keins liefert.
+    reasoning: str = ""
+
+
+@dataclass
+class Reasoning:
+    """Stück Denken, das der Server getrennt von der Antwort liefert.
+
+    Quellen: Ollamas ``message.thinking``, ``reasoning_content``/``reasoning`` im Chat-Completions-Stream,
+    Zusammenfassungen der Responses API und ``<think>``-Abschnitte im Text. Es ist, was der Anbieter
+    freigibt, kein Versprechen auf die vollständige interne Herleitung.
+    """
+
+    text: str
 
 
 def _parse_arguments(raw: Any) -> Any:
@@ -113,11 +123,19 @@ class _ChatMessageBudget:
     wire_tools: list[dict]
     _chars_per_token: float = _DEFAULT_CHARS_PER_TOKEN
     _sent_chars: int = 0
+    # Außerhalb der Nachrichtenliste gesendeter Text (Responses: ``instructions``).
+    _fixed_chars: int = 0
+    # Woran ein Werkzeugergebnis erkannt wird und unter welchem Schlüssel sein Text steht.
+    _RESULT_FIELD, _RESULT_KIND, _RESULT_KEY = "role", "tool", "content"
 
-    def _start_conversation(self, system_prompt: str, history: list[dict], prompt: str) -> None:
+    def _start_conversation(
+        self, system_prompt: str, history: list[dict], prompt: str, system_in_messages: bool = True
+    ) -> None:
         self.messages: list[dict] = []
-        if system_prompt:
+        if system_prompt and system_in_messages:
             self.messages.append({"role": "system", "content": system_prompt})
+        elif system_prompt:
+            self._fixed_chars = len(system_prompt)
         self._history_messages = [{"role": m["role"], "content": m["content"]} for m in history]
         self.messages.extend(self._history_messages)
         self._prompt_message = {"role": "user", "content": prompt}
@@ -134,7 +152,9 @@ class _ChatMessageBudget:
         tools_size = _wire_size(self.wire_tools) if tools_sent else 0
 
         def size() -> int:
-            return tools_size + sum(_wire_size(m) for m in self.messages)
+            return self._fixed_chars + tools_size + sum(_wire_size(m) for m in self.messages)
+
+        key = self._RESULT_KEY
 
         if not self.context_length:
             self._sent_chars = size()
@@ -143,12 +163,12 @@ class _ChatMessageBudget:
         budget = int((self.context_length - reserve) * self._chars_per_token)
         cut: list[str] = []
 
-        tool_messages = [m for m in self.messages if m.get("role") == "tool"]
+        tool_messages = [m for m in self.messages if m.get(self._RESULT_FIELD) == self._RESULT_KIND]
         for message in tool_messages[1:-1]:
             if size() <= budget:
                 break
-            if len(message.get("content") or "") > len(_TRIMMED_TOOL_RESULT):
-                message["content"] = _TRIMMED_TOOL_RESULT
+            if len(message.get(key) or "") > len(_TRIMMED_TOOL_RESULT):
+                message[key] = _TRIMMED_TOOL_RESULT
                 cut.append("older_tool_results")
 
         while size() > budget and self._history_messages:
@@ -170,16 +190,16 @@ class _ChatMessageBudget:
                 )
                 cut.append("retrieved_context")
 
-        for message in sorted(tool_messages, key=lambda m: -len(m.get("content") or "")):
+        for message in sorted(tool_messages, key=lambda m: -len(m.get(key) or "")):
             excess = size() - budget
             if excess <= 0:
                 break
-            content = message.get("content") or ""
+            content = message.get(key) or ""
             keep = max(
                 _MIN_TOOL_RESULT_CHARS, len(content) - int(excess * 1.1) - len(_RESULT_CUT_NOTE)
             )
             if keep < len(content):
-                message["content"] = content[:keep] + _RESULT_CUT_NOTE
+                message[key] = content[:keep] + _RESULT_CUT_NOTE
                 cut.append("tool_results")
 
         self._sent_chars = size()
@@ -344,6 +364,7 @@ class OpenAIChatAdapter(_ChatMessageBudget, ProviderAdapter):
             payload["temperature"] = self.temperature
 
         raw_text = ""
+        reasoning: list[str] = []
         think_filter = ThinkFilter()
         partial_calls: dict[int, dict] = {}
         usage: dict = {}
@@ -369,9 +390,18 @@ class OpenAIChatAdapter(_ChatMessageBudget, ProviderAdapter):
                 choice = chunk["choices"][0]
                 finish_reason = choice.get("finish_reason") or finish_reason
                 delta = choice.get("delta") or {}
+                # vLLM mit Reasoning-Parser: ``reasoning_content`` (älter) bzw. ``reasoning``.
+                thought = delta.get("reasoning_content") or delta.get("reasoning")
+                if isinstance(thought, str) and thought:
+                    reasoning.append(thought)
+                    yield Reasoning(thought)
                 if delta.get("content"):
                     raw_text += delta["content"]
                     visible = think_filter.feed(delta["content"])
+                    thought = think_filter.take_reasoning()
+                    if thought:
+                        reasoning.append(thought)
+                        yield Reasoning(thought)
                     if visible:
                         yield visible
                 for part in delta.get("tool_calls") or []:
@@ -385,6 +415,7 @@ class OpenAIChatAdapter(_ChatMessageBudget, ProviderAdapter):
                     call["function"]["name"] = function.get("name") or call["function"]["name"]
                     call["function"]["arguments"] += function.get("arguments") or ""
         rest = think_filter.flush()
+        reasoning.append(think_filter.take_reasoning())
         if rest:
             yield rest
 
@@ -420,6 +451,7 @@ class OpenAIChatAdapter(_ChatMessageBudget, ProviderAdapter):
             prompt_tokens=usage.get("prompt_tokens"),
             completion_tokens=usage.get("completion_tokens"),
             finish_reason=finish_reason,
+            reasoning="".join(reasoning),
         )
 
     def add_tool_results(self, calls, results, turn):
@@ -503,6 +535,7 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
             payload["tools"] = self.wire_tools
 
         raw_text = ""
+        reasoning: list[str] = []
         # Ältere Ollama-Versionen liefern das Denken noch im Antworttext statt in ``message.thinking``.
         think_filter = ThinkFilter()
         wire_calls: list[dict] = []
@@ -521,9 +554,16 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
                 if chunk.get("error"):
                     raise RuntimeError(f"Ollama meldet einen Fehler: {chunk['error']}")
                 message = chunk.get("message") or {}
+                if isinstance(message.get("thinking"), str) and message["thinking"]:
+                    reasoning.append(message["thinking"])
+                    yield Reasoning(message["thinking"])
                 if message.get("content"):
                     raw_text += message["content"]
                     visible = think_filter.feed(message["content"])
+                    thought = think_filter.take_reasoning()
+                    if thought:
+                        reasoning.append(thought)
+                        yield Reasoning(thought)
                     if visible:
                         yield visible
                 wire_calls.extend(message.get("tool_calls") or [])
@@ -531,6 +571,7 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
                     done = chunk
                     break
         rest = think_filter.flush()
+        reasoning.append(think_filter.take_reasoning())
         if rest:
             yield rest
 
@@ -553,6 +594,7 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
             prompt_tokens=done.get("prompt_eval_count"),
             completion_tokens=done.get("eval_count"),
             finish_reason=done.get("done_reason"),
+            reasoning="".join(reasoning),
         )
 
     def add_tool_results(self, calls, results, turn):
@@ -577,276 +619,6 @@ class OllamaChatAdapter(_ChatMessageBudget, ProviderAdapter):
         self.messages.append({"role": "user", "content": text})
 
 
-class OpenAIResponsesAdapter(ProviderAdapter):
-    """OpenAI Responses API: flache Werkzeugdefinitionen, Ergebnisse als ``function_call_output``."""
-
-    provider = "openai_responses"
-
-    def __init__(
-        self,
-        *,
-        api_key: Optional[str],
-        base_url: Optional[str],
-        endpoint_path: Optional[str],
-        **kwargs: Any,
-    ):
-        super().__init__(**kwargs)
-        self.model = self.model_name or "gpt-4o"
-        base = (base_url or "https://api.openai.com/v1").rstrip("/")
-        self.url = f"{base}/{(endpoint_path or '/responses').lstrip('/')}"
-        self.headers = {"Content-Type": "application/json"}
-        if api_key:
-            self.headers["Authorization"] = f"Bearer {api_key}"
-        self.wire_tools = [
-            {
-                "type": "function",
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "parameters": _schema(tool),
-                **({"strict": False} if tool["name"] in _NON_STRICT_TOOLS else {}),
-            }
-            for tool in self.tools
-        ]
-        self.input: list[dict] = [
-            {"role": m["role"], "content": m["content"]} for m in self.history
-        ]
-        self.input.append({"role": "user", "content": self.prompt})
-
-    async def complete(self, client, turn_index, tool_choice):
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "instructions": self.system_prompt,
-            "input": self.input,
-            "tools": self.wire_tools,
-            "stream": False,
-        }
-        if tool_choice:
-            payload["tool_choice"] = tool_choice
-        if cfg.openai_model_supports_custom_temperature(self.model):
-            payload["temperature"] = self.temperature
-        resp = await admitted_post(
-            client, self.url, kind="chat", json=payload, headers=self.headers
-        )
-        raise_for_inference_status(resp, self.provider)
-        data = resp.json()
-        items = data.get("output", [])
-        texts: list[str] = []
-        calls: list[ToolCall] = []
-        for item in items:
-            if item.get("type") == "message":
-                texts.extend(
-                    content["text"]
-                    for content in item.get("content", [])
-                    if content.get("type") == "output_text" and content.get("text")
-                )
-            elif item.get("type") == "function_call":
-                calls.append(
-                    ToolCall(
-                        item.get("call_id") or item.get("id") or f"tc-{turn_index}-{len(calls)}",
-                        item.get("name", ""),
-                        _parse_arguments(item.get("arguments", "")),
-                    )
-                )
-        # Die Ausgabe-Items sind der Assistenten-Zug, auf den sich die Ergebnisse beziehen.
-        yield ModelTurn(
-            text="".join(texts) or data.get("output_text", ""), tool_calls=calls, raw=items
-        )
-
-    def add_tool_results(self, calls, results, turn):
-        if turn is not None:
-            self.input.extend(turn.raw)
-        else:
-            self.input.extend(
-                {
-                    "type": "function_call",
-                    "call_id": call.id,
-                    "name": call.name,
-                    "arguments": json.dumps(call.arguments),
-                }
-                for call in calls
-            )
-        self.input.extend(
-            {"type": "function_call_output", "call_id": call.id, "output": result}
-            for call, result in zip(calls, results)
-        )
-
-    def add_user_text(self, text):
-        self.input.append({"role": "user", "content": text})
-
-
-class AnthropicAdapter(ProviderAdapter):
-    provider = "anthropic"
-    _TOOL_CHOICE = {"required": {"type": "any"}, "none": {"type": "none"}}
-
-    def __init__(self, *, api_key: Optional[str], **kwargs: Any):
-        super().__init__(**kwargs)
-        self.url = "https://api.anthropic.com/v1/messages"
-        self.headers = {
-            "Content-Type": "application/json",
-            "x-api-key": api_key or "",
-            "anthropic-version": "2023-06-01",
-        }
-        self.wire_tools = [
-            {
-                "name": tool["name"],
-                "description": tool.get("description", ""),
-                "input_schema": _schema(tool),
-            }
-            for tool in self.tools
-        ]
-        self.messages: list[dict] = [
-            {"role": m["role"], "content": m["content"]} for m in self.history
-        ]
-        self.messages.append({"role": "user", "content": self.prompt})
-
-    async def complete(self, client, turn_index, tool_choice):
-        payload: dict[str, Any] = {
-            "model": self.model_name or "claude-3-5-sonnet-20241022",
-            "max_tokens": 4096,
-            "messages": self.messages,
-            "temperature": self.temperature,
-            "tools": self.wire_tools,
-        }
-        if self.system_prompt:
-            payload["system"] = self.system_prompt
-        if tool_choice:
-            payload["tool_choice"] = self._TOOL_CHOICE[tool_choice]
-        resp = await admitted_post(
-            client, self.url, kind="chat", json=payload, headers=self.headers
-        )
-        raise_for_inference_status(resp, self.provider)
-        blocks = resp.json()["content"]
-        yield ModelTurn(
-            text="".join(b.get("text", "") for b in blocks if b.get("type") == "text"),
-            tool_calls=[
-                ToolCall(b["id"], b["name"], b.get("input") or {})
-                for b in blocks
-                if b.get("type") == "tool_use"
-            ],
-            raw={"role": "assistant", "content": blocks},
-        )
-
-    def add_tool_results(self, calls, results, turn):
-        self.messages.append(
-            turn.raw
-            if turn is not None
-            else {
-                "role": "assistant",
-                "content": [
-                    {"type": "tool_use", "id": call.id, "name": call.name, "input": call.arguments}
-                    for call in calls
-                ],
-            }
-        )
-        self.messages.append(
-            {
-                "role": "user",
-                "content": [
-                    {"type": "tool_result", "tool_use_id": call.id, "content": result}
-                    for call, result in zip(calls, results)
-                ],
-            }
-        )
-
-    def add_user_text(self, text):
-        # Aufeinanderfolgende Nutzerzüge werden zu einem zusammengeführt.
-        last = self.messages[-1]
-        if last["role"] == "user" and isinstance(last["content"], list):
-            last["content"].append({"type": "text", "text": text})
-        else:
-            self.messages.append({"role": "user", "content": text})
-
-
-class GeminiAdapter(ProviderAdapter):
-    provider = "gemini"
-    _TOOL_MODE = {"required": "ANY", "none": "NONE"}
-
-    def __init__(self, *, api_key: Optional[str], **kwargs: Any):
-        super().__init__(**kwargs)
-        model = self.model_name or "gemini-1.5-flash"
-        self.url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
-            f"?key={api_key}"
-        )
-        self.headers = {"Content-Type": "application/json"}
-        self.wire_tools = [
-            {
-                "functionDeclarations": [
-                    {
-                        "name": tool["name"],
-                        "description": tool.get("description", ""),
-                        "parameters": _schema(tool),
-                    }
-                    for tool in self.tools
-                ]
-            }
-        ]
-        self.contents: list[dict] = [
-            {
-                "role": "user" if m["role"] == "user" else "model",
-                "parts": [{"text": m["content"]}],
-            }
-            for m in self.history
-        ]
-        self.contents.append({"role": "user", "parts": [{"text": self.prompt}]})
-
-    async def complete(self, client, turn_index, tool_choice):
-        payload: dict[str, Any] = {
-            "contents": self.contents,
-            "tools": self.wire_tools,
-            "generationConfig": {"temperature": self.temperature},
-        }
-        if self.system_prompt:
-            payload["systemInstruction"] = {"parts": [{"text": self.system_prompt}]}
-        if tool_choice:
-            payload["toolConfig"] = {
-                "functionCallingConfig": {"mode": self._TOOL_MODE[tool_choice]}
-            }
-        resp = await admitted_post(
-            client, self.url, kind="chat", json=payload, headers=self.headers
-        )
-        raise_for_inference_status(resp, self.provider)
-        content = resp.json()["candidates"][0]["content"]
-        parts = content.get("parts", [])
-        calls = [p["functionCall"] for p in parts if "functionCall" in p]
-        yield ModelTurn(
-            text="".join(p.get("text", "") for p in parts if "text" in p),
-            tool_calls=[
-                ToolCall(f"tc-{turn_index}-{index}", call["name"], call.get("args", {}))
-                for index, call in enumerate(calls)
-            ],
-            raw=content,
-        )
-
-    def add_tool_results(self, calls, results, turn):
-        self.contents.append(
-            turn.raw
-            if turn is not None
-            else {
-                "role": "model",
-                "parts": [
-                    {"functionCall": {"name": call.name, "args": call.arguments}} for call in calls
-                ],
-            }
-        )
-        self.contents.append(
-            {
-                "role": "user",
-                "parts": [
-                    {"functionResponse": {"name": call.name, "response": {"result": result}}}
-                    for call, result in zip(calls, results)
-                ],
-            }
-        )
-
-    def add_user_text(self, text):
-        last = self.contents[-1]
-        if last["role"] == "user":
-            last["parts"].append({"text": text})
-        else:
-            self.contents.append({"role": "user", "parts": [{"text": text}]})
-
-
 def make_provider_adapter(
     provider: str,
     *,
@@ -857,9 +629,20 @@ def make_provider_adapter(
     **conversation: Any,
 ) -> Optional[ProviderAdapter]:
     """Adapter für ``provider`` oder None, wenn es für ihn keine Werkzeugschleife gibt."""
+    from services.agent_providers_hosted import (
+        AnthropicAdapter,
+        GeminiAdapter,
+        OpenAIResponsesAdapter,
+    )
+
+    reasoning_summary = conversation.pop("reasoning_summary", False)
     if provider == "openai_responses":
         return OpenAIResponsesAdapter(
-            api_key=api_key, base_url=base_url, endpoint_path=endpoint_path, **conversation
+            api_key=api_key,
+            base_url=base_url,
+            endpoint_path=endpoint_path,
+            reasoning_summary=reasoning_summary,
+            **conversation,
         )
     if provider == "ollama":
         return OllamaChatAdapter(

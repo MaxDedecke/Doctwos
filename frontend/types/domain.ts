@@ -192,6 +192,10 @@ export type AgentStep =
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }
   | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean; status?: ToolResultStatus; duration_ms?: number }
   | { type: 'context_trimmed'; turn?: number; parts: ContextTrimPart[] }
+  /** Vom Anbieter getrennt geliefertes Denken eines Modellzugs (keine vollständige interne Herleitung). */
+  | { type: 'reasoning'; turn?: number; content: string }
+  /** Ältere Nachrichten wurden für diese Runde in die Zusammenfassung des Gesprächs gefaltet. */
+  | { type: 'history_compacted'; messages: number; status: 'running' | 'ok' | 'failed' }
   | AgentViewAction;
 export type ToolResultStatus = 'ok' | 'error';
 /** Teile des Gesprächs, die der Server gekürzt hat, damit eine Modellrunde ins Kontextfenster passt. */
@@ -260,6 +264,16 @@ export interface StoredChatMessage extends Omit<ChatMessage, 'sources' | 'metada
   sources_json?: ChatSource[] | null;
   metadata_json?: ChatMetadata | null;
 }
+/** Ältere, noch nicht geladene Nachrichten der offenen Sitzung. */
+export interface ChatOlderMessages {
+  hasMore: boolean;
+  loading: boolean;
+  load: () => void | Promise<void>;
+}
+export interface StoredChatMessagePage {
+  messages: StoredChatMessage[];
+  has_more: boolean;
+}
 /** Admin-only O-086 review projection; intentionally contains only downvoted turns. */
 export interface ChatFeedbackReview {
   message_id: number;
@@ -322,7 +336,8 @@ export type ChatStreamEvent =
   | { type: 'content_chunk'; content: string }
   /** Bereits gestreamter Text war Denken des Modells und wird aus der Live-Anzeige entfernt. */
   | { type: 'content_reset' }
-  | Extract<AgentStep, { type: 'tool_call' | 'tool_result' | 'context_trimmed' | 'view_action' }>
+  | { type: 'reasoning_chunk'; turn: number; content: string }
+  | Extract<AgentStep, { type: 'tool_call' | 'tool_result' | 'context_trimmed' | 'history_compacted' | 'view_action' }>
   | { type: 'turn_completed'; has_tool_calls: boolean }
   | { type: 'answer'; content: string; agent_steps?: AgentStep[] }
   | { type: 'message_saved'; message_id: number }

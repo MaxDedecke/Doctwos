@@ -50,6 +50,22 @@ describe('chat stream boundary', () => {
       .toEqual({ type: 'context_trimmed', turn: 2, parts: ['history'] });
   });
 
+  it('parses live reasoning and compaction progress', () => {
+    expect(parseChatStreamEvent(JSON.stringify({ type: 'reasoning_chunk', turn: 1, content: 'denke' })))
+      .toEqual({ type: 'reasoning_chunk', turn: 1, content: 'denke' });
+    expect(parseChatStreamEvent(JSON.stringify({ type: 'history_compacted', messages: 6, status: 'running' })))
+      .toEqual({ type: 'history_compacted', messages: 6, status: 'running' });
+    expect(parseChatStreamEvent(JSON.stringify({ type: 'history_compacted', messages: 6, status: 'kaputt' }))).toBeNull();
+  });
+
+  it('keeps the answer when its steps carry reasoning and a compaction', () => {
+    const event = { type: 'answer', content: 'Result', agent_steps: [
+      { type: 'history_compacted', messages: 6, status: 'ok' },
+      { type: 'reasoning', turn: 0, content: 'Ich prüfe' },
+    ] };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
+  });
+
   it('keeps the answer when its steps include a context trim', () => {
     const event = { type: 'answer', content: 'Result', agent_steps: [
       { type: 'context_trimmed', turn: 0, parts: ['history'] },

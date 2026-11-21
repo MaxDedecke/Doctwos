@@ -395,6 +395,18 @@ def serialize_session(s: ChatSession, user: User) -> dict:
     }
 
 
+def _serialize_message(m: ChatMessage) -> dict:
+    return {
+        "id": m.id,
+        "role": m.role,
+        "content": m.content,
+        "sources_json": m.sources_json,
+        "metadata_json": m.metadata_json,
+        "feedback": m.feedback,
+        "created_at": m.created_at.isoformat() if m.created_at else None,
+    }
+
+
 def serialize_messages(session_id: int, db: Session) -> list[dict]:
     messages = (
         db.query(ChatMessage)
@@ -402,15 +414,24 @@ def serialize_messages(session_id: int, db: Session) -> list[dict]:
         .order_by(ChatMessage.created_at.asc())
         .all()
     )
-    return [
-        {
-            "id": m.id,
-            "role": m.role,
-            "content": m.content,
-            "sources_json": m.sources_json,
-            "metadata_json": m.metadata_json,
-            "feedback": m.feedback,
-            "created_at": m.created_at.isoformat() if m.created_at else None,
-        }
-        for m in messages
-    ]
+    return [_serialize_message(m) for m in messages]
+
+
+def page_messages(
+    db: Session, session_id: int, *, limit: int, before_id: Optional[int]
+) -> tuple[list[dict], bool]:
+    """Die jüngsten ``limit`` Nachrichten vor ``before_id`` in Gesprächsreihenfolge; dazu, ob ältere folgen.
+
+    Eine Seite beginnt nie mit einer Antwort ohne ihre Frage: Fällt die Grenze zwischen Frage und
+    Antwort, wird die Antwort auf die nächste Seite verschoben.
+    """
+    query = db.query(ChatMessage).filter(ChatMessage.session_id == session_id)
+    if before_id is not None:
+        query = query.filter(ChatMessage.id < before_id)
+    rows = query.order_by(ChatMessage.id.desc()).limit(limit + 1).all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
+    rows.reverse()
+    if has_more and len(rows) > 1 and rows[0].role != "user":
+        rows = rows[1:]
+    return [_serialize_message(m) for m in rows], has_more

@@ -6,6 +6,7 @@ from typing import Any
 import core.config as cfg
 from doctus_models.inference_admission import set_endpoint_limit
 from doctus_models.database import AIProfile, AISettings, EmbeddingProfile
+from services.profile_capabilities import stored_capabilities
 from sqlalchemy.orm import Session
 
 
@@ -170,6 +171,7 @@ def serialize_profile(profile: AIProfile, *, active_id: int | None = None) -> di
         "llm_max_concurrency": profile.llm_max_concurrency,
         "llm_temperature": profile.llm_temperature,
         "deployment_name": profile.deployment_name,
+        "capabilities": stored_capabilities(profile),
         "is_system": profile.is_system,
         "is_active": active_id == profile.id,
     }

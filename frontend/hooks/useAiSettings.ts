@@ -26,6 +26,20 @@ export interface LlmProfile {
   isActive?: boolean;
   temperature?: number;
   systemPrompt?: string;
+  /** Letzte Fähigkeitsprüfung (Backend: services/profile_capabilities.py); null = ungeprüft oder veraltet. */
+  capabilities?: ProfileCapabilities | null;
+}
+
+export interface ProfileCapabilities {
+  checked_at?: string;
+  tools?: boolean | null;
+  tool_arguments?: boolean | null;
+  tool_roundtrip?: boolean | null;
+  streaming?: boolean | null;
+  reasoning?: boolean | null;
+  reasoning_summary?: boolean | null;
+  duration_ms?: number;
+  error?: string | null;
 }
 
 export interface EmbeddingProfile {
@@ -74,6 +88,7 @@ export function profileFromApi(profile: Record<string, unknown>): LlmProfile {
     llmContextLength: profile.llm_context_length as number,
     deploymentName: (profile.deployment_name as string | null | undefined) ?? null,
     isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
+    capabilities: (profile.capabilities as ProfileCapabilities | null | undefined) ?? null,
   };
 }
 

@@ -304,6 +304,9 @@ class ChatSession(Base):
     snapshot_json = Column(
         JSON, nullable=True
     )  # workspace/panel content-nav state, see buildWorkspaceSnapshot (frontend)
+    # Verdichteter älterer Gesprächsverlauf (Compacting) und die letzte Nachricht, die er abdeckt.
+    context_summary = Column(EncryptedString, nullable=True)
+    context_summary_upto_id = Column(Integer, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     messages = relationship("ChatMessage", back_populates="session", cascade="all, delete-orphan")
@@ -441,6 +444,8 @@ class AIProfile(Base):
     llm_temperature = Column(Float, nullable=True)
     # Name des vom Deployer verwalteten Containers (nur lokale Deployments), sonst NULL.
     deployment_name = Column(String(64), nullable=True)
+    # Zuletzt geprüfte Fähigkeiten des Modells (services/profile_capabilities.py); NULL = nie geprüft.
+    capabilities_json = Column(JSON, nullable=True)
     is_system = Column(Boolean, nullable=False, default=False, server_default="false")
     created_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

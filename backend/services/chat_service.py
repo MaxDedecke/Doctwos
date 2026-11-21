@@ -14,15 +14,11 @@ from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import Any, Optional
 
-import httpx
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from doctus_models.inference_admission import admitted_post, admitted_stream
-from core.inference_errors import ContextWindowExceeded, raise_for_stream_status
 from doctus_models.database import (
-    ChatMessage,
     CodeEdge,
     CodeEntity,
     DocumentChunk,
@@ -30,8 +26,7 @@ from doctus_models.database import (
     Project,
     User,
 )
-from services.agent_providers import fit_chat_messages
-from services.think_filter import ThinkFilter, strip_thinking
+from services.standard_chat import stream_standard_rag_events as stream_standard_rag_events
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
 from services.chat_context_formatting import chunk_header as chunk_header, _format_chunk_context
@@ -817,229 +812,6 @@ async def retrieve_chat_context(
     )
 
 
-async def stream_standard_rag_events(
-    *,
-    provider: str,
-    model: Optional[str],
-    api_key: Optional[str],
-    base_url: Optional[str],
-    temperature: Optional[float],
-    system_prompt: str,
-    history: list[ChatMessage],
-    prompt: str,
-    protocol: Optional[str] = None,
-    path: Optional[str] = None,
-    context_length: Optional[int] = None,
-) -> AsyncIterator[dict[str, Any]]:
-    """Stream a non-agent provider response as normalized chat events.
-
-    The router only has to serialize the returned events as SSE and collect the
-    final answer. Provider-specific payloads and response parsing stay testable
-    without constructing a FastAPI response.
-    """
-    answer = ""
-    try:
-        selected_protocol = protocol or ("ollama" if provider == "ollama" else "openai_chat")
-        if selected_protocol in ("openai_chat", "ollama"):
-            is_ollama = selected_protocol == "ollama"
-            if is_ollama:
-                base = (base_url or cfg.default_ollama_base_url()).rstrip("/")
-                url = f"{base}/{(path or '/api/chat').lstrip('/')}"
-                headers = {"Content-Type": "application/json"}
-                selected_key = cfg.ollama_fallback_key(base) if api_key is None else api_key
-                if selected_key:
-                    headers["Authorization"] = f"Bearer {selected_key}"
-                model_to_use = cfg.resolve_ollama_model(model)
-                payload = {
-                    "model": model_to_use,
-                    "stream": True,
-                    # Ohne diesen Schalter entfernt Ollama bei Überlauf still ganze Nachrichten
-                    # von vorn; so lehnt es die Anfrage stattdessen erkennbar ab.
-                    "truncate": False,
-                    # Ollamas /api/chat liest Sampling-Werte nur aus ``options``; ein
-                    # ``temperature`` auf oberster Ebene wird stillschweigend ignoriert.
-                    # O-168: explizites Kontextfenster statt Ollamas kleinem,
-                    # stillschweigend kürzendem Default.
-                    "options": {
-                        "temperature": temperature
-                        if temperature is not None
-                        else cfg.DEFAULT_CHAT_TEMPERATURE,
-                        "num_ctx": context_length or cfg.OLLAMA_NUM_CTX,
-                    },
-                }
-            else:
-                base = (base_url or "https://api.openai.com/v1").rstrip("/")
-                url = f"{base}/{(path or '/chat/completions').lstrip('/')}"
-                headers = {"Content-Type": "application/json"}
-                if api_key:
-                    headers["Authorization"] = f"Bearer {api_key}"
-                model_to_use = model or "gpt-4o"
-                payload = {"model": model_to_use, "stream": True}
-                if cfg.openai_model_supports_custom_temperature(model_to_use):
-                    payload["temperature"] = (
-                        temperature if temperature is not None else cfg.DEFAULT_CHAT_TEMPERATURE
-                    )
-
-            # Verlauf und abgerufener Kontext weichen zuerst; Systemtext und Frage bleiben stehen.
-            payload["messages"] = fit_chat_messages(
-                system_prompt,
-                [{"role": message.role, "content": message.content} for message in history],
-                prompt,
-                (context_length or cfg.OLLAMA_NUM_CTX) if is_ollama else context_length,
-            )
-
-            # Server ohne Reasoning-Parser liefern das Denken als <think>…</think> im Text.
-            think_filter = ThinkFilter()
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with admitted_stream(
-                    client, url, kind="chat", json=payload, headers=headers
-                ) as response:
-                    await raise_for_stream_status(response, provider)
-                    async for line in response.aiter_lines():
-                        if not line.strip():
-                            continue
-                        if is_ollama:
-                            data = line.strip()
-                        elif line.startswith("data: "):
-                            data = line[6:].strip()
-                        else:
-                            continue
-                        if data == "[DONE]":
-                            break
-                        try:
-                            chunk = json.loads(data)
-                            if is_ollama:
-                                content = chunk.get("message", {}).get("content")
-                            else:
-                                if not chunk.get("choices"):
-                                    continue
-                                content = chunk["choices"][0].get("delta", {}).get("content")
-                            if content:
-                                answer += content
-                                visible = think_filter.feed(content)
-                                if think_filter.take_reset():
-                                    yield {"type": "content_reset"}
-                                if visible:
-                                    yield {"type": "content_chunk", "content": visible}
-                        except Exception as exc:
-                            logger.error("Fehler beim Parsen des Stream-Chunks: %s", exc)
-            rest = think_filter.flush()
-            if rest:
-                yield {"type": "content_chunk", "content": rest}
-            answer = strip_thinking(answer)
-
-        elif selected_protocol == "openai_responses":
-            base = (base_url or "https://api.openai.com/v1").rstrip("/")
-            url = f"{base}/{(path or '/responses').lstrip('/')}"
-            headers = {"Content-Type": "application/json"}
-            if api_key:
-                headers["Authorization"] = f"Bearer {api_key}"
-            input_messages = [
-                {"role": message.role, "content": message.content} for message in history
-            ]
-            input_messages.append({"role": "user", "content": prompt})
-            payload = {
-                "model": model,
-                "instructions": system_prompt,
-                "input": input_messages,
-                "stream": True,
-            }
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                async with admitted_stream(
-                    client, url, kind="chat", json=payload, headers=headers
-                ) as response:
-                    response.raise_for_status()
-                    async for line in response.aiter_lines():
-                        if not line.startswith("data: "):
-                            continue
-                        try:
-                            event = json.loads(line[6:])
-                        except json.JSONDecodeError:
-                            continue
-                        if event.get("type") == "response.output_text.delta":
-                            content = event.get("delta", "")
-                            answer += content
-                            yield {"type": "content_chunk", "content": content}
-
-        elif selected_protocol == "gemini":
-            model_name = model or "gemini-1.5-flash"
-            contents = [
-                {
-                    "role": "user" if message.role == "user" else "model",
-                    "parts": [{"text": message.content}],
-                }
-                for message in history
-            ]
-            contents.append({"role": "user", "parts": [{"text": prompt}]})
-            payload = {
-                "contents": contents,
-                "generationConfig": {
-                    "temperature": temperature
-                    if temperature is not None
-                    else cfg.DEFAULT_CHAT_TEMPERATURE
-                },
-            }
-            if system_prompt:
-                payload["systemInstruction"] = {"parts": [{"text": system_prompt}]}
-            gemini_base = (base_url or "https://generativelanguage.googleapis.com").rstrip("/")
-            gemini_path = (path or "/v1beta/models/{model}:generateContent").replace(
-                "{model}", model_name
-            )
-            full_url = f"{gemini_base}/{gemini_path.lstrip('/')}?key={api_key or ''}"
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await admitted_post(
-                    client,
-                    full_url,
-                    kind="chat",
-                    json=payload,
-                    headers={"Content-Type": "application/json"},
-                )
-                response.raise_for_status()
-                answer = response.json()["candidates"][0]["content"]["parts"][0]["text"]
-            yield {"type": "content_chunk", "content": answer}
-
-        elif selected_protocol == "anthropic":
-            model_name = model or "claude-3-5-sonnet-20241022"
-            messages = [{"role": message.role, "content": message.content} for message in history]
-            messages.append({"role": "user", "content": prompt})
-            payload = {
-                "model": model_name,
-                "max_tokens": 4096,
-                "messages": messages,
-                "temperature": temperature
-                if temperature is not None
-                else cfg.DEFAULT_CHAT_TEMPERATURE,
-            }
-            if system_prompt:
-                payload["system"] = system_prompt
-            async with httpx.AsyncClient(timeout=120.0) as client:
-                response = await admitted_post(
-                    client,
-                    f"{(base_url or 'https://api.anthropic.com/v1').rstrip('/')}/"
-                    f"{(path or '/messages').lstrip('/')}",
-                    kind="chat",
-                    json=payload,
-                    headers={
-                        "Content-Type": "application/json",
-                        "x-api-key": api_key or "",
-                        "anthropic-version": "2023-06-01",
-                    },
-                )
-                response.raise_for_status()
-                answer = response.json()["content"][0]["text"]
-            yield {"type": "content_chunk", "content": answer}
-
-        yield {"type": "turn_completed", "has_tool_calls": False}
-        yield {"type": "answer", "content": answer, "agent_steps": []}
-    except ContextWindowExceeded as exc:
-        logger.error("Standard-Chat passt nicht ins Kontextfenster: %s", exc)
-        yield {"type": "error", "error": str(exc)}
-    except Exception as exc:
-        error_detail = f"Fehler bei der Kommunikation mit dem LLM-Provider ({provider}): {exc}"
-        logger.error(error_detail)
-        yield {"type": "error", "error": error_detail}
-
-
 async def stream_agent_events(
     *,
     provider: str,
@@ -1067,6 +839,7 @@ async def stream_agent_events(
     mcp_initialization_status: Optional[list[dict[str, Any]]] = None,
     evidence_chars: Optional[int] = None,
     context_length: Optional[int] = None,
+    reasoning_summary: bool = False,
 ) -> AsyncIterator[dict]:
     """Yield the agent tool-loop events for one chat turn.
 
@@ -1101,6 +874,7 @@ async def stream_agent_events(
         mcp_initialization_status=mcp_initialization_status,
         evidence_chars=evidence_chars,
         context_length=context_length,
+        reasoning_summary=reasoning_summary,
     ):
         yield event
 

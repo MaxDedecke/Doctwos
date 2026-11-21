@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, ChatOlderMessages, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 import { api } from '@/app/services/api';
@@ -10,9 +10,8 @@ import { DoctusIcon } from "@/components/Logo";
 import { RevealedMarkdown } from "@/components/RevealedMarkdown";
 import { useChatFollowScroll } from "@/hooks/useChatFollowScroll";
 import { ProvenanceDisclosure } from "@/components/ProvenanceDisclosure";
-import { InsightDraftAction } from '@/components/InsightDraftAction';
+import { ChatMessageActions } from '@/components/ChatMessageActions';
 import { ChatReviewedSource } from '@/components/ChatReviewedSource';
-import { chatInsightEvidence } from '@/lib/chatInsightEvidence';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -30,8 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getEdgeTypeLabel } from '@/lib/graphTaxonomy';
-import { hasCompactableCitation } from "@/lib/citationLabel";
-import { cn, copyToClipboard } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import {
   ArrowRight,
   BookOpen,
@@ -39,8 +37,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Code,
-  Copy,
-  FolderTree,
   Cpu,
   Database,
   Folder,
@@ -49,12 +45,9 @@ import {
   Loader2,
   Plus,
   Play,
-  RotateCcw,
   Search,
   Send,
   Sparkles,
-  ThumbsDown,
-  ThumbsUp,
   X
 } from 'lucide-react';
 import Image from 'next/image';
@@ -78,6 +71,7 @@ interface ChatViewProps {
   chatMode?: 'normal' | 'evidence';
   setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;
+  olderMessages?: ChatOlderMessages;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
   addAssistantHint: (text: string) => void;
   handleFileSelect: (path: string, line?: number, sourceId?: string) => void;
@@ -124,6 +118,7 @@ export function ChatView({
   chatMode = 'evidence',
   setChatMode,
   handleRetryMessage,
+  olderMessages,
   handleFeedback,
   addAssistantHint,
   handleFileSelect,
@@ -286,6 +281,12 @@ export function ChatView({
           ) : (
             // Message Stream
             <div className="space-y-6 pb-6">
+              {olderMessages?.hasMore && (
+                <div className="flex justify-center">
+                  <Button variant="ghost" size="sm" disabled={olderMessages.loading || isLoading} onClick={() => void olderMessages.load()}
+                    className="h-7 text-xs text-ds-zinc-500">{t(olderMessages.loading ? 'chatView.loadingOlderMessages' : 'chatView.loadOlderMessages')}</Button>
+                </div>
+              )}
               {chatMessages.map((m, i) => {
                 const isUser = m.role === 'user';
                 return (
@@ -916,109 +917,24 @@ export function ChatView({
                             </div>
                           )}
 
-                          {/* Action row: copy / feedback / retry, plus model badge */}
                           {m.content && (!isLoading || i !== chatMessages.length - 1) && (
-                            <div className="mt-3 pt-2 flex items-center justify-between gap-1.5">
-                              <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  id={`chat-action-copy-btn-${i}`}
-                                  title={t('chatView.copyMessageTitle')}
-                                  className={cn("h-7 w-7 rounded-full", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
-                                  onClick={async () => {
-                                    const success = await copyToClipboard(m.content);
-                                    showToast(success ? t('chatView.messageCopiedToast') : t('chatView.copyFailedToast'), success ? "success" : "error");
-                                  }}
-                                >
-                                  <Copy className="w-3.5 h-3.5" />
-                                </Button>
-                                {hasCompactableCitation(m.content) && (
-                                  <Button
-                                    variant="ghost"
-                                    size="icon"
-                                    aria-pressed={originalAnswers.has(m.id ?? `index:${i}`)}
-                                    title={t(originalAnswers.has(m.id ?? `index:${i}`) ? 'chatView.showCompactCitations' : 'chatView.showOriginalAnswer')}
-                                    aria-label={t(originalAnswers.has(m.id ?? `index:${i}`) ? 'chatView.showCompactCitations' : 'chatView.showOriginalAnswer')}
-                                    className={cn("h-7 w-7 rounded-full", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
-                                    onClick={() => setOriginalAnswers((current) => {
-                                      const next = new Set(current);
-                                      const key = m.id ?? `index:${i}`;
-                                      if (!next.delete(key)) next.add(key);
-                                      return next;
-                                    })}
-                                  >
-                                    <FolderTree className="w-3.5 h-3.5" />
-                                  </Button>
-                                )}
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  id={`chat-action-thumbsup-btn-${i}`}
-                                  title={t('chatView.helpfulTitle')}
-                                  disabled={!m.id}
-                                  className={cn(
-                                    "h-7 w-7 rounded-full",
-                                    m.feedback === 'up'
-                                      ? "text-ds-emerald-500"
-                                      : (theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")
-                                  )}
-                                  onClick={() => m.id && handleFeedback(m.id, 'up')}
-                                >
-                                  <ThumbsUp className="w-3.5 h-3.5" fill={m.feedback === 'up' ? "currentColor" : "none"} />
-                                </Button>
-
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  id={`chat-action-thumbsdown-btn-${i}`}
-                                  title={t('chatView.notHelpfulTitle')}
-                                  disabled={!m.id}
-                                  className={cn(
-                                    "h-7 w-7 rounded-full",
-                                    m.feedback === 'down'
-                                      ? "text-ds-red-500"
-                                      : (theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")
-                                  )}
-                                  onClick={() => m.id && handleFeedback(m.id, 'down')}
-                                >
-                                  <ThumbsDown className="w-3.5 h-3.5" fill={m.feedback === 'down' ? "currentColor" : "none"} />
-                                </Button>
-
-                                <Button
-                                  variant="ghost"
-                                  size="icon"
-                                  id={`chat-action-retry-btn-${i}`}
-                                  title={t('chatView.retryTitle')}
-                                  disabled={!m.id || isLoading}
-                                  className={cn("h-7 w-7 rounded-full", theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}
-                                  onClick={() => handleRetryMessage(i)}
-                                >
-                                  <RotateCcw className="w-3.5 h-3.5" />
-                                </Button>
-
-                                {m.metadata?.chat_mode === 'evidence' && (
-                                  <InsightDraftAction
-                                    projectId={selectedProject?.id}
-                                    origin="chat"
-                                    evidence={chatInsightEvidence(m.sources || [], m.id)}
-                                    defaultTitle={m.content.split('\n')[0].slice(0, 240) || t('insightDraft.chatDefaultTitle')}
-                                    theme={theme}
-                                  />
-                                )}
-                              </div>
-
-                              {m.metadata && m.metadata.model && (
-                                <div className={cn(
-                                  "flex items-center gap-1.5 opacity-60 hover:opacity-100 transition-opacity",
-                                  theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-400"
-                                )}>
-                                  <Cpu className="w-3 h-3" />
-                                  <span className="text-[0.625rem] font-bold uppercase tracking-widest">{m.metadata.model}</span>
-                                  {m.metadata.chat_mode && <span className="text-[0.625rem] font-semibold">· {t(`chatView.mode.${m.metadata.chat_mode}`)}</span>}
-                                </div>
-                              )}
-                            </div>
+                            <ChatMessageActions
+                              message={m}
+                              index={i}
+                              theme={theme}
+                              isLoading={isLoading}
+                              showOriginal={originalAnswers.has(m.id ?? `index:${i}`)}
+                              onToggleOriginal={() => setOriginalAnswers((current) => {
+                                const next = new Set(current);
+                                const key = m.id ?? `index:${i}`;
+                                if (!next.delete(key)) next.add(key);
+                                return next;
+                              })}
+                              onFeedback={handleFeedback}
+                              onRetry={handleRetryMessage}
+                              selectedProject={selectedProject}
+                              showToast={showToast}
+                            />
                           )}
                         </>
                       )}

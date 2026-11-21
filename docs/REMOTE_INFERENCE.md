@@ -91,9 +91,35 @@ For a 32B chat model plan with at least 32768 tokens; 8192 is filled by system p
 Each answer records `model_turns`, `prompt_tokens_max` and `completion_tokens` in its telemetry
 (`scripts/eval_chat.py` prints the largest prompt per question), which shows how full the window gets.
 
-Thinking models (Qwen3): Doctus removes `<think>…</think>` from answers when the server does not separate
-reasoning itself (vLLM without `--reasoning-parser`). An empty model turn is retried once, and tool arguments
-that are not valid JSON are returned to the model as an error instead of ending the research.
+Thinking models (Qwen3): Doctus separates reasoning from the answer. It reads Ollama's `message.thinking`,
+`reasoning_content`/`reasoning` in the Chat Completions stream (vLLM with `--reasoning-parser`) and
+`<think>…</think>` in the text when the server does not separate it. The answer never contains the reasoning; the
+chat shows it under "Arbeitsschritte" as "model reasoning (as released by the provider)". This is what the
+provider returns, not a promise of the full internal derivation. An empty model turn is retried once, and tool
+arguments that are not valid JSON are returned to the model as an error instead of ending the research.
+
+### Capability check per profile
+
+The protocol alone does not prove that a model uses tools reliably. **Check capabilities** in the AI profile list
+(admins, `POST /ai-profiles/{id}/capabilities`) runs a small tool round trip through the same adapter the chat
+uses and stores per profile whether the model calls the tool, passes valid arguments, uses the tool result,
+streams, and returns reasoning separately. For the OpenAI Responses API it also records whether reasoning
+summaries are accepted; only then does the chat request them.
+
+The result applies to the model, protocol and address it was taken with; after changing any of them the profile
+counts as unchecked again. Unchecked profiles behave as before (tools by protocol). Only a negative result
+(`tools: false`) switches the agent off; evidence mode then answers from retrieved context without tools. A failed
+check (server unreachable) is stored with its error and leaves the capabilities open.
+
+### Long conversations (compacting)
+
+Recent messages go to the model verbatim as long as they fit a quarter of the profile's context window (at most
+12 messages). Beyond that, the oldest messages are summarized by the chat model and the summary is stored with the
+session; it enters the system prompt as marked conversation context, not as evidence. Folding stops once the
+remainder fits half of that share, so a long conversation costs an extra model call only every few turns. The
+chat shows the step ("older history summarized"). Retrying an older answer never uses a summary that covers later
+messages; it builds its own for that turn without storing it. If summarizing fails, the turn continues with the
+recent messages and says so.
 
 ## On-Premise Two-Machine Architecture (Machine A + Machine B)
 

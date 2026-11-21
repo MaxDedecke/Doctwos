@@ -1,4 +1,4 @@
-import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, StoredChatMessagePage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
 import type { InsightPage, InsightDetail, InsightAssignees, InsightInboxData, InsightAssignment, Evidence } from '@/lib/insights';
 import type { UsageReference } from '@/lib/usageAnchors';
@@ -244,6 +244,8 @@ export const api = {
     createChatSession: (data: { title: string; project_id?: number | null; source_id?: number | string | null; snapshot?: WorkspaceSnapshot }) =>
         axios.post<ChatSession>(`${API_URL}/chat/sessions`, data),
     getChatMessages: (sessionId: number) => axios.get<StoredChatMessage[]>(`${API_URL}/chat/sessions/${sessionId}/messages`),
+    getChatMessagesPage: (sessionId: number, params: { limit?: number; before_id?: number }) =>
+      axios.get<StoredChatMessagePage>(`${API_URL}/chat/sessions/${sessionId}/messages/page`, { params }),
     getChatSessionByUuid: (uuid: string) => axios.get<ChatSession>(`${API_URL}/chat/sessions/by-uuid/${uuid}`),
     getChatMessagesByUuid: (uuid: string) => axios.get<StoredChatMessage[]>(`${API_URL}/chat/sessions/by-uuid/${uuid}/messages`),
     shareChatSession: (sessionId: number) => axios.post(`${API_URL}/chat/sessions/${sessionId}/share`),
@@ -278,6 +280,7 @@ export const api = {
     deleteAiProfile: (id: number) => axios.delete(`${API_URL}/ai-profiles/${id}`),
     activateAiProfile: (id: number) => axios.post(`${API_URL}/ai-profiles/${id}/activate`),
     testAiProfile: (id: number) => axios.post(`${API_URL}/ai-profiles/${id}/test`),
+    checkAiProfileCapabilities: (id: number) => axios.post<Record<string, unknown>>(`${API_URL}/ai-profiles/${id}/capabilities`),
     getLlmDeployments: () => axios.get(`${API_URL}/llm-deployments`),
     createLlmDeployment: (data: Record<string, unknown>) => axios.post(`${API_URL}/llm-deployments`, data),
     controlLlmDeployment: (name: string, action: 'start' | 'stop') => axios.post(`${API_URL}/llm-deployments/${encodeURIComponent(name)}/${action}`),

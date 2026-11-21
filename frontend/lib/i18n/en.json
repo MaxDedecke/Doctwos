@@ -766,7 +766,24 @@
       "profilePlaceholder": "Select profile",
       "temperatureLabel": "Creativity (Temp)",
       "systemPromptLabel": "System prompt",
-      "saveAiSettings": "Save AI settings"
+      "saveAiSettings": "Save AI settings",
+      "capabilities": {
+        "title": "Checked capabilities",
+        "check": "Check capabilities",
+        "checking": "Checking …",
+        "unchecked": "Not checked",
+        "checked": "Checked on {{date}}",
+        "failed": "Check failed: {{error}}",
+        "tools": "Tools",
+        "tool_arguments": "Arguments",
+        "tool_roundtrip": "Result use",
+        "streaming": "Streaming",
+        "reasoning": "Separate reasoning",
+        "reasoning_summary": "Reasoning summary",
+        "noTools": "The model does not use tools reliably; evidence mode answers from retrieved context without the agent.",
+        "checkedToast": "Profile capabilities checked",
+        "checkFailedToast": "Capability check failed"
+      }
     },
     "logsTab": {
       "systemEnvTitle": "System environment & status",
@@ -1340,7 +1357,9 @@
       "navigateMainframeCode": "Navigate mainframe code with clarity",
       "unlockLegacySystems": "Unlock legacy systems",
       "programsCopybooksRelations": "Programs, copybooks, relationships"
-    }
+    },
+    "loadOlderMessages": "Load older messages",
+    "loadingOlderMessages": "Loading older messages …"
   },
   "openGraphDialog": {
     "title": "Open knowledge graph",
@@ -1494,7 +1513,14 @@
     "toolsFailed": "{{count}}× tool failed",
     "toolFailed": "failed",
     "toolRunning": "running …",
-    "toolAborted": "aborted, no result"
+    "toolAborted": "aborted, no result",
+    "reasoningTitle": "Model reasoning (as released by the provider)",
+    "showMore": "Show more",
+    "compaction": {
+      "running": "Summarizing older history ({{count}} messages) …",
+      "ok": "Older history summarized ({{count}} messages); the model sees it as a summary.",
+      "failed": "Summarizing older history failed; {{count}} older messages are missing for the model in this round."
+    }
   },
   "flowchartView": {
     "title": "Flowchart",

@@ -52,4 +52,22 @@ describe('AgentSteps', () => {
     expect(screen.getByText(/agentSteps\.contextTrimmedStep/).textContent)
       .toContain('agentSteps.trimPart.history, agentSteps.trimPart.tool_results');
   });
+
+  it('shows provider reasoning shortened, with the rest on request', () => {
+    const content = 'a'.repeat(700);
+    render(<AgentSteps theme="dark" steps={[{ type: 'reasoning', turn: 0, content }]} />);
+    fireEvent.click(screen.getByRole('button', { name: /agentSteps\.showThoughts/ }));
+
+    expect(screen.getByText('agentSteps.reasoningTitle')).toBeTruthy();
+    expect(screen.getByText(`${'a'.repeat(600)} …`)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'agentSteps.showMore' }));
+    expect(screen.getByText(content)).toBeTruthy();
+  });
+
+  it('tells how much older history was summarized', () => {
+    render(<AgentSteps theme="light" steps={[{ type: 'history_compacted', messages: 8, status: 'failed' }]} />);
+    fireEvent.click(screen.getByRole('button', { name: /agentSteps\.showThoughts/ }));
+
+    expect(screen.getByText('agentSteps.compaction.failed:{"count":8}')).toBeTruthy();
+  });
 });

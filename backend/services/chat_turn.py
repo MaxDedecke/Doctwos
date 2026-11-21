@@ -38,7 +38,14 @@ from services.chat_service import (
     stream_agent_events,
     stream_standard_rag_events,
 )
+from services.chat_compaction import prepare_conversation
 from services.chat_sessions import ChatTurn, persist_assistant_message
+from services.profile_capabilities import (
+    agent_endpoint_path,
+    agent_provider,
+    requests_reasoning_summary,
+    supports_tools,
+)
 from services.chat_sources import (
     append_agent_source_fallback,
     attach_analysis_status,
@@ -166,19 +173,9 @@ class ChatSseTelemetry:
         }
 
 
-# The agent loop has provider-specific tool contracts for these protocols.  In
-# particular, ``ollama`` is also the protocol used by remote Ollama profiles:
-# the loop talks to their OpenAI-compatible ``/v1/chat/completions`` endpoint.
-# Keep capability selection protocol-based rather than treating ``remote`` as
-# synonymous with "no tools" (O-259).
-_AGENT_TOOL_PROTOCOLS = frozenset(
-    {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
-)
-
-
 def agent_profile_supports_tools(profile) -> bool:
-    """Return whether the selected profile has a corresponding tool loop."""
-    return (getattr(profile, "protocol", "") or "").lower() in _AGENT_TOOL_PROTOCOLS
+    """Werkzeugschleife für das Profil: Protokoll mit Adapter, Fähigkeitsprüfung nicht negativ."""
+    return supports_tools(profile)
 
 
 def evidence_budget(context_length: Optional[int]) -> Optional[int]:
@@ -349,8 +346,18 @@ class ChatTurnRun:
             if request.mode == "evidence"
             else ChatIntent("normal", use_retrieval=False, use_agent=False)
         )
+        conversation = None
+        async for event in prepare_conversation(
+            self.db, session, self.turn.user_message, self.profile
+        ):
+            if event["type"] == "conversation":
+                conversation = event["conversation"]
+            else:
+                yield event
+        self.turn.history = conversation.history
         context = await self._retrieve(intent)
         system_prompt = build_system_prompt(self.db, self.user, request)
+        system_prompt += conversation.system_block()
         candidates = build_candidate_sources(self.db, context.results, context.pinned_chunks)
         evidence = ToolEvidence(context.repository_id)
         outcome = _Outcome()
@@ -380,7 +387,12 @@ class ChatTurnRun:
         )
         if stale:
             answer = answer.rstrip() + "\n\n" + answer_notice(stale)
-        yield {**(outcome.answer_event or {"type": "answer"}), "content": answer}
+        outcome.agent_steps = [*conversation.steps, *outcome.agent_steps]
+        yield {
+            **(outcome.answer_event or {"type": "answer"}),
+            "content": answer,
+            "agent_steps": outcome.agent_steps,
+        }
         sources = resolve_cited_sources(answer, candidates)
         if request.pinned_file and intent.use_retrieval:
             if not any(s["file"] == request.pinned_file for s in sources):
@@ -493,9 +505,7 @@ class ChatTurnRun:
                 self.turn.session.id, self.turn.user_message.id, request.project_id
             )
             async for event in stream_agent_events(
-                provider=(
-                    "openai_responses" if profile.protocol == "openai_responses" else self.provider
-                ),
+                provider=agent_provider(profile),
                 model_name=profile.llm_model,
                 api_key=profile.llm_api_key,
                 base_url=profile.llm_base_url,
@@ -506,11 +516,7 @@ class ChatTurnRun:
                 db=self.db,
                 mcp_clients=mcp_clients,
                 ollama_base_url=profile.llm_base_url or cfg.default_ollama_base_url(),
-                endpoint_path=(
-                    profile.llm_path
-                    if profile.protocol in {"openai_chat", "openai_responses", "ollama"}
-                    else None
-                ),
+                endpoint_path=agent_endpoint_path(profile),
                 history=[{"role": m.role, "content": m.content} for m in self.turn.history],
                 project_id=request.project_id,
                 user_id=self.user.id,
@@ -526,6 +532,7 @@ class ChatTurnRun:
                 mcp_initialization_status=mcp_status,
                 evidence_chars=evidence_budget(profile.llm_context_length),
                 context_length=profile.llm_context_length,
+                reasoning_summary=requests_reasoning_summary(profile),
             ):
                 kind = event["type"]
                 if kind == "model_usage":
@@ -608,6 +615,7 @@ class ChatTurnRun:
             protocol=profile.protocol,
             path=profile.llm_path,
             context_length=profile.llm_context_length,
+            reasoning_summary=requests_reasoning_summary(profile),
         ):
             if event["type"] == "content_reset":
                 # Bereits gestreamter Text war Denken; nur der normale Chat zeigt Text live.
@@ -633,6 +641,7 @@ class ChatTurnRun:
                     )
                 else:
                     outcome.answer = event["content"]
+                outcome.agent_steps = [*outcome.agent_steps, *(event.get("agent_steps") or [])]
                 outcome.answer_event = event
                 continue
             yield event
