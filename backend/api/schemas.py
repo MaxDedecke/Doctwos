@@ -128,6 +128,13 @@ class ChatSnapshotUpdate(BaseModel):
 
 class ChatMessageFeedbackUpdate(BaseModel):
     feedback: Optional[str] = None  # 'up' | 'down' | null (null clears it)
+    # Nur bei 'down': Grund aus FEEDBACK_REASONS und optionaler Freitext.
+    reason: Optional[str] = None
+    comment: Optional[str] = Field(default=None, max_length=500)
+
+
+class ChatFollowUpRequest(BaseModel):
+    llm_profile_id: Optional[int] = None
 
 
 class ChatMessageViewActionUpdate(BaseModel):

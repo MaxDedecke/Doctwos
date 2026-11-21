@@ -213,6 +213,11 @@ export interface ChatMetadata {
   }) | null;
   refs?: ChatReference[];
   agent_steps?: AgentStep[];
+  /** Frühere Fassungen einer wiederholten Antwort, älteste zuerst. */
+  versions?: AnswerVersion[];
+  /** Anschlussfragen zur Antwort (einmal erzeugt). */
+  suggestions?: string[];
+  feedback_reason?: { reason: FeedbackReason | null; comment: string | null };
   telemetry?: ChatTelemetry;
   model?: string;
   provider?: string;
@@ -276,6 +281,13 @@ export interface ChatControls {
   stop: () => void;
   /** Ersetzt die letzte Frage durch den Text und beantwortet sie neu. */
   editLast: (text: string) => Promise<boolean>;
+}
+export type FeedbackReason = 'wrong_source' | 'incorrect' | 'incomplete' | 'not_helpful' | 'too_long' | 'other';
+export interface AnswerVersion {
+  content: string;
+  sources?: ChatSource[];
+  model?: string | null;
+  replaced_at?: string | null;
 }
 export interface StoredChatMessagePage {
   messages: StoredChatMessage[];
@@ -348,7 +360,7 @@ export type ChatStreamEvent =
   | Extract<AgentStep, { type: 'tool_call' | 'tool_result' | 'context_trimmed' | 'history_compacted' | 'view_action' }>
   | { type: 'turn_completed'; has_tool_calls: boolean }
   | { type: 'answer'; content: string; agent_steps?: AgentStep[] }
-  | { type: 'message_saved'; message_id: number }
+  | { type: 'message_saved'; message_id: number; versions?: AnswerVersion[] }
   | { type: 'telemetry'; event: string; monotonic_ms?: number; metrics?: ChatTelemetryMetrics }
   | { type: 'error'; error: string };
 export interface ProjectStats {

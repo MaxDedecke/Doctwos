@@ -1,4 +1,4 @@
-import type { AgentStep, AgentViewAction, ChatStreamEvent, ChatSource, ChatTelemetryMetrics, ContextTrimPart, ToolResultStatus } from '@/types/domain';
+import type { AgentStep, AgentViewAction, AnswerVersion, ChatStreamEvent, ChatSource, ChatTelemetryMetrics, ContextTrimPart, ToolResultStatus } from '@/types/domain';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -166,7 +166,12 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
         ? { type: 'answer', content: value.content, agent_steps: steps } : null;
     }
     case 'message_saved':
-      return typeof value.message_id === 'number' ? { type: 'message_saved', message_id: value.message_id } : null;
+      return typeof value.message_id === 'number' ? {
+        type: 'message_saved', message_id: value.message_id,
+        ...(Array.isArray(value.versions)
+          ? { versions: value.versions.filter((v: unknown): v is AnswerVersion => isRecord(v) && typeof v.content === 'string') }
+          : {}),
+      } : null;
     case 'telemetry':
       if (typeof value.event !== 'string') return null;
       if (value.event === 'completed') {

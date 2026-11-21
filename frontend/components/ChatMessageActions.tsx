@@ -1,13 +1,15 @@
 "use client";
 import type { ShowToast } from './Toast';
-import type { ChatMessage, Project } from '@/types/domain';
+import type { ChatMessage, FeedbackReason, Project } from '@/types/domain';
+import { FeedbackReasonPicker } from '@/components/FeedbackReasonPicker';
+import { useState } from 'react';
 import { InsightDraftAction } from '@/components/InsightDraftAction';
 import { chatInsightEvidence } from '@/lib/chatInsightEvidence';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { hasCompactableCitation } from '@/lib/citationLabel';
 import { cn, copyToClipboard } from '@/lib/utils';
-import { Copy, Cpu, FolderTree, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Copy, Cpu, FolderTree, RotateCcw, ThumbsDown, ThumbsUp } from 'lucide-react';
 
 interface ChatMessageActionsProps {
   message: ChatMessage;
@@ -16,7 +18,10 @@ interface ChatMessageActionsProps {
   isLoading: boolean;
   showOriginal: boolean;
   onToggleOriginal: () => void;
-  onFeedback: (messageId: number, feedback: 'up' | 'down') => void;
+  onFeedback: (messageId: number, feedback: 'up' | 'down', reason?: FeedbackReason, comment?: string) => void;
+  /** Angezeigte Fassung (Index in versions, bei versionCount die aktuelle) und Wechsel dorthin. */
+  versionIndex: number;
+  onVersionChange: (index: number) => void;
   onRetry: (index: number) => void;
   selectedProject?: Project | null;
   showToast: ShowToast;
@@ -34,12 +39,30 @@ export function ChatMessageActions({
   onRetry,
   selectedProject,
   showToast,
+  versionIndex,
+  onVersionChange,
 }: ChatMessageActionsProps) {
+  const [askReason, setAskReason] = useState(false);
+  const versionCount = (m.metadata?.versions?.length ?? 0) + 1;
   const { t, language } = useLanguage();
   const responseMs = m.metadata?.telemetry?.metrics?.response_time_ms ?? null;
   return (
+    <>
     <div className="mt-3 pt-2 flex items-center justify-between gap-1.5">
       <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
+        {versionCount > 1 && (
+          <div className="flex items-center text-[0.625rem] font-semibold text-ds-zinc-500" aria-label={t('chatView.answerVersions')}>
+            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={versionIndex === 0}
+              aria-label={t('chatView.previousVersion')} onClick={() => onVersionChange(versionIndex - 1)}>
+              <ChevronLeft className="w-3.5 h-3.5" />
+            </Button>
+            <span>{versionIndex + 1}/{versionCount}</span>
+            <Button variant="ghost" size="icon" className="h-6 w-6" disabled={versionIndex >= versionCount - 1}
+              aria-label={t('chatView.nextVersion')} onClick={() => onVersionChange(versionIndex + 1)}>
+              <ChevronRight className="w-3.5 h-3.5" />
+            </Button>
+          </div>
+        )}
         <Button
           variant="ghost"
           size="icon"
@@ -95,7 +118,11 @@ export function ChatMessageActions({
               ? "text-ds-red-500"
               : (theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")
           )}
-          onClick={() => m.id && onFeedback(m.id, 'down')}
+          onClick={() => {
+            if (!m.id) return;
+            onFeedback(m.id, 'down');
+            setAskReason(m.feedback !== 'down');
+          }}
         >
           <ThumbsDown className="w-3.5 h-3.5" fill={m.feedback === 'down' ? "currentColor" : "none"} />
         </Button>
@@ -139,5 +166,10 @@ export function ChatMessageActions({
         </div>
       )}
     </div>
+    {askReason && m.id && (
+      <FeedbackReasonPicker theme={theme} onClose={() => setAskReason(false)}
+        onSubmit={(reason, comment) => { onFeedback(m.id as number, 'down', reason, comment); setAskReason(false); }} />
+    )}
+    </>
   );
 }

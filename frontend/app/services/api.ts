@@ -1,4 +1,4 @@
-import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, StoredChatMessage, StoredChatMessagePage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
+import type { ChatFeedbackDiagnosticSettings, ChatFeedbackReview, ChatSession, CodeEntity, EntityNeighbor, FileReference, NeighborGroupPage, ProjectReferencesPage, KnowledgeSource, McpAuditPage, OidcConnectionTestResult, OidcMappingSimulationResult, Project, ProjectStats, SearchResult, FeedbackReason, StoredChatMessage, StoredChatMessagePage, SystemConfigResponse, Team, User, WorkspaceSnapshot } from '@/types/domain';
 import axios from 'axios';
 import type { InsightPage, InsightDetail, InsightAssignees, InsightInboxData, InsightAssignment, Evidence } from '@/lib/insights';
 import type { UsageReference } from '@/lib/usageAnchors';
@@ -252,12 +252,14 @@ export const api = {
     deleteChatSession: (sessionId: number) => axios.delete(`${API_URL}/chat/sessions/${sessionId}`),
     updateChatSessionSnapshot: (sessionId: number, snapshot: WorkspaceSnapshot) =>
         axios.patch(`${API_URL}/chat/sessions/${sessionId}/snapshot`, { snapshot }),
-    updateChatMessageFeedback: (messageId: number, feedback: 'up' | 'down' | null) =>
+    getChatSuggestions: (messageId: number, llmProfileId?: number) =>
+      axios.post<{ suggestions: string[] }>(`${API_URL}/chat/messages/${messageId}/suggestions`, { llm_profile_id: llmProfileId ?? null }),
+    updateChatMessageFeedback: (messageId: number, feedback: 'up' | 'down' | null, reason?: FeedbackReason, comment?: string) =>
         axios.patch<{
             id: number;
             feedback: 'up' | 'down' | null;
             link_feedback: { signals_recorded: number; marked_for_review: Array<{ type: string; id: number }> };
-        }>(`${API_URL}/chat/messages/${messageId}/feedback`, { feedback }),
+        }>(`${API_URL}/chat/messages/${messageId}/feedback`, { feedback, ...(feedback === 'down' && (reason || comment) ? { reason, comment } : {}) }),
     updateChatMessageViewAction: (messageId: number, actionId: string, status: 'opened' | 'updated' | 'manual' | 'declined' | 'no_space' | 'rejected' | 'stale_context') =>
         axios.patch<{ id: number; action_id: string; status: string }>(
             `${API_URL}/chat/messages/${messageId}/view-actions/${encodeURIComponent(actionId)}`,

@@ -1372,7 +1372,23 @@
     "srAnswering": "Doctus antwortet …",
     "srAnswerReady": "Antwort fertig.",
     "historyCompacted": "Älterer Verlauf zusammengefasst ({{count}} Nachrichten)",
-    "historyCompactionFailed": "Älterer Verlauf nicht zusammengefasst; {{count}} Nachrichten fehlen dem Modell"
+    "historyCompactionFailed": "Älterer Verlauf nicht zusammengefasst; {{count}} Nachrichten fehlen dem Modell",
+    "answerVersions": "Fassungen dieser Antwort",
+    "previousVersion": "Vorherige Fassung",
+    "nextVersion": "Nächste Fassung",
+    "followUps": "Vorschläge für Anschlussfragen",
+    "feedbackReason": {
+      "title": "Was war nicht gut?",
+      "wrong_source": "Falsche Quelle",
+      "incorrect": "Inhaltlich falsch",
+      "incomplete": "Unvollständig",
+      "not_helpful": "Nicht hilfreich",
+      "too_long": "Zu lang",
+      "other": "Anderes",
+      "commentPlaceholder": "Optional: Was genau? (bleibt in Doctus)",
+      "skip": "Ohne Grund",
+      "send": "Senden"
+    }
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",

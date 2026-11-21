@@ -429,7 +429,11 @@ class ChatTurnRun:
         }
         self.db.commit()
         yield saved
-        yield {"type": "message_saved", "message_id": message.id}
+        yield {
+            "type": "message_saved",
+            "message_id": message.id,
+            "versions": (message.metadata_json or {}).get("versions") or [],
+        }
         yield {"type": "telemetry", "event": "completed", "metrics": self.telemetry.metrics()}
 
     async def _retrieve(self, intent: ChatIntent) -> _Context:

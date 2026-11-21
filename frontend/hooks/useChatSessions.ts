@@ -1,6 +1,6 @@
 import type { ShowToast } from '@/components/Toast';
 import { api } from '@/app/services/api';
-import type { ChatMessage, ChatSession } from '@/types/domain';
+import type { ChatMessage, ChatSession, FeedbackReason } from '@/types/domain';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 /** Größe einer Seite des Verlaufs; kleiner als das serverseitige Maximum von 100. */
@@ -116,15 +116,18 @@ export function useChatSessions({ isLoggedIn, contextProjectId = null, t, showTo
    * Keep feedback optimistic so the chat remains responsive, but roll it back
    * if persistence fails. This is a chat-session concern rather than page UI.
    */
-  const handleFeedback = useCallback(async (messageId: number, feedback: 'up' | 'down') => {
+  const handleFeedback = useCallback(async (messageId: number, feedback: 'up' | 'down', reason?: FeedbackReason, comment?: string) => {
     const current = chatMessages.find((message) => message.id === messageId)?.feedback ?? null;
-    const nextValue = current === feedback ? null : feedback;
+    // Ein Grund präzisiert einen Daumen runter und nimmt ihn deshalb nicht zurück.
+    const nextValue = current === feedback && !reason ? null : feedback;
     setChatMessages((previous) => previous.map((message) =>
       message.id === messageId ? { ...message, feedback: nextValue } : message
     ));
 
     try {
-      const response = await api.updateChatMessageFeedback(messageId, nextValue);
+      const response = reason || comment
+        ? await api.updateChatMessageFeedback(messageId, nextValue, reason, comment)
+        : await api.updateChatMessageFeedback(messageId, nextValue);
       if (nextValue === 'down' && response.data.link_feedback.signals_recorded > 0) {
         showToast(
           response.data.link_feedback.marked_for_review.length > 0

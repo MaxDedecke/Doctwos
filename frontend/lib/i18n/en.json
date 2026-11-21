@@ -1372,7 +1372,23 @@
     "srAnswering": "Doctus is answering …",
     "srAnswerReady": "Answer ready.",
     "historyCompacted": "Older history summarized ({{count}} messages)",
-    "historyCompactionFailed": "Older history not summarized; {{count}} messages are missing for the model"
+    "historyCompactionFailed": "Older history not summarized; {{count}} messages are missing for the model",
+    "answerVersions": "Versions of this answer",
+    "previousVersion": "Previous version",
+    "nextVersion": "Next version",
+    "followUps": "Suggested follow-up questions",
+    "feedbackReason": {
+      "title": "What was wrong?",
+      "wrong_source": "Wrong source",
+      "incorrect": "Incorrect",
+      "incomplete": "Incomplete",
+      "not_helpful": "Not helpful",
+      "too_long": "Too long",
+      "other": "Other",
+      "commentPlaceholder": "Optional: what exactly? (stays in Doctus)",
+      "skip": "No reason",
+      "send": "Send"
+    }
   },
   "openGraphDialog": {
     "title": "Open knowledge graph",

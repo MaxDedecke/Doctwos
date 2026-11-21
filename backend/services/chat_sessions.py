@@ -13,6 +13,7 @@ Fehler kommen als ``services.chat_errors``-Ausnahmen; Team-/Projekt-Sichtbarkeit
 """
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
 from sqlalchemy.orm import Session
@@ -338,6 +339,25 @@ def _edit_last_question(
     return user_message, next((m for m in later if m.role == "assistant"), None)
 
 
+# So viele frühere Fassungen einer wiederholten Antwort bleiben zum Vergleichen erhalten.
+MAX_ANSWER_VERSIONS = 5
+
+
+def _with_previous_version(message: ChatMessage) -> list[dict]:
+    """Frühere Fassungen samt der gerade ersetzten, älteste zuerst; ohne Arbeitsschritte, die blähen nur."""
+    previous = message.metadata_json or {}
+    versions = list(previous.get("versions") or [])
+    versions.append(
+        {
+            "content": message.content,
+            "sources": message.sources_json or [],
+            "model": previous.get("model"),
+            "replaced_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    return versions[-MAX_ANSWER_VERSIONS:]
+
+
 def persist_assistant_message(
     *,
     db: Session,
@@ -355,7 +375,7 @@ def persist_assistant_message(
     Rückfrage-Zuordnung, Feedback-Auswertung). Eine neue Zeile rückte die Antwort ans Gesprächsende. Was beim
     Löschen per Fremdschlüssel mitging (Feedback-Signale, Diagnosefall), gehört zur alten Antwort und geht auch hier.
     """
-    metadata = {"model": model, "provider": provider, "agent_steps": agent_steps}
+    metadata: dict = {"model": model, "provider": provider, "agent_steps": agent_steps}
     if previous_message is None:
         message = ChatMessage(
             session_id=session_id,
@@ -373,6 +393,7 @@ def persist_assistant_message(
         db.query(ChatFeedbackDiagnosticCase).filter(
             ChatFeedbackDiagnosticCase.chat_message_id == message.id
         ).delete(synchronize_session=False)
+        metadata["versions"] = _with_previous_version(message)
         message.content = answer
         message.sources_json = sources
         message.metadata_json = metadata

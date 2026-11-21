@@ -28,6 +28,7 @@ from services.chat_errors import ChatForbidden, ChatInvalid
 from services.chat_feedback_diagnostics import capture_downvote_case, remove_case_for_message
 
 FEEDBACK_VALUES = (None, "up", "down")
+FEEDBACK_REASONS = ("wrong_source", "incorrect", "incomplete", "not_helpful", "too_long", "other")
 # Obergrenze der neuesten Downvotes, die eine Textsuche durchsieht (Inhalte sind
 # verschlüsselt und werden dafür in Python entschlüsselt).
 FEEDBACK_SEARCH_SCAN_LIMIT = 5000
@@ -126,12 +127,27 @@ def _revoke_downvote_link_signals(db: Session, message_id: int) -> None:
 
 
 def set_message_feedback(
-    db: Session, message: ChatMessage, feedback: Optional[str], user: User
+    db: Session,
+    message: ChatMessage,
+    feedback: Optional[str],
+    user: User,
+    reason: Optional[str] = None,
+    comment: Optional[str] = None,
 ) -> dict:
-    """Setzt das Feedback einer Assistenten-Antwort samt Folgesignalen und committet."""
+    """Setzt das Feedback einer Assistenten-Antwort samt Folgesignalen und committet.
+
+    Ein Grund (und Freitext) gehört nur zu einem Daumen runter und steht in ``metadata_json.feedback_reason``,
+    wo ihn auch die Admin-Auswertung sieht.
+    """
     if feedback not in FEEDBACK_VALUES:
         raise ChatInvalid("feedback muss 'up', 'down' oder null sein")
+    if reason is not None and reason not in FEEDBACK_REASONS:
+        raise ChatInvalid(f"reason muss einer von {', '.join(FEEDBACK_REASONS)} sein")
     message.feedback = feedback
+    metadata = {k: v for k, v in (message.metadata_json or {}).items() if k != "feedback_reason"}
+    if feedback == "down" and (reason or comment):
+        metadata["feedback_reason"] = {"reason": reason, "comment": (comment or "").strip() or None}
+    message.metadata_json = metadata
     if feedback == "down":
         link_feedback = _apply_downvote_link_signals(db, message, user)
         capture_downvote_case(db, message)

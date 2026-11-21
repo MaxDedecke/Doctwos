@@ -123,6 +123,7 @@ function controllableStream() {
 describe('useChatController', () => {
   beforeEach(() => {
     routerPush.mockReset();
+    vi.spyOn(api, 'getChatSuggestions').mockResolvedValue(axiosResponse({ suggestions: [] }) as never);
   });
 
   afterEach(() => {
@@ -570,6 +571,25 @@ describe('useChatController', () => {
     expect(page).toHaveBeenLastCalledWith(4, { limit: 40, before_id: 30 });
     expect(result.current.chatMessages.map(message => message.content)).toEqual(['Wer bist du ?', 'Doctus', 'Neu', 'Antwort neu']);
     expect(result.current.controller.chatControls.olderMessages.hasMore).toBe(false);
+  });
+
+  it('keeps earlier answer versions and loads follow-up suggestions after saving', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
+      { type: 'answer', content: 'Neu', agent_steps: [] },
+      { type: 'message_saved', message_id: 20, versions: [{ content: 'Alt', sources: [] }] },
+    ])));
+    const suggestions = vi.spyOn(api, 'getChatSuggestions')
+      .mockResolvedValue(axiosResponse({ suggestions: ['Wer ruft es auf?'] }) as never);
+    const { result } = renderHook(() => useControllerHarness({
+      activeSessionId: 7,
+      chatMessages: [{ id: 10, role: 'user', content: 'Frage' }, { id: 20, role: 'assistant', content: 'Alt' }],
+    }));
+
+    await act(async () => { await result.current.controller.handleRetryMessage(1); });
+
+    expect(suggestions).toHaveBeenCalledWith(20, undefined);
+    expect(result.current.chatMessages[1].metadata?.versions).toEqual([{ content: 'Alt', sources: [] }]);
+    expect(result.current.chatMessages[1].metadata?.suggestions).toEqual(['Wer ruft es auf?']);
   });
 
   it('stops a running answer on request without an error toast', async () => {

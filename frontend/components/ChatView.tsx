@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, ChatControls, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, ChatControls, FeedbackReason, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 import { api } from '@/app/services/api';
@@ -75,7 +75,7 @@ interface ChatViewProps {
   setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;
   chatControls?: ChatControls;
-  handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
+  handleFeedback: (messageId: number, feedback: 'up' | 'down', reason?: FeedbackReason, comment?: string) => void;
   addAssistantHint: (text: string) => void;
   handleFileSelect: (path: string, line?: number, sourceId?: string) => void;
   activeProfileId: string;
@@ -175,6 +175,15 @@ export function ChatView({
   const liveIndex = liveTurn && liveTurn.first === chatMessages[0] ? liveTurn.index : -1;
 
   const [originalAnswers, setOriginalAnswers] = React.useState<Set<number | string>>(() => new Set());
+  // Angezeigte Fassung je wiederholter Antwort (Index in metadata.versions); ohne Eintrag die aktuelle.
+  const [versionView, setVersionView] = React.useState<Record<number, number>>({});
+  const versionOf = (m: ChatMessage) => {
+    const versions = m.metadata?.versions ?? [];
+    const index = m.id != null ? versionView[m.id] : undefined;
+    return index != null && index < versions.length
+      ? { index, content: versions[index].content }
+      : { index: versions.length, content: m.content };
+  };
   const [callFlowDecisions, setCallFlowDecisions] = React.useState<Record<string, 'open' | 'declined'>>({});
   const handleOpenFlow = (flow: CallFlowData, key: string | number, action?: AgentViewAction) => {
     const outcome = action
@@ -398,7 +407,7 @@ export function ChatView({
                           )}
 
                           {m.content ? (
-                            <RevealedMarkdown live={i === liveIndex} content={m.content} compactCitations={!originalAnswers.has(m.id ?? `index:${i}`)} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => !source.kind)} />
+                            <RevealedMarkdown live={i === liveIndex} content={versionOf(m).content} compactCitations={!originalAnswers.has(m.id ?? `index:${i}`)} onFileClick={handleFileSelect} theme={theme} knownSources={m.sources?.filter(source => !source.kind)} />
                           ) : (
                             isLoading && i === chatMessages.length - 1 && (!m.metadata?.agent_steps || m.metadata.agent_steps.length === 0) && (
                               <div className="flex items-center gap-2.5 text-ds-zinc-500/80 py-1.5 animate-pulse">
@@ -958,10 +967,25 @@ export function ChatView({
                                 return next;
                               })}
                               onFeedback={handleFeedback}
-                              onRetry={handleRetryMessage}
+                              onRetry={(index) => {
+                                if (m.id != null) setVersionView(({ [m.id as number]: _shown, ...rest }) => rest);
+                                handleRetryMessage(index);
+                              }}
                               selectedProject={selectedProject}
                               showToast={showToast}
+                              versionIndex={versionOf(m).index}
+                              onVersionChange={(index) => { if (m.id != null) setVersionView(view => ({ ...view, [m.id as number]: index })); }}
                             />
+                          )}
+                          {i === chatMessages.length - 1 && !isLoading && (m.metadata?.suggestions?.length ?? 0) > 0 && (
+                            <div className="mt-3 flex flex-wrap gap-1.5" aria-label={t('chatView.followUps')}>
+                              {m.metadata?.suggestions?.map(question => (
+                                <button key={question} type="button" onClick={() => handleSendChat(question)}
+                                  className="rounded-full border border-ds-indigo-500/30 bg-ds-indigo-500/5 px-2.5 py-1 text-left text-[0.6875rem] text-ds-indigo-500 hover:bg-ds-indigo-500/10">
+                                  {question}
+                                </button>
+                              ))}
+                            </div>
                           )}
                         </>
                       )}

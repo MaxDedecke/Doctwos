@@ -25,6 +25,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from api.schemas import (
+    ChatFollowUpRequest,
     ChatMessageFeedbackUpdate,
     ChatMessageViewActionUpdate,
     ChatRequest,
@@ -37,6 +38,7 @@ from core.projects import assert_project_visible
 from doctus_models.database import User
 from services import chat_sessions as sessions
 from services.chat_errors import ChatForbidden, ChatInvalid, ChatNotFound
+from services.chat_followups import follow_up_suggestions
 from services.chat_feedback import list_negative_feedback, set_message_feedback
 from services.chat_start import generate_typing_statement, project_pulse
 from services.chat_turn import run_chat_turn, select_chat_profile
@@ -268,6 +270,20 @@ def delete_chat_session(
     return {"message": "Session gelöscht"}
 
 
+@router.post("/chat/messages/{message_id}/suggestions")
+async def chat_message_suggestions(
+    message_id: int,
+    body: ChatFollowUpRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Drei Anschlussfragen zur Antwort (einmal erzeugt, danach gespeichert)."""
+    with _http_errors():
+        message = sessions.get_accessible_assistant_message(db, user, message_id)
+        profile = select_chat_profile(db, body.llm_profile_id)
+    return {"suggestions": await follow_up_suggestions(db, message, profile)}
+
+
 @router.patch("/chat/messages/{message_id}/feedback")
 def update_chat_message_feedback(
     message_id: int,
@@ -277,7 +293,9 @@ def update_chat_message_feedback(
 ):
     with _http_errors():
         message = sessions.get_accessible_assistant_message(db, user, message_id)
-        link_feedback = set_message_feedback(db, message, body.feedback, user)
+        link_feedback = set_message_feedback(
+            db, message, body.feedback, user, reason=body.reason, comment=body.comment
+        )
     return {"id": message.id, "feedback": message.feedback, "link_feedback": link_feedback}
 
 

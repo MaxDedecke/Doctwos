@@ -260,6 +260,7 @@ export function useChatController({
     const isCurrent = () => generation === chatGenerationRef.current;
     let accumulatedSteps: AgentStep[] = [];
     let saved = false;
+    let savedMessageId: number | null = null;
     const updateTarget = (patch: (target: ChatMessage) => ChatMessage) => {
       if (!isCurrent()) return;
       setChatMessages(prev => {
@@ -441,6 +442,9 @@ export function useChatController({
                 updateTarget(target => ({ ...showSteps(target), content: data.content }));
               } else if (data.type === 'message_saved') {
                 saved = true;
+                savedMessageId = data.message_id;
+                const versions = data.versions;
+                if (versions?.length) updateTarget(target => ({ ...target, metadata: { ...target.metadata, versions } }));
                 const actionsToPersist = accumulatedSteps.filter((step): step is AgentViewAction => step.type === 'view_action')
                   .map(action => ({
                     ...action,
@@ -484,6 +488,15 @@ export function useChatController({
       // stehen bleiben darf sie nicht.
       if (!saved && userStopRef.current) markStopped();
       else if (!saved) failTurn(t('page.error.streamInterrupted'), response, true);
+      else if (savedMessageId != null) {
+        // Folgevorschläge kosten einen kleinen Modellaufruf und kommen nach der Antwort; Fehler bleiben still.
+        const messageId = savedMessageId;
+        const profileId = Number.isSafeInteger(requestBody.llm_profile_id) ? requestBody.llm_profile_id : undefined;
+        void api.getChatSuggestions(messageId, profileId).then(res => {
+          const suggestions = res.data.suggestions;
+          if (suggestions.length) updateTarget(target => target.id === messageId ? { ...target, metadata: { ...target.metadata, suggestions } } : target);
+        }).catch(() => undefined);
+      }
     } catch (error) {
       // Abgebrochen, weil der Chat gewechselt hat: kein Fehler für den Nutzer.
       if (!isCurrent()) return;

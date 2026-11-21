@@ -52,6 +52,7 @@ vi.mock('@/app/services/api', () => ({
     getChatSessionsPage: vi.fn(),
     getChatSessionByUuid: vi.fn(),
     getChatMessagesPage: vi.fn(),
+    getChatSuggestions: vi.fn(),
     updateChatMessageFeedback: vi.fn(),
     getKnowledgeSourceContent: vi.fn(),
     resolveWebOrigin: vi.fn(),
@@ -182,6 +183,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     mockedApi.getProjectReferences.mockResolvedValue(axiosResponse([]));
     mockedApi.getChatSessionsPage.mockResolvedValue(axiosResponse({ sessions: [], has_more: false, limit: 30 }));
     mockedApi.getChatMessagesPage.mockResolvedValue(axiosResponse({ messages: [], has_more: false }));
+    mockedApi.getChatSuggestions.mockResolvedValue(axiosResponse({ suggestions: [] }));
     mockedApi.getKnowledgeSourceContent.mockResolvedValue(axiosResponse({ content: 'code', format: 'text' }));
     mockedApi.updateChatSessionSnapshot.mockResolvedValue(axiosResponse({}));
   });
