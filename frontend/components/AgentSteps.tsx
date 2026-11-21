@@ -21,6 +21,7 @@ import {
   XCircle
 } from 'lucide-react';
 import { useState } from 'react';
+import { currentActivity, toolLabel } from '@/lib/chatActivity';
 
 
 
@@ -36,6 +37,22 @@ const REASONING_PREVIEW_CHARS = 600;
 function formatDuration(ms: number, language: string): string {
     if (ms < 1000) return `${ms} ms`;
     return `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(ms / 1000)} s`;
+}
+
+/** Hinweis im Gesprächsverlauf, dass ältere Nachrichten für diese Antwort zusammengefasst wurden. */
+export function HistoryCompactedNotice({ steps }: { steps: AgentStep[] }) {
+    const { t } = useLanguage();
+    const step = steps.find((candidate): candidate is Extract<AgentStep, { type: 'history_compacted' }> =>
+        candidate.type === 'history_compacted' && candidate.status !== 'running');
+    if (!step) return null;
+    return (
+        <div role="note" className="mb-2 flex items-center gap-2 text-[0.625rem] text-ds-zinc-500">
+            <span className="h-px flex-1 bg-ds-zinc-500/30" />
+            <Archive className="w-3 h-3" />
+            {t(step.status === 'ok' ? 'chatView.historyCompacted' : 'chatView.historyCompactionFailed', { count: step.messages })}
+            <span className="h-px flex-1 bg-ds-zinc-500/30" />
+        </div>
+    );
 }
 
 export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
@@ -104,7 +121,12 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                     <span className="font-semibold tracking-wide">
                         {isOpen ? t('agentSteps.hideThoughts') : t('agentSteps.showThoughts')}
                     </span>
-                    {!isOpen && (
+                    {isLive && (
+                        <span className="truncate max-w-[22rem] font-normal italic text-ds-zinc-500" aria-live="polite">
+                            {currentActivity(steps, t)}
+                        </span>
+                    )}
+                    {!isOpen && !isLive && (
                         <span className={cn(
                             "px-1.5 py-0.5 rounded-sm text-[0.5625rem] font-bold tracking-wide opacity-80",
                             theme === 'dark' ? "bg-ds-zinc-900 text-ds-zinc-400" : "bg-ds-zinc-200/80 text-ds-zinc-600"
@@ -199,7 +221,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                 "font-semibold",
                                                 theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"
                                             )}>
-                                                {t('agentSteps.toolCalled')} <span className="font-mono text-[0.6875rem] text-ds-blue-500">{step.name}</span>
+                                                {t('agentSteps.toolCalled')} <span className="font-mono text-[0.6875rem] text-ds-blue-500" title={step.name}>{toolLabel(step.name, t)}</span>
                                             </span>
                                             {pending && (
                                                 <span className="ml-2 inline-flex items-center gap-1 text-[0.625rem] text-ds-zinc-500">
@@ -255,7 +277,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                     "font-medium",
                                                     theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500"
                                                 )}>
-                                                    {t('agentSteps.resultFrom')} <span className="font-mono text-[0.6875rem]">{step.name}</span>
+                                                    {t('agentSteps.resultFrom')} <span className="font-mono text-[0.6875rem]" title={step.name}>{toolLabel(step.name, t)}</span>
                                                     {failed && <span className="ml-2 font-semibold text-ds-red-500">{t('agentSteps.toolFailed')}</span>}
                                                     {step.duration_ms != null && <span className="ml-2 font-mono text-[0.625rem] opacity-70">{formatDuration(step.duration_ms, language)}</span>}
                                                 </span>

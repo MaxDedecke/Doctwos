@@ -35,7 +35,8 @@ export function ChatMessageActions({
   selectedProject,
   showToast,
 }: ChatMessageActionsProps) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
+  const responseMs = m.metadata?.telemetry?.metrics?.response_time_ms ?? null;
   return (
     <div className="mt-3 pt-2 flex items-center justify-between gap-1.5">
       <div className="flex items-center gap-0.5 opacity-60 hover:opacity-100 transition-opacity">
@@ -130,6 +131,11 @@ export function ChatMessageActions({
           <Cpu className="w-3 h-3" />
           <span className="text-[0.625rem] font-bold uppercase tracking-widest">{m.metadata.model}</span>
           {m.metadata.chat_mode && <span className="text-[0.625rem] font-semibold">· {t(`chatView.mode.${m.metadata.chat_mode}`)}</span>}
+          {responseMs != null && (
+            <span className="text-[0.625rem] font-semibold" title={t('chatView.responseTimeTitle')}>
+              · {new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(responseMs / 1000)} s
+            </span>
+          )}
         </div>
       )}
     </div>

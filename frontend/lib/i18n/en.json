@@ -1367,7 +1367,12 @@
     "editingQuestion": "Editing question – sending replaces question and answer",
     "cancelEdit": "Cancel editing (Esc)",
     "jumpToLatest": "Jump to latest",
-    "modelWithoutTools": "without tools"
+    "modelWithoutTools": "without tools",
+    "responseTimeTitle": "Response time",
+    "srAnswering": "Doctus is answering …",
+    "srAnswerReady": "Answer ready.",
+    "historyCompacted": "Older history summarized ({{count}} messages)",
+    "historyCompactionFailed": "Older history not summarized; {{count}} messages are missing for the model"
   },
   "openGraphDialog": {
     "title": "Open knowledge graph",
@@ -1528,6 +1533,30 @@
       "running": "Summarizing older history ({{count}} messages) …",
       "ok": "Older history summarized ({{count}} messages); the model sees it as a summary.",
       "failed": "Summarizing older history failed; {{count}} older messages are missing for the model in this round."
+    },
+    "live": {
+      "compacting": "Summarizing older history …",
+      "tool": "{{tool}} …",
+      "toolWithHint": "{{tool}}: {{hint}} …",
+      "thinking": "Thinking …",
+      "evaluating": "Evaluating results …",
+      "working": "Working …"
+    },
+    "toolLabels": {
+      "answer_context": "Evidence pack from the index",
+      "search_knowledge": "Knowledge search",
+      "trace_call_flow": "Trace call chain",
+      "view_repo_file": "Read file",
+      "search_repo_code": "Search code",
+      "list_repo_files": "List files",
+      "get_repo_entities": "Find code objects",
+      "show_graph_neighborhood": "Graph neighborhood",
+      "inspect_change_impact": "Change impact",
+      "inspect_change_package": "Change package",
+      "view_commit_diff": "Commit diff",
+      "get_source_status": "Source status",
+      "offer_code_walkthrough": "Code walkthrough",
+      "offer_source_walkthrough": "Source walkthrough"
     }
   },
   "flowchartView": {

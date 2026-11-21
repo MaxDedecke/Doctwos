@@ -1367,7 +1367,12 @@
     "editingQuestion": "Frage wird bearbeitet – Senden ersetzt Frage und Antwort",
     "cancelEdit": "Bearbeiten abbrechen (Esc)",
     "jumpToLatest": "Zum Neuesten",
-    "modelWithoutTools": "ohne Werkzeuge"
+    "modelWithoutTools": "ohne Werkzeuge",
+    "responseTimeTitle": "Antwortzeit",
+    "srAnswering": "Doctus antwortet …",
+    "srAnswerReady": "Antwort fertig.",
+    "historyCompacted": "Älterer Verlauf zusammengefasst ({{count}} Nachrichten)",
+    "historyCompactionFailed": "Älterer Verlauf nicht zusammengefasst; {{count}} Nachrichten fehlen dem Modell"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",
@@ -1528,6 +1533,30 @@
       "running": "Älterer Verlauf wird zusammengefasst ({{count}} Nachrichten) …",
       "ok": "Älterer Verlauf zusammengefasst ({{count}} Nachrichten); das Modell sieht ihn als Zusammenfassung.",
       "failed": "Zusammenfassen des älteren Verlaufs fehlgeschlagen; {{count}} ältere Nachrichten fehlen dem Modell in dieser Runde."
+    },
+    "live": {
+      "compacting": "Fasst älteren Verlauf zusammen …",
+      "tool": "{{tool}} …",
+      "toolWithHint": "{{tool}}: {{hint}} …",
+      "thinking": "Denkt nach …",
+      "evaluating": "Wertet Ergebnisse aus …",
+      "working": "Arbeitet …"
+    },
+    "toolLabels": {
+      "answer_context": "Belegpaket aus dem Index",
+      "search_knowledge": "Wissenssuche",
+      "trace_call_flow": "Aufrufkette verfolgen",
+      "view_repo_file": "Datei lesen",
+      "search_repo_code": "Code durchsuchen",
+      "list_repo_files": "Dateien auflisten",
+      "get_repo_entities": "Codeobjekte suchen",
+      "show_graph_neighborhood": "Graph-Nachbarschaft",
+      "inspect_change_impact": "Änderungsauswirkung",
+      "inspect_change_package": "Änderungspaket",
+      "view_commit_diff": "Commit-Diff",
+      "get_source_status": "Quellenstand",
+      "offer_code_walkthrough": "Code-Rundgang",
+      "offer_source_walkthrough": "Quellen-Rundgang"
     }
   },
   "flowchartView": {

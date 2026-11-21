@@ -54,7 +54,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import React from 'react';
-import { AgentSteps } from "./AgentSteps";
+import { AgentSteps, HistoryCompactedNotice } from "./AgentSteps";
 import { ChatComposer } from "./ChatComposer";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { lockedChatMode } from "@/lib/chatMode";
@@ -392,6 +392,7 @@ export function ChatView({
                         </>
                       ) : (
                         <>
+                          {m.metadata?.agent_steps && <HistoryCompactedNotice steps={m.metadata.agent_steps} />}
                           {m.metadata && m.metadata.agent_steps && m.metadata.agent_steps.length > 0 && (
                             <AgentSteps steps={m.metadata.agent_steps.filter(step => step.type !== 'view_action')} theme={theme} isLive={isLoading && !m.id} />
                           )}
@@ -1001,6 +1002,9 @@ export function ChatView({
           </Button>
         </div>
       )}
+      <div className="sr-only" aria-live="polite">
+        {isLoading ? t('chatView.srAnswering') : chatMessages[chatMessages.length - 1]?.role === 'assistant' ? t('chatView.srAnswerReady') : ''}
+      </div>
       <ChatComposer
         theme={theme}
         currentMessage={currentMessage}
