@@ -34,12 +34,20 @@ export const EmbeddingMigrationPanel: React.FC<{ projectId: number; isAdmin: boo
   const [target, setTarget] = useState<string>('');
   const [busy, setBusy] = useState(false);
 
-  const load = useCallback(async () => {
-    try { setState((await api.getEmbeddingMigration(projectId)).data); }
-    catch (error) { showToast(t('settings.projects.embedding.error'), 'error', error); }
+  const fetchState = useCallback(async (): Promise<MigrationState | null> => {
+    try { return (await api.getEmbeddingMigration(projectId)).data; }
+    catch (error) { showToast(t('settings.projects.embedding.error'), 'error', error); return null; }
   }, [projectId, showToast, t]);
+  const load = useCallback(async () => {
+    const next = await fetchState();
+    if (next) setState(next);
+  }, [fetchState]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    let cancelled = false;
+    void fetchState().then(next => { if (next && !cancelled) setState(next); });
+    return () => { cancelled = true; };
+  }, [fetchState]);
   useEffect(() => {
     if (!isAdmin) return;
     api.getEmbeddingProfiles().then(res => setProfiles((res.data?.profiles ?? []) as ProfileOption[])).catch(() => setProfiles([]));
