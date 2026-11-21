@@ -1359,7 +1359,15 @@
       "programsCopybooksRelations": "Programme, Copybooks, Zusammenhänge"
     },
     "loadOlderMessages": "Ältere Nachrichten laden",
-    "loadingOlderMessages": "Lädt ältere Nachrichten …"
+    "loadingOlderMessages": "Lädt ältere Nachrichten …",
+    "stopAnswer": "Antwort stoppen",
+    "stopAnswerTitle": "Antwort stoppen (Esc)",
+    "answerStopped": "Antwort abgebrochen.",
+    "editQuestion": "Frage bearbeiten",
+    "editingQuestion": "Frage wird bearbeitet – Senden ersetzt Frage und Antwort",
+    "cancelEdit": "Bearbeiten abbrechen (Esc)",
+    "jumpToLatest": "Zum Neuesten",
+    "modelWithoutTools": "ohne Werkzeuge"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",

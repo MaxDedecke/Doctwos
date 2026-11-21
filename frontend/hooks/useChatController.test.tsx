@@ -562,14 +562,56 @@ describe('useChatController', () => {
     const { result } = renderHook(() => useControllerHarness());
 
     await act(async () => { await result.current.controller.handleSessionSelect({ id: 4, uuid: 'd', title: 'D' } as ChatSession); });
-    expect(result.current.controller.olderMessages.hasMore).toBe(true);
+    expect(result.current.controller.chatControls.olderMessages.hasMore).toBe(true);
     expect(result.current.chatMessages.map(message => message.content)).toEqual(['Neu', 'Antwort neu']);
 
-    await act(async () => { await result.current.controller.olderMessages.load(); });
+    await act(async () => { await result.current.controller.chatControls.olderMessages.load(); });
 
     expect(page).toHaveBeenLastCalledWith(4, { limit: 40, before_id: 30 });
     expect(result.current.chatMessages.map(message => message.content)).toEqual(['Wer bist du ?', 'Doctus', 'Neu', 'Antwort neu']);
-    expect(result.current.controller.olderMessages.hasMore).toBe(false);
+    expect(result.current.controller.chatControls.olderMessages.hasMore).toBe(false);
+  });
+
+  it('stops a running answer on request without an error toast', async () => {
+    const stream = controllableStream();
+    const fetchMock = vi.fn().mockResolvedValue(stream.response);
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useControllerHarness({ currentMessage: 'Frage' }));
+
+    let sending: Promise<void> = Promise.resolve();
+    await act(async () => { sending = result.current.controller.handleSendChat(); });
+    await act(async () => { stream.push({ type: 'session', session_id: 3, user_message_id: 41 }); });
+    await act(async () => { stream.push({ type: 'content_chunk', content: 'Teil' }); });
+    act(() => { result.current.controller.chatControls.stop(); });
+    expect(fetchMock.mock.calls[0][1].signal.aborted).toBe(true);
+    await act(async () => { stream.end(); await sending; });
+
+    expect(result.current.chatMessages[0].id).toBe(41);
+    expect(result.current.chatMessages[1].content).toBe('Teil\n\n_chatView.answerStopped_');
+    expect(result.current.showToast).not.toHaveBeenCalledWith('page.toast.aiQueryFailed', 'error', expect.anything());
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('edits the last question and replaces its answer', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(streamResponse([
+      { type: 'answer', content: 'Neue Antwort', agent_steps: [] },
+      { type: 'message_saved', message_id: 21 },
+    ]));
+    vi.stubGlobal('fetch', fetchMock);
+    const { result } = renderHook(() => useControllerHarness({
+      activeSessionId: 7,
+      chatMessages: [
+        { id: 10, role: 'user', content: 'Alte Frage', metadata: { chat_mode: 'evidence' } },
+        { id: 20, role: 'assistant', content: 'Alte Antwort' },
+      ],
+    }));
+
+    await act(async () => { await result.current.controller.chatControls.editLast('Neue Frage'); });
+
+    const request = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(request).toMatchObject({ message: 'Neue Frage', edit_of_message_id: 10, session_id: 7 });
+    expect(request.retry_of_message_id).toBeUndefined();
+    expect(result.current.chatMessages.map(message => message.content)).toEqual(['Neue Frage', 'Neue Antwort']);
   });
 
   it('stops a running answer from writing into the chat that replaced it', async () => {

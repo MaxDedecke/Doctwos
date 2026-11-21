@@ -1359,7 +1359,15 @@
       "programsCopybooksRelations": "Programs, copybooks, relationships"
     },
     "loadOlderMessages": "Load older messages",
-    "loadingOlderMessages": "Loading older messages …"
+    "loadingOlderMessages": "Loading older messages …",
+    "stopAnswer": "Stop answer",
+    "stopAnswerTitle": "Stop answer (Esc)",
+    "answerStopped": "Answer stopped.",
+    "editQuestion": "Edit question",
+    "editingQuestion": "Editing question – sending replaces question and answer",
+    "cancelEdit": "Cancel editing (Esc)",
+    "jumpToLatest": "Jump to latest",
+    "modelWithoutTools": "without tools"
   },
   "openGraphDialog": {
     "title": "Open knowledge graph",

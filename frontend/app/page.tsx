@@ -575,7 +575,7 @@ function AppContent() {
     handleRemoveSession,
     recordAgentViewActionOutcome,
     invalidateChat,
-    olderMessages,
+    chatControls,
   } = useChatController({
     t,
     showToast,
@@ -1027,7 +1027,7 @@ function AppContent() {
       chatMode={chatMode}
       setChatMode={changeChatMode}
       handleRetryMessage={handleRetryMessage}
-      olderMessages={olderMessages}
+      chatControls={chatControls}
       handleFeedback={handleFeedback}
       addAssistantHint={addAssistantHint}
       handlePanelFileSelect={handlePanelFileSelect}

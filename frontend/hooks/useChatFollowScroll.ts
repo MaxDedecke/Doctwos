@@ -1,19 +1,23 @@
-import { useEffect, useRef, type RefObject } from 'react';
+import { useCallback, useEffect, useRef, useState, type RefObject } from 'react';
 import { chatScrollTarget, FOLLOW_THRESHOLD_PX } from '@/lib/chatReveal';
 
 /**
  * Mitscrollen im Chat: folgt wachsendem Inhalt nur, solange man unten ist, und nie weiter, als dass
  * der Anker (das Element mit `data-chat-anchor`, die letzte Frage) oben im Bild bleibt. Eine neue
- * Nachricht holt den Chat wieder nach unten.
+ * Nachricht holt den Chat wieder nach unten. ``following`` sagt, ob man unten ist; ``scrollToLatest`` springt
+ * ans Ende und folgt wieder.
  */
 export function useChatFollowScroll(contentRef: RefObject<HTMLElement | null>, messageCount: number) {
   const followingRef = useRef(true);
   const followRef = useRef<() => void>(() => {});
+  const viewportRef = useRef<HTMLElement | null>(null);
+  const [following, setFollowing] = useState(true);
 
   useEffect(() => {
     const content = contentRef.current;
     const viewport = content?.closest<HTMLElement>('[data-radix-scroll-area-viewport]');
     if (!content || !viewport) return;
+    viewportRef.current = viewport;
     let programmatic = false;
     const follow = () => {
       const anchor = content.querySelector<HTMLElement>('[data-chat-anchor="true"]');
@@ -35,9 +39,11 @@ export function useChatFollowScroll(contentRef: RefObject<HTMLElement | null>, m
       // Das eigene Scrollen bis zum Anker beendet das Folgen nicht, erst das des Lesers.
       if (programmatic) {
         programmatic = false;
+        setFollowing(followingRef.current);
         return;
       }
       followingRef.current = viewport.scrollHeight - viewport.clientHeight - viewport.scrollTop <= FOLLOW_THRESHOLD_PX;
+      setFollowing(followingRef.current);
     };
     followRef.current = follow;
     viewport.addEventListener('scroll', onScroll, { passive: true });
@@ -57,4 +63,13 @@ export function useChatFollowScroll(contentRef: RefObject<HTMLElement | null>, m
     }
     previousCount.current = messageCount;
   }, [messageCount]);
+
+  const scrollToLatest = useCallback(() => {
+    const viewport = viewportRef.current;
+    if (!viewport) return;
+    followingRef.current = true;
+    setFollowing(true);
+    viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+  }, []);
+  return { following, scrollToLatest };
 }

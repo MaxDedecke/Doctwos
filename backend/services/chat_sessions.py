@@ -250,7 +250,9 @@ def begin_turn(db: Session, session: ChatSession, request: "ChatRequest") -> Cha
     Antwort sieht nichts, was im Gespräch erst danach kam.
     """
     replaced = None
-    if request.retry_of_message_id:
+    if getattr(request, "edit_of_message_id", None):
+        user_message, replaced = _edit_last_question(db, session, request)
+    elif request.retry_of_message_id:
         replaced = (
             db.query(ChatMessage)
             .filter(
@@ -294,6 +296,46 @@ def begin_turn(db: Session, session: ChatSession, request: "ChatRequest") -> Cha
     )
     history.reverse()
     return ChatTurn(session, user_message, replaced, history)
+
+
+def _edit_last_question(
+    db: Session, session: ChatSession, request: "ChatRequest"
+) -> tuple[ChatMessage, Optional[ChatMessage]]:
+    """Neuer Text für die letzte Nutzerfrage; ihre Antwort (falls gespeichert) wird danach ersetzt.
+
+    Nur die letzte Frage ist bearbeitbar: Bei einer früheren müsste alles danach verworfen oder verzweigt werden.
+    """
+    user_message = (
+        db.query(ChatMessage)
+        .filter(
+            ChatMessage.id == request.edit_of_message_id,
+            ChatMessage.session_id == session.id,
+            ChatMessage.role == "user",
+        )
+        .first()
+    )
+    if not user_message:
+        raise ChatNotFound("Zu bearbeitende Frage nicht gefunden")
+    later = (
+        db.query(ChatMessage)
+        .filter(ChatMessage.session_id == session.id, ChatMessage.id > user_message.id)
+        .order_by(ChatMessage.id.asc())
+        .all()
+    )
+    if any(message.role == "user" for message in later):
+        raise ChatInvalid("Nur die letzte Frage lässt sich bearbeiten")
+    text = (request.message or "").strip()
+    if not text:
+        raise ChatInvalid("Die bearbeitete Frage ist leer")
+    user_message.content = text
+    user_message.metadata_json = {
+        **(user_message.metadata_json or {}),
+        **(request.metadata or {}),
+        "chat_mode": request.mode,
+        "edited": True,
+    }
+    db.commit()
+    return user_message, next((m for m in later if m.role == "assistant"), None)
 
 
 def persist_assistant_message(

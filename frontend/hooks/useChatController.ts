@@ -12,6 +12,7 @@ import {
 import { fromStoredMessages, normalizeInitialUserMessage } from '@/lib/chatMessage';
 import { parseChatStreamEvent } from '@/lib/chatStream';
 import { withCompaction, withReasoningChunk } from '@/lib/chatSteps';
+import { viewActionMatchesResult } from '@/lib/chatViewActionCheck';
 import { extractCallFlowData } from '@/lib/callFlow';
 import type { CallFlowData } from '@/lib/callFlow';
 import { copyToClipboard } from '@/lib/utils';
@@ -98,6 +99,8 @@ export function useChatController({
   const activeSessionEpochRef = useRef(0);
   const chatGenerationRef = useRef(0);
   const streamAbortRef = useRef<AbortController | null>(null);
+  // Der Nutzer hat die laufende Antwort selbst gestoppt (Knopf oder Esc), sie ist also kein Fehler.
+  const userStopRef = useRef(false);
   /** Entwertet und beendet einen laufenden Chat-Stream (neuer Chat, andere Sitzung, Projektwechsel). */
   const [olderPages, setOlderPages] = useState({ hasMore: false, loading: false });
   const invalidateChat = useCallback(() => {
@@ -272,8 +275,13 @@ export function useChatController({
       updateTarget(target => previous ?? { ...target, content: keepPartial && target.content ? `${target.content}\n\n${text}` : text });
       if (isCurrent()) showToast(t('page.toast.aiQueryFailed'), 'error', cause);
     };
+    const markStopped = () => {
+      const note = t('chatView.answerStopped');
+      updateTarget(target => previous ?? { ...target, content: target.content ? `${target.content}\n\n_${note}_` : note });
+    };
     const abort = new AbortController();
     streamAbortRef.current = abort;
+    userStopRef.current = false;
     try {
       const response = await api.fetch('/api/chat', {
         method: 'POST',
@@ -323,6 +331,12 @@ export function useChatController({
               }
 
               if (data.type === 'session') {
+                const userMessageId = data.user_message_id;
+                if (userMessageId != null && isCurrent()) {
+                  setChatMessages(prev => prev.map((message, index) => (
+                    index === targetIndex - 1 && message.role === 'user' ? { ...message, id: userMessageId } : message
+                  )));
+                }
                 const newSessionId = data.session_id;
                 const newSessionUuid = data.session_uuid;
 
@@ -392,84 +406,6 @@ export function useChatController({
                 }
                 handledViewActionIdsRef.current.add(data.action_id);
 
-                const matchingResult = [...accumulatedSteps].reverse().find(step =>
-                  step.type === 'tool_result' && step.id === data.tool_call_id && (
-                    (data.view === 'callgraph' && (step.name === 'trace_call_flow' || step.name === 'inspect_change_impact')) ||
-                    (data.view === 'graph' && step.name === 'show_graph_neighborhood') ||
-                    (data.view === 'code' && step.name === 'view_repo_file') ||
-                    (data.view === 'walkthrough' &&
-                      (step.name === 'offer_code_walkthrough' || step.name === 'offer_source_walkthrough'))
-                  )
-                );
-                const flow = data.view === 'callgraph' && matchingResult
-                  ? extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [matchingResult] } })
-                  : null;
-                let hasMatchingCodeLocation = false;
-                let hasMatchingWalkthrough = false;
-                let hasMatchingGraphNeighborhood = false;
-                if (data.view === 'code' && matchingResult?.type === 'tool_result') {
-                  try {
-                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
-                    hasMatchingCodeLocation = result.file_path === data.target.file_path &&
-                      result.start_line === data.target.start_line &&
-                      result.end_line === data.target.end_line;
-                  } catch {
-                    hasMatchingCodeLocation = false;
-                  }
-                }
-                if (data.view === 'walkthrough' && matchingResult?.type === 'tool_result') {
-                  try {
-                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
-                    const canonicalize = (value: unknown) => JSON.stringify(
-                      value && typeof value === 'object' && !Array.isArray(value)
-                        ? Object.fromEntries(Object.entries(value as Record<string, unknown>).sort(([left], [right]) => left.localeCompare(right)))
-                        : value,
-                    );
-                    hasMatchingWalkthrough = result.status === 'ok' &&
-                      result.title === data.target.title &&
-                      Array.isArray(result.steps) && result.steps.length === data.target.steps.length &&
-                      result.steps.every((step, index) => canonicalize(step) === canonicalize(data.target.steps[index])) &&
-                      data.target.steps.every(step => {
-                        if (step.kind !== 'callgraph') return true;
-                        const traceResult = accumulatedSteps.find(candidate =>
-                          candidate.type === 'tool_result' && candidate.name === 'trace_call_flow' &&
-                          candidate.id === step.trace_tool_call_id,
-                        );
-                        if (traceResult?.type !== 'tool_result') return false;
-                        const flow = extractCallFlowData({ role: 'assistant', content: '', metadata: { agent_steps: [traceResult] } });
-                        if (!flow) return false;
-                        const edge = flow.edges.find(candidate => candidate.id === step.edge_id);
-                        const source = flow.nodes.find(candidate => candidate.id === step.source_entity_id);
-                        const target = flow.nodes.find(candidate => candidate.id === step.target_entity_id);
-                        return edge?.resolution === 'resolved' &&
-                          edge.source === step.source_entity_id && edge.target === step.target_entity_id &&
-                          source?.name === step.source_name && target?.name === step.target_name &&
-                          source?.file_path === (step.file_path || undefined) &&
-                          edge.start_line === step.start_line && edge.end_line === step.end_line;
-                      });
-                  } catch {
-                    hasMatchingWalkthrough = false;
-                  }
-                }
-                if (data.view === 'graph' && matchingResult?.type === 'tool_result') {
-                  try {
-                    const result = JSON.parse(matchingResult.result) as Record<string, unknown>;
-                    const nodes = Array.isArray(result.nodes) ? result.nodes : [];
-                    const edges = Array.isArray(result.edges) ? result.edges : [];
-                    hasMatchingGraphNeighborhood = result.status === 'ok' &&
-                      result.focus_id === data.target.focus_id &&
-                      result.focus_label === data.target.focus_label &&
-                      result.direction === data.target.direction &&
-                      result.hops === data.target.hops &&
-                      result.limit === data.target.limit &&
-                      JSON.stringify(result.relationships) === JSON.stringify(data.target.relationships) &&
-                      edges.length > 0 && edges.length <= data.target.limit &&
-                      nodes.some(node => node && typeof node === 'object' &&
-                        (node as Record<string, unknown>).id === data.target.focus_id);
-                  } catch {
-                    hasMatchingGraphNeighborhood = false;
-                  }
-                }
                 let status: ViewActionOutcome = 'rejected';
                 const requestProjectId = requestBody.project_id == null ? null : Number(requestBody.project_id);
                 const isCurrentTurn = activeSessionIdRef.current === data.session_id &&
@@ -479,12 +415,7 @@ export function useChatController({
 
                 if (!isCurrentTurn) {
                   status = 'stale_context';
-                } else if (
-                  (data.view === 'callgraph' && (!flow || flow.root.id !== data.target.entity_id)) ||
-                  (data.view === 'graph' && !hasMatchingGraphNeighborhood) ||
-                  (data.view === 'code' && !hasMatchingCodeLocation) ||
-                  (data.view === 'walkthrough' && !hasMatchingWalkthrough)
-                ) {
+                } else if (!viewActionMatchesResult(data, accumulatedSteps)) {
                   status = 'rejected';
                 } else {
                   // Agent views are proposals. Opening only happens after an explicit click in ChatView.
@@ -551,10 +482,15 @@ export function useChatController({
       }
       // Ohne „message_saved“ ist die Runde nicht abgeschlossen (Verbindung weg, Server neu gestartet); stumm
       // stehen bleiben darf sie nicht.
-      if (!saved) failTurn(t('page.error.streamInterrupted'), response, true);
+      if (!saved && userStopRef.current) markStopped();
+      else if (!saved) failTurn(t('page.error.streamInterrupted'), response, true);
     } catch (error) {
       // Abgebrochen, weil der Chat gewechselt hat: kein Fehler für den Nutzer.
       if (!isCurrent()) return;
+      if (userStopRef.current) {
+        markStopped();
+        return;
+      }
       console.error(error);
       failTurn(error instanceof Error && error.message
         ? t('page.error.chatFetchFailedWithMessage', { message: error.message })
@@ -619,38 +555,33 @@ export function useChatController({
     }, targetIndex);
   }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, chatMode, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
 
-  const handleRetryMessage = useCallback(async (index: number) => {
-    if (isLoading) return;
-    const assistantMsg = chatMessages[index];
-    const userMsg = chatMessages[index - 1];
-    if (!assistantMsg || assistantMsg.role !== 'assistant' || !assistantMsg.id) return;
-    if (!userMsg || userMsg.role !== 'user') return;
-
+  // Neue Antwort auf eine vorhandene Frage: Wiederholen ersetzt die Antwort, Bearbeiten zusätzlich die Frage.
+  const rerunTurn = useCallback(async (
+    userIndex: number, userMsg: ChatMessage, extra: Pick<ChatRequest, 'retry_of_message_id' | 'edit_of_message_id'>,
+    previous?: ChatMessage,
+  ) => {
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
-    const retryPlaceholder: ChatMessage = {
+    const mode = userMsg.metadata?.chat_mode === 'normal' ? 'normal' : 'evidence';
+    const placeholder: ChatMessage = {
       role: 'assistant',
       content: '',
       sources: [],
       metadata: {
         model: activeProfile?.name || activeProfile?.model || t('page.defaultModelFallback'),
         provider: activeProfile?.provider,
-        chat_mode: userMsg.metadata?.chat_mode === 'normal' ? 'normal' : 'evidence',
+        chat_mode: mode,
         agent_steps: []
       }
     };
-
-    setChatMessages(prev => {
-      const next = [...prev];
-      next[index] = retryPlaceholder;
-      return next;
-    });
+    // Beim Bearbeiten fällt alles nach der Frage weg; beim Wiederholen bleibt der übrige Verlauf stehen.
+    setChatMessages(prev => extra.edit_of_message_id
+      ? [...prev.slice(0, userIndex), userMsg, placeholder]
+      : prev.map((message, index) => (index === userIndex + 1 ? placeholder : message)));
     setIsLoading(true);
-
     const turnFocus = getChatTurnFocus(userMsg);
-
     await runChatStream({
       message: userMsg.content,
-      mode: userMsg.metadata?.chat_mode === 'normal' ? 'normal' : 'evidence',
+      mode,
       session_id: activeSessionId,
       ...chatFocusRequestFields(turnFocus),
       branch,
@@ -661,9 +592,35 @@ export function useChatController({
       llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
       embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: createChatMetadata(turnFocus, userMsg.metadata),
-      retry_of_message_id: assistantMsg.id
-    }, index, assistantMsg);
-  }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
+      ...extra,
+    }, userIndex + 1, previous);
+  }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
+
+  const handleRetryMessage = useCallback(async (index: number) => {
+    if (isLoading) return;
+    const assistantMsg = chatMessages[index];
+    const userMsg = chatMessages[index - 1];
+    if (!assistantMsg || assistantMsg.role !== 'assistant' || !assistantMsg.id) return;
+    if (!userMsg || userMsg.role !== 'user') return;
+    await rerunTurn(index - 1, userMsg, { retry_of_message_id: assistantMsg.id }, assistantMsg);
+  }, [chatMessages, isLoading, rerunTurn]);
+
+  /** Ersetzt den Text der letzten Frage und beantwortet sie neu; false, wenn das nicht geht. */
+  const editLastQuestion = useCallback(async (text: string) => {
+    const content = text.trim();
+    const userIndex = chatMessages.map(message => message.role).lastIndexOf('user');
+    const userMsg = chatMessages[userIndex];
+    if (isLoading || !content || !userMsg?.id) return false;
+    setCurrentMessage('');
+    await rerunTurn(userIndex, { ...userMsg, content, metadata: { ...userMsg.metadata, edited: true } }, { edit_of_message_id: userMsg.id });
+    return true;
+  }, [chatMessages, isLoading, rerunTurn, setCurrentMessage]);
+
+  const stopAnswer = useCallback(() => {
+    if (!streamAbortRef.current) return;
+    userStopRef.current = true;
+    streamAbortRef.current.abort();
+  }, []);
 
   const handleSessionSelect = useCallback(async (session: ChatSession) => {
     invalidateChat();
@@ -771,6 +728,6 @@ export function useChatController({
     handleRemoveSession,
     recordAgentViewActionOutcome,
     invalidateChat,
-    olderMessages: { ...olderPages, load: loadOlderMessages },
+    chatControls: { olderMessages: { ...olderPages, load: loadOlderMessages }, stop: stopAnswer, editLast: editLastQuestion },
   };
 }

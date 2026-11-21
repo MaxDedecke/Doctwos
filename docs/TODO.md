@@ -14,7 +14,7 @@ behoben; 27 isolierte Sicherheitsprüfungen sowie 9 MCP-Regressionen bestanden.
 
 ## Reihenfolge der offenen Arbeit (Stand 06.10.2026)
 
-> **Ab 27.10.2026 gilt [ARBEITSLEITLINIE.md](ARBEITSLEITLINIE.md)** (Feature-Stopp, Wochenplan). Wo die Reihenfolge unten abweicht, hat die Leitlinie Vorrang.
+> **Ab 27.10.2026 gilt [ARBEITSLEITLINIE.md](ARBEITSLEITLINIE.md)** (Wochenplan; der Feature-Stopp ist seit 21.11.2026 aufgehoben). Wo die Reihenfolge unten abweicht, hat die Leitlinie Vorrang.
 
 Abgeschlossene Punkte stehen nicht mehr in dieser Datei (siehe „Pflege“); ihr Nachweis liegt in der Git-Historie
 (Commit „docs(todo): abgeschlossene Punkte entfernt, Stand bereinigt“). Verbleibende Punkte sind teilweise

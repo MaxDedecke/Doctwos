@@ -270,6 +270,13 @@ export interface ChatOlderMessages {
   loading: boolean;
   load: () => void | Promise<void>;
 }
+/** Steuerung des laufenden Chats aus der Eingabeleiste und dem Verlauf. */
+export interface ChatControls {
+  olderMessages: ChatOlderMessages;
+  stop: () => void;
+  /** Ersetzt die letzte Frage durch den Text und beantwortet sie neu. */
+  editLast: (text: string) => Promise<boolean>;
+}
 export interface StoredChatMessagePage {
   messages: StoredChatMessage[];
   has_more: boolean;
@@ -329,9 +336,10 @@ export interface ChatRequest {
   embedding_model?: string;
   metadata: ChatMetadata;
   retry_of_message_id?: number;
+  edit_of_message_id?: number;
 }
 export type ChatStreamEvent =
-  | { type: 'session'; session_id: number; session_uuid?: string; session_title?: string }
+  | { type: 'session'; session_id: number; session_uuid?: string; session_title?: string; user_message_id?: number }
   | { type: 'sources'; sources: ChatSource[] }
   | { type: 'content_chunk'; content: string }
   /** Bereits gestreamter Text war Denken des Modells und wird aus der Live-Anzeige entfernt. */

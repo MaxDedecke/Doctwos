@@ -432,10 +432,11 @@ describe('ChatView', () => {
       expect((screen.getByLabelText('Nachricht senden') as HTMLButtonElement).disabled).toBe(true);
     });
 
-    it('deaktiviert den Senden-Button während eine Antwort noch lädt', () => {
+    it('zeigt statt Senden einen Stopp-Knopf, während eine Antwort noch lädt', () => {
       renderChat({ currentMessage: 'Hallo', isLoading: true });
 
-      expect((screen.getByLabelText('Nachricht senden') as HTMLButtonElement).disabled).toBe(true);
+      expect(screen.queryByLabelText('Nachricht senden')).toBeNull();
+      expect(screen.getByLabelText('Antwort stoppen')).toBeTruthy();
     });
 
     it('sendet per Enter ab, aber nicht per Shift+Enter (Zeilenumbruch)', () => {

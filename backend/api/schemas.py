@@ -104,6 +104,8 @@ class ChatRequest(BaseModel):
     retry_of_message_id: Optional[int] = (
         None  # regenerate: replaces this assistant message instead of appending a new turn
     )
+    # Bearbeiten: ersetzt den Text dieser (letzten) Nutzerfrage und ihre Antwort.
+    edit_of_message_id: Optional[int] = None
 
 
 class ChatSessionCreate(BaseModel):

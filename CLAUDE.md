@@ -9,7 +9,8 @@ Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
 die heutige Fachlogik und Architektur sind COBOL-zentriert.
 
 **Vor jeder Arbeit lesen:** zuerst `docs/ARBEITSLEITLINIE.md` (zentrale
-Arbeitsleitlinie mit Feature-Stopp und Wochenplan; hat Vorrang vor der
+Arbeitsleitlinie mit Wochenplan; der frühere Feature-Stopp ist seit 21.11.2026 aufgehoben und
+wird nicht mehr erwähnt; hat Vorrang vor der
 Reihenfolge in der TODO-Liste), dann `docs/TODO.md` (priorisierte Liste
 offener Änderungen) und `docs/ENTSCHEIDUNGEN.md` (festgelegte Streitpunkte).
 

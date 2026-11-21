@@ -256,3 +256,34 @@ def test_a_regenerated_answer_keeps_its_place_and_drops_feedback_on_the_old_one(
         "Frage 2",
         "Antwort 2",
     ]
+
+
+def _edit_request(message: ChatMessage, text: str) -> SimpleNamespace:
+    return SimpleNamespace(
+        edit_of_message_id=message.id,
+        retry_of_message_id=None,
+        message=text,
+        metadata={},
+        mode="evidence",
+    )
+
+
+def test_editing_the_last_question_replaces_its_text_and_then_its_answer(db_session, conversation):
+    session, messages, _ = conversation
+
+    turn = begin_turn(db_session, session, _edit_request(messages[4], "Frage 2, genauer"))
+
+    assert turn.user_message.id == messages[4].id
+    assert turn.user_message.content == "Frage 2, genauer"
+    assert turn.user_message.metadata_json["edited"] is True
+    assert turn.replaced_answer.id == messages[5].id
+    assert [m.content for m in turn.history][-1] == "Antwort 1"
+
+
+def test_only_the_last_question_can_be_edited(db_session, conversation):
+    from services.chat_errors import ChatInvalid
+
+    session, messages, _ = conversation
+
+    with pytest.raises(ChatInvalid):
+        begin_turn(db_session, session, _edit_request(messages[2], "neu"))

@@ -334,6 +334,7 @@ class ChatTurnRun:
             "session_id": session.id,
             "session_uuid": str(session.uuid) if session.uuid else None,
             "session_title": session.title,
+            "user_message_id": self.turn.user_message.id,
         }
 
         intent = (

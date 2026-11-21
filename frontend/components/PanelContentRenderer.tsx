@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatOlderMessages, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
+import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatControls, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
 import { ProcessFlow } from '@/components/ProcessFlow';
 import { ChatView } from '@/components/ChatView';
@@ -34,7 +34,7 @@ type PanelContentRendererProps = {
   chatMode?: 'normal' | 'evidence';
   setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;
-  olderMessages?: ChatOlderMessages;
+  chatControls?: ChatControls;
   handleFeedback: (messageId: number, feedback: 'up' | 'down') => void;
   addAssistantHint: (text: string) => void;
   handlePanelFileSelect: (
@@ -101,7 +101,7 @@ export function PanelContentRenderer({
   chatMode,
   setChatMode,
   handleRetryMessage,
-  olderMessages,
+  chatControls,
   handleFeedback,
   addAssistantHint,
   handlePanelFileSelect,
@@ -154,7 +154,7 @@ export function PanelContentRenderer({
         chatMode={chatMode ?? 'evidence'}
         setChatMode={setChatMode}
         handleRetryMessage={handleRetryMessage}
-        olderMessages={olderMessages}
+        chatControls={chatControls}
         handleFeedback={handleFeedback}
         addAssistantHint={addAssistantHint}
         handleFileSelect={(path, line, sourceId) => handlePanelFileSelect(index, path, line, sourceId)}

@@ -129,7 +129,10 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
       return typeof value.session_id === 'number' &&
         (value.session_uuid === undefined || typeof value.session_uuid === 'string') &&
         (value.session_title === undefined || typeof value.session_title === 'string')
-        ? { type: 'session', session_id: value.session_id, session_uuid: value.session_uuid, session_title: value.session_title } : null;
+        ? {
+          type: 'session', session_id: value.session_id, session_uuid: value.session_uuid, session_title: value.session_title,
+          ...(Number.isSafeInteger(value.user_message_id) ? { user_message_id: value.user_message_id as number } : {}),
+        } : null;
     case 'content_chunk':
       return typeof value.content === 'string' ? { type: 'content_chunk', content: value.content } : null;
     case 'content_reset':

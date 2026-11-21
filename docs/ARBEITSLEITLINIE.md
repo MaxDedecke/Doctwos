@@ -15,7 +15,8 @@ Ziel: Die Befunde mit hoher Schwere schließen oder messbar machen, bevor neue F
 Diese Regeln gelten für Menschen und KI-Agenten gleichermaßen. Ein Agent, der einen Auftrag erhält, der gegen
 eine Regel verstößt, weist darauf hin und fragt nach, bevor er beginnt.
 
-1. **Feature-Stopp.** Keine neuen Ansichten, Konnektoren, Sprachen, MCP-Werkzeuge oder Deployment-Varianten.
+1. **Kein Feature-Stopp mehr (aufgehoben am 21.11.2026 durch den Nutzer).** Neue Funktionen werden ohne Rückfrage
+   zum Feature-Stopp umgesetzt; ein Agent erwähnt ihn nicht mehr. Der folgende Satz ist nur noch Historie:
    Erlaubt ist nur Arbeit, die einen Punkt aus Abschnitt 2 oder 3 schließt, ein Sicherheitsproblem behebt oder
    von einem Pilotkunden ausdrücklich verlangt wird.
 2. **Grün vor neu.** Ist ein CI-Job rot, wird zuerst er repariert. Kein Commit, der einen roten Job hinterlässt.
