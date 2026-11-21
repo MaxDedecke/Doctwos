@@ -2,6 +2,7 @@ import asyncio
 import logging
 import os
 import json
+from time import monotonic
 import httpx
 from typing import Dict, List, Any, Optional, AsyncGenerator
 import core.config as cfg
@@ -20,7 +21,7 @@ from services.agent_mcp_tools import collect_mcp_tools
 from services.agent_prompt import build_system_prompt
 from services.agent_tool_defs import local_tool_definitions, select_tools_for_question
 from services.agent_tool_executor import AgentToolExecutor
-from services.agent_tool_results import _tool_result_was_truncated
+from services.agent_tool_results import _tool_result_was_truncated, tool_result_failed
 from services import agent_text_tool_calls as text_calls
 
 logger = logging.getLogger(__name__)
@@ -98,7 +99,9 @@ _NO_RESEARCH_ANSWER = (
 )
 
 
-def _tool_events(call: ToolCall, result: str, metadata: dict) -> tuple[dict, dict]:
+def _tool_events(
+    call: ToolCall, result: str, metadata: dict, started_at: Optional[float] = None
+) -> tuple[dict, dict]:
     return (
         {"type": "tool_call", "name": call.name, "arguments": call.arguments, "id": call.id},
         {
@@ -107,6 +110,12 @@ def _tool_events(call: ToolCall, result: str, metadata: dict) -> tuple[dict, dic
             "result": result,
             "id": call.id,
             "truncated": _tool_result_was_truncated(result),
+            "status": "error" if tool_result_failed(result, metadata) else "ok",
+            **(
+                {"duration_ms": round((monotonic() - started_at) * 1000)}
+                if started_at is not None
+                else {}
+            ),
             **metadata,
         },
     )
@@ -194,9 +203,16 @@ async def _research_loop(
                     break
                 if attempt == 0:
                     logger.warning("Modellzug %s war leer; wird einmal wiederholt", turn_index)
+            cut = adapter.take_context_cut()
+            if cut:
+                trimmed = {"type": "context_trimmed", "turn": turn_index, "parts": cut}
+                agent_steps.append(trimmed)
+                yield dict(trimmed)
             calls = [] if final else turn.tool_calls
             if turn.text and (calls or not pending):
-                agent_steps.append({"type": "thought", "content": turn.text})
+                # Text vor Werkzeugaufrufen ist Zwischenstand; ohne Aufrufe ist er die Antwort selbst.
+                if calls:
+                    agent_steps.append({"type": "thought", "content": turn.text})
                 if pending or not adapter.streams:
                     yield {"type": "content_chunk", "content": turn.text}
 
@@ -206,11 +222,14 @@ async def _research_loop(
                     call_event, _ = _tool_events(call, "", {})
                     agent_steps.append(call_event)
                     yield dict(call_event)
+                    started_at = monotonic()
                     if isinstance(call.arguments, dict):
                         result = await execute_tool(call.name, call.arguments, call.id)
                     else:
                         result = _INVALID_ARGUMENTS_RESULT.format(name=call.name)
-                    _, result_event = _tool_events(call, result, execution_metadata(call.id))
+                    _, result_event = _tool_events(
+                        call, result, execution_metadata(call.id), started_at
+                    )
                     agent_steps.append(result_event)
                     yield dict(result_event)
                     results.append(result)
@@ -323,6 +342,7 @@ async def run_agent_loop(
     # an answer.
     bootstrap_tool: Optional[ToolCall] = None
     bootstrap_result: Optional[str] = None
+    bootstrap_started = monotonic()
     prefetched = None
     if require_initial_tool_call and project_id and not pinned_file and cfg.CHAT_EVIDENCE_PREFETCH:
         prefetched = await _prefetch_evidence(
@@ -354,7 +374,7 @@ async def run_agent_loop(
             bootstrap_result = await executor.execute(bootstrap_name, bootstrap_args)
     if bootstrap_result is not None:
         bootstrap_tool = ToolCall("bootstrap-0", bootstrap_name, bootstrap_args)
-        for event in _tool_events(bootstrap_tool, bootstrap_result, {}):
+        for event in _tool_events(bootstrap_tool, bootstrap_result, {}, bootstrap_started):
             agent_steps.append(event)
             yield dict(event)
 

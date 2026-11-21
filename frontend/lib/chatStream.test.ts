@@ -36,6 +36,28 @@ describe('chat stream boundary', () => {
     });
   });
 
+  it('carries tool status and duration, and drops malformed ones', () => {
+    const event = { type: 'tool_result', name: 'search', result: '{"error":"x"}', id: 'call-1', truncated: false, status: 'error', duration_ms: 812 };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
+    expect(parseChatStreamEvent(JSON.stringify({ ...event, status: 'kaputt', duration_ms: -3 }))).toEqual({
+      type: 'tool_result', name: 'search', result: '{"error":"x"}', id: 'call-1', truncated: false,
+    });
+  });
+
+  it('parses the live-text reset and context trims, keeping only known trimmed parts', () => {
+    expect(parseChatStreamEvent(JSON.stringify({ type: 'content_reset' }))).toEqual({ type: 'content_reset' });
+    expect(parseChatStreamEvent(JSON.stringify({ type: 'context_trimmed', turn: 2, parts: ['history', 'unbekannt'] })))
+      .toEqual({ type: 'context_trimmed', turn: 2, parts: ['history'] });
+  });
+
+  it('keeps the answer when its steps include a context trim', () => {
+    const event = { type: 'answer', content: 'Result', agent_steps: [
+      { type: 'context_trimmed', turn: 0, parts: ['history'] },
+      { type: 'tool_result', name: 'search', result: 'Found MAIN', status: 'ok', duration_ms: 5 },
+    ] };
+    expect(parseChatStreamEvent(JSON.stringify(event))).toEqual(event);
+  });
+
   it('accepts a final answer with thought, call and result steps', () => {
     const event = { type: 'answer', content: 'Result', agent_steps: [
       { type: 'thought', content: 'Look up the caller' },

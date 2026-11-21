@@ -46,6 +46,20 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["chat"])
 
 _HEARTBEAT_SECONDS = 15.0
+# Abgebrochene Runden, die noch aufräumen; die Referenz hält ihre Tasks bis zum Ende am Leben.
+_finishing: set[asyncio.Future] = set()
+
+
+def _finish_in_background(task: asyncio.Future) -> None:
+    _finishing.add(task)
+    task.add_done_callback(_finished)
+
+
+def _finished(task: asyncio.Future) -> None:
+    _finishing.discard(task)
+    error = None if task.cancelled() else task.exception()
+    if error is not None and not isinstance(error, StopAsyncIteration):
+        logger.warning("Abgebrochene Chat-Runde endete mit %s", type(error).__name__)
 
 
 @contextmanager
@@ -65,23 +79,38 @@ async def _sse(events: AsyncIterator[dict]) -> AsyncIterator[str]:
 
     Auf das nächste Ereignis wird per Task gewartet statt per wait_for, damit ein
     Heartbeat-Timeout den laufenden Modellaufruf nicht abbricht.
+
+    Trennt der Client die Verbindung, bricht der Server die Runde ab, statt sie verwaist weiterlaufen zu
+    lassen: Der wartende Task (meist ein Modellaufruf mit belegtem Inferenzplatz) wird abgebrochen und die
+    Runde geschlossen, damit ihre Aufräumarbeit (MCP-Clients, Streams) sofort läuft. Gespeichert wird dann
+    nichts; die Nutzerfrage bleibt ohne Antwort stehen.
     """
-    while True:
-        task = asyncio.ensure_future(events.__anext__())
-        try:
-            while True:
-                done, _ = await asyncio.wait({task}, timeout=_HEARTBEAT_SECONDS)
-                if done:
-                    break
-                yield ": ping\n\n"
-            event = task.result()
-        except StopAsyncIteration:
-            return
-        except Exception as exc:
-            logger.exception("Chat-Runde abgebrochen")
-            yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
-            return
-        yield f"data: {json.dumps(event)}\n\n"
+    task = None
+    try:
+        while True:
+            task = asyncio.ensure_future(events.__anext__())
+            try:
+                while True:
+                    done, _ = await asyncio.wait({task}, timeout=_HEARTBEAT_SECONDS)
+                    if done:
+                        break
+                    yield ": ping\n\n"
+                event = task.result()
+            except StopAsyncIteration:
+                return
+            except Exception as exc:
+                logger.exception("Chat-Runde abgebrochen")
+                yield f"data: {json.dumps({'type': 'error', 'error': str(exc)})}\n\n"
+                return
+            yield f"data: {json.dumps(event)}\n\n"
+    finally:
+        # Hier nicht warten: Nach einem Verbindungsabbruch ist der Abbruchbereich des Servers aktiv und
+        # würde jedes await sofort wieder abbrechen. Die Runde räumt deshalb in einem eigenen Task auf.
+        if task is not None and not task.done():
+            task.cancel()
+            _finish_in_background(task)
+        else:
+            _finish_in_background(asyncio.ensure_future(events.aclose()))
 
 
 @router.post("/chat")

@@ -1,5 +1,6 @@
 """Werkzeugergebnisse des Chat-Agenten begrenzen, bevor sie in den Modellkontext gehen."""
 
+import json
 from typing import Any
 
 from services.linked_record_projection import compact_linked_records
@@ -47,6 +48,24 @@ def _cap_tool_result(text: str, max_chars: int = MAX_MCP_TOOL_RESULT_CHARS) -> s
 
 def _tool_result_was_truncated(tool_res: str) -> bool:
     return _TOOL_RESULT_TRUNCATION_MARKER in tool_res
+
+
+def tool_result_failed(tool_res: str, metadata: dict) -> bool:
+    """Ob ein Werkzeug fehlschlug.
+
+    Die Werkzeuge melden Fehler als JSON-Objekt mit ``error``, als Text ab „Fehler" (Ausführer, ungültige
+    Argumente, MCP-Ausnahme) oder als MCP-Status in den Ausführungsdaten; der Inhalt geht in jedem Fall
+    unverändert ans Modell.
+    """
+    if metadata.get("mcp_status") == "error" or tool_res.lstrip().startswith("Fehler"):
+        return True
+    if not tool_res.lstrip().startswith("{"):
+        return False
+    try:
+        parsed = json.loads(tool_res)
+    except ValueError:
+        return False
+    return isinstance(parsed, dict) and bool(parsed.get("error"))
 
 
 def _compact_change_package_for_agent(package: dict) -> dict:

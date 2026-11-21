@@ -29,6 +29,7 @@ from core.inference_errors import (
     raise_for_stream_status,
 )
 from core.llm_providers import is_self_hosted_openai
+from services.think_filter import ThinkFilter, strip_thinking
 
 logger = logging.getLogger(__name__)
 
@@ -70,59 +71,6 @@ def _schema(tool: dict) -> dict:
     return tool.get("inputSchema", {"type": "object", "properties": {}})
 
 
-_THINK_BLOCK_RE = re.compile(r"<think>.*?(?:</think>|\Z)", re.DOTALL)
-
-
-def strip_thinking(text: str) -> str:
-    """Antworttext ohne Denkabschnitte.
-
-    Server ohne Reasoning-Parser (vLLM ohne ``--reasoning-parser``, ältere Ollama-Versionen) liefern das
-    Denken von Qwen3 als ``<think>…</think>`` im Antworttext. Füllt das Chat-Template das öffnende Tag
-    selbst vor, kommt nur das schließende an; dann ist alles davor Denken.
-    """
-    if "think>" not in text:
-        return text
-    text = _THINK_BLOCK_RE.sub("", text)
-    if "</think>" in text:
-        text = text.rsplit("</think>", 1)[1]
-    return text.lstrip()
-
-
-class ThinkFilter:
-    """Entfernt ``<think>…</think>`` aus gestreamtem Text, auch wenn ein Tag über eine Stückgrenze läuft."""
-
-    def __init__(self) -> None:
-        self._buffer = ""
-        self._inside = False
-
-    def feed(self, piece: str) -> str:
-        self._buffer += piece
-        out: list[str] = []
-        while self._buffer:
-            tag = "</think>" if self._inside else "<think>"
-            index = self._buffer.find(tag)
-            if index >= 0:
-                if not self._inside:
-                    out.append(self._buffer[:index])
-                self._buffer = self._buffer[index + len(tag) :]
-                self._inside = not self._inside
-                continue
-            # Ein möglicher Tag-Anfang am Ende wartet auf das nächste Stück.
-            keep = next(
-                (n for n in range(len(tag) - 1, 0, -1) if self._buffer.endswith(tag[:n])), 0
-            )
-            cut = len(self._buffer) - keep
-            if not self._inside:
-                out.append(self._buffer[:cut])
-            self._buffer = self._buffer[cut:]
-            break
-        return "".join(out)
-
-    def flush(self) -> str:
-        rest, self._buffer = self._buffer, ""
-        return "" if self._inside else rest
-
-
 # Annahme für Zeichen je Token, bis der Server echte Zahlen meldet (gemessen an Qwen3: rund 4).
 _DEFAULT_CHARS_PER_TOKEN = 3.5
 _TRIMMED_TOOL_RESULT = (
@@ -135,6 +83,13 @@ _CONTEXT_CUT_NOTE = (
 _RESULT_CUT_NOTE = "\n[… Werkzeugergebnis gekürzt, damit es ins Kontextfenster passt]"
 _CONTEXT_BLOCK_RE = re.compile(r"(<untrusted_context>\n)(.*)(\n</untrusted_context>)", re.DOTALL)
 _MIN_TOOL_RESULT_CHARS = 400
+# Gekürzte Teile: Schlüssel für Anzeige und Ereignisse, Text für das Log.
+_CUT_LABELS = {
+    "older_tool_results": "älteres Werkzeugergebnis",
+    "history": "Verlauf",
+    "retrieved_context": "abgerufener Kontext",
+    "tool_results": "Werkzeugergebnis",
+}
 # So oft wird nach einer Ablehnung "Anfrage zu groß" mit der Tokenzahl des Servers nachgekürzt.
 _OVERFLOW_RETRIES = 2
 
@@ -167,6 +122,12 @@ class _ChatMessageBudget:
         self.messages.extend(self._history_messages)
         self._prompt_message = {"role": "user", "content": prompt}
         self.messages.append(self._prompt_message)
+        self._context_cut: set[str] = set()
+
+    def take_context_cut(self) -> list[str]:
+        """Seit dem letzten Abruf gekürzte Teile; die Schleife meldet sie als eigenes Ereignis."""
+        cut, self._context_cut = sorted(self._context_cut), set()
+        return cut
 
     def _fit_messages(self, tools_sent: bool = True) -> bool:
         """Kürzt das Gespräch auf das Fenster; True, wenn dabei etwas entfernt wurde."""
@@ -188,12 +149,12 @@ class _ChatMessageBudget:
                 break
             if len(message.get("content") or "") > len(_TRIMMED_TOOL_RESULT):
                 message["content"] = _TRIMMED_TOOL_RESULT
-                cut.append("älteres Werkzeugergebnis")
+                cut.append("older_tool_results")
 
         while size() > budget and self._history_messages:
             oldest = self._history_messages.pop(0)
             self.messages[:] = [m for m in self.messages if m is not oldest]
-            cut.append("Verlauf")
+            cut.append("history")
 
         excess = size() - budget
         if excess > 0:
@@ -207,7 +168,7 @@ class _ChatMessageBudget:
                     + kept
                     + self._prompt_message["content"][match.end(2) :]
                 )
-                cut.append("abgerufener Kontext")
+                cut.append("retrieved_context")
 
         for message in sorted(tool_messages, key=lambda m: -len(m.get("content") or "")):
             excess = size() - budget
@@ -219,16 +180,17 @@ class _ChatMessageBudget:
             )
             if keep < len(content):
                 message["content"] = content[:keep] + _RESULT_CUT_NOTE
-                cut.append("Werkzeugergebnis")
+                cut.append("tool_results")
 
         self._sent_chars = size()
+        self._context_cut.update(cut)
         if cut or self._sent_chars > budget:
             logger.warning(
                 "Gespräch am Kontextfenster (%s Tokens, geschätzt %s von %s Zeichen); gekürzt: %s",
                 self.context_length,
                 self._sent_chars,
                 budget,
-                ", ".join(sorted(set(cut))) or "nichts mehr kürzbar",
+                ", ".join(sorted({_CUT_LABELS[part] for part in cut})) or "nichts mehr kürzbar",
             )
         return bool(cut)
 
@@ -321,6 +283,9 @@ class ProviderAdapter:
 
     def add_user_text(self, text: str) -> None:
         raise NotImplementedError
+
+    def take_context_cut(self) -> list[str]:
+        return []
 
 
 def _openai_wire_tools(tools: list[dict]) -> list[dict]:

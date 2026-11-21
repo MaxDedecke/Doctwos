@@ -366,7 +366,7 @@ export function ChatView({
                       ) : (
                         <>
                           {m.metadata && m.metadata.agent_steps && m.metadata.agent_steps.length > 0 && (
-                            <AgentSteps steps={m.metadata.agent_steps.filter(step => step.type !== 'view_action')} theme={theme} isLive={isLoading && i === chatMessages.length - 1} />
+                            <AgentSteps steps={m.metadata.agent_steps.filter(step => step.type !== 'view_action')} theme={theme} isLive={isLoading && !m.id} />
                           )}
 
                           {m.content ? (

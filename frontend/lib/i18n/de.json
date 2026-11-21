@@ -77,7 +77,8 @@
       "httpError": "HTTP-Fehler: {{status}}",
       "streamReaderInit": "Konnte Stream-Reader nicht initialisieren",
       "chatFetchFailed": "Fehler beim Abrufen der Antwort. Bitte stelle sicher, dass der Ollama-Service läuft und das Projekt geladen ist.",
-      "chatFetchFailedWithMessage": "Fehler beim Abrufen der Antwort: {{message}}"
+      "chatFetchFailedWithMessage": "Fehler beim Abrufen der Antwort: {{message}}",
+      "streamInterrupted": "Die Verbindung brach ab, bevor die Antwort fertig war; sie wurde nicht gespeichert. Bitte die Frage erneut stellen."
     },
     "mobileTab": {
       "chat": "Chat",
@@ -1472,8 +1473,8 @@
     }
   },
   "agentSteps": {
-    "hideThoughts": "Gedankengang ausblenden",
-    "showThoughts": "Gedankengang anzeigen",
+    "hideThoughts": "Arbeitsschritte ausblenden",
+    "showThoughts": "Arbeitsschritte anzeigen",
     "toolsStepsCount": "{{tools}} Tools • {{steps}} Schritte",
     "toolCalled": "Tool aufgerufen:",
     "resultFrom": "Ergebnis von",
@@ -1481,8 +1482,19 @@
     "showContent": "Inhalt anzeigen",
     "charsReturned": "{{count}} Zeichen zurückgegeben",
     "emptyResult": "Leeres Ergebnis",
-    "contextTrimmed": "{{count}}× Werkzeugergebnis gekürzt (Kontextfenster)",
-    "contextTrimmedTooltip": "Mindestens ein Werkzeugergebnis war zu groß für das Kontextfenster des Sprachmodells und wurde gekürzt. Details beim jeweiligen Schritt unter \"Inhalt anzeigen\"."
+    "contextTrimmed": "{{count}}× gekürzt (Kontextfenster)",
+    "contextTrimmedTooltip": "Ein Werkzeugergebnis oder Teile des Gesprächs waren zu groß für das Kontextfenster des Sprachmodells und wurden gekürzt. Details in den Arbeitsschritten.",
+    "contextTrimmedStep": "Für diese Modellrunde gekürzt, damit sie ins Kontextfenster passt: {{parts}}",
+    "trimPart": {
+      "older_tool_results": "ältere Werkzeugergebnisse",
+      "history": "Gesprächsverlauf",
+      "retrieved_context": "abgerufener Kontext",
+      "tool_results": "Werkzeugergebnisse"
+    },
+    "toolsFailed": "{{count}}× Werkzeug fehlgeschlagen",
+    "toolFailed": "fehlgeschlagen",
+    "toolRunning": "läuft …",
+    "toolAborted": "abgebrochen, kein Ergebnis"
   },
   "flowchartView": {
     "title": "Ablaufdiagramm",

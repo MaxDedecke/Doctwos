@@ -239,8 +239,9 @@ export function useChatController({
 
   // Shared SSE consumer for both a fresh send and a retry/regenerate. The
   // caller prepares the target assistant slot; this function only consumes the
-  // stream and applies events to that slot.
-  const runChatStream = useCallback(async (requestBody: ChatRequest, targetIndex: number) => {
+  // stream and applies events to that slot. `previous` ist die Antwort, die eine Wiederholung ersetzen soll: Scheitert die Wiederholung, bleibt sie auf dem
+  // Server stehen und kommt deshalb auch hier zurück.
+  const runChatStream = useCallback(async (requestBody: ChatRequest, targetIndex: number, previous?: ChatMessage) => {
     let expectedSessionId = requestBody.session_id;
     let expectedSessionEpoch = activeSessionEpochRef.current;
     // Gehört dieser Stream noch zum aktuellen Chat? Ein neuer Chat, eine andere Sitzung oder ein
@@ -248,8 +249,22 @@ export function useChatController({
     // gibt es im neuen Chat womöglich wieder).
     const generation = chatGenerationRef.current;
     const isCurrent = () => generation === chatGenerationRef.current;
-    const writeMessages = (update: (previous: ChatMessage[]) => ChatMessage[]) => {
-      if (isCurrent()) setChatMessages(update);
+    let accumulatedSteps: AgentStep[] = [];
+    let saved = false;
+    const updateTarget = (patch: (target: ChatMessage) => ChatMessage) => {
+      if (!isCurrent()) return;
+      setChatMessages(prev => {
+        const target = prev[targetIndex];
+        if (!target || target.role !== 'assistant') return prev;
+        const next = [...prev];
+        next[targetIndex] = patch(target);
+        return next;
+      });
+    };
+    const showSteps = (target: ChatMessage): ChatMessage => ({ ...target, metadata: { ...target.metadata, agent_steps: accumulatedSteps } });
+    const failTurn = (text: string, cause: unknown, keepPartial = false) => {
+      updateTarget(target => previous ?? { ...target, content: keepPartial && target.content ? `${target.content}\n\n${text}` : text });
+      if (isCurrent()) showToast(t('page.toast.aiQueryFailed'), 'error', cause);
     };
     const abort = new AbortController();
     streamAbortRef.current = abort;
@@ -279,7 +294,6 @@ export function useChatController({
       }
 
       let buffer = '';
-      let accumulatedSteps: AgentStep[] = [];
       let currentThought = '';
 
       while (true) {
@@ -336,24 +350,13 @@ export function useChatController({
                   }
                 }
               } else if (data.type === 'sources') {
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = { ...target, sources: data.sources };
-                  }
-                  return next;
-                });
+                updateTarget(target => ({ ...target, sources: data.sources }));
               } else if (data.type === 'content_chunk') {
                 currentThought += data.content;
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = { ...target, content: target.content + data.content };
-                  }
-                  return next;
-                });
+                updateTarget(target => ({ ...target, content: target.content + data.content }));
+              } else if (data.type === 'content_reset') {
+                currentThought = '';
+                updateTarget(target => ({ ...target, content: '' }));
               } else if (data.type === 'tool_call') {
                 const newSteps = [...accumulatedSteps];
                 if (currentThought.trim()) {
@@ -367,47 +370,10 @@ export function useChatController({
                   id: data.id
                 });
                 accumulatedSteps = newSteps;
-
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = {
-                      ...target,
-                      content: '',
-                      metadata: {
-                        ...target.metadata,
-                        agent_steps: accumulatedSteps
-                      }
-                    };
-                  }
-                  return next;
-                });
-              } else if (data.type === 'tool_result') {
-                const newSteps = [...accumulatedSteps];
-                newSteps.push({
-                  type: 'tool_result',
-                  name: data.name,
-                  result: data.result,
-                  id: data.id,
-                  truncated: data.truncated
-                });
-                accumulatedSteps = newSteps;
-
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = {
-                      ...target,
-                      metadata: {
-                        ...target.metadata,
-                        agent_steps: accumulatedSteps
-                      }
-                    };
-                  }
-                  return next;
-                });
+                updateTarget(target => ({ ...showSteps(target), content: '' }));
+              } else if (data.type === 'tool_result' || data.type === 'context_trimmed') {
+                accumulatedSteps = [...accumulatedSteps, data];
+                updateTarget(showSteps);
               } else if (data.type === 'view_action') {
                 if (handledViewActionIdsRef.current.has(data.action_id)) {
                   boundary = buffer.indexOf('\n\n');
@@ -517,19 +483,7 @@ export function useChatController({
                 const recordedAction: AgentViewAction = { ...data, status };
                 viewActionOutcomesRef.current.set(data.action_id, status);
                 accumulatedSteps = [...accumulatedSteps, recordedAction];
-                if (activeSessionIdRef.current === data.session_id) {
-                  writeMessages(prev => {
-                    const next = [...prev];
-                    const target = next[targetIndex];
-                    if (target && target.role === 'assistant') {
-                      next[targetIndex] = {
-                        ...target,
-                        metadata: { ...target.metadata, agent_steps: accumulatedSteps },
-                      };
-                    }
-                    return next;
-                  });
-                }
+                if (activeSessionIdRef.current === data.session_id) updateTarget(showSteps);
               } else if (data.type === 'turn_completed') {
                 if (data.has_tool_calls) {
                   currentThought = '';
@@ -542,44 +496,26 @@ export function useChatController({
                   else finalSteps[existingIndex] = action;
                 }
                 accumulatedSteps = finalSteps;
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = {
-                      ...target,
-                      content: data.content,
-                      metadata: {
-                        ...target.metadata,
-                        agent_steps: finalSteps
-                      }
-                    };
-                  }
-                  return next;
-                });
+                updateTarget(target => ({ ...showSteps(target), content: data.content }));
               } else if (data.type === 'message_saved') {
+                saved = true;
                 const actionsToPersist = accumulatedSteps.filter((step): step is AgentViewAction => step.type === 'view_action')
                   .map(action => ({
                     ...action,
                     status: viewActionOutcomesRef.current.get(action.action_id) ?? action.status,
                   }));
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    const agentSteps = target.metadata?.agent_steps?.map(step => {
-                      const action = actionsToPersist.find(candidate =>
-                        candidate.action_id === (step.type === 'view_action' ? step.action_id : undefined),
-                      );
-                      return action ?? step;
-                    });
-                    next[targetIndex] = {
-                      ...target,
-                      id: data.message_id,
-                      metadata: agentSteps ? { ...target.metadata, agent_steps: agentSteps } : target.metadata,
-                    };
-                  }
-                  return next;
+                updateTarget(target => {
+                  const agentSteps = target.metadata?.agent_steps?.map(step => {
+                    const action = actionsToPersist.find(candidate =>
+                      candidate.action_id === (step.type === 'view_action' ? step.action_id : undefined),
+                    );
+                    return action ?? step;
+                  });
+                  return {
+                    ...target,
+                    id: data.message_id,
+                    metadata: agentSteps ? { ...target.metadata, agent_steps: agentSteps } : target.metadata,
+                  };
                 });
                 for (const action of actionsToPersist) {
                   if (action.status !== 'requested') {
@@ -588,30 +524,11 @@ export function useChatController({
                 }
               } else if (data.type === 'telemetry' && data.event === 'completed' && data.metrics) {
                 const telemetryMetrics = data.metrics;
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = {
-                      ...target,
-                      metadata: { ...target.metadata, telemetry: { events: [], metrics: telemetryMetrics } },
-                    };
-                  }
-                  return next;
-                });
+                updateTarget(target => ({ ...target, metadata: { ...target.metadata, telemetry: { events: [], metrics: telemetryMetrics } } }));
               } else if (data.type === 'error') {
-                const errMsgText = t('page.error.chatFetchFailedWithMessage', { message: data.error });
-                writeMessages(prev => {
-                  const next = [...prev];
-                  const target = next[targetIndex];
-                  if (target && target.role === 'assistant') {
-                    next[targetIndex] = { ...target, content: errMsgText };
-                  }
-                  return next;
-                });
                 // Serverseitiger Fehler mitten im Stream: die Antwort selbst
                 // traegt die Trace-ID des Requests (O-073).
-                if (isCurrent()) showToast(t('page.toast.aiQueryFailed'), 'error', response);
+                failTurn(t('page.error.chatFetchFailedWithMessage', { message: data.error }), response);
                 return;
               }
             } catch (error) {
@@ -621,28 +538,21 @@ export function useChatController({
           boundary = buffer.indexOf('\n\n');
         }
       }
+      // Ohne „message_saved“ ist die Runde nicht abgeschlossen (Verbindung weg, Server neu gestartet); stumm
+      // stehen bleiben darf sie nicht.
+      if (!saved) failTurn(t('page.error.streamInterrupted'), response, true);
     } catch (error) {
       // Abgebrochen, weil der Chat gewechselt hat: kein Fehler für den Nutzer.
       if (!isCurrent()) return;
       console.error(error);
-      let errMsgText = t('page.error.chatFetchFailed');
-      if (error instanceof Error && error.message) {
-        errMsgText = t('page.error.chatFetchFailedWithMessage', { message: error.message });
-      }
-      writeMessages(prev => {
-        const next = [...prev];
-        const target = next[targetIndex];
-        if (target && target.role === 'assistant') {
-          next[targetIndex] = { ...target, content: errMsgText };
-        }
-        return next;
-      });
-      showToast(t('page.toast.aiQueryFailed'), 'error', error);
+      failTurn(error instanceof Error && error.message
+        ? t('page.error.chatFetchFailedWithMessage', { message: error.message })
+        : t('page.error.chatFetchFailed'), error);
     } finally {
       if (streamAbortRef.current === abort) streamAbortRef.current = null;
       if (isCurrent()) setIsLoading(false);
     }
-  }, [ignoreUrlSyncRef, pathname, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
+  }, [ignoreUrlSyncRef, pathname, persistViewActionOutcome, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
   const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata) => {
     const isFirstUserMessage = !chatMessages.some((message) => message.role === 'user');
@@ -741,7 +651,7 @@ export function useChatController({
       embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
       metadata: createChatMetadata(turnFocus, userMsg.metadata),
       retry_of_message_id: assistantMsg.id
-    }, index);
+    }, index, assistantMsg);
   }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, isLoading, llmProfiles, runChatStream, setChatMessages, setIsLoading, systemPrompt, t, temperature]);
 
   const handleSessionSelect = useCallback(async (session: ChatSession) => {

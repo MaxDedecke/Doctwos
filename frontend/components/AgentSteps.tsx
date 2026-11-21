@@ -13,8 +13,11 @@ import {
   Eye,
   EyeOff,
   FileCode,
+  Loader2,
+  Scissors,
   Search,
-  Terminal
+  Terminal,
+  XCircle
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -26,8 +29,13 @@ interface AgentStepsProps {
     isLive?: boolean;
 }
 
+function formatDuration(ms: number, language: string): string {
+    if (ms < 1000) return `${ms} ms`;
+    return `${new Intl.NumberFormat(language, { maximumFractionDigits: 1 }).format(ms / 1000)} s`;
+}
+
 export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
-    const { t } = useLanguage();
+    const { t, language } = useLanguage();
     const [isOpen, setIsOpen] = useState(false);
     const [expandedResults, setExpandedResults] = useState<Record<string, boolean>>({});
 
@@ -62,11 +70,12 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
 
     // Count how many tool calls were executed
     const toolCallCount = steps.filter(s => s.type === 'tool_call').length;
-    // O-168: mindestens ein Werkzeugergebnis war zu groß fürs Kontextfenster
-    // und wurde gekürzt (agent.py::_cap_tool_result) -- immer sichtbar im
-    // Header, unabhängig von isOpen/expandedResults, statt nur beim
-    // ausgeklappten Einzelergebnis aufzufallen.
-    const truncatedCount = steps.filter(s => s.type === 'tool_result' && s.truncated).length;
+    // O-168: Kürzungen (einzelnes Werkzeugergebnis zu groß, oder der Server hat
+    // das Gespräch für eine Modellrunde ans Kontextfenster angepasst) und
+    // fehlgeschlagene Werkzeuge stehen immer sichtbar im Header, auch eingeklappt.
+    const truncatedCount = steps.filter(s => (s.type === 'tool_result' && s.truncated) || s.type === 'context_trimmed').length;
+    const failedCount = steps.filter(s => s.type === 'tool_result' && s.status === 'error').length;
+    const answeredCallIds = new Set(steps.flatMap(s => (s.type === 'tool_result' && s.id ? [s.id] : [])));
 
     return (
         <div className={cn(
@@ -108,6 +117,12 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                             {t('agentSteps.contextTrimmed', { count: truncatedCount })}
                         </span>
                     )}
+                    {failedCount > 0 && (
+                        <span className="flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[0.5625rem] font-bold tracking-wide border border-ds-red-500/30 bg-ds-red-500/10 text-ds-red-500">
+                            <XCircle className="w-3 h-3 shrink-0" />
+                            {t('agentSteps.toolsFailed', { count: failedCount })}
+                        </span>
+                    )}
                 </div>
                 {isOpen ? <ChevronDown className="w-3.5 h-3.5 text-ds-zinc-500" /> : <ChevronRight className="w-3.5 h-3.5 text-ds-zinc-500" />}
             </button>
@@ -128,6 +143,12 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                         const isThought = step.type === 'thought';
                         const isCall = step.type === 'tool_call';
                         const isResult = step.type === 'tool_result';
+                        const isTrim = step.type === 'context_trimmed';
+                        // Ansichtsaktionen und unbekannte Schritte haben hier keine eigene Darstellung.
+                        if (!isThought && !isCall && !isResult && !isTrim) return null;
+                        const failed = isResult && step.status === 'error';
+                        // Ohne Ergebnis: läuft noch (live) oder wurde mit der Runde abgebrochen.
+                        const pending = isCall && !!step.id && !answeredCallIds.has(step.id);
 
                         return (
                             <div key={idx} className="flex gap-4 relative items-start">
@@ -136,13 +157,18 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                     "w-5 h-5 rounded-full flex items-center justify-center shrink-0 z-10 shadow-sm border",
                                     isThought
                                         ? (theme === 'dark' ? "bg-ds-purple-950/60 border-ds-purple-500/30 text-ds-purple-400" : "bg-ds-purple-50 border-ds-purple-200 text-ds-purple-600")
+                                        : failed
+                                        ? (theme === 'dark' ? "bg-ds-red-950/60 border-ds-red-500/30 text-ds-red-400" : "bg-ds-red-50 border-ds-red-200 text-ds-red-600")
+                                        : isTrim
+                                        ? (theme === 'dark' ? "bg-ds-amber-950/60 border-ds-amber-500/30 text-ds-amber-400" : "bg-ds-amber-50 border-ds-amber-200 text-ds-amber-600")
                                         : isCall
                                         ? (theme === 'dark' ? "bg-ds-blue-950/60 border-ds-blue-500/30 text-ds-blue-400" : "bg-ds-blue-50 border-ds-blue-200 text-ds-blue-600")
                                         : (theme === 'dark' ? "bg-ds-emerald-950/60 border-ds-emerald-500/30 text-ds-emerald-400" : "bg-ds-emerald-50 border-ds-emerald-200 text-ds-emerald-600")
                                 )}>
                                     {isThought && <Brain className="w-2.5 h-2.5" />}
                                     {isCall && getToolIcon(step.name)}
-                                    {isResult && <CheckCircle2 className="w-2.5 h-2.5" />}
+                                    {isResult && (failed ? <XCircle className="w-2.5 h-2.5" /> : <CheckCircle2 className="w-2.5 h-2.5" />)}
+                                    {isTrim && <Scissors className="w-2.5 h-2.5" />}
                                 </div>
 
                                 {/* Content block */}
@@ -166,6 +192,12 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                             )}>
                                                 {t('agentSteps.toolCalled')} <span className="font-mono text-[0.6875rem] text-ds-blue-500">{step.name}</span>
                                             </span>
+                                            {pending && (
+                                                <span className="ml-2 inline-flex items-center gap-1 text-[0.625rem] text-ds-zinc-500">
+                                                    {isLive && <Loader2 className="w-3 h-3 animate-spin" />}
+                                                    {t(isLive ? 'agentSteps.toolRunning' : 'agentSteps.toolAborted')}
+                                                </span>
+                                            )}
                                             <pre className={cn(
                                                 "p-2 rounded-lg border font-mono text-[0.625rem] overflow-x-auto",
                                                 theme === 'dark'
@@ -177,6 +209,14 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                         </div>
                                     )}
 
+                                    {isTrim && (
+                                        <div className={cn("font-medium", theme === 'dark' ? "text-ds-amber-400" : "text-ds-amber-700")}>
+                                            {t('agentSteps.contextTrimmedStep', {
+                                                parts: step.parts.map(part => t(`agentSteps.trimPart.${part}`)).join(', '),
+                                            })}
+                                        </div>
+                                    )}
+
                                     {isResult && (
                                         <div className="space-y-1">
                                             <div className="flex items-center justify-between">
@@ -185,6 +225,8 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                     theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500"
                                                 )}>
                                                     {t('agentSteps.resultFrom')} <span className="font-mono text-[0.6875rem]">{step.name}</span>
+                                                    {failed && <span className="ml-2 font-semibold text-ds-red-500">{t('agentSteps.toolFailed')}</span>}
+                                                    {step.duration_ms != null && <span className="ml-2 font-mono text-[0.625rem] opacity-70">{formatDuration(step.duration_ms, language)}</span>}
                                                 </span>
                                                 <button
                                                     type="button"

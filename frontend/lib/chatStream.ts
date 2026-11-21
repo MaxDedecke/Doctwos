@@ -1,4 +1,4 @@
-import type { AgentStep, AgentViewAction, ChatStreamEvent, ChatSource, ChatTelemetryMetrics } from '@/types/domain';
+import type { AgentStep, AgentViewAction, ChatStreamEvent, ChatSource, ChatTelemetryMetrics, ContextTrimPart, ToolResultStatus } from '@/types/domain';
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -74,10 +74,30 @@ function isAgentViewAction(value: unknown): value is AgentViewAction {
     typeof endLine === 'number' && Number.isSafeInteger(endLine) && endLine >= startLine;
 }
 
+const CONTEXT_TRIM_PARTS = new Set<string>(['older_tool_results', 'history', 'retrieved_context', 'tool_results']);
+
+function contextTrimmed(value: Record<string, unknown>): Extract<AgentStep, { type: 'context_trimmed' }> | null {
+  if (!Array.isArray(value.parts)) return null;
+  const parts = value.parts.filter((part): part is ContextTrimPart => typeof part === 'string' && CONTEXT_TRIM_PARTS.has(part));
+  return {
+    type: 'context_trimmed',
+    parts,
+    ...(Number.isSafeInteger(value.turn) ? { turn: value.turn as number } : {}),
+  };
+}
+
+function toolResultDetails(value: Record<string, unknown>): { status?: ToolResultStatus; duration_ms?: number } {
+  return {
+    ...(value.status === 'ok' || value.status === 'error' ? { status: value.status } : {}),
+    ...(Number.isSafeInteger(value.duration_ms) && Number(value.duration_ms) >= 0 ? { duration_ms: value.duration_ms as number } : {}),
+  };
+}
+
 function isAgentStep(value: unknown): value is AgentStep {
   if (!isRecord(value)) return false;
   if (value.type === 'view_action') return isAgentViewAction(value);
   if (value.type === 'thought') return typeof value.content === 'string';
+  if (value.type === 'context_trimmed') return Array.isArray(value.parts);
   if (typeof value.name !== 'string' || (value.id !== undefined && typeof value.id !== 'string')) return false;
   return value.type === 'tool_call' || (value.type === 'tool_result' && typeof value.result === 'string');
 }
@@ -105,12 +125,16 @@ export function parseChatStreamEvent(json: string): ChatStreamEvent | null {
         ? { type: 'session', session_id: value.session_id, session_uuid: value.session_uuid, session_title: value.session_title } : null;
     case 'content_chunk':
       return typeof value.content === 'string' ? { type: 'content_chunk', content: value.content } : null;
+    case 'content_reset':
+      return { type: 'content_reset' };
+    case 'context_trimmed':
+      return contextTrimmed(value);
     case 'tool_call':
       return typeof value.name === 'string' && (value.id === undefined || typeof value.id === 'string')
         ? { type: 'tool_call', name: value.name, arguments: value.arguments, id: value.id } : null;
     case 'tool_result':
       return typeof value.name === 'string' && typeof value.result === 'string' && (value.id === undefined || typeof value.id === 'string')
-        ? { type: 'tool_result', name: value.name, result: value.result, id: value.id, truncated: value.truncated === true } : null;
+        ? { type: 'tool_result', name: value.name, result: value.result, id: value.id, truncated: value.truncated === true, ...toolResultDetails(value) } : null;
     case 'view_action':
       return isAgentViewAction(value) ? value : null;
     case 'turn_completed':

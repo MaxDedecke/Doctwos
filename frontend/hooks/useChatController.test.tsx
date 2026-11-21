@@ -489,6 +489,49 @@ describe('useChatController', () => {
     });
   });
 
+  it('marks an answer as interrupted when the stream ends before it was saved', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
+      { type: 'content_chunk', content: 'Teilantwort' },
+    ])));
+    const { result } = renderHook(() => useControllerHarness({ currentMessage: 'Frage' }));
+
+    await act(async () => { await result.current.controller.handleSendChat(); });
+
+    expect(result.current.chatMessages[1].content).toBe('Teilantwort\n\npage.error.streamInterrupted');
+    expect(result.current.showToast).toHaveBeenCalledWith('page.toast.aiQueryFailed', 'error', expect.anything());
+    expect(result.current.isLoading).toBe(false);
+  });
+
+  it('drops live text that turned out to be the model thinking', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
+      { type: 'content_chunk', content: 'überlege noch' },
+      { type: 'content_reset' },
+      { type: 'content_chunk', content: 'Antwort' },
+      { type: 'message_saved', message_id: 5 },
+    ])));
+    const { result } = renderHook(() => useControllerHarness({ currentMessage: 'Frage' }));
+
+    await act(async () => { await result.current.controller.handleSendChat(); });
+
+    expect(result.current.chatMessages[1]).toMatchObject({ id: 5, content: 'Antwort' });
+  });
+
+  it('keeps the previous answer when its retry fails, because the server still has it', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(streamResponse([
+      { type: 'error', error: 'Modell nicht erreichbar' },
+    ])));
+    const previous: ChatMessage = { id: 20, role: 'assistant', content: 'Alte Antwort', feedback: 'up' };
+    const { result } = renderHook(() => useControllerHarness({
+      activeSessionId: 7,
+      chatMessages: [{ id: 10, role: 'user', content: 'Erkläre das' }, previous],
+    }));
+
+    await act(async () => { await result.current.controller.handleRetryMessage(1); });
+
+    expect(result.current.chatMessages[1]).toEqual(previous);
+    expect(result.current.showToast).toHaveBeenCalledWith('page.toast.aiQueryFailed', 'error', expect.anything());
+  });
+
   it('stops a running answer from writing into the chat that replaced it', async () => {
     const stream = controllableStream();
     const fetchMock = vi.fn().mockResolvedValue(stream.response);

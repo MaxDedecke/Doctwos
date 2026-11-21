@@ -30,7 +30,8 @@ from doctus_models.database import (
     Project,
     User,
 )
-from services.agent_providers import ThinkFilter, fit_chat_messages, strip_thinking
+from services.agent_providers import fit_chat_messages
+from services.think_filter import ThinkFilter, strip_thinking
 from services.graph_retrieval import expand_chunks_with_graph
 from services.ollama_client import embed_text
 from services.chat_context_formatting import chunk_header as chunk_header, _format_chunk_context
@@ -916,6 +917,8 @@ async def stream_standard_rag_events(
                             if content:
                                 answer += content
                                 visible = think_filter.feed(content)
+                                if think_filter.take_reset():
+                                    yield {"type": "content_reset"}
                                 if visible:
                                     yield {"type": "content_chunk", "content": visible}
                         except Exception as exc:
@@ -1345,30 +1348,3 @@ def build_chat_prompt(
         f"{pinned_context}{context}\n</untrusted_context>\n\n"
         f"{out_of_scope_note}{scope_note}{pin_note}{citation_note}Question: {message}\nAnswer:"
     )
-
-
-def persist_assistant_message(
-    *,
-    db: Session,
-    session_id: int,
-    answer: str,
-    sources: list[dict],
-    model: str,
-    provider: str,
-    agent_steps: list,
-    previous_message: Optional[ChatMessage],
-) -> ChatMessage:
-    """Atomically replace a regenerated reply and store the completed assistant turn."""
-    if previous_message:
-        db.delete(previous_message)
-    message = ChatMessage(
-        session_id=session_id,
-        role="assistant",
-        content=answer,
-        sources_json=sources,
-        metadata_json={"model": model, "provider": provider, "agent_steps": agent_steps},
-    )
-    db.add(message)
-    db.commit()
-    db.refresh(message)
-    return message

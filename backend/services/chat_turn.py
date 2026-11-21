@@ -34,12 +34,11 @@ from services.chat_errors import ChatForbidden, ChatNotFound
 from services.chat_service import (
     ChatIntent,
     classify_chat_intent,
-    persist_assistant_message,
     retrieve_chat_context,
     stream_agent_events,
     stream_standard_rag_events,
 )
-from services.chat_sessions import ChatTurn
+from services.chat_sessions import ChatTurn, persist_assistant_message
 from services.chat_sources import (
     append_agent_source_fallback,
     attach_analysis_status,
@@ -610,6 +609,11 @@ class ChatTurnRun:
             path=profile.llm_path,
             context_length=profile.llm_context_length,
         ):
+            if event["type"] == "content_reset":
+                # Bereits gestreamter Text war Denken; nur der normale Chat zeigt Text live.
+                if request.mode == "normal":
+                    yield event
+                continue
             if event["type"] == "content_chunk":
                 marker = telemetry.record_first_token()
                 if marker:

@@ -19,7 +19,15 @@ from sqlalchemy.orm import Session
 
 from core.projects import assert_knowledge_source_visible, assert_project_visible
 from core.teams import assert_team_visible, is_admin
-from doctus_models.database import ChatMessage, ChatSession, KnowledgeSource, Project, User
+from doctus_models.database import (
+    ChatFeedbackDiagnosticCase,
+    ChatLinkFeedbackSignal,
+    ChatMessage,
+    ChatSession,
+    KnowledgeSource,
+    Project,
+    User,
+)
 from services.chat_errors import ChatForbidden, ChatInvalid, ChatNotFound
 
 if TYPE_CHECKING:
@@ -238,6 +246,8 @@ def begin_turn(db: Session, session: ChatSession, request: "ChatRequest") -> Cha
 
     Beim Wiederholen (``retry_of_message_id``) bleibt die vorangehende
     Nutzerfrage unverändert an ihrer Position; nur die Antwort wird ersetzt.
+    Der Verlauf endet in jedem Fall vor der Nutzerfrage: Eine wiederholte ältere
+    Antwort sieht nichts, was im Gespräch erst danach kam.
     """
     replaced = None
     if request.retry_of_message_id:
@@ -275,16 +285,59 @@ def begin_turn(db: Session, session: ChatSession, request: "ChatRequest") -> Cha
         db.add(user_message)
         db.commit()
 
-    excluded_ids = [user_message.id] + ([replaced.id] if replaced else [])
     history = (
         db.query(ChatMessage)
-        .filter(ChatMessage.session_id == session.id, ChatMessage.id.notin_(excluded_ids))
-        .order_by(ChatMessage.created_at.desc())
+        .filter(ChatMessage.session_id == session.id, ChatMessage.id < user_message.id)
+        .order_by(ChatMessage.id.desc())
         .limit(HISTORY_LIMIT)
         .all()
     )
     history.reverse()
     return ChatTurn(session, user_message, replaced, history)
+
+
+def persist_assistant_message(
+    *,
+    db: Session,
+    session_id: int,
+    answer: str,
+    sources: list[dict],
+    model: str,
+    provider: str,
+    agent_steps: list,
+    previous_message: Optional[ChatMessage],
+) -> ChatMessage:
+    """Speichert die fertige Antwort; eine wiederholte ersetzt die alte an Ort und Stelle.
+
+    Ersetzen statt Löschen und Neuanlegen: ID und Zeitstempel bestimmen die Gesprächsreihenfolge (Verlauf,
+    Rückfrage-Zuordnung, Feedback-Auswertung). Eine neue Zeile rückte die Antwort ans Gesprächsende. Was beim
+    Löschen per Fremdschlüssel mitging (Feedback-Signale, Diagnosefall), gehört zur alten Antwort und geht auch hier.
+    """
+    metadata = {"model": model, "provider": provider, "agent_steps": agent_steps}
+    if previous_message is None:
+        message = ChatMessage(
+            session_id=session_id,
+            role="assistant",
+            content=answer,
+            sources_json=sources,
+            metadata_json=metadata,
+        )
+        db.add(message)
+    else:
+        message = previous_message
+        db.query(ChatLinkFeedbackSignal).filter(
+            ChatLinkFeedbackSignal.chat_message_id == message.id
+        ).delete(synchronize_session=False)
+        db.query(ChatFeedbackDiagnosticCase).filter(
+            ChatFeedbackDiagnosticCase.chat_message_id == message.id
+        ).delete(synchronize_session=False)
+        message.content = answer
+        message.sources_json = sources
+        message.metadata_json = metadata
+        message.feedback = None
+    db.commit()
+    db.refresh(message)
+    return message
 
 
 def sanitize_workspace_snapshot(snapshot: dict | None, user: User) -> dict | None:

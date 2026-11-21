@@ -190,8 +190,12 @@ export type AgentViewAction = AgentCallGraphViewAction | AgentGraphViewAction | 
 export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }
-  | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean }
+  | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean; status?: ToolResultStatus; duration_ms?: number }
+  | { type: 'context_trimmed'; turn?: number; parts: ContextTrimPart[] }
   | AgentViewAction;
+export type ToolResultStatus = 'ok' | 'error';
+/** Teile des Gesprächs, die der Server gekürzt hat, damit eine Modellrunde ins Kontextfenster passt. */
+export type ContextTrimPart = 'older_tool_results' | 'history' | 'retrieved_context' | 'tool_results';
 export interface ChatMetadata {
   chat_mode?: 'normal' | 'evidence';
   focus?: ChatTurnFocus;
@@ -316,7 +320,9 @@ export type ChatStreamEvent =
   | { type: 'session'; session_id: number; session_uuid?: string; session_title?: string }
   | { type: 'sources'; sources: ChatSource[] }
   | { type: 'content_chunk'; content: string }
-  | Extract<AgentStep, { type: 'tool_call' | 'tool_result' | 'view_action' }>
+  /** Bereits gestreamter Text war Denken des Modells und wird aus der Live-Anzeige entfernt. */
+  | { type: 'content_reset' }
+  | Extract<AgentStep, { type: 'tool_call' | 'tool_result' | 'context_trimmed' | 'view_action' }>
   | { type: 'turn_completed'; has_tool_calls: boolean }
   | { type: 'answer'; content: string; agent_steps?: AgentStep[] }
   | { type: 'message_saved'; message_id: number }
