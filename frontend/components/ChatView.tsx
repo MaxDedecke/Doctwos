@@ -1033,9 +1033,10 @@ export function ChatView({
 
       {!followingLatest && chatMessages.length > 0 && (
         <div className="relative z-30 flex justify-center -mt-10 mb-2 pointer-events-none">
-          <Button variant="outline" size="sm" onClick={scrollToLatest} aria-label={t('chatView.jumpToLatest')}
-            className="pointer-events-auto h-7 rounded-full px-3 text-xs shadow-md">
-            <ArrowDown className="w-3.5 h-3.5" />{t('chatView.jumpToLatest')}
+          <Button variant="outline" size="icon" onClick={scrollToLatest} aria-label={t('chatView.jumpToLatest')} title={t('chatView.jumpToLatest')}
+            className={cn("pointer-events-auto h-8 w-8 rounded-full shadow-md",
+              theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-700 text-ds-zinc-300 hover:bg-ds-zinc-800" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-50")}>
+            <ArrowDown className="w-4 h-4" />
           </Button>
         </div>
       )}
