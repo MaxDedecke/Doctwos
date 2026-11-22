@@ -212,6 +212,8 @@ export interface ChatMetadata {
     qualified_name?: string | null;
   }) | null;
   refs?: ChatReference[];
+  /** Namen und Größen der Anhänge einer Frage (der Inhalt liegt verschlüsselt auf dem Server). */
+  attachments?: Array<{ name: string; chars: number }>;
   agent_steps?: AgentStep[];
   /** Frühere Fassungen einer wiederholten Antwort, älteste zuerst. */
   versions?: AnswerVersion[];
@@ -323,8 +325,15 @@ export interface ChatSession {
   snapshot_json?: WorkspaceSnapshot | null;
   created_at?: string | null;
   is_public?: boolean;
+  is_pinned?: boolean;
+}
+/** Ein Anhang an einer Frage (Quelltext, Log, Auszug); nur Text. */
+export interface ChatAttachment {
+  name: string;
+  content: string;
 }
 export interface ChatRequest {
+  attachments?: ChatAttachment[];
   message: string;
   mode?: 'normal' | 'evidence';
   session_id: number | null;

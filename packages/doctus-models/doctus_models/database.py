@@ -301,6 +301,7 @@ class ChatSession(Base):
     )
     owner_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
     is_public = Column(Boolean, default=False, nullable=False)
+    is_pinned = Column(Boolean, default=False, nullable=False, server_default="false")
     snapshot_json = Column(
         JSON, nullable=True
     )  # workspace/panel content-nav state, see buildWorkspaceSnapshot (frontend)
@@ -324,6 +325,8 @@ class ChatMessage(Base):
     sources_json = Column(JSON, nullable=True)
     metadata_json = Column(JSON, nullable=True)
     feedback = Column(String, nullable=True)  # 'up' | 'down' | null, assistant messages only
+    # Anhänge einer Frage als JSON-Liste [{name, content}], verschlüsselt wie der Nachrichtentext.
+    attachments = Column(EncryptedString, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     session = relationship("ChatSession", back_populates="messages")
 

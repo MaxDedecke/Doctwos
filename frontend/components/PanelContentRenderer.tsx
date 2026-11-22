@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatControls, FeedbackReason, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
+import type { AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatAttachment, ChatControls, FeedbackReason, CodeEntity, KnowledgeSource, Project, User, WorkspaceDocument } from '@/types/domain';
 
 import { ProcessFlow } from '@/components/ProcessFlow';
 import { ChatView } from '@/components/ChatView';
@@ -30,7 +30,7 @@ type PanelContentRendererProps = {
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
   isLoading: boolean;
-  handleSendChat: (overrideMessage?: string, extraMetadata?: ChatMetadata) => void;
+  handleSendChat: (overrideMessage?: string, extraMetadata?: ChatMetadata, attachments?: ChatAttachment[]) => void;
   chatMode?: 'normal' | 'evidence';
   setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;

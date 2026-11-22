@@ -74,6 +74,11 @@ class InsightReview(BaseModel):
     evidence: List[Dict[str, Any]] | None = Field(default=None, min_length=1, max_length=50)
 
 
+class ChatAttachment(BaseModel):
+    name: str
+    content: str
+
+
 class ChatRequest(BaseModel):
     message: str
     mode: Literal["normal", "evidence"] = "evidence"
@@ -106,6 +111,13 @@ class ChatRequest(BaseModel):
     )
     # Bearbeiten: ersetzt den Text dieser (letzten) Nutzerfrage und ihre Antwort.
     edit_of_message_id: Optional[int] = None
+    # Anhänge einer neuen oder bearbeiteten Frage (services/chat_attachments.py).
+    attachments: Optional[list[ChatAttachment]] = None
+
+
+class ChatSessionUpdate(BaseModel):
+    title: Optional[str] = None
+    is_pinned: Optional[bool] = None
 
 
 class ChatSessionCreate(BaseModel):

@@ -1152,7 +1152,15 @@
     "scanHint_not_indexable": "Nicht indexierbar, z. B. Binär- oder EBCDIC-Dateien",
     "scanHint_no_structure_parser": "Für diese Sprache gibt es keinen Strukturparser; die Datei ist nur als Text durchsuchbar",
     "scanHint_edges_open": "Unaufgelöste Beziehungen ohne bekanntes Systemziel: echte Lücken im Index",
-    "scanHint_edges_external": "Unaufgelöste Beziehungen zu Systemzielen außerhalb des Repositorys (JDK, Bibliotheken, CICS, MQ, IMS, IBM-Utilities)"
+    "scanHint_edges_external": "Unaufgelöste Beziehungen zu Systemzielen außerhalb des Repositorys (JDK, Bibliotheken, CICS, MQ, IMS, IBM-Utilities)",
+    "renameSession": "Umbenennen",
+    "pinSession": "Anheften",
+    "unpinSession": "Lösen",
+    "exportSession": "Als Markdown exportieren",
+    "searchSessions": "Verlauf durchsuchen",
+    "clearSessionSearch": "Suche leeren",
+    "noSessionMatches": "Keine Sitzung passt.",
+    "sessionActionFailed": "Aktion fehlgeschlagen."
   },
   "chatView": {
     "modeLabel": "Chatmodus",
@@ -1390,7 +1398,10 @@
       "send": "Senden"
     },
     "mentionsLabel": "Codeobjekte zum Erwähnen",
-    "inputHint": "@ erwähnt ein Codeobjekt · ↑ bearbeitet die letzte Frage · Esc stoppt"
+    "inputHint": "@ erwähnt ein Codeobjekt · ↑ bearbeitet die letzte Frage · Esc stoppt",
+    "attachFiles": "Dateien anhängen (Text, Code, Logs)",
+    "removeAttachment": "Anhang {{name}} entfernen",
+    "attachmentRejected": "Nicht angehängt (zu groß, kein Text oder mehr als 5): {{names}}"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",

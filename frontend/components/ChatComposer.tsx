@@ -2,7 +2,8 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { KnowledgeSource, Project, SearchResult } from '@/types/domain';
+import type { ChatAttachment, KnowledgeSource, Project, SearchResult } from '@/types/domain';
+import { ATTACHMENT_ACCEPT, readAttachments } from '@/lib/chatAttachments';
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,15 +15,16 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
-import { AtSign, BookOpen, Check, Code, Cpu, Pencil, Plus, Send, Square, X } from 'lucide-react';
+import { AtSign, Paperclip, BookOpen, Check, Code, Cpu, Pencil, Plus, Send, Square, X } from 'lucide-react';
 import { applyMention, useEntityMentions } from '@/hooks/useEntityMentions';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 export interface ChatComposerProps {
   theme: string;
   currentMessage: string;
   setCurrentMessage: (message: string) => void;
-  handleSendChat: () => void;
+  /** Sendet die Frage samt Anhängen (beim Bearbeiten bleiben die gespeicherten Anhänge der Frage). */
+  handleSendChat: (attachments?: ChatAttachment[]) => void;
   isLoading: boolean;
   /** Bricht die laufende Antwort ab (Knopf oder Esc). */
   onStop: () => void;
@@ -54,6 +56,17 @@ export function ChatComposer({
 }: ChatComposerProps) {
   const { t } = useLanguage();
   const [caret, setCaret] = useState(0);
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const fileInput = useRef<HTMLInputElement>(null);
+  const send = () => {
+    handleSendChat(attachments.length ? attachments : undefined);
+    setAttachments([]);
+  };
+  const addFiles = async (files: FileList | File[]) => {
+    const { accepted, rejected } = await readAttachments(Array.from(files), attachments.length);
+    if (accepted.length) setAttachments(current => [...current, ...accepted]);
+    if (rejected.length) showToast(t('chatView.attachmentRejected', { names: rejected.join(', ') }), 'error');
+  };
   const mentions = useEntityMentions(currentMessage, caret, selectedProject?.id);
   const chooseMention = (item: SearchResult) => {
     const next = applyMention(currentMessage, caret, item.node_label);
@@ -88,19 +101,32 @@ export function ChatComposer({
           </ul>
         )}
 
-        <div className={cn(
+        <div
+          onDragOver={(e) => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); }}
+          onDrop={(e) => { if (e.dataTransfer.files.length) { e.preventDefault(); void addFiles(e.dataTransfer.files); } }}
+          className={cn(
           "border rounded-lg shadow-2xl transition-all shadow-ds-black/40 backdrop-blur-xl w-full max-w-full overflow-hidden",
           theme === 'dark'
             ? "bg-ds-zinc-900/60 border-ds-zinc-800/80"
             : "bg-ds-white border-ds-zinc-200"
         )}>
           {/* Active project contextual focus helper and Pinned Code location helper */}
-          {(selectedSource || pinnedCode || editing) && (
+          {(selectedSource || pinnedCode || editing || attachments.length > 0) && (
             <div className={cn(
               "flex flex-wrap items-center gap-1.5 px-3 pt-1.5 pb-1.5 border-b transition-colors",
               theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
             )}>
-              {editing && (
+              {attachments.map((item, index) => (
+            <div key={`${item.name}:${index}`} className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-zinc-500/10 border border-ds-zinc-500/20 text-ds-zinc-500 text-[0.625rem] font-semibold">
+              <Paperclip className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-[160px]" title={item.name}>{item.name}</span>
+              <button type="button" className="ml-1 p-0.5 rounded" aria-label={t('chatView.removeAttachment', { name: item.name })}
+                onClick={() => setAttachments(current => current.filter((_, position) => position !== index))}>
+                <X className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          ))}
+          {editing && (
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-amber-500/10 border border-ds-amber-500/20 text-ds-amber-600 text-[0.625rem] font-semibold">
                   <Pencil className="w-3 h-3 shrink-0" />
                   <span>{t('chatView.editingQuestion')}</span>
@@ -173,7 +199,7 @@ export function ChatComposer({
               }
               if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                if (!isLoading) handleSendChat();
+                if (!isLoading) send();
               } else if (e.key === 'Escape' && isLoading) {
                 e.preventDefault();
                 onStop();
@@ -191,6 +217,14 @@ export function ChatComposer({
                 {/* Knowledge-source focus lives behind this "+" by default. Project
                     focus is chosen centrally in the page header now (see GlobalSearch),
                     not duplicated here. */}
+                <input ref={fileInput} type="file" multiple hidden accept={ATTACHMENT_ACCEPT}
+                  onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ''; }} />
+                <button type="button" onClick={() => fileInput.current?.click()} disabled={editing}
+                  title={t('chatView.attachFiles')} aria-label={t('chatView.attachFiles')}
+                  className={cn("h-7 w-7 shrink-0 flex items-center justify-center rounded-lg border transition-all disabled:opacity-50",
+                    theme === 'dark' ? "bg-ds-zinc-900/80 border-ds-zinc-800 text-ds-zinc-300 hover:bg-ds-zinc-800/40" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-100")}>
+                  <Paperclip className="w-3.5 h-3.5" />
+                </button>
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <button
@@ -296,7 +330,7 @@ export function ChatComposer({
                            id="send-chat-message-btn"
                            aria-label={t('chatView.sendMessageLabel')}
                            disabled={!currentMessage.trim()}
-                           onClick={() => handleSendChat()}
+                           onClick={() => send()}
                            className={cn(
                                "h-8 w-8 rounded-lg transition-all font-semibold",
                                currentMessage.trim()

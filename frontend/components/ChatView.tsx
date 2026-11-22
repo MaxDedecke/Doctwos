@@ -2,7 +2,7 @@
 import type { ShowToast } from './Toast';
 import type { LlmProfile } from '@/hooks/useAiSettings';
 import type { ChatPinnedFocus } from '@/lib/chatFocus';
-import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, ChatControls, FeedbackReason, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
+import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAction, AgentGraphViewAction, AgentStep, AgentViewAction, AgentViewActionStatus, AgentWalkthroughViewAction, ChatMessage, ChatMetadata, ChatAttachment, ChatControls, FeedbackReason, KnowledgeSource, Project, WorkspaceDocument } from '@/types/domain';
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 import { api } from '@/app/services/api';
@@ -44,6 +44,7 @@ import {
   History,
   Loader2,
   Pencil,
+  Paperclip,
   ArrowDown,
   Plus,
   Play,
@@ -70,7 +71,7 @@ interface ChatViewProps {
   currentMessage: string;
   setCurrentMessage: (msg: string) => void;
   isLoading: boolean;
-  handleSendChat: (overrideMsg?: string, extraMetadata?: ChatMetadata) => void;
+  handleSendChat: (overrideMsg?: string, extraMetadata?: ChatMetadata, attachments?: ChatAttachment[]) => void;
   chatMode?: 'normal' | 'evidence';
   setChatMode?: (mode: 'normal' | 'evidence') => void;
   handleRetryMessage: (index: number) => void;
@@ -392,6 +393,15 @@ export function ChatView({
                             </div>
                           )}
                           <p className="whitespace-pre-wrap font-medium">{m.content}</p>
+                          {(m.metadata?.attachments?.length ?? 0) > 0 && (
+                            <div className="mt-1.5 flex flex-wrap gap-1">
+                              {m.metadata?.attachments?.map(item => (
+                                <span key={item.name} className="inline-flex items-center gap-1 rounded border border-ds-zinc-500/30 px-1.5 py-0.5 text-[0.625rem]">
+                                  <Paperclip className="w-3 h-3" />{item.name}
+                                </span>
+                              ))}
+                            </div>
+                          )}
                           {i === lastUserIndex && canEditLast && (
                             <button type="button" onClick={startEditLast} title={t('chatView.editQuestion')} aria-label={t('chatView.editQuestion')}
                               className="mt-1 inline-flex items-center gap-1 text-[0.625rem] opacity-60 hover:opacity-100">
@@ -1033,12 +1043,12 @@ export function ChatView({
         theme={theme}
         currentMessage={currentMessage}
         setCurrentMessage={setCurrentMessage}
-        handleSendChat={() => {
+        handleSendChat={(attachments) => {
           if (editing) {
             setEditing(false);
             void chatControls?.editLast(currentMessage);
           } else {
-            handleSendChat();
+            handleSendChat(undefined, undefined, attachments);
           }
         }}
         isLoading={isLoading}

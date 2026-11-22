@@ -9,6 +9,8 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { VirtualizedSessionList, type SidebarSession } from './VirtualizedSessionList';
 
+vi.mock('@/lib/i18n/LanguageContext', () => ({ useLanguage: () => ({ t: (key: string) => key, language: 'de' }) }));
+
 function makeSessions(count: number): SidebarSession[] {
   return Array.from({ length: count }, (_, i) => ({ id: i + 1, title: `Sitzung ${i + 1}` }));
 }

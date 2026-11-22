@@ -63,3 +63,18 @@ describe('ChatComposer mentions', () => {
     expect(setCurrentMessage).toHaveBeenCalledWith('Wer ruft `COSGN00C` ');
   });
 });
+
+describe('ChatComposer attachments', () => {
+  it('attaches a dropped text file and sends it with the question', async () => {
+    const handleSendChat = vi.fn();
+    render(<ChatComposer {...props({ currentMessage: 'Was heißt das?', handleSendChat })} />);
+    const file = new File(['IEF450I ABEND=S0C7'], 'job.log', { type: 'text/plain' });
+
+    fireEvent.drop(screen.getByRole('textbox').parentElement as HTMLElement, { dataTransfer: { files: [file], types: ['Files'] } });
+    await screen.findByText('job.log');
+    fireEvent.click(screen.getByRole('button', { name: 'chatView.sendMessageLabel' }));
+
+    expect(handleSendChat).toHaveBeenCalledWith([{ name: 'job.log', content: 'IEF450I ABEND=S0C7' }]);
+    expect(screen.queryByText('job.log')).toBeNull();
+  });
+});

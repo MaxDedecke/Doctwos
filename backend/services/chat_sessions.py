@@ -29,6 +29,7 @@ from doctus_models.database import (
     Project,
     User,
 )
+from services import chat_attachments
 from services.chat_errors import ChatForbidden, ChatInvalid, ChatNotFound
 
 if TYPE_CHECKING:
@@ -152,11 +153,14 @@ def page_own_sessions(
     before_id: Optional[int],
     project_id: Optional[int],
     general: bool,
+    q: Optional[str] = None,
+    pinned: Optional[bool] = None,
 ) -> tuple[list[ChatSession], bool]:
     """Cursor-Seite (``before_id`` = kleinste bereits geladene ID), neueste zuerst.
 
     Cursor statt Offset, damit zwischenzeitlich angelegte oder gelöschte
-    Sitzungen die folgenden Seiten nicht verschieben.
+    Sitzungen die folgenden Seiten nicht verschieben. ``q`` sucht im Titel (Titel sind
+    unverschlüsselt, Nachrichteninhalte nicht), ``pinned`` filtert nach Anheften.
     """
     query = db.query(ChatSession).filter(ChatSession.owner_id == user.id)
     if project_id is not None:
@@ -165,8 +169,37 @@ def page_own_sessions(
         query = query.filter(ChatSession.project_id.is_(None))
     if before_id is not None:
         query = query.filter(ChatSession.id < before_id)
+    if q and q.strip():
+        query = query.filter(ChatSession.title.ilike(f"%{_escape_like(q.strip())}%", escape="\\"))
+    if pinned is not None:
+        query = query.filter(ChatSession.is_pinned.is_(pinned))
     rows = query.order_by(ChatSession.id.desc()).limit(limit + 1).all()
     return rows[:limit], len(rows) > limit
+
+
+def _escape_like(text: str) -> str:
+    return text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+
+
+def update_session(
+    db: Session,
+    user: User,
+    session_id: int,
+    *,
+    title: Optional[str] = None,
+    is_pinned: Optional[bool] = None,
+) -> ChatSession:
+    """Umbenennen und Anheften; nur der Besitzer."""
+    session = _owned_session(db, user, session_id, "ändern")
+    if title is not None:
+        title = title.strip()
+        if not title:
+            raise ChatInvalid("Titel darf nicht leer sein")
+        session.title = title[:200]
+    if is_pinned is not None:
+        session.is_pinned = is_pinned
+    db.commit()
+    return session
 
 
 def share_session(db: Session, user: User, session_id: int) -> ChatSession:
@@ -278,12 +311,18 @@ def begin_turn(db: Session, session: ChatSession, request: "ChatRequest") -> Cha
         if not user_message:
             raise ChatNotFound("Zugehörige Nutzer-Nachricht nicht gefunden")
     else:
+        attachments = chat_attachments.validate(getattr(request, "attachments", None))
         user_message = ChatMessage(
             session_id=session.id,
             role="user",
             content=request.message,
+            attachments=chat_attachments.dump(attachments),
             # Der Modus der ersten Nutzernachricht legt den Chat fest (Frontend: lockedChatMode).
-            metadata_json={**(request.metadata or {}), "chat_mode": request.mode},
+            metadata_json={
+                **(request.metadata or {}),
+                "chat_mode": request.mode,
+                **({"attachments": chat_attachments.summary(attachments)} if attachments else {}),
+            },
         )
         db.add(user_message)
         db.commit()
@@ -329,6 +368,13 @@ def _edit_last_question(
     if not text:
         raise ChatInvalid("Die bearbeitete Frage ist leer")
     user_message.content = text
+    if getattr(request, "attachments", None) is not None:
+        attachments = chat_attachments.validate(request.attachments)
+        user_message.attachments = chat_attachments.dump(attachments)
+        request.metadata = {
+            **(request.metadata or {}),
+            "attachments": chat_attachments.summary(attachments),
+        }
     user_message.metadata_json = {
         **(user_message.metadata_json or {}),
         **(request.metadata or {}),
@@ -454,6 +500,7 @@ def serialize_session(s: ChatSession, user: User) -> dict:
         else None,
         "snapshot_json": sanitize_workspace_snapshot(s.snapshot_json, user),
         "is_public": s.is_public,
+        "is_pinned": bool(s.is_pinned),
         "created_at": s.created_at.isoformat() if s.created_at else None,
     }
 

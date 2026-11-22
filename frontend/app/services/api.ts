@@ -236,7 +236,7 @@ export const api = {
     getProjectReferences: (projectId: number, filePath: string, entityName?: string) => axios.get<FileReference[]>(`${API_URL}/projects/${projectId}/references`, { params: { file_path: filePath, entity_name: entityName } }),
     getChatSessions: () => axios.get<ChatSession[]>(`${API_URL}/chat/sessions`),
     /** Seitenweise (Cursor `before_id`), neueste zuerst; `general` = nur Sessions ohne Projekt. */
-    getChatSessionsPage: (params: { limit?: number; before_id?: number; project_id?: number; general?: boolean } = {}) =>
+    getChatSessionsPage: (params: { limit?: number; before_id?: number; project_id?: number; general?: boolean; q?: string; pinned?: boolean } = {}) =>
         axios.get<{ sessions: ChatSession[]; has_more: boolean; limit: number }>(`${API_URL}/chat/sessions/page`, { params }),
     // O-038: legt eine benannte Sitzung ohne Chat-Nachricht an -- z.B. ein Befund,
     // der nur über mehrere Views (Graph + Code) entsteht, ohne dass der Chat je
@@ -250,6 +250,10 @@ export const api = {
     getChatMessagesByUuid: (uuid: string) => axios.get<StoredChatMessage[]>(`${API_URL}/chat/sessions/by-uuid/${uuid}/messages`),
     shareChatSession: (sessionId: number) => axios.post(`${API_URL}/chat/sessions/${sessionId}/share`),
     deleteChatSession: (sessionId: number) => axios.delete(`${API_URL}/chat/sessions/${sessionId}`),
+    updateChatSession: (sessionId: number, data: { title?: string; is_pinned?: boolean }) =>
+        axios.patch<ChatSession>(`${API_URL}/chat/sessions/${sessionId}`, data),
+    exportChatSession: (sessionId: number) =>
+        axios.get<Blob>(`${API_URL}/chat/sessions/${sessionId}/export`, { responseType: 'blob' }),
     updateChatSessionSnapshot: (sessionId: number, snapshot: WorkspaceSnapshot) =>
         axios.patch(`${API_URL}/chat/sessions/${sessionId}/snapshot`, { snapshot }),
     getChatSuggestions: (messageId: number, llmProfileId?: number) =>

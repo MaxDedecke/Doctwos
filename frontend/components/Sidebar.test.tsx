@@ -25,6 +25,7 @@ import { Sidebar } from './Sidebar';
 vi.mock('@/app/services/api', () => ({
   api: {
     getKnowledgeSourceFiles: vi.fn(),
+    getChatSessionsPage: vi.fn(() => new Promise(() => undefined)),
   },
 }));
 

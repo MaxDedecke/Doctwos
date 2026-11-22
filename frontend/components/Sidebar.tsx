@@ -22,7 +22,7 @@ import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { FileTreeList } from './sidebar/FileTreeList';
 import { SourceScanSummary, type SourceScanSummaryData } from './sidebar/SourceScanSummary';
-import { VirtualizedSessionList } from './sidebar/VirtualizedSessionList';
+import { SessionHistory } from './sidebar/SessionHistory';
 import { UserInfoDialog } from './UserInfoDialog';
 import { InsightInbox } from './InsightInbox';
 
@@ -236,8 +236,9 @@ export function Sidebar({
                 </div>
 
                 {isHistoryExpanded && (
-                  <VirtualizedSessionList
+                  <SessionHistory
                     sessions={contextSessions}
+                    selectedProject={selectedProject}
                     hasMore={hasMoreSessions}
                     isLoadingMore={isLoadingMoreSessions}
                     onLoadMore={onLoadMoreSessions}
@@ -250,7 +251,6 @@ export function Sidebar({
                       }
                     }}
                     onRemove={handleRemoveSession}
-                    deleteSessionTitle={t('sidebar.deleteSessionTitle')}
                   />
                 )}
               </div>

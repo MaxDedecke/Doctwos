@@ -426,7 +426,7 @@ describe('ChatView', () => {
 
       fireEvent.click(screen.getByLabelText('Nachricht senden'));
 
-      expect(handleSendChat).toHaveBeenCalledWith();
+      expect(handleSendChat).toHaveBeenCalledWith(undefined, undefined, undefined);
     });
 
     it('deaktiviert den Senden-Button bei leerer oder nur aus Leerraum bestehender Nachricht', () => {

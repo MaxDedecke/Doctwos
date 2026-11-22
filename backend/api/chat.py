@@ -21,7 +21,7 @@ from time import monotonic
 from typing import AsyncIterator
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 
 from api.schemas import (
@@ -30,6 +30,7 @@ from api.schemas import (
     ChatMessageViewActionUpdate,
     ChatRequest,
     ChatSessionCreate,
+    ChatSessionUpdate,
     ChatSnapshotUpdate,
 )
 from core.auth_dependency import get_current_user
@@ -38,6 +39,7 @@ from core.projects import assert_project_visible
 from doctus_models.database import User
 from services import chat_sessions as sessions
 from services.chat_errors import ChatForbidden, ChatInvalid, ChatNotFound
+from services.chat_export import export_filename, export_markdown
 from services.chat_followups import follow_up_suggestions
 from services.chat_feedback import list_negative_feedback, set_message_feedback
 from services.chat_start import generate_typing_statement, project_pulse
@@ -173,6 +175,8 @@ def get_chat_sessions_page(
     before_id: int | None = Query(default=None, ge=1),
     project_id: int | None = Query(default=None, ge=1),
     general: bool = Query(default=False),
+    q: str | None = Query(default=None, max_length=200),
+    pinned: bool | None = Query(default=None),
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -183,7 +187,14 @@ def get_chat_sessions_page(
     ob es ältere Einträge gibt.
     """
     rows, has_more = sessions.page_own_sessions(
-        db, user, limit=limit, before_id=before_id, project_id=project_id, general=general
+        db,
+        user,
+        limit=limit,
+        before_id=before_id,
+        project_id=project_id,
+        general=general,
+        q=q,
+        pinned=pinned,
     )
     return {
         "sessions": [sessions.serialize_session(s, user) for s in rows],
@@ -235,6 +246,37 @@ def get_chat_messages_page(
         sessions.get_accessible_session(db, user, session_id=session_id)
     messages, has_more = sessions.page_messages(db, session_id, limit=limit, before_id=before_id)
     return {"messages": messages, "has_more": has_more}
+
+
+@router.patch("/chat/sessions/{session_id}")
+def update_chat_session(
+    session_id: int,
+    body: ChatSessionUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Umbenennen und Anheften (nur der Besitzer)."""
+    with _http_errors():
+        session = sessions.update_session(
+            db, user, session_id, title=body.title, is_pinned=body.is_pinned
+        )
+    return sessions.serialize_session(session, user)
+
+
+@router.get("/chat/sessions/{session_id}/export")
+def export_chat_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    """Die Sitzung als Markdown-Datei (Fragen, Antworten, Quellen)."""
+    with _http_errors():
+        session = sessions.get_accessible_session(db, user, session_id=session_id)
+    return Response(
+        content=export_markdown(db, session),
+        media_type="text/markdown; charset=utf-8",
+        headers={"Content-Disposition": f'attachment; filename="{export_filename(session)}"'},
+    )
 
 
 @router.post("/chat/sessions/{session_id}/share")

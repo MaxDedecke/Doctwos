@@ -17,7 +17,7 @@ import { extractCallFlowData } from '@/lib/callFlow';
 import type { CallFlowData } from '@/lib/callFlow';
 import { copyToClipboard } from '@/lib/utils';
 import { lockedChatMode } from '@/lib/chatMode';
-import type { AgentStep, AgentViewAction, AgentViewActionStatus, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
+import type { AgentStep, AgentViewAction, AgentViewActionStatus, ChatAttachment, ChatMessage, ChatMetadata, ChatRequest, ChatSession, KnowledgeSource, Project, WorkspaceSnapshot } from '@/types/domain';
 import { usePathname, useRouter } from 'next/navigation';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
@@ -514,7 +514,7 @@ export function useChatController({
     }
   }, [ignoreUrlSyncRef, pathname, persistViewActionOutcome, router, selectedProject, selectedSource, setActiveSessionId, setChatMessages, setIsLoading, setSessions, showToast, t]);
 
-  const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata) => {
+  const handleSendChat = useCallback(async (overrideMsg?: string, extraMetadata?: ChatMetadata, attachments?: ChatAttachment[]) => {
     const isFirstUserMessage = !chatMessages.some((message) => message.role === 'user');
     // Ein laufender Chat behält den Modus seiner ersten Nachricht, auch wenn die Auswahl inzwischen anders steht.
     const sessionMode = lockedChatMode(chatMessages) ?? chatMode;
@@ -529,7 +529,11 @@ export function useChatController({
     const newUserMsg: ChatMessage = {
       role: 'user',
       content: userMsgContent,
-      metadata: { ...createChatMetadata(turnFocus, extraMetadata), chat_mode: sessionMode },
+      metadata: {
+        ...createChatMetadata(turnFocus, extraMetadata),
+        chat_mode: sessionMode,
+        ...(attachments?.length ? { attachments: attachments.map(item => ({ name: item.name, chars: item.content.length })) } : {}),
+      },
     };
 
     const activeProfile = llmProfiles.find(p => p.id === activeProfileId);
@@ -564,7 +568,8 @@ export function useChatController({
       llm_model: activeProfile?.model || undefined,
       llm_profile_id: activeProfile?.id ? Number(activeProfile.id) : undefined,
       embedding_model: activeEmbeddingModel || DEFAULT_EMBEDDING_MODEL,
-      metadata: newUserMsg.metadata || {}
+      metadata: newUserMsg.metadata || {},
+      ...(attachments?.length ? { attachments } : {}),
     }, targetIndex);
   }, [activeEmbeddingModel, activeProfileId, activeSessionId, branch, chatMessages, chatMode, currentMessage, isLoading, llmProfiles, pinnedCode, runChatStream, selectedProject, selectedSource, setChatMessages, setCurrentMessage, setIsLoading, systemPrompt, temperature, t]);
 

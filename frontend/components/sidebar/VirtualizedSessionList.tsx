@@ -2,8 +2,9 @@
 
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { MessageSquare, Trash2 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { Download, MessageSquare, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
 // Grobe Zeilenhöhe (px-3 py-2 + Icon) -- vom Virtualizer nur als Startschätzung
@@ -16,7 +17,7 @@ const LOAD_MORE_THRESHOLD = 6;
 export interface SidebarSession {
   id: number;
   title: string;
-
+  is_pinned?: boolean;
 }
 
 interface VirtualizedSessionListProps {
@@ -30,6 +31,10 @@ interface VirtualizedSessionListProps {
   hasMore?: boolean;
   isLoadingMore?: boolean;
   onLoadMore?: () => void;
+  /** Zeilenaktionen; ohne Angabe fehlt der jeweilige Knopf. */
+  onRename?: (id: number, title: string) => void;
+  onTogglePin?: (session: SidebarSession) => void;
+  onExport?: (id: number) => void;
 }
 
 /**
@@ -46,8 +51,21 @@ export function VirtualizedSessionList({
   hasMore = false,
   isLoadingMore = false,
   onLoadMore,
+  onRename,
+  onTogglePin,
+  onExport,
 }: VirtualizedSessionListProps) {
+  const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [renaming, setRenaming] = useState<{ id: number; title: string } | null>(null);
+  const actionClass = cn(
+    "p-1 rounded transition-all",
+    theme === 'dark' ? "hover:bg-ds-zinc-700 text-ds-zinc-600 hover:text-ds-zinc-400" : "hover:bg-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-600"
+  );
+  const commitRename = () => {
+    if (renaming && renaming.title.trim()) onRename?.(renaming.id, renaming.title.trim());
+    setRenaming(null);
+  };
 
   const virtualizer = useVirtualizer({
     count: sessions.length,
@@ -94,20 +112,57 @@ export function VirtualizedSessionList({
                     : (theme === 'dark' ? "text-ds-zinc-400 hover:bg-ds-zinc-800 hover:text-ds-zinc-200" : "text-ds-zinc-600 hover:bg-ds-zinc-200/50 hover:text-ds-zinc-900")
                 )}
               >
-                <MessageSquare className="w-3.5 h-3.5 text-ds-zinc-500 shrink-0" />
-                <span className="truncate text-left flex-1">{session.title}</span>
-                <button
-                  type="button"
-                  onClick={(e) => onRemove(session.id, e)}
-                  id={`sidebar-remove-session-${session.id}`}
-                  className={cn(
-                    "absolute right-2 p-1 rounded opacity-0 group-hover:opacity-100 transition-all",
-                    theme === 'dark' ? "hover:bg-ds-zinc-700 text-ds-zinc-600 hover:text-ds-zinc-400" : "hover:bg-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-600"
+                {session.is_pinned
+                  ? <Pin className="w-3.5 h-3.5 text-ds-indigo-500 shrink-0" />
+                  : <MessageSquare className="w-3.5 h-3.5 text-ds-zinc-500 shrink-0" />}
+                {renaming?.id === session.id ? (
+                  <input
+                    autoFocus
+                    value={renaming.title}
+                    aria-label={t('sidebar.renameSession')}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) => setRenaming({ id: session.id, title: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') commitRename();
+                      if (e.key === 'Escape') setRenaming(null);
+                    }}
+                    onBlur={commitRename}
+                    className="flex-1 min-w-0 bg-transparent border-b border-ds-indigo-500 outline-none"
+                  />
+                ) : (
+                  <span className="truncate text-left flex-1">{session.title}</span>
+                )}
+                <div className="absolute right-2 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all">
+                  {onRename && (
+                    <button type="button" className={actionClass} title={t('sidebar.renameSession')} aria-label={t('sidebar.renameSession')}
+                      onClick={(e) => { e.stopPropagation(); setRenaming({ id: session.id, title: session.title }); }}>
+                      <Pencil className="w-3 h-3" />
+                    </button>
                   )}
-                  title={deleteSessionTitle}
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
+                  {onTogglePin && (
+                    <button type="button" className={actionClass}
+                      title={t(session.is_pinned ? 'sidebar.unpinSession' : 'sidebar.pinSession')}
+                      aria-label={t(session.is_pinned ? 'sidebar.unpinSession' : 'sidebar.pinSession')}
+                      onClick={(e) => { e.stopPropagation(); onTogglePin(session); }}>
+                      {session.is_pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
+                    </button>
+                  )}
+                  {onExport && (
+                    <button type="button" className={actionClass} title={t('sidebar.exportSession')} aria-label={t('sidebar.exportSession')}
+                      onClick={(e) => { e.stopPropagation(); onExport(session.id); }}>
+                      <Download className="w-3 h-3" />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={(e) => onRemove(session.id, e)}
+                    id={`sidebar-remove-session-${session.id}`}
+                    className={actionClass}
+                    title={deleteSessionTitle}
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
+                </div>
               </div>
             </div>
           );
