@@ -92,6 +92,7 @@ describe('VirtualizedSessionList', () => {
       />
     );
 
+    fireEvent.keyDown(document.getElementById('sidebar-session-menu-1')!, { key: 'Enter' });
     fireEvent.click(document.getElementById('sidebar-remove-session-1')!);
 
     expect(onRemove).toHaveBeenCalledWith(1, expect.anything());

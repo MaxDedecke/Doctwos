@@ -3,7 +3,8 @@
 import { cn } from '@/lib/utils';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Download, MessageSquare, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Download, MessageSquare, MoreHorizontal, Pencil, Pin, PinOff, Trash2 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Loader2 } from 'lucide-react';
 
@@ -58,10 +59,11 @@ export function VirtualizedSessionList({
   const { t } = useLanguage();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [renaming, setRenaming] = useState<{ id: number; title: string } | null>(null);
-  const actionClass = cn(
-    "p-1 rounded transition-all",
-    theme === 'dark' ? "hover:bg-ds-zinc-700 text-ds-zinc-600 hover:text-ds-zinc-400" : "hover:bg-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-600"
-  );
+  const [menuOpenId, setMenuOpenId] = useState<number | null>(null);
+  // Umbenennen beginnt erst, wenn das Menü zu ist: Es gäbe den Fokus sonst an den Knopf zurück, und das
+  // Eingabefeld würde sofort wieder verlassen.
+  const pendingRename = useRef<{ id: number; title: string } | null>(null);
+  const menuItemClass = cn("text-xs gap-2", theme === 'dark' ? "focus:bg-ds-zinc-800" : "focus:bg-ds-zinc-100");
   const commitRename = () => {
     if (renaming && renaming.title.trim()) onRename?.(renaming.id, renaming.title.trim());
     setRenaming(null);
@@ -132,37 +134,61 @@ export function VirtualizedSessionList({
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-left">{session.title}</span>
                 )}
-                <div className="flex shrink-0 items-center gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100">
-                  {onRename && (
-                    <button type="button" className={actionClass} title={t('sidebar.renameSession')} aria-label={t('sidebar.renameSession')}
-                      onClick={(e) => { e.stopPropagation(); setRenaming({ id: session.id, title: session.title }); }}>
-                      <Pencil className="w-3 h-3" />
+                <DropdownMenu onOpenChange={(open) => setMenuOpenId(open ? session.id : null)}>
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
+                      id={`sidebar-session-menu-${session.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      title={t('sidebar.sessionOptions')}
+                      aria-label={t('sidebar.sessionOptions')}
+                      className={cn(
+                        "shrink-0 p-1 rounded transition-all",
+                        menuOpenId === session.id ? "opacity-100" : "[@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                        theme === 'dark' ? "hover:bg-ds-zinc-700 text-ds-zinc-500 hover:text-ds-zinc-300" : "hover:bg-ds-zinc-200 text-ds-zinc-400 hover:text-ds-zinc-700",
+                      )}
+                    >
+                      <MoreHorizontal className="w-3.5 h-3.5" />
                     </button>
-                  )}
-                  {onTogglePin && (
-                    <button type="button" className={actionClass}
-                      title={t(session.is_pinned ? 'sidebar.unpinSession' : 'sidebar.pinSession')}
-                      aria-label={t(session.is_pinned ? 'sidebar.unpinSession' : 'sidebar.pinSession')}
-                      onClick={(e) => { e.stopPropagation(); onTogglePin(session); }}>
-                      {session.is_pinned ? <PinOff className="w-3 h-3" /> : <Pin className="w-3 h-3" />}
-                    </button>
-                  )}
-                  {onExport && (
-                    <button type="button" className={actionClass} title={t('sidebar.exportSession')} aria-label={t('sidebar.exportSession')}
-                      onClick={(e) => { e.stopPropagation(); onExport(session.id); }}>
-                      <Download className="w-3 h-3" />
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    onClick={(e) => onRemove(session.id, e)}
-                    id={`sidebar-remove-session-${session.id}`}
-                    className={actionClass}
-                    title={deleteSessionTitle}
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent
+                    align="end"
+                    onClick={(e) => e.stopPropagation()}
+                    onCloseAutoFocus={(e) => {
+                      if (!pendingRename.current) return;
+                      e.preventDefault();
+                      setRenaming(pendingRename.current);
+                      pendingRename.current = null;
+                    }}
+                    className={cn("w-52", theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800")}
                   >
-                    <Trash2 className="w-3 h-3" />
-                  </button>
-                </div>
+                    {onRename && (
+                      <DropdownMenuItem className={menuItemClass}
+                        onClick={() => { pendingRename.current = { id: session.id, title: session.title }; }}>
+                        <Pencil className="w-3.5 h-3.5" />{t('sidebar.renameSession')}
+                      </DropdownMenuItem>
+                    )}
+                    {onTogglePin && (
+                      <DropdownMenuItem className={menuItemClass} onClick={() => onTogglePin(session)}>
+                        {session.is_pinned ? <PinOff className="w-3.5 h-3.5" /> : <Pin className="w-3.5 h-3.5" />}
+                        {t(session.is_pinned ? 'sidebar.unpinSession' : 'sidebar.pinSession')}
+                      </DropdownMenuItem>
+                    )}
+                    {onExport && (
+                      <DropdownMenuItem className={menuItemClass} onClick={() => onExport(session.id)}>
+                        <Download className="w-3.5 h-3.5" />{t('sidebar.exportSession')}
+                      </DropdownMenuItem>
+                    )}
+                    {(onRename || onTogglePin || onExport) && <DropdownMenuSeparator className={theme === 'dark' ? "bg-ds-zinc-800" : "bg-ds-zinc-200"} />}
+                    <DropdownMenuItem
+                      id={`sidebar-remove-session-${session.id}`}
+                      className={cn(menuItemClass, "text-ds-red-500 focus:text-ds-red-500")}
+                      onClick={(e) => onRemove(session.id, e)}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />{deleteSessionTitle}
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             </div>
           );

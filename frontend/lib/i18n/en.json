@@ -1156,6 +1156,7 @@
     "scanHint_no_structure_parser": "No structure parser for this language; the file is searchable as text only",
     "scanHint_edges_open": "Unresolved relationships without a known system target: real gaps in the index",
     "scanHint_edges_external": "Unresolved relationships to system targets outside the repository (JDK, libraries, CICS, MQ, IMS, IBM utilities)",
+    "sessionOptions": "Options",
     "renameSession": "Rename",
     "pinSession": "Pin",
     "unpinSession": "Unpin",

@@ -40,11 +40,13 @@ describe('SessionHistory', () => {
     renderHistory();
     await waitFor(() => expect(page).toHaveBeenCalledWith({ general: true, pinned: true, limit: 50 }));
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'sidebar.pinSession' })[1]);
+    fireEvent.keyDown(screen.getAllByRole('button', { name: 'sidebar.sessionOptions' })[1], { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'sidebar.pinSession' }));
     await waitFor(() => expect(screen.getAllByText(/Zinsen|Login-Ablauf/).map(node => node.textContent)).toEqual(['Zinsen', 'Login-Ablauf']));
 
-    fireEvent.click(screen.getAllByRole('button', { name: 'sidebar.renameSession' })[0]);
-    const input = screen.getByRole('textbox', { name: 'sidebar.renameSession' });
+    fireEvent.keyDown(screen.getAllByRole('button', { name: 'sidebar.sessionOptions' })[0], { key: 'Enter' });
+    fireEvent.click(screen.getByRole('menuitem', { name: 'sidebar.renameSession' }));
+    const input = await screen.findByRole('textbox', { name: 'sidebar.renameSession' });
     fireEvent.change(input, { target: { value: 'Zinslauf' } });
     fireEvent.keyDown(input, { key: 'Enter' });
 

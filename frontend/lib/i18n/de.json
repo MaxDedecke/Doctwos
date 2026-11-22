@@ -1156,6 +1156,7 @@
     "scanHint_no_structure_parser": "Für diese Sprache gibt es keinen Strukturparser; die Datei ist nur als Text durchsuchbar",
     "scanHint_edges_open": "Unaufgelöste Beziehungen ohne bekanntes Systemziel: echte Lücken im Index",
     "scanHint_edges_external": "Unaufgelöste Beziehungen zu Systemzielen außerhalb des Repositorys (JDK, Bibliotheken, CICS, MQ, IMS, IBM-Utilities)",
+    "sessionOptions": "Optionen",
     "renameSession": "Umbenennen",
     "pinSession": "Anheften",
     "unpinSession": "Lösen",
