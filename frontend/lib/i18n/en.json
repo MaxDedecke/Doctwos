@@ -1402,7 +1402,8 @@
     "inputPlaceholderMentions": "Ask Doctus AI … (@ mentions programs, classes, fields)",
     "attachmentSize": "{{count}} characters",
     "editQuestionTitle": "Edit question (↑ in the empty input)",
-    "resend": "Answer again"
+    "resend": "Answer again",
+    "searchingEvidence": "Searching the index for evidence …"
   },
   "openGraphDialog": {
     "title": "Open knowledge graph",

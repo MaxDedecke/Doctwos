@@ -1402,7 +1402,8 @@
     "inputPlaceholderMentions": "Frag Doctus AI … (@ erwähnt Programme, Klassen, Felder)",
     "attachmentSize": "{{count}} Zeichen",
     "editQuestionTitle": "Frage bearbeiten (↑ im leeren Eingabefeld)",
-    "resend": "Neu beantworten"
+    "resend": "Neu beantworten",
+    "searchingEvidence": "Sucht Belege im Index …"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",

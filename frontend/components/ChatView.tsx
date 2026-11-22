@@ -423,7 +423,9 @@ export function ChatView({
                             isLoading && i === chatMessages.length - 1 && (!m.metadata?.agent_steps || m.metadata.agent_steps.length === 0) && (
                               <div className="flex items-center gap-2.5 text-ds-zinc-500/80 py-1.5 animate-pulse">
                                 <Loader2 className="w-4 h-4 animate-spin text-ds-indigo-500 shrink-0" />
-                                <span className="text-xs font-medium tracking-wide">{t('chatView.generatingResponse')}</span>
+                                <span className="text-xs font-medium tracking-wide">
+                                  {t(m.metadata?.chat_mode === 'evidence' ? 'chatView.searchingEvidence' : 'chatView.generatingResponse')}
+                                </span>
                               </div>
                             )
                           )}

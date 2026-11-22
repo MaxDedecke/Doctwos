@@ -568,4 +568,17 @@ describe('ChatView', () => {
       expect(screen.getByText(/In der Ablauf-View geöffnet/)).toBeTruthy();
     });
   });
+
+  it('zeigt im Evidenzmodus vor dem ersten Schritt die Belegsuche statt der allgemeinen Wartezeile', () => {
+    renderChat({
+      isLoading: true,
+      chatMessages: [
+        { role: 'user', content: 'Wer ruft COSGN00C auf?', metadata: { chat_mode: 'evidence' } },
+        { role: 'assistant', content: '', metadata: { chat_mode: 'evidence', agent_steps: [] } },
+      ],
+    });
+
+    expect(screen.getByText('Sucht Belege im Index …')).toBeTruthy();
+    expect(screen.queryByText('Antwort wird generiert...')).toBeNull();
+  });
 });
