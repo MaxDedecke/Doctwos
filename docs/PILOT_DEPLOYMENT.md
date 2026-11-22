@@ -59,6 +59,38 @@ Unter Einstellungen > KI entstehen dafür zwei KI-Profile und ein Embedding-Prof
 | Embedding „bge-m3“ | Embedding-Profil, kein KI-Profil | Ollama, Modell `bge-m3`, 1024 Dimensionen; gilt für neue Projekte, unabhängig vom aktiven Chat-Profil |
 | Chat „Firmen-LLM“ | Remote, Protokoll „OpenAI-kompatibel“ oder „vLLM“ | URL `http://host.docker.internal:<port>/v1`, API-Key, exakte Modellkennung, LLM-Kontext des Servers; unter Erweitert die Embedding-URL des Ollama eintragen (Pflichtfeld, wird beim Profiltest geprüft) |
 
+### GPU-Bemessung: Qwen3-Coder 30B auf 24 GB + 16 GB
+
+Mit zwei Karten (24 GB und 16 GB, zusammen 40 GB) ist **64k Kontext** die Empfehlung. Ollama verteilt die
+Schichten selbst über beide Karten, weil das Modell samt Cache nicht in die 24-GB-Karte allein passt.
+
+| Posten | Bedarf (Q4_K_M, 8-Bit-KV-Cache) |
+|---|---|
+| Gewichte `qwen3-coder:30b` | ~18,6 GB |
+| KV-Cache je parallele Anfrage bei 64k | ~3,2 GB (48 Schichten × 4 KV-Köpfe × 128 × 2 ≈ 50 KB je Token) |
+| Rechenpuffer und Laufzeit | ~1–1,5 GB |
+| `bge-m3` (Embeddings) | ~1,2 GB |
+
+Mit zwei parallelen Anfragen sind das rund 28 GB, es bleibt Reserve. Drei gehen noch (~31 GB); bei vier wird es
+knapp. Ohne den 8-Bit-Cache (16 Bit) braucht jede Anfrage bei 64k rund 6 GB.
+
+```dotenv
+OLLAMA_CONTEXT_LENGTH=65536   # Vorgabe des Ollama-Servers
+OLLAMA_NUM_CTX=65536          # Vorgabe für neue Doctus-Profile
+OLLAMA_NUM_PARALLEL=2         # jede parallele Anfrage hält einen eigenen Cache
+OLLAMA_FLASH_ATTENTION=1      # Voraussetzung für den 8-Bit-Cache (Standard)
+OLLAMA_KV_CACHE_TYPE=q8_0     # Standard
+```
+
+Im KI-Profil „Qwen3-Coder 30B“ unter Erweitert **LLM-Kontext `65536`** und **Parallelität `2`** eintragen; die
+Parallelität in Doctus darf nicht über `OLLAMA_NUM_PARALLEL` liegen, sonst warten Anfragen im Ollama statt in
+Doctus. Nach dem Start mit `ollama ps` prüfen, dass `PROCESSOR` „100% GPU“ zeigt (sonst ist etwas auf die CPU
+ausgewichen), und mit `nvidia-smi` die Verteilung auf beide Karten. Die Werte sind aus der Modellarchitektur
+gerechnet; Flash Attention auf den Turing-Karten (RTX 6000/5000) beim ersten Start einmal messen.
+
+Was 64k im Chat bringt: Anhänge dürfen 30 % des Fensters belegen (rund 69.000 Zeichen statt 8.600 bei 8k), der
+Verlauf bleibt länger wörtlich erhalten, und Belegpaket und Werkzeugergebnisse werden seltener gekürzt.
+
 Die Art **Cloud** passt für das Firmen-LLM nicht: Sie ist fest an die Adressen von OpenAI, Anthropic und Gemini
 gebunden (OpenAI über die Responses-API), hat kein URL-Feld und verlangt die Cloud-Freigabe. Technisch nutzt
 „Remote, OpenAI-kompatibel“ denselben Anfrageweg wie ein OpenAI-Cloud-Profil mit Bearer-Key. Mit „vLLM“ prüft der
