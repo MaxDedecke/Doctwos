@@ -422,9 +422,9 @@ describe('Sidebar', () => {
 
   describe('Resize', () => {
     function panelWidth(container: HTMLElement): string {
-      // Inhaltsbreite ist `calc(<Breite>px - 1.5rem)` (Card-Rand und Hülle); verglichen wird die Sidebar-Breite.
+      // Inhaltsbreite ist `calc(min(<Breite>px, …) - 1.5rem)` (Card-Rand und Hülle); verglichen wird die Sidebar-Breite.
       const width = (container.querySelector('aside')!.firstElementChild!.firstElementChild as HTMLElement).style.width;
-      return `${/calc\((\d+)px/.exec(width)?.[1]}px`;
+      return `${/(\d+)px/.exec(width)?.[1]}px`;
     }
 
     function resizeHandle(container: HTMLElement): HTMLElement {
@@ -434,7 +434,7 @@ describe('Sidebar', () => {
     it('startet mit der Standardbreite', () => {
       const { container } = renderSidebar();
 
-      expect(panelWidth(container)).toBe('280px');
+      expect(panelWidth(container)).toBe('336px');
     });
 
     it('übernimmt die Zeigerposition als neue Breite', () => {
@@ -452,10 +452,10 @@ describe('Sidebar', () => {
       fireEvent.mouseDown(resizeHandle(container));
 
       fireEvent.mouseMove(document, { clientX: 120 });
-      expect(panelWidth(container)).toBe('280px');
+      expect(panelWidth(container)).toBe('336px');
 
       fireEvent.mouseMove(document, { clientX: 700 });
-      expect(panelWidth(container)).toBe('280px');
+      expect(panelWidth(container)).toBe('336px');
     });
 
     it('beendet das Ziehen beim Loslassen der Maustaste', () => {
