@@ -44,7 +44,7 @@ import {
   History,
   Loader2,
   Pencil,
-  Paperclip,
+  FileText,
   ArrowDown,
   Plus,
   Play,
@@ -57,6 +57,7 @@ import Image from 'next/image';
 import React from 'react';
 import { AgentSteps, HistoryCompactedNotice } from "./AgentSteps";
 import { ChatComposer } from "./ChatComposer";
+import { ChatQuestionEditor } from "./ChatQuestionEditor";
 import { ChatEmptyState } from "./ChatEmptyState";
 import { lockedChatMode } from "@/lib/chatMode";
 
@@ -148,16 +149,11 @@ export function ChatView({
   const messageStreamRef = React.useRef<HTMLDivElement>(null);
   const { following: followingLatest, scrollToLatest } = useChatFollowScroll(messageStreamRef, chatMessages.length);
   const olderMessages = chatControls?.olderMessages;
-  // Bearbeiten der letzten Frage: Pfeil hoch im leeren Feld oder Stift an der Frage; Senden ersetzt Frage und Antwort.
-  const [editing, setEditing] = React.useState(false);
+  // Bearbeiten der letzten Frage direkt in ihrer Blase (Pfeil hoch im leeren Feld oder Stift neben der Frage).
+  const [editingIndex, setEditingIndex] = React.useState<number | null>(null);
   const lastUserIndex = chatMessages.map(message => message.role).lastIndexOf('user');
   const canEditLast = !isLoading && lastUserIndex >= 0 && chatMessages[lastUserIndex]?.id != null && Boolean(chatControls);
-  const startEditLast = () => {
-    if (!canEditLast) return;
-    setCurrentMessage(chatMessages[lastUserIndex].content);
-    setEditing(true);
-    requestAnimationFrame(() => document.getElementById('chat-textarea')?.focus());
-  };
+  const startEditLast = () => { if (canEditLast) setEditingIndex(lastUserIndex); };
   React.useEffect(() => {
     if (!isLoading || !chatControls) return;
     const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') chatControls.stop(); };
@@ -338,6 +334,7 @@ export function ChatView({
                     {/* Message Bubble */}
                     <div className={cn(
                       "max-w-[calc(100%-3rem)] @md/chat:max-w-[85%] min-w-0 text-sm leading-relaxed",
+                      isUser && "relative group/question",
                       isUser
                         ? (theme === 'dark'
                             ? "bg-ds-zinc-900/95 border border-ds-zinc-800/80 text-ds-zinc-100 rounded-lg px-5 py-3 shadow-lg"
@@ -346,7 +343,7 @@ export function ChatView({
                     )}>
                       {isUser ? (
                         <>
-                          {m.metadata && Boolean(m.metadata.project || m.metadata.pinned || m.metadata.refs?.length) && (
+                          {m.metadata && Boolean(m.metadata.project || m.metadata.pinned || m.metadata.refs?.length || m.metadata.attachments?.length) && (
                             <div className="flex flex-wrap gap-2 mb-2 pb-2 border-b border-ds-zinc-200/50 dark:border-ds-zinc-800/50">
                               {m.metadata.project && (
                                 <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-indigo-500/10 border border-ds-indigo-500/20 text-[0.625rem] text-ds-indigo-400 font-bold uppercase tracking-tight">
@@ -354,6 +351,13 @@ export function ChatView({
                                   {m.metadata.project.name}
                                 </div>
                               )}
+                              {m.metadata.attachments?.map(item => (
+                                <div key={item.name} title={t('chatView.attachmentSize', { count: item.chars })}
+                                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-ds-zinc-500/10 border border-ds-zinc-500/20 text-[0.625rem] text-ds-zinc-400 font-bold">
+                                  <FileText className="w-3 h-3" />
+                                  {item.name}
+                                </div>
+                              ))}
                               {(m.metadata.refs?.length ? m.metadata.refs : (m.metadata.pinned ? [{
                                 file: m.metadata.pinned.filepath || '',
                                 line: m.metadata.pinned.line ?? 0,
@@ -392,21 +396,18 @@ export function ChatView({
                               })}
                             </div>
                           )}
-                          <p className="whitespace-pre-wrap font-medium">{m.content}</p>
-                          {(m.metadata?.attachments?.length ?? 0) > 0 && (
-                            <div className="mt-1.5 flex flex-wrap gap-1">
-                              {m.metadata?.attachments?.map(item => (
-                                <span key={item.name} className="inline-flex items-center gap-1 rounded border border-ds-zinc-500/30 px-1.5 py-0.5 text-[0.625rem]">
-                                  <Paperclip className="w-3 h-3" />{item.name}
-                                </span>
-                              ))}
-                            </div>
+                          {editingIndex === i ? (
+                            <ChatQuestionEditor initial={m.content} theme={theme} onCancel={() => setEditingIndex(null)}
+                              onSubmit={(text) => { setEditingIndex(null); void chatControls?.editLast(text); }} />
+                          ) : (
+                            <p className="whitespace-pre-wrap font-medium">{m.content}</p>
                           )}
-                          {i === lastUserIndex && canEditLast && (
-                            <button type="button" onClick={startEditLast} title={t('chatView.editQuestion')} aria-label={t('chatView.editQuestion')}
-                              className="mt-1 inline-flex items-center gap-1 text-[0.625rem] opacity-60 hover:opacity-100">
-                              <Pencil className="w-3 h-3" />{t('chatView.editQuestion')}
-                            </button>
+                          {i === lastUserIndex && canEditLast && editingIndex !== i && (
+                            <Button variant="ghost" size="icon" onClick={startEditLast} title={t('chatView.editQuestionTitle')} aria-label={t('chatView.editQuestion')}
+                              className={cn("absolute -left-9 bottom-0 h-7 w-7 rounded-full opacity-0 group-hover/question:opacity-100 focus-visible:opacity-100 transition-opacity",
+                                theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-300 hover:bg-ds-zinc-800" : "text-ds-zinc-500 hover:text-ds-zinc-800 hover:bg-ds-zinc-100")}>
+                              <Pencil className="w-3.5 h-3.5" />
+                            </Button>
                           )}
                         </>
                       ) : (
@@ -1043,20 +1044,11 @@ export function ChatView({
         theme={theme}
         currentMessage={currentMessage}
         setCurrentMessage={setCurrentMessage}
-        handleSendChat={(attachments) => {
-          if (editing) {
-            setEditing(false);
-            void chatControls?.editLast(currentMessage);
-          } else {
-            handleSendChat(undefined, undefined, attachments);
-          }
-        }}
+        handleSendChat={(attachments) => handleSendChat(undefined, undefined, attachments)}
         isLoading={isLoading}
         onStop={() => chatControls?.stop()}
-        editing={editing}
         canEditLast={canEditLast}
         onEditLast={startEditLast}
-        onCancelEdit={() => { setEditing(false); setCurrentMessage(''); }}
         selectedProject={selectedProject}
         selectedSource={selectedSource}
         setSelectedSource={setSelectedSource}

@@ -22,7 +22,7 @@ it('opens the targeted finding and acknowledges only that notification', async (
 });
 
 
-it('opens a focus-managed detail dialog from the sidebar and closes on Escape', async () => {
+it('opens a focus-managed detail dialog from the header bell and closes on Escape', async () => {
   vi.mocked(api.getInsightNotifications).mockResolvedValue(axiosResponse({ unread_count: 1, has_more: false, items: [
     { id: 8, insight_id: 11, title: 'Owned draft', kind: 'assigned', created_at: '2026-11-08T12:00:00Z' },
   ] }));
@@ -35,11 +35,26 @@ it('opens a focus-managed detail dialog from the sidebar and closes on Escape', 
     outdated_source_ids: [],
   }));
   vi.mocked(api.getInsightAssignees).mockResolvedValue(axiosResponse({ items: [], can_manage: false, truncated: false }));
-  render(<LanguageProvider><InsightInbox projectId={3} currentUser={{ id: 1 }} align="up" /></LanguageProvider>);
+  render(<LanguageProvider><InsightInbox projectId={3} currentUser={{ id: 1 }} /></LanguageProvider>);
   fireEvent.click(screen.getByRole('button', { name: 'Meine Hinweise' }));
   fireEvent.click(await screen.findByRole('button', { name: /Neue Zuständigkeit: Owned draft/ }));
   const dialog = await screen.findByRole('dialog', { name: 'Erkenntnis im Detail' });
   expect(await screen.findByText('A reviewed source is required.')).toBeTruthy();
   fireEvent.keyDown(dialog, { key: 'Escape' });
   await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+});
+
+
+it('shows the unread count on the bell only when there is something to read', async () => {
+  vi.mocked(api.getInsightNotifications).mockResolvedValue(axiosResponse({ unread_count: 0, has_more: false, items: [] }));
+  const { unmount } = render(<LanguageProvider><InsightInbox projectId={3} currentUser={{ id: 1 }} /></LanguageProvider>);
+  await waitFor(() => expect(api.getInsightNotifications).toHaveBeenCalled());
+  expect(screen.queryByTestId('insight-inbox-count')).toBeNull();
+  unmount();
+
+  vi.mocked(api.getInsightNotifications).mockResolvedValue(axiosResponse({ unread_count: 3, has_more: false, items: [] }));
+  render(<LanguageProvider><InsightInbox projectId={3} currentUser={{ id: 1 }} /></LanguageProvider>);
+  expect((await screen.findByTestId('insight-inbox-count')).textContent).toBe('3');
+  fireEvent.click(screen.getByRole('button', { name: 'Meine Hinweise' }));
+  expect(await screen.findByText('Keine Hinweise.')).toBeTruthy();
 });

@@ -221,7 +221,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                 "font-semibold",
                                                 theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800"
                                             )}>
-                                                {t('agentSteps.toolCalled')} <span className="font-mono text-[0.6875rem] text-ds-blue-500" title={step.name}>{toolLabel(step.name, t)}</span>
+                                                {t('agentSteps.toolCalled')} <span className={cn("text-ds-blue-500", toolLabel(step.name, t) === step.name && "font-mono text-[0.6875rem]")} title={step.name}>{toolLabel(step.name, t)}</span>
                                             </span>
                                             {pending && (
                                                 <span className="ml-2 inline-flex items-center gap-1 text-[0.625rem] text-ds-zinc-500">
@@ -277,7 +277,7 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                                     "font-medium",
                                                     theme === 'dark' ? "text-ds-zinc-400" : "text-ds-zinc-500"
                                                 )}>
-                                                    {t('agentSteps.resultFrom')} <span className="font-mono text-[0.6875rem]" title={step.name}>{toolLabel(step.name, t)}</span>
+                                                    {t('agentSteps.resultFrom')} <span className={cn(toolLabel(step.name, t) === step.name && "font-mono text-[0.6875rem]")} title={step.name}>{toolLabel(step.name, t)}</span>
                                                     {failed && <span className="ml-2 font-semibold text-ds-red-500">{t('agentSteps.toolFailed')}</span>}
                                                     {step.duration_ms != null && <span className="ml-2 font-mono text-[0.625rem] opacity-70">{formatDuration(step.duration_ms, language)}</span>}
                                                 </span>

@@ -810,7 +810,7 @@ function AppContent() {
     } else if (result.node_type === 'document') {
       const filePath = meta.file_path || result.node_label;
       pinFileFocus(filePath, null, meta.source_id ?? null);
-      await handleFileSelect(filePath, null, meta.source_id, targetProject);
+      await handleFileSelect(filePath, meta.start_line ?? null, meta.source_id, targetProject);
     } else if (result.node_type === 'knowledge_source') {
       setSelectedSource({ id: result.node_id, name: result.node_label, project_id: meta.project_id, type: meta.type });
       showToast(t('page.toast.sourceFocused', { name: result.node_label }), "success");

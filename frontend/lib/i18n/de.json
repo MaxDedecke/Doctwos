@@ -1372,8 +1372,6 @@
     "stopAnswerTitle": "Antwort stoppen (Esc)",
     "answerStopped": "Antwort abgebrochen.",
     "editQuestion": "Frage bearbeiten",
-    "editingQuestion": "Frage wird bearbeitet – Senden ersetzt Frage und Antwort",
-    "cancelEdit": "Bearbeiten abbrechen (Esc)",
     "jumpToLatest": "Zum Neuesten",
     "modelWithoutTools": "ohne Werkzeuge",
     "responseTimeTitle": "Antwortzeit",
@@ -1398,10 +1396,13 @@
       "send": "Senden"
     },
     "mentionsLabel": "Codeobjekte zum Erwähnen",
-    "inputHint": "@ erwähnt ein Codeobjekt · ↑ bearbeitet die letzte Frage · Esc stoppt",
     "attachFiles": "Dateien anhängen (Text, Code, Logs)",
     "removeAttachment": "Anhang {{name}} entfernen",
-    "attachmentRejected": "Nicht angehängt (zu groß, kein Text oder mehr als 5): {{names}}"
+    "attachmentRejected": "Nicht angehängt (zu groß, kein Text oder mehr als 5): {{names}}",
+    "inputPlaceholderMentions": "Frag Doctus AI … (@ erwähnt Programme, Klassen, Felder)",
+    "attachmentSize": "{{count}} Zeichen",
+    "editQuestionTitle": "Frage bearbeiten (↑ im leeren Eingabefeld)",
+    "resend": "Neu beantworten"
   },
   "openGraphDialog": {
     "title": "Wissensgraph öffnen",
@@ -2774,6 +2775,8 @@
       "dependency_changed": "Referenzierte Erkenntnis geändert",
       "verified": "Erkenntnis freigegeben",
       "rejected": "Erkenntnis verworfen"
-    }
+    },
+    "unreadCount": "{{count}} ungelesene Hinweise",
+    "noNotifications": "Keine Hinweise."
   }
 }

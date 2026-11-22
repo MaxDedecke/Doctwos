@@ -11,6 +11,9 @@ import { VirtualizedSessionList, type SidebarSession } from './VirtualizedSessio
 const SEARCH_DEBOUNCE_MS = 250;
 
 interface SessionHistoryProps {
+  /** Die Suche klappt über die Lupe neben „Verlauf“ auf und wieder zu; zugeklappt gilt keine Suche. */
+  searchOpen: boolean;
+  onCloseSearch: () => void;
   sessions: ChatSession[];
   selectedProject: Project | null;
   hasMore: boolean;
@@ -39,7 +42,7 @@ function download(blob: Blob, name: string) {
  * bleibt unberührt und übernimmt sie beim nächsten Laden.
  */
 export function SessionHistory({
-  sessions, selectedProject, hasMore, isLoadingMore, onLoadMore, activeSessionId, theme, onSelect, onRemove,
+  searchOpen, onCloseSearch, sessions, selectedProject, hasMore, isLoadingMore, onLoadMore, activeSessionId, theme, onSelect, onRemove,
 }: SessionHistoryProps) {
   const { t } = useLanguage();
   const [query, setQuery] = useState('');
@@ -60,7 +63,7 @@ export function SessionHistory({
     return () => { active = false; };
   }, [context]);
 
-  const trimmed = query.trim();
+  const trimmed = searchOpen ? query.trim() : '';
   useEffect(() => {
     if (!trimmed) return;
     const timer = setTimeout(() => {
@@ -105,25 +108,28 @@ export function SessionHistory({
 
   return (
     <div className="flex flex-col flex-1 min-h-0">
-      <div className="px-3 pb-1">
+      {searchOpen && <div className="px-3 pb-1">
         <label className={cn(
-          "flex items-center gap-1.5 rounded-md border px-2 py-1 text-xs",
-          theme === 'dark' ? "border-ds-zinc-800 bg-ds-zinc-900/60" : "border-ds-zinc-200 bg-ds-white",
+          "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+          theme === 'dark'
+            ? "border-ds-zinc-800 bg-ds-zinc-900/60 focus-within:border-ds-zinc-700"
+            : "border-ds-zinc-200 bg-ds-white focus-within:border-ds-zinc-300",
         )}>
           <Search className="w-3 h-3 text-ds-zinc-500 shrink-0" />
-          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={t('sidebar.searchSessions')}
-            aria-label={t('sidebar.searchSessions')} className="flex-1 min-w-0 bg-transparent outline-none" />
-          {query && (
-            <button type="button" onClick={() => setQuery('')} aria-label={t('sidebar.clearSessionSearch')}>
-              <X className="w-3 h-3 text-ds-zinc-500" />
-            </button>
-          )}
+          <input autoFocus value={query} onChange={e => setQuery(e.target.value)} placeholder={t('sidebar.searchSessions')}
+            aria-label={t('sidebar.searchSessions')}
+            onKeyDown={e => { if (e.key === 'Escape') { setQuery(''); onCloseSearch(); } }}
+            className="flex-1 min-w-0 bg-transparent outline-none placeholder:text-ds-zinc-500" />
+          <button type="button" onClick={() => { setQuery(''); onCloseSearch(); }} aria-label={t('sidebar.clearSessionSearch')}>
+            <X className="w-3 h-3 text-ds-zinc-500" />
+          </button>
         </label>
         {error && <p role="alert" className="pt-1 text-[0.625rem] text-ds-red-500">{error}</p>}
         {trimmed && results?.query === trimmed && results.sessions.length === 0 && (
           <p className="pt-1 text-[0.625rem] text-ds-zinc-500">{t('sidebar.noSessionMatches')}</p>
         )}
-      </div>
+      </div>}
+      {!searchOpen && error && <p role="alert" className="px-4 pb-1 text-[0.625rem] text-ds-red-500">{error}</p>}
       <VirtualizedSessionList
         sessions={shown}
         hasMore={!trimmed && hasMore}

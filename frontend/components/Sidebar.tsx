@@ -14,6 +14,7 @@ import {
   Loader2,
   LogOut,
   Plus,
+  Search,
   X
 } from 'lucide-react';
 import Image from 'next/image';
@@ -24,7 +25,6 @@ import { FileTreeList } from './sidebar/FileTreeList';
 import { SourceScanSummary, type SourceScanSummaryData } from './sidebar/SourceScanSummary';
 import { SessionHistory } from './sidebar/SessionHistory';
 import { UserInfoDialog } from './UserInfoDialog';
-import { InsightInbox } from './InsightInbox';
 
 interface SidebarProps {
   theme: string;
@@ -77,6 +77,7 @@ export function Sidebar({
   const [sidebarWidth, setSidebarWidth] = useState(280);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
+  const [isHistorySearchOpen, setIsHistorySearchOpen] = useState(false);
   const [isFilesExpanded, setIsFilesExpanded] = useState(true);
   const [userInfoOpen, setUserInfoOpen] = useState(false);
   const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
@@ -227,16 +228,39 @@ export function Sidebar({
                     <ChevronDown className={cn("w-3.5 h-3.5 transition-transform duration-200", !isHistoryExpanded && "-rotate-90")} />
                     <span>{t('sidebar.history')}</span>
                   </span>
-                  <span className={cn(
-                    "text-[0.5625rem] font-mono px-1.5 py-0.5 rounded-sm",
-                    theme === 'dark' ? "bg-ds-zinc-800/80 text-ds-zinc-400" : "bg-ds-zinc-200/70 text-ds-zinc-600"
-                  )}>
-                    {hasMoreSessions ? `${contextSessions.length}+` : contextSessions.length}
+                  <span className="flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      aria-label={t('sidebar.searchSessions')}
+                      aria-pressed={isHistorySearchOpen}
+                      title={t('sidebar.searchSessions')}
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        setIsHistoryExpanded(true);
+                        setIsHistorySearchOpen(open => !open);
+                      }}
+                      className={cn(
+                        "p-0.5 rounded transition-colors",
+                        isHistorySearchOpen
+                          ? "text-ds-indigo-500"
+                          : (theme === 'dark' ? "text-ds-zinc-500 hover:text-ds-zinc-200" : "text-ds-zinc-400 hover:text-ds-zinc-800")
+                      )}
+                    >
+                      <Search className="w-3.5 h-3.5" />
+                    </button>
+                    <span className={cn(
+                      "text-[0.5625rem] font-mono px-1.5 py-0.5 rounded-sm",
+                      theme === 'dark' ? "bg-ds-zinc-800/80 text-ds-zinc-400" : "bg-ds-zinc-200/70 text-ds-zinc-600"
+                    )}>
+                      {hasMoreSessions ? `${contextSessions.length}+` : contextSessions.length}
+                    </span>
                   </span>
                 </div>
 
                 {isHistoryExpanded && (
                   <SessionHistory
+                    searchOpen={isHistorySearchOpen}
+                    onCloseSearch={() => setIsHistorySearchOpen(false)}
                     sessions={contextSessions}
                     selectedProject={selectedProject}
                     hasMore={hasMoreSessions}
@@ -442,7 +466,6 @@ export function Sidebar({
               "px-4 py-3 border-t z-20 transition-colors duration-200",
               theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
             )}>
-              {selectedProject && currentUser && <div className="mb-3"><InsightInbox key={`${selectedProject.id}:${currentUser.id}`} projectId={selectedProject.id} currentUser={currentUser} align="up" onOpenFile={(path, line, sourceId) => handleFileSelect(path, line ?? undefined, sourceId == null ? undefined : String(sourceId))} /></div>}
               <div className="flex items-center justify-between">
                 <button
                   type="button"

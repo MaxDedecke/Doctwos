@@ -9,7 +9,7 @@ vi.mock('@/lib/i18n/LanguageContext', () => ({
 function props(overrides: Partial<ChatComposerProps> = {}): ChatComposerProps {
   return {
     theme: 'dark', currentMessage: '', setCurrentMessage: vi.fn(), handleSendChat: vi.fn(), isLoading: false,
-    onStop: vi.fn(), editing: false, canEditLast: true, onEditLast: vi.fn(), onCancelEdit: vi.fn(),
+    onStop: vi.fn(), canEditLast: true, onEditLast: vi.fn(),
     selectedProject: null, selectedSource: null, setSelectedSource: vi.fn(), pinnedCode: null, setPinnedCode: vi.fn(),
     filteredSources: [], handleSourceFocusChange: vi.fn(), sessionChatMode: null, activeChatMode: 'evidence',
     activeProfileId: '1', setActiveProfileId: vi.fn(),
@@ -30,17 +30,11 @@ describe('ChatComposer', () => {
     expect(screen.queryByRole('button', { name: 'chatView.sendMessageLabel' })).toBeNull();
   });
 
-  it('recalls the last question with arrow up in an empty field and shows the editing chip', () => {
+  it('recalls the last question with arrow up in an empty field', () => {
     const onEditLast = vi.fn();
-    const { rerender } = render(<ChatComposer {...props({ onEditLast })} />);
+    render(<ChatComposer {...props({ onEditLast })} />);
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'ArrowUp' });
     expect(onEditLast).toHaveBeenCalled();
-
-    const onCancelEdit = vi.fn();
-    rerender(<ChatComposer {...props({ editing: true, currentMessage: 'Frage', onCancelEdit })} />);
-    expect(screen.getByText('chatView.editingQuestion')).toBeTruthy();
-    fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Escape' });
-    expect(onCancelEdit).toHaveBeenCalled();
   });
 });
 

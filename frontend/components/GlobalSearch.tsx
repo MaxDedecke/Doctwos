@@ -1,5 +1,5 @@
 "use client";
-import type { KnowledgeSource, Project, SearchResult } from '@/types/domain';
+import type { KnowledgeSource, Project, SearchResult, User } from '@/types/domain';
 
 import { api } from "@/app/services/api";
 import { Button } from "@/components/ui/button";
@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, Database, FileCode, FileText, Filter, Folder, Loader2, Menu, Moon, Network, Plus, Save, Search, Settings, Share2, Sun, X } from 'lucide-react';
 import React, { useEffect, useRef, useState } from 'react';
 import { JobCenter } from './JobCenter';
+import { InsightInbox } from './InsightInbox';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { DoctusIcon } from './Logo';
 import { SaveSessionDialog } from './SaveSessionDialog';
@@ -648,6 +649,18 @@ export function GlobalSearch({
           )}
         </div>
 
+        {selectedProject && currentUser && (
+          <InsightInbox
+            key={`${selectedProject.id}:${(currentUser as Partial<User>).id}`}
+            projectId={selectedProject.id}
+            currentUser={currentUser as Partial<User>}
+            theme={theme}
+            onOpenFile={(path, line, sourceId) => onSelectResult({
+              node_type: 'document', node_id: 0, node_label: path, node_url: null,
+              node_meta: { file_path: path, start_line: line ?? undefined, source_id: sourceId, project_id: selectedProject.id },
+            })}
+          />
+        )}
         <JobCenter theme={theme} currentUser={currentUser} projectId={selectedProject?.id ?? null} />
 
         {canSaveSessionWithoutChat && (

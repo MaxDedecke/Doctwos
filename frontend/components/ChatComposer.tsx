@@ -15,7 +15,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger } from "@/components/ui/select";
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
-import { AtSign, Paperclip, BookOpen, Check, Code, Cpu, Pencil, Plus, Send, Square, X } from 'lucide-react';
+import { AtSign, Paperclip, BookOpen, Check, Code, Cpu, FileText, Plus, Send, Square, X } from 'lucide-react';
 import { applyMention, useEntityMentions } from '@/hooks/useEntityMentions';
 import { useRef, useState } from 'react';
 
@@ -28,11 +28,8 @@ export interface ChatComposerProps {
   isLoading: boolean;
   /** Bricht die laufende Antwort ab (Knopf oder Esc). */
   onStop: () => void;
-  /** Die letzte Frage wird gerade bearbeitet; Senden ersetzt sie samt Antwort. */
-  editing: boolean;
   canEditLast: boolean;
   onEditLast: () => void;
-  onCancelEdit: () => void;
   selectedProject: Project | null;
   selectedSource: KnowledgeSource | null;
   setSelectedSource: (source: KnowledgeSource | null) => void;
@@ -50,8 +47,8 @@ export interface ChatComposerProps {
 
 /** Eingabeleiste des Chats: Fokus-Chips, Eingabefeld, Quellen- und Modellwahl, Senden bzw. Stoppen. */
 export function ChatComposer({
-  theme, currentMessage, setCurrentMessage, handleSendChat, isLoading, onStop, editing, canEditLast, onEditLast,
-  onCancelEdit, selectedProject, selectedSource, setSelectedSource, pinnedCode, setPinnedCode, filteredSources,
+  theme, currentMessage, setCurrentMessage, handleSendChat, isLoading, onStop, canEditLast, onEditLast,
+  selectedProject, selectedSource, setSelectedSource, pinnedCode, setPinnedCode, filteredSources,
   handleSourceFocusChange, sessionChatMode, activeChatMode, activeProfileId, setActiveProfileId, llmProfiles, showToast,
 }: ChatComposerProps) {
   const { t } = useLanguage();
@@ -111,14 +108,15 @@ export function ChatComposer({
             : "bg-ds-white border-ds-zinc-200"
         )}>
           {/* Active project contextual focus helper and Pinned Code location helper */}
-          {(selectedSource || pinnedCode || editing || attachments.length > 0) && (
+          {(selectedSource || pinnedCode || attachments.length > 0) && (
             <div className={cn(
               "flex flex-wrap items-center gap-1.5 px-3 pt-1.5 pb-1.5 border-b transition-colors",
               theme === 'dark' ? "border-ds-zinc-800/40" : "border-ds-zinc-200/60"
             )}>
               {attachments.map((item, index) => (
-            <div key={`${item.name}:${index}`} className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-zinc-500/10 border border-ds-zinc-500/20 text-ds-zinc-500 text-[0.625rem] font-semibold">
-              <Paperclip className="w-3 h-3 shrink-0" />
+            <div key={`${item.name}:${index}`} title={t('chatView.attachmentSize', { count: item.content.length })}
+              className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-zinc-500/10 border border-ds-zinc-500/20 text-ds-zinc-400 text-[0.625rem] font-semibold tracking-wide shadow-sm max-w-full">
+              <FileText className="w-3 h-3 shrink-0" />
               <span className="truncate max-w-[160px]" title={item.name}>{item.name}</span>
               <button type="button" className="ml-1 p-0.5 rounded" aria-label={t('chatView.removeAttachment', { name: item.name })}
                 onClick={() => setAttachments(current => current.filter((_, position) => position !== index))}>
@@ -126,15 +124,6 @@ export function ChatComposer({
               </button>
             </div>
           ))}
-          {editing && (
-                <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-amber-500/10 border border-ds-amber-500/20 text-ds-amber-600 text-[0.625rem] font-semibold">
-                  <Pencil className="w-3 h-3 shrink-0" />
-                  <span>{t('chatView.editingQuestion')}</span>
-                  <button type="button" onClick={onCancelEdit} className="ml-1 p-0.5 rounded" title={t('chatView.cancelEdit')} aria-label={t('chatView.cancelEdit')}>
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                </div>
-              )}
               {selectedSource && (
                 <div className="flex items-center gap-1.5 px-2.5 py-0.5 rounded-sm bg-ds-blue-500/10 border border-ds-blue-500/20 text-ds-blue-500 text-[0.625rem] font-semibold tracking-wide shadow-sm max-w-full">
                   <BookOpen className="w-3 h-3 text-ds-blue-400 shrink-0" />
@@ -179,7 +168,7 @@ export function ChatComposer({
               "min-h-[36px] max-h-40 w-full bg-transparent border-0 focus:ring-0 focus:outline-none focus-visible:ring-0 focus-visible:outline-none px-3 pt-2 pb-1.5 resize-none text-[0.8125rem] outline-none overflow-y-auto",
               theme === 'dark' ? "text-ds-zinc-100 placeholder:text-ds-zinc-650" : "text-ds-zinc-900 placeholder:text-ds-zinc-400"
             )}
-            placeholder={t('chatView.inputPlaceholder')}
+            placeholder={selectedProject ? t('chatView.inputPlaceholderMentions') : t('chatView.inputPlaceholder')}
             value={currentMessage}
             onChange={(e) => {
               setCurrentMessage(e.target.value);
@@ -203,9 +192,6 @@ export function ChatComposer({
               } else if (e.key === 'Escape' && isLoading) {
                 e.preventDefault();
                 onStop();
-              } else if (e.key === 'Escape' && editing) {
-                e.preventDefault();
-                onCancelEdit();
               } else if (e.key === 'ArrowUp' && !currentMessage && canEditLast) {
                 e.preventDefault();
                 onEditLast();
@@ -219,7 +205,7 @@ export function ChatComposer({
                     not duplicated here. */}
                 <input ref={fileInput} type="file" multiple hidden accept={ATTACHMENT_ACCEPT}
                   onChange={(e) => { if (e.target.files) void addFiles(e.target.files); e.target.value = ''; }} />
-                <button type="button" onClick={() => fileInput.current?.click()} disabled={editing}
+                <button type="button" onClick={() => fileInput.current?.click()}
                   title={t('chatView.attachFiles')} aria-label={t('chatView.attachFiles')}
                   className={cn("h-7 w-7 shrink-0 flex items-center justify-center rounded-lg border transition-all disabled:opacity-50",
                     theme === 'dark' ? "bg-ds-zinc-900/80 border-ds-zinc-800 text-ds-zinc-300 hover:bg-ds-zinc-800/40" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-700 hover:bg-ds-zinc-100")}>
@@ -321,8 +307,9 @@ export function ChatComposer({
              </div>
              {isLoading ? (
                <Button size="icon" id="stop-chat-message-btn" aria-label={t('chatView.stopAnswer')} title={t('chatView.stopAnswerTitle')}
-                 onClick={onStop} className={cn("h-8 w-8 rounded-lg", theme === 'dark' ? "bg-ds-zinc-100 text-ds-zinc-900 hover:bg-ds-zinc-300" : "bg-ds-zinc-900 text-ds-white hover:bg-ds-zinc-700")}>
-                 <Square className="w-3 h-3" fill="currentColor" />
+                 onClick={onStop} className={cn("h-8 w-8 rounded-lg transition-all font-semibold",
+                   theme === 'dark' ? "bg-ds-zinc-800 text-ds-zinc-100 hover:bg-ds-zinc-700" : "bg-transparent text-ds-zinc-900 hover:bg-ds-zinc-900/10")}>
+                 <Square className="w-2.5 h-2.5" fill="currentColor" />
                </Button>
              ) : (
                <Button
@@ -350,7 +337,6 @@ export function ChatComposer({
         {/* AI Warning Disclaimer */}
         <div className="mt-1 text-[0.625rem] leading-snug text-ds-zinc-500 text-center px-3">
           {t(activeChatMode === 'normal' ? 'chatView.mode.normalDescription' : 'chatView.mode.evidenceDescription')}
-          <span className="hidden @md/chat:inline"> · {t('chatView.inputHint')}</span>
         </div>
       </div>
     </div>

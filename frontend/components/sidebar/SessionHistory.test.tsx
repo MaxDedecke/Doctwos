@@ -16,15 +16,21 @@ vi.mock('@tanstack/react-virtual', () => ({
 
 const sessions: ChatSession[] = [{ id: 1, title: 'Login-Ablauf' }, { id: 2, title: 'Zinsen' }];
 
-function renderHistory() {
+function renderHistory(searchOpen = false) {
   const onSelect = vi.fn();
-  render(<SessionHistory sessions={sessions} selectedProject={null} hasMore={false} isLoadingMore={false}
+  render(<SessionHistory searchOpen={searchOpen} onCloseSearch={vi.fn()} sessions={sessions} selectedProject={null} hasMore={false} isLoadingMore={false}
     activeSessionId={null} theme="dark" onSelect={onSelect} onRemove={vi.fn()} />);
   return { onSelect };
 }
 
 describe('SessionHistory', () => {
   afterEach(() => vi.restoreAllMocks());
+
+  it('hides the search until it is opened', () => {
+    vi.spyOn(api, 'getChatSessionsPage').mockResolvedValue(axiosResponse({ sessions: [], has_more: false, limit: 50 }) as never);
+    renderHistory(false);
+    expect(screen.queryByRole('textbox', { name: 'sidebar.searchSessions' })).toBeNull();
+  });
 
   it('pins a session to the top and renames it in place', async () => {
     const page = vi.spyOn(api, 'getChatSessionsPage').mockResolvedValue(axiosResponse({ sessions: [], has_more: false, limit: 50 }) as never);
@@ -51,7 +57,7 @@ describe('SessionHistory', () => {
     const page = vi.spyOn(api, 'getChatSessionsPage').mockImplementation(async (params) => axiosResponse({
       sessions: params?.q ? [{ id: 9, title: 'Zinsen 2025' }] : [], has_more: false, limit: 50,
     }) as never);
-    renderHistory();
+    renderHistory(true);
 
     fireEvent.change(screen.getByRole('textbox', { name: 'sidebar.searchSessions' }), { target: { value: 'zins' } });
     await act(async () => { await vi.advanceTimersByTimeAsync(300); });
