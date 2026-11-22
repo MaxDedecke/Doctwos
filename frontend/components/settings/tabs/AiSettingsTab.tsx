@@ -41,6 +41,8 @@ export const AiSettingsTab: React.FC = () => {
   const [dimension, setDimension] = useState(1024);
   const [embeddingContext, setEmbeddingContext] = useState(8192);
   const [llmContext, setLlmContext] = useState(8192);
+  // Leer = globale Vorgabe; sonst 2 bis 256 (Backend prüft dasselbe).
+  const [maxConcurrency, setMaxConcurrency] = useState('');
 
   const applyKind = (next: ProfileKind) => {
     setKind(next);
@@ -75,7 +77,7 @@ export const AiSettingsTab: React.FC = () => {
 
   const startAdd = () => {
     setEditing(null); setName(''); setApiKey(''); setEmbeddingKey('');
-    setEmbeddingModel(DEFAULT_EMBEDDING_MODEL); setDimension(1024); setEmbeddingContext(8192); setLlmContext(8192);
+    setEmbeddingModel(DEFAULT_EMBEDDING_MODEL); setDimension(1024); setEmbeddingContext(8192); setLlmContext(8192); setMaxConcurrency('');
     applyKind(deployerAvailable ? 'local' : 'remote'); setShowForm(true);
   };
 
@@ -87,6 +89,7 @@ export const AiSettingsTab: React.FC = () => {
     setEmbeddingBaseUrl(profile.embeddingBaseUrl || ''); setEmbeddingPath(profile.embeddingPath || '');
     setEmbeddingKey(''); setDimension(profile.embeddingDimension || 1024);
     setEmbeddingContext(profile.embeddingContextLength || 8192); setLlmContext(profile.llmContextLength || 8192);
+    setMaxConcurrency(profile.maxConcurrency ? String(profile.maxConcurrency) : '');
     setShowForm(true);
   };
 
@@ -97,11 +100,16 @@ export const AiSettingsTab: React.FC = () => {
     embedding_base_url: embeddingBaseUrl.trim() || undefined, embedding_path: embeddingPath.trim() || undefined,
     ...(embeddingKey ? { embedding_api_key: embeddingKey } : {}), embedding_dimension: dimension,
     embedding_context_length: embeddingContext, llm_context_length: llmContext,
+    llm_max_concurrency: maxConcurrency.trim() ? Number(maxConcurrency) : null,
   });
 
   const save = async () => {
     if (!name.trim() || !model.trim() || !embeddingModel.trim()) {
       showToast(t('settings.toast.profileNameRequired'), 'error'); return;
+    }
+    const concurrency = Number(maxConcurrency);
+    if (maxConcurrency.trim() && (!Number.isInteger(concurrency) || concurrency < 2 || concurrency > 256)) {
+      showToast(t('settings.profilesTab.maxConcurrencyInvalid'), 'error'); return;
     }
     try {
       const response = editing
@@ -232,6 +240,8 @@ export const AiSettingsTab: React.FC = () => {
               <NumberField label={t('settings.profilesTab.embeddingDimensionLabel')} value={dimension} set={setDimension} />
               <NumberField label={t('settings.profilesTab.embeddingContextLabel')} value={embeddingContext} set={setEmbeddingContext} />
               <NumberField label={t('settings.profilesTab.llmContextLabel')} value={llmContext} set={setLlmContext} />
+              <Field label={t('settings.profilesTab.maxConcurrencyLabel')} value={maxConcurrency} set={setMaxConcurrency}
+                placeholder={t('settings.profilesTab.maxConcurrencyPlaceholder')} />
             </div>
           </details>
           <div className="flex justify-end gap-2">

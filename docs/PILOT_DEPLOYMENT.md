@@ -61,7 +61,8 @@ Unter Einstellungen > KI entstehen dafür zwei KI-Profile und ein Embedding-Prof
 
 ### GPU-Bemessung: Qwen3-Coder 30B auf 24 GB + 16 GB
 
-Mit zwei Karten (24 GB und 16 GB, zusammen 40 GB) ist **64k Kontext** die Empfehlung. Ollama verteilt die
+Ziel für den Pilot: **64k Kontext für höchstens 3 gleichzeitige Nutzer** auf zwei Karten (24 GB und 16 GB,
+zusammen 40 GB). Ollama verteilt die
 Schichten selbst über beide Karten, weil das Modell samt Cache nicht in die 24-GB-Karte allein passt.
 
 | Posten | Bedarf (Q4_K_M, 8-Bit-KV-Cache) |
@@ -71,20 +72,20 @@ Schichten selbst über beide Karten, weil das Modell samt Cache nicht in die 24-
 | Rechenpuffer und Laufzeit | ~1–1,5 GB |
 | `bge-m3` (Embeddings) | ~1,2 GB |
 
-Mit zwei parallelen Anfragen sind das rund 28 GB, es bleibt Reserve. Drei gehen noch (~31 GB); bei vier wird es
-knapp. Ohne den 8-Bit-Cache (16 Bit) braucht jede Anfrage bei 64k rund 6 GB.
+Mit drei parallelen Anfragen sind das rund 31 GB, es bleiben etwa 9 GB Reserve; bei vier wird es knapp. Ohne den
+8-Bit-Cache (16 Bit) bräuchte jede Anfrage bei 64k rund 6 GB, drei davon passten nicht mehr sicher.
 
 ```dotenv
 OLLAMA_CONTEXT_LENGTH=65536   # Vorgabe des Ollama-Servers
 OLLAMA_NUM_CTX=65536          # Vorgabe für neue Doctus-Profile
-OLLAMA_NUM_PARALLEL=2         # jede parallele Anfrage hält einen eigenen Cache
+OLLAMA_NUM_PARALLEL=3         # jede parallele Anfrage hält einen eigenen Cache
 OLLAMA_FLASH_ATTENTION=1      # Voraussetzung für den 8-Bit-Cache (Standard)
 OLLAMA_KV_CACHE_TYPE=q8_0     # Standard
 ```
 
-Im KI-Profil „Qwen3-Coder 30B“ unter Erweitert **LLM-Kontext `65536`** und **Parallelität `2`** eintragen; die
-Parallelität in Doctus darf nicht über `OLLAMA_NUM_PARALLEL` liegen, sonst warten Anfragen im Ollama statt in
-Doctus. Nach dem Start mit `ollama ps` prüfen, dass `PROCESSOR` „100% GPU“ zeigt (sonst ist etwas auf die CPU
+Im KI-Profil „Qwen3-Coder 30B“ unter Erweitert **LLM-Context-Länge `65536`** und **Parallele Anfragen `3`**
+eintragen; Doctus lässt dann höchstens drei Anfragen gleichzeitig an den Server und reiht weitere selbst ein.
+Der Wert darf nicht über `OLLAMA_NUM_PARALLEL` liegen, sonst warten Anfragen unsichtbar im Ollama. Nach dem Start mit `ollama ps` prüfen, dass `PROCESSOR` „100% GPU“ zeigt (sonst ist etwas auf die CPU
 ausgewichen), und mit `nvidia-smi` die Verteilung auf beide Karten. Die Werte sind aus der Modellarchitektur
 gerechnet; Flash Attention auf den Turing-Karten (RTX 6000/5000) beim ersten Start einmal messen.
 

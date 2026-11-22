@@ -783,7 +783,10 @@
         "noTools": "Das Modell bedient Werkzeuge nicht zuverlässig; der Evidenzmodus antwortet aus dem abgerufenen Kontext ohne Agent.",
         "checkedToast": "Fähigkeiten des Profils geprüft",
         "checkFailedToast": "Fähigkeitsprüfung fehlgeschlagen"
-      }
+      },
+      "maxConcurrencyLabel": "Parallele Anfragen",
+      "maxConcurrencyPlaceholder": "Standard (INFERENCE_MAX_CONCURRENCY)",
+      "maxConcurrencyInvalid": "Parallele Anfragen: leer lassen oder 2 bis 256 eintragen."
     },
     "logsTab": {
       "systemEnvTitle": "Systemumgebung & Status",

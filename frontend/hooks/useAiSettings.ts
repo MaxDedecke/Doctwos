@@ -20,6 +20,8 @@ export interface LlmProfile {
   embeddingDimension?: number;
   embeddingContextLength?: number;
   llmContextLength?: number;
+  /** Gleichzeitige Anfragen an den Modellserver; null = globale Vorgabe (INFERENCE_MAX_CONCURRENCY). */
+  maxConcurrency?: number | null;
   /** Name des vom Deployer verwalteten Containers (lokale Deployments). */
   deploymentName?: string | null;
   isSystem?: boolean;
@@ -86,6 +88,7 @@ export function profileFromApi(profile: Record<string, unknown>): LlmProfile {
     embeddingDimension: profile.embedding_dimension as number,
     embeddingContextLength: profile.embedding_context_length as number,
     llmContextLength: profile.llm_context_length as number,
+    maxConcurrency: (profile.llm_max_concurrency as number | null | undefined) ?? null,
     deploymentName: (profile.deployment_name as string | null | undefined) ?? null,
     isSystem: Boolean(profile.is_system), isActive: Boolean(profile.is_active),
     capabilities: (profile.capabilities as ProfileCapabilities | null | undefined) ?? null,

@@ -783,7 +783,10 @@
         "noTools": "The model does not use tools reliably; evidence mode answers from retrieved context without the agent.",
         "checkedToast": "Profile capabilities checked",
         "checkFailedToast": "Capability check failed"
-      }
+      },
+      "maxConcurrencyLabel": "Parallel requests",
+      "maxConcurrencyPlaceholder": "Default (INFERENCE_MAX_CONCURRENCY)",
+      "maxConcurrencyInvalid": "Parallel requests: leave empty or enter 2 to 256."
     },
     "logsTab": {
       "systemEnvTitle": "System environment & status",

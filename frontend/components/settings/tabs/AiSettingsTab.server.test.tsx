@@ -61,6 +61,29 @@ describe('AiSettingsTab server profiles', () => {
     expect(localStorage.getItem('doctus-llm-profiles')).toBeNull();
   });
 
+  it('stores context length and parallel requests per profile', async () => {
+    apiMocks.createAiProfile.mockResolvedValue(axiosResponse({
+      id: 4, name: 'Coder', kind: 'remote', provider: 'ollama', protocol: 'ollama', llm_model: 'qwen3-coder:30b',
+      embedding_provider: 'ollama', embedding_model: 'bge-m3', embedding_dimension: 1024,
+      embedding_context_length: 8192, llm_context_length: 65536, llm_max_concurrency: 3,
+    }));
+    await act(async () => { render(<AiSettingsTab />); });
+    fireEvent.click(screen.getByText('settings.profilesTab.addProfile'));
+    fireEvent.click(screen.getAllByRole('combobox')[0]);
+    fireEvent.click(within(screen.getByRole('listbox')).getByText('settings.profilesTab.remote'));
+    fireEvent.change(screen.getByLabelText('settings.profilesTab.profileNameLabel'), { target: { value: 'Coder' } });
+    fireEvent.change(screen.getByLabelText('settings.profilesTab.modelNameLabel'), { target: { value: 'qwen3-coder:30b' } });
+    fireEvent.change(screen.getByLabelText('settings.profilesTab.llmContextLabel'), { target: { value: '65536' } });
+    fireEvent.change(screen.getByLabelText('settings.profilesTab.maxConcurrencyLabel'), { target: { value: '1' } });
+    fireEvent.click(screen.getByText('settings.profilesTab.saveProfile'));
+    expect(apiMocks.createAiProfile).not.toHaveBeenCalled();
+
+    fireEvent.change(screen.getByLabelText('settings.profilesTab.maxConcurrencyLabel'), { target: { value: '3' } });
+    fireEvent.click(screen.getByText('settings.profilesTab.saveProfile'));
+    await waitFor(() => expect(apiMocks.createAiProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ llm_context_length: 65536, llm_max_concurrency: 3 })));
+  });
+
   it('hides local deployments entirely when the deployer is not enabled', async () => {
     apiMocks.getLlmDeployments.mockResolvedValue(axiosResponse({ enabled: false, capabilities: { gpu: false }, deployments: [] }));
     await act(async () => { render(<AiSettingsTab />); });
