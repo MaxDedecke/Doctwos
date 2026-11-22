@@ -130,15 +130,9 @@ export function VirtualizedSessionList({
                     className="flex-1 min-w-0 bg-transparent border-b border-ds-indigo-500 outline-none"
                   />
                 ) : (
-                  <span className="truncate text-left flex-1">{session.title}</span>
+                  <span className="min-w-0 flex-1 truncate text-left">{session.title}</span>
                 )}
-                <div className={cn(
-                  "absolute right-1 inset-y-0 flex items-center gap-0.5 pl-8 pr-1 rounded-r-lg opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-all",
-                  // Der Verlauf hinter den Knöpfen läuft aus, statt dass die Knöpfe den Titel überdecken.
-                  activeSessionId === session.id
-                    ? (theme === 'dark' ? "bg-gradient-to-l from-ds-zinc-855 from-75% to-transparent" : "bg-gradient-to-l from-ds-zinc-200 from-75% to-transparent")
-                    : (theme === 'dark' ? "bg-gradient-to-l from-ds-zinc-800 from-75% to-transparent" : "bg-gradient-to-l from-ds-zinc-100 from-75% to-transparent")
-                )}>
+                <div className="flex shrink-0 items-center gap-0.5 transition-opacity [@media(hover:hover)]:opacity-0 group-hover:opacity-100 focus-within:opacity-100">
                   {onRename && (
                     <button type="button" className={actionClass} title={t('sidebar.renameSession')} aria-label={t('sidebar.renameSession')}
                       onClick={(e) => { e.stopPropagation(); setRenaming({ id: session.id, title: session.title }); }}>

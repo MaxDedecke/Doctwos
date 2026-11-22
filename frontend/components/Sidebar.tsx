@@ -71,7 +71,7 @@ export function Sidebar({
 }: SidebarProps) {
   const { t } = useLanguage();
   const features = useFeatures();
-  const [sidebarWidth, setSidebarWidth] = useState(280);
+  const [sidebarWidth, setSidebarWidth] = useState(336);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isHistoryExpanded, setIsHistoryExpanded] = useState(true);
   const [isHistorySearchOpen, setIsHistorySearchOpen] = useState(false);
@@ -118,6 +118,7 @@ export function Sidebar({
   const contextSessions = sessions.filter(session => (
     selectedProject ? session.project_id === selectedProject.id : !session.project_id
   ));
+  const openWidth = `min(${sidebarWidth}px, calc(100vw - 1rem))`;
 
   return (
     <motion.aside
@@ -125,7 +126,7 @@ export function Sidebar({
       transition={isResizingSidebar ? { type: "tween", duration: 0 } : { type: "spring", stiffness: 300, damping: 30 }}
       className={cn(
           // Transparente Hülle: gibt der Card-Sidebar rundum Abstand zum Rand.
-          "h-full box-border flex flex-col transition-all duration-150 overflow-hidden",
+          "h-full max-w-[calc(100vw-1rem)] box-border flex flex-col transition-all duration-150 overflow-hidden",
           "fixed md:relative top-0 left-0 md:top-auto md:left-auto z-50 md:z-30",
           isSidebarOpen ? "pointer-events-auto p-2 pt-3 pr-1" : "pointer-events-none"
       )}
@@ -141,7 +142,7 @@ export function Sidebar({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="flex flex-col h-full overflow-hidden"
-            style={{ width: `calc(${sidebarWidth}px - 1.5rem)` }}
+            style={{ width: `calc(${openWidth} - 1.5rem)` }}
           >
             {/* Sidebar Header */}
             <div className="px-4 pt-4 pb-2 flex md:hidden items-center justify-end shrink-0">
