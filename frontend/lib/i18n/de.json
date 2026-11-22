@@ -1160,7 +1160,9 @@
     "searchSessions": "Verlauf durchsuchen",
     "clearSessionSearch": "Suche leeren",
     "noSessionMatches": "Keine Sitzung passt.",
-    "sessionActionFailed": "Aktion fehlgeschlagen."
+    "sessionActionFailed": "Aktion fehlgeschlagen.",
+    "loadMoreFiles": "Weitere laden ({{loaded}} von {{total}})",
+    "filesLoadFailed": "Dateien konnten nicht geladen werden."
   },
   "chatView": {
     "modeLabel": "Chatmodus",

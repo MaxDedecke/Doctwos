@@ -11,7 +11,6 @@ import { AnimatePresence, motion } from 'framer-motion';
 import {
   ChevronDown,
   ChevronRight,
-  Loader2,
   LogOut,
   Plus,
   Search,
@@ -19,10 +18,8 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import React, { useCallback, useEffect, useState } from 'react';
-import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
-import { FileTreeList } from './sidebar/FileTreeList';
-import { SourceScanSummary, type SourceScanSummaryData } from './sidebar/SourceScanSummary';
+import { LazySourceTree } from './sidebar/LazySourceTree';
 import { SessionHistory } from './sidebar/SessionHistory';
 import { UserInfoDialog } from './UserInfoDialog';
 
@@ -80,30 +77,7 @@ export function Sidebar({
   const [isHistorySearchOpen, setIsHistorySearchOpen] = useState(false);
   const [isFilesExpanded, setIsFilesExpanded] = useState(true);
   const [userInfoOpen, setUserInfoOpen] = useState(false);
-  const [collapsedFolders, setCollapsedFolders] = useState<Record<string, boolean>>({});
   const [expandedFolderId, setExpandedFolderId] = useState<number | null>(null);
-  const [sourceFiles, setSourceFiles] = useState<Record<number, string[]>>({});
-  // O-120: nur für Dateien befüllt, die nicht uneingeschränkt analysiert sind
-  // (siehe api.ts::getKnowledgeSourceFiles) -- FileTreeList zeigt daraus ein
-  // Badge, fehlt ein Pfad hier gilt er als unauffällig.
-  const [sourceFileStatus, setSourceFileStatus] = useState<Record<number, Record<string, AnalysisStatusInfo>>>({});
-  const [sourceScanSummary, setSourceScanSummary] = useState<Record<number, SourceScanSummaryData | undefined>>({});
-  const [loadingSourceId, setLoadingSourceId] = useState<number | null>(null);
-
-  const loadSourceFiles = async (sourceId: number) => {
-    setLoadingSourceId(sourceId);
-    try {
-      const res = await api.getKnowledgeSourceFiles(sourceId);
-      setSourceFiles(prev => ({ ...prev, [sourceId]: res.data.files || [] }));
-      setSourceFileStatus(prev => ({ ...prev, [sourceId]: res.data.file_status || {} }));
-      setSourceScanSummary(prev => ({ ...prev, [sourceId]: res.data.scan_summary }));
-    } catch (e) {
-      console.error("Failed to load source files", e);
-    } finally {
-      setLoadingSourceId(null);
-    }
-  };
-
   const handleTreeFileSelect = useCallback((path: string, sourceId: number) => {
     handleFileSelect(path, undefined, String(sourceId));
     if (typeof window !== 'undefined' && window.innerWidth < 768) {
@@ -138,10 +112,6 @@ export function Sidebar({
   const startResizingSidebar = (mouseDownEvent: React.MouseEvent) => {
     mouseDownEvent.preventDefault();
     setIsResizingSidebar(true);
-  };
-
-  const toggleFolder = (path: string) => {
-    setCollapsedFolders(prev => ({ ...prev, [path]: !prev[path] }));
   };
 
   // Verlauf des aktuellen Kontexts: Sitzungen des gewählten Projekts, im allgemeinen Kontext die ohne Projekt.
@@ -324,8 +294,6 @@ export function Sidebar({
                           pinnedSources.map(source => {
                             const isLocal = source.type?.toLowerCase() === 'local';
                             const isExpanded = expandedFolderId === source.id;
-                            const filesList = sourceFiles[Number(source.id)] || [];
-                            const isLoadingFiles = loadingSourceId === source.id;
                             const isSelected = isLocal && selectedDoc?.id === source.id;
 
                             if (isLocal) {
@@ -388,9 +356,6 @@ export function Sidebar({
                                       setExpandedFolderId(null);
                                     } else {
                                       setExpandedFolderId(Number(source.id));
-                                      if (!sourceFiles[Number(source.id)]) {
-                                        loadSourceFiles(Number(source.id));
-                                      }
                                     }
                                   }}
                                   className="w-full flex items-center justify-between px-3 py-2 text-xs font-semibold text-left select-none cursor-pointer"
@@ -423,31 +388,13 @@ export function Sidebar({
 
                                 {isExpanded && (
                                   <div className="px-2 pb-2 pt-0.5 space-y-1">
-                                    {isLoadingFiles ? (
-                                      <div className="flex items-center gap-1.5 px-2 py-3 text-[0.625rem] text-ds-zinc-500 font-medium">
-                                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                                        <span>{t('sidebar.loadingFiles')}</span>
-                                      </div>
-                                    ) : filesList.length === 0 ? (
-                                      <div className="text-[0.625rem] text-ds-zinc-500 italic px-2 py-3 text-center">
-                                        {t('sidebar.noFiles')}
-                                      </div>
-                                    ) : (
-                                      <>
-                                      <SourceScanSummary summary={sourceScanSummary[Number(source.id)]} theme={theme} />
-                                      <FileTreeList
-                                        filesList={filesList}
-                                        fileStatus={sourceFileStatus[Number(source.id)]}
-                                        sourceId={Number(source.id)}
-                                        sourceType={source.type}
-                                        selectedFile={selectedFile}
-                                        collapsedFolders={collapsedFolders}
-                                        toggleFolder={toggleFolder}
-                                        onFileSelect={handleTreeFileSelect}
-                                        theme={theme}
-                                      />
-                                      </>
-                                    )}
+                                    <LazySourceTree
+                                      sourceId={Number(source.id)}
+                                      sourceType={source.type}
+                                      selectedFile={selectedFile}
+                                      onFileSelect={handleTreeFileSelect}
+                                      theme={theme}
+                                    />
                                   </div>
                                 )}
                               </div>

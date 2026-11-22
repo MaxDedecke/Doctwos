@@ -26,7 +26,6 @@ Render-Logik (/resolve):
 
 import logging
 import os
-from collections import Counter, defaultdict
 from typing import Optional
 from urllib.parse import quote
 
@@ -48,7 +47,7 @@ from core.config import UPLOADS_DIR, REPOS_ROOT
 import core.config as cfg
 from core.config import celery_app
 from core.db_setup import get_db
-from core.scan_report import summarize_edges, summarize_scan_reasons
+from services.source_tree import scan_summary
 from doctus_models.database import (
     DocumentChunk,
     EntityDocLink,
@@ -506,41 +505,21 @@ def get_knowledge_source_files(
         .all()
     )
     file_status: dict[str, dict] = {}
-    by_language: dict[str, Counter] = defaultdict(Counter)
-    by_status: Counter = Counter()
-    by_encoding: Counter = Counter()
     for path, status, error, language, encoding in scan_rows:
         files.add(path)
-        language = language or "unknown"
-        status = status or "unreported"
-        by_language[language][status] += 1
-        by_status[status] += 1
-        if encoding:
-            by_encoding[encoding] += 1
         if status and status != "complete":
             details = {"status": status, "reasons": error.split("; ") if error else []}
-            if language != "unknown":
+            if language:
                 details["language"] = language
             if encoding:
                 details["encoding"] = encoding
             file_status[path] = details
 
-    scan_summary = {
-        **summarize_scan_reasons([(row[3], row[1], row[2]) for row in scan_rows]),
-        "edges": summarize_edges(db, source_id),
-        "total_files": len(scan_rows),
-        "by_status": dict(sorted(by_status.items())),
-        "by_encoding": dict(sorted(by_encoding.items())),
-        "by_language": {
-            language: {
-                "total_files": sum(statuses.values()),
-                "by_status": dict(sorted(statuses.items())),
-            }
-            for language, statuses in sorted(by_language.items())
-        },
+    return {
+        "files": sorted(files),
+        "file_status": file_status,
+        "scan_summary": scan_summary(db, source_id),
     }
-
-    return {"files": sorted(files), "file_status": file_status, "scan_summary": scan_summary}
 
 
 def _within(root: str, path: str) -> str:

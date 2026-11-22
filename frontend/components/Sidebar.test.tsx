@@ -1,8 +1,8 @@
 import { axiosResponse } from '@/test/http';
 /**
  * O-056: `Sidebar.tsx` hatte nach dem O-036-Umbau nur für die ausgelagerten
- * Unterkomponenten (`VirtualizedSessionList`, `FileTreeList`,
- * `sidebarFileTree`) Tests -- die in der Sidebar selbst verbliebene
+ * Unterkomponenten (`VirtualizedSessionList`, `LazySourceTree`,
+ * `lazySourceTree`) Tests -- die in der Sidebar selbst verbliebene
  * Orchestrierung war ungetestet. Diese Datei deckt genau diese vier Bereiche
  * ab: Ordner-Akkordeon (`expandedFolderId` inkl. Nachladen/Cache der
  * Dateiliste), Filterung der gepinnten Quellen nach Projektkontext,
@@ -21,10 +21,12 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Sidebar } from './Sidebar';
+import { clearSourceTreeCache } from './sidebar/LazySourceTree';
 
 vi.mock('@/app/services/api', () => ({
   api: {
-    getKnowledgeSourceFiles: vi.fn(),
+    getSourceTree: vi.fn(),
+    getSourceScanSummary: vi.fn(() => new Promise(() => undefined)),
     getChatSessionsPage: vi.fn(() => new Promise(() => undefined)),
   },
 }));
@@ -75,8 +77,26 @@ function sectionCount(headline: string): string {
   return within(header).getByText(/^\d+$/).textContent!;
 }
 
-function filesResponse(files: string[]) {
-  return axiosResponse({ files });
+/** Ahmt /tree nach: direkte Einträge eines Ordners aus einer Pfadliste, Ordner zuerst. */
+function treeResponse(paths: string[], dir = '') {
+  const prefix = dir ? `${dir}/` : '';
+  const dirs = new Map<string, number>();
+  const files: string[] = [];
+  for (const path of paths.filter(item => item.startsWith(prefix))) {
+    const [head, ...rest] = path.slice(prefix.length).split('/');
+    if (rest.length) dirs.set(head, (dirs.get(head) ?? 0) + 1);
+    else files.push(head);
+  }
+  const entries = [
+    ...[...dirs].sort().map(([name, count]) => ({ type: 'dir', name, path: prefix + name, files: count })),
+    ...files.sort().map(name => ({ type: 'file', name, path: prefix + name })),
+  ];
+  return axiosResponse({ dir, entries, total: entries.length, next_offset: null });
+}
+
+function serveTree(paths: string[] | ((id: number | string) => string[])) {
+  vi.mocked(api.getSourceTree).mockImplementation((id, params) =>
+    Promise.resolve(treeResponse(typeof paths === 'function' ? paths(id) : paths, params.dir ?? '')) as never);
 }
 
 describe('Sidebar', () => {
@@ -85,7 +105,8 @@ describe('Sidebar', () => {
   beforeEach(() => {
     setWindowWidth(DESKTOP_WIDTH);
     offsetHeightSpy = vi.spyOn(HTMLElement.prototype, 'offsetHeight', 'get').mockReturnValue(300);
-    vi.mocked(api.getKnowledgeSourceFiles).mockResolvedValue(filesResponse([]));
+    clearSourceTreeCache();
+    serveTree([]);
   });
 
   afterEach(() => {
@@ -232,20 +253,38 @@ describe('Sidebar', () => {
     const secondSource = { id: 8, name: 'Zweites Repo', type: 'git', project_id: null };
     const localSource = { id: 9, name: 'Handbuch.pdf', type: 'local', project_id: null };
 
-    it('lädt die Dateien beim Aufklappen und zeigt sie an', async () => {
-      vi.mocked(api.getKnowledgeSourceFiles).mockResolvedValue(filesResponse(['src/MAIN.cbl', 'src/SUB.cbl']));
+    it('lädt beim Aufklappen nur die oberste Ebene und Ordner erst beim Öffnen', async () => {
+      serveTree(['src/MAIN.cbl', 'src/SUB.cbl', 'README.md']);
 
       renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
+      expect(api.getSourceTree).not.toHaveBeenCalled();
 
       fireEvent.click(screen.getByText('COBOL-Repo'));
 
+      await waitFor(() => expect(screen.getByText('README.md')).toBeTruthy());
+      expect(api.getSourceTree).toHaveBeenCalledWith(7, { dir: '', offset: 0, limit: 200 });
+      expect(screen.queryByText('MAIN.cbl')).toBeNull();
+
+      fireEvent.click(screen.getByText('src'));
       await waitFor(() => expect(screen.getByText('MAIN.cbl')).toBeTruthy());
       expect(screen.getByText('SUB.cbl')).toBeTruthy();
-      expect(api.getKnowledgeSourceFiles).toHaveBeenCalledWith(7);
+      expect(api.getSourceTree).toHaveBeenLastCalledWith(7, { dir: 'src', offset: 0, limit: 200 });
+    });
+
+    it('lädt weitere Seiten einer großen Ebene nach', async () => {
+      vi.mocked(api.getSourceTree)
+        .mockResolvedValueOnce(axiosResponse({ dir: '', entries: [{ type: 'file', name: 'SYNCOPE-1', path: 'SYNCOPE-1' }], total: 2, next_offset: 1 }) as never)
+        .mockResolvedValueOnce(axiosResponse({ dir: '', entries: [{ type: 'file', name: 'SYNCOPE-2', path: 'SYNCOPE-2' }], total: 2, next_offset: null }) as never);
+
+      renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
+      fireEvent.click(screen.getByText('COBOL-Repo'));
+
+      await waitFor(() => expect(screen.getByText('SYNCOPE-2')).toBeTruthy());
+      expect(api.getSourceTree).toHaveBeenLastCalledWith(7, { dir: '', offset: 1, limit: 200 });
     });
 
     it('lädt eine bereits geladene Quelle beim erneuten Aufklappen nicht noch einmal', async () => {
-      vi.mocked(api.getKnowledgeSourceFiles).mockResolvedValue(filesResponse(['src/MAIN.cbl']));
+      serveTree(['MAIN.cbl']);
 
       renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
 
@@ -259,13 +298,13 @@ describe('Sidebar', () => {
       // ... und wieder auf: aus dem Cache, kein zweiter Request.
       fireEvent.click(screen.getByText('COBOL-Repo'));
       await waitFor(() => expect(screen.getByText('MAIN.cbl')).toBeTruthy());
-      expect(api.getKnowledgeSourceFiles).toHaveBeenCalledTimes(1);
+      expect(api.getSourceTree).toHaveBeenCalledTimes(1);
     });
 
     it('zeigt während des Ladens einen Ladehinweis', async () => {
-      let resolveFiles: (value: ReturnType<typeof filesResponse>) => void = () => {};
-      vi.mocked(api.getKnowledgeSourceFiles).mockReturnValue(
-        new Promise(resolve => { resolveFiles = resolve; })
+      let resolveFiles: (value: ReturnType<typeof treeResponse>) => void = () => {};
+      vi.mocked(api.getSourceTree).mockReturnValue(
+        new Promise(resolve => { resolveFiles = resolve; }) as never
       );
 
       renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
@@ -273,12 +312,12 @@ describe('Sidebar', () => {
       fireEvent.click(screen.getByText('COBOL-Repo'));
       expect(screen.getByText('Dateien werden geladen...')).toBeTruthy();
 
-      resolveFiles(filesResponse(['src/MAIN.cbl']));
+      resolveFiles(treeResponse(['MAIN.cbl']));
       await waitFor(() => expect(screen.getByText('MAIN.cbl')).toBeTruthy());
     });
 
     it('zeigt einen Hinweis, wenn die Quelle keine Dateien enthält', async () => {
-      vi.mocked(api.getKnowledgeSourceFiles).mockResolvedValue(filesResponse([]));
+      serveTree([]);
 
       renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
 
@@ -288,9 +327,7 @@ describe('Sidebar', () => {
     });
 
     it('hält immer nur eine Quelle gleichzeitig offen', async () => {
-      vi.mocked(api.getKnowledgeSourceFiles).mockImplementation((id: number | string) =>
-        Promise.resolve(filesResponse([id === 7 ? 'src/MAIN.cbl' : 'src/OTHER.cbl']))
-      );
+      serveTree(id => [id === 7 ? 'MAIN.cbl' : 'OTHER.cbl']);
 
       renderSidebar({ connectedSources: [gitSource, secondSource], pinnedSourceIds: [7, 8] });
 
@@ -308,18 +345,18 @@ describe('Sidebar', () => {
       fireEvent.click(screen.getByText('Handbuch.pdf'));
 
       expect(props.handleFileSelect).toHaveBeenCalledWith('Handbuch.pdf', undefined, '9');
-      expect(api.getKnowledgeSourceFiles).not.toHaveBeenCalled();
+      expect(api.getSourceTree).not.toHaveBeenCalled();
     });
 
     it('überlebt einen fehlgeschlagenen Datei-Abruf ohne Absturz', async () => {
       const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
-      vi.mocked(api.getKnowledgeSourceFiles).mockRejectedValue(new Error('network down'));
+      vi.mocked(api.getSourceTree).mockRejectedValue(new Error('network down'));
 
       renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
 
       fireEvent.click(screen.getByText('COBOL-Repo'));
 
-      await waitFor(() => expect(screen.getByText('Keine Dateien vorhanden')).toBeTruthy());
+      await waitFor(() => expect(screen.getByText('Dateien konnten nicht geladen werden.')).toBeTruthy());
       expect(consoleError).toHaveBeenCalled();
       consoleError.mockRestore();
     });
@@ -359,7 +396,7 @@ describe('Sidebar', () => {
     });
 
     it('schließt die Sidebar nach Auswahl einer Datei im Baum und meldet die Quellen-ID mit', async () => {
-      vi.mocked(api.getKnowledgeSourceFiles).mockResolvedValue(filesResponse(['src/MAIN.cbl']));
+      serveTree(['MAIN.cbl']);
       setWindowWidth(MOBILE_WIDTH);
       const { props } = renderSidebar({ connectedSources: [gitSource], pinnedSourceIds: [7] });
 
@@ -368,7 +405,7 @@ describe('Sidebar', () => {
 
       fireEvent.click(screen.getByText('MAIN.cbl'));
 
-      expect(props.handleFileSelect).toHaveBeenCalledWith('src/MAIN.cbl', undefined, '7');
+      expect(props.handleFileSelect).toHaveBeenCalledWith('MAIN.cbl', undefined, '7');
       expect(props.setIsSidebarOpen).toHaveBeenCalledWith(false);
     });
 

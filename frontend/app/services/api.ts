@@ -3,6 +3,8 @@ import axios from 'axios';
 import type { InsightPage, InsightDetail, InsightAssignees, InsightInboxData, InsightAssignment, Evidence } from '@/lib/insights';
 import type { UsageReference } from '@/lib/usageAnchors';
 import type { AnalysisStatusInfo } from '@/lib/analysisStatus';
+import type { SourceTreePage } from '@/lib/lazySourceTree';
+import type { SourceScanSummaryData } from '@/components/sidebar/SourceScanSummary';
 import type { BuildProfileView, PreflightReport, StoredBuildProfile } from '@/lib/buildProfileForm';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 import type { ProjectPulse } from '@/lib/chatStarters';
@@ -171,6 +173,11 @@ export const api = {
             };
         };
     }>(`${API_URL}/knowledge-sources/${id}/files`),
+    /** Direkte Einträge eines Ordners der Quelle, seitenweise (Seitenleiste lädt beim Aufklappen). */
+    getSourceTree: (id: number | string, params: { dir?: string; offset?: number; limit?: number }) =>
+        axios.get<SourceTreePage>(`${API_URL}/knowledge-sources/${id}/tree`, { params }),
+    getSourceScanSummary: (id: number | string) =>
+        axios.get<SourceScanSummaryData>(`${API_URL}/knowledge-sources/${id}/scan-summary`),
     resolveWebOrigin: (id: number | string, url: string) => axios.get<{ format: string; document: WebDocumentData; url: string | null }>(`${API_URL}/knowledge-sources/${id}/resolve`, { params: { url } }),
     uploadLocalDocument: (formData: FormData) => axios.post(`${API_URL}/knowledge-sources/upload`, formData, {
         headers: {

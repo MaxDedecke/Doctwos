@@ -1160,7 +1160,9 @@
     "searchSessions": "Search history",
     "clearSessionSearch": "Clear search",
     "noSessionMatches": "No session matches.",
-    "sessionActionFailed": "Action failed."
+    "sessionActionFailed": "Action failed.",
+    "loadMoreFiles": "Load more ({{loaded}} of {{total}})",
+    "filesLoadFailed": "Files could not be loaded."
   },
   "chatView": {
     "modeLabel": "Chat mode",
