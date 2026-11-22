@@ -554,8 +554,14 @@ sed -i \
   ```sh
   sed -i -e "s|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml|" \
          -e "s|^LLM_MODEL=.*|LLM_MODEL=qwen3-coder:30b|" \
-         -e "s|^OLLAMA_NUM_CTX=.*|OLLAMA_NUM_CTX=32768|" .env
+         -e "s|^OLLAMA_NUM_CTX=.*|OLLAMA_NUM_CTX=65536|" \
+         -e "s|^OLLAMA_CONTEXT_LENGTH=.*|OLLAMA_CONTEXT_LENGTH=65536|" \
+         -e "s|^OLLAMA_NUM_PARALLEL=.*|OLLAMA_NUM_PARALLEL=3|" \
+         -e "s|^INFERENCE_MAX_CONCURRENCY=.*|INFERENCE_MAX_CONCURRENCY=3|" .env
   ```
+
+  These values are the pilot target for 24 GB + 16 GB (64k context, at most three users at once, about 31 of
+  40 GB); `docs/PILOT_DEPLOYMENT.md` has the calculation. On smaller GPUs lower context and parallelism together.
 
   Without the GPU file Ollama runs on the CPU, which is unusable for a 30B model. Pull the model after the start
   (`docker exec doctus-ollama ollama pull qwen3-coder:30b`, about 19 GB) and check in `docker logs doctus-ollama`
