@@ -83,6 +83,13 @@ _LANGUAGE_INSTRUCTIONS = (
     "Antwort niemals unaufgefordert die Sprache und mische keine einzelnen fremdsprachigen Wörter "
     "oder Sätze ein."
 )
+_ATTACHMENT_INSTRUCTIONS = (
+    "\n\n### Angehängte Dateien:\n"
+    "Der Nutzer hat dieser Frage Dateien angehängt (in `<untrusted_attachment>`). Bezieht sich die Frage auf "
+    "sie, beantworte sie aus den Anhängen und nenne den Anhang beim Namen als Quelle. Recherchiere im Projekt "
+    "nur, wenn die Frage ausdrücklich nach Code oder Projektinhalten fragt. Wurde ein Anhang gekürzt, sage, "
+    "dass du nur einen Teil gesehen hast."
+)
 _NORMAL_MODE_INSTRUCTIONS = (
     "\n\n### Normaler Chat:\n"
     "Antworte direkt und verständlich auf allgemeine Fragen. Verlange keine "
@@ -326,6 +333,8 @@ class ChatTurnRun:
         self.temperature = (
             request.temperature if request.temperature is not None else profile.llm_temperature
         )
+        self.has_attachments = False
+        self.attachment_text = ""
 
     async def events(self) -> AsyncIterator[dict]:
         request, session = self.request, self.turn.session
@@ -358,15 +367,30 @@ class ChatTurnRun:
                 yield event
         self.turn.history = conversation.history
         context = await self._retrieve(intent)
-        context.prompt = (
-            chat_attachments.prompt_block(
-                chat_attachments.load(self.turn.user_message.attachments),
-                self.profile.llm_context_length,
-            )
-            + context.prompt
+        attachments = chat_attachments.load(self.turn.user_message.attachments)
+        self.has_attachments = bool(attachments)
+        block, trimmed = chat_attachments.prompt_block(attachments, self.profile.llm_context_length)
+        # Was im Anhang steht, gilt bei der Quellenprüfung als belegt wie die Frage selbst.
+        self.attachment_text = block
+        context.prompt = block + context.prompt
+        attachment_steps = (
+            [
+                {
+                    "type": "context_trimmed",
+                    "turn": 0,
+                    "parts": ["attachments"],
+                    "attachments": trimmed,
+                }
+            ]
+            if trimmed
+            else []
         )
+        for step in attachment_steps:
+            yield dict(step)
         system_prompt = build_system_prompt(self.db, self.user, request)
         system_prompt += conversation.system_block()
+        if attachments:
+            system_prompt += _ATTACHMENT_INSTRUCTIONS
         candidates = build_candidate_sources(self.db, context.results, context.pinned_chunks)
         evidence = ToolEvidence(context.repository_id)
         outcome = _Outcome()
@@ -396,7 +420,7 @@ class ChatTurnRun:
         )
         if stale:
             answer = answer.rstrip() + "\n\n" + answer_notice(stale)
-        outcome.agent_steps = [*conversation.steps, *outcome.agent_steps]
+        outcome.agent_steps = [*conversation.steps, *attachment_steps, *outcome.agent_steps]
         yield {
             **(outcome.answer_event or {"type": "answer"}),
             "content": answer,
@@ -538,9 +562,9 @@ class ChatTurnRun:
                 pinned_file=request.pinned_file,
                 pinned_line=request.pinned_line,
                 pinned_end_line=request.pinned_end_line,
-                # Projekt-/MCP-Fragen müssen vor der Antwort mindestens eine
-                # belastbare Quelle über ein Tool erheben.
-                require_initial_tool_call=True,
+                # Projekt-/MCP-Fragen müssen vor der Antwort mindestens eine belastbare Quelle über ein
+                # Tool erheben. Mit Anhang ist meist der Anhang gemeint; dann sucht der Agent nur bei Bedarf.
+                require_initial_tool_call=not self.has_attachments,
                 walkthrough_documents=documents,
                 mcp_initialization_status=mcp_status,
                 evidence_chars=evidence_budget(profile.llm_context_length),
@@ -574,7 +598,9 @@ class ChatTurnRun:
                     for step in final_steps:
                         observe_project_sources(step, context.insight_sources, request.project_id)
                     outcome.answer, outcome.source_consistent = evidence.validate(
-                        event["content"], final_steps or outcome.agent_steps, request.message
+                        event["content"],
+                        final_steps or outcome.agent_steps,
+                        f"{request.message}\n{self.attachment_text}",
                     )
                     outcome.agent_steps = actions.merge_into(final_steps)
                     # Der fertige Antworttext entsteht erst in events() (Quellen-

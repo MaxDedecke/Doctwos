@@ -74,15 +74,20 @@ function isAgentViewAction(value: unknown): value is AgentViewAction {
     typeof endLine === 'number' && Number.isSafeInteger(endLine) && endLine >= startLine;
 }
 
-const CONTEXT_TRIM_PARTS = new Set<string>(['older_tool_results', 'history', 'retrieved_context', 'tool_results']);
+const CONTEXT_TRIM_PARTS = new Set<string>(['older_tool_results', 'history', 'retrieved_context', 'tool_results', 'attachments']);
 
 function contextTrimmed(value: Record<string, unknown>): Extract<AgentStep, { type: 'context_trimmed' }> | null {
   if (!Array.isArray(value.parts)) return null;
   const parts = value.parts.filter((part): part is ContextTrimPart => typeof part === 'string' && CONTEXT_TRIM_PARTS.has(part));
+  const attachments = Array.isArray(value.attachments)
+    ? value.attachments.filter((item): item is { name: string; shown: number; total: number } =>
+      isRecord(item) && typeof item.name === 'string' && Number.isSafeInteger(item.shown) && Number.isSafeInteger(item.total))
+    : [];
   return {
     type: 'context_trimmed',
     parts,
     ...(Number.isSafeInteger(value.turn) ? { turn: value.turn as number } : {}),
+    ...(attachments.length ? { attachments } : {}),
   };
 }
 

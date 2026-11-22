@@ -267,6 +267,16 @@ export function AgentSteps({ steps, theme, isLive }: AgentStepsProps) {
                                             {t('agentSteps.contextTrimmedStep', {
                                                 parts: step.parts.map(part => t(`agentSteps.trimPart.${part}`)).join(', '),
                                             })}
+                                            {step.attachments?.map(item => (
+                                                <span key={item.name} className="block font-normal opacity-90">
+                                                    {t('agentSteps.attachmentTrimmed', {
+                                                        name: item.name,
+                                                        percent: Math.max(1, Math.round((item.shown / Math.max(1, item.total)) * 100)),
+                                                        shown: item.shown.toLocaleString(language),
+                                                        total: item.total.toLocaleString(language),
+                                                    })}
+                                                </span>
+                                            ))}
                                         </div>
                                     )}
 

@@ -14,6 +14,7 @@ import json
 from typing import Optional
 from xml.sax.saxutils import quoteattr
 
+from services.attachment_text import readable
 from services.chat_errors import ChatInvalid
 
 MAX_ATTACHMENTS = 5
@@ -64,18 +65,30 @@ def summary(attachments: list[dict]) -> list[dict]:
     return [{"name": item["name"], "chars": len(item["content"])} for item in attachments]
 
 
-def prompt_block(attachments: list[dict], context_length: Optional[int]) -> str:
-    """Anhänge als gekennzeichnete Fremdinhalte, gemeinsam auf ihren Anteil am Kontextfenster begrenzt."""
+def prompt_block(attachments: list[dict], context_length: Optional[int]) -> tuple[str, list[dict]]:
+    """Anhänge als gekennzeichnete Fremdinhalte, gemeinsam auf ihren Anteil am Kontextfenster begrenzt.
+
+    HTML wird vorher zu Text (``attachment_text``). Kurze Anhänge geben ungenutzten Platz an längere ab. Zurück
+    kommen der Block und je gekürztem Anhang Name, gezeigte und gesamte Zeichen (für den Hinweis im Chat).
+    """
     if not attachments:
-        return ""
+        return "", []
     budget = int((context_length or DEFAULT_CONTEXT_TOKENS) * CHARS_PER_TOKEN * ATTACHMENT_SHARE)
-    share = max(500, budget // len(attachments))
-    blocks = []
-    for item in attachments:
-        content = item["content"]
-        if len(content) > share:
-            content = content[: max(0, share - len(_CUT_NOTE))] + _CUT_NOTE
+    texts = [readable(item["name"], item["content"]) for item in attachments]
+    shares: dict[int, int] = {}
+    remaining = budget
+    order = sorted(range(len(texts)), key=lambda index: len(texts[index]))
+    for position, index in enumerate(order):
+        fair = max(500, remaining // (len(order) - position))
+        shares[index] = min(len(texts[index]), fair)
+        remaining = max(0, remaining - shares[index])
+    blocks, trimmed = [], []
+    for index, item in enumerate(attachments):
+        content = texts[index]
+        if len(content) > shares[index]:
+            trimmed.append({"name": item["name"], "shown": shares[index], "total": len(content)})
+            content = content[: max(0, shares[index] - len(_CUT_NOTE))] + _CUT_NOTE
         blocks.append(
             f"<untrusted_attachment name={quoteattr(item['name'])}>\n{content}\n</untrusted_attachment>"
         )
-    return "Vom Nutzer angehängt:\n" + "\n".join(blocks) + "\n\n"
+    return "Vom Nutzer angehängt:\n" + "\n".join(blocks) + "\n\n", trimmed

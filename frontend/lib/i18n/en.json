@@ -1554,7 +1554,8 @@
       "older_tool_results": "older tool results",
       "history": "conversation history",
       "retrieved_context": "retrieved context",
-      "tool_results": "tool results"
+      "tool_results": "tool results",
+      "attachments": "attachments"
     },
     "toolsFailed": "{{count}}× tool failed",
     "toolFailed": "failed",
@@ -1590,7 +1591,8 @@
       "get_source_status": "Source status",
       "offer_code_walkthrough": "Code walkthrough",
       "offer_source_walkthrough": "Source walkthrough"
-    }
+    },
+    "attachmentTrimmed": "“{{name}}”: {{percent}} % seen ({{shown}} of {{total}} characters)"
   },
   "flowchartView": {
     "title": "Flowchart",

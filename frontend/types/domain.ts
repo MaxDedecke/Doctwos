@@ -191,7 +191,7 @@ export type AgentStep =
   | { type: 'thought'; content: string }
   | { type: 'tool_call'; name: string; arguments: unknown; id?: string }
   | { type: 'tool_result'; name: string; result: string; id?: string; truncated?: boolean; status?: ToolResultStatus; duration_ms?: number }
-  | { type: 'context_trimmed'; turn?: number; parts: ContextTrimPart[] }
+  | { type: 'context_trimmed'; turn?: number; parts: ContextTrimPart[]; attachments?: Array<{ name: string; shown: number; total: number }> }
   /** Vom Anbieter getrennt geliefertes Denken eines Modellzugs (keine vollständige interne Herleitung). */
   | { type: 'reasoning'; turn?: number; content: string }
   /** Ältere Nachrichten wurden für diese Runde in die Zusammenfassung des Gesprächs gefaltet. */
@@ -199,7 +199,7 @@ export type AgentStep =
   | AgentViewAction;
 export type ToolResultStatus = 'ok' | 'error';
 /** Teile des Gesprächs, die der Server gekürzt hat, damit eine Modellrunde ins Kontextfenster passt. */
-export type ContextTrimPart = 'older_tool_results' | 'history' | 'retrieved_context' | 'tool_results';
+export type ContextTrimPart = 'older_tool_results' | 'history' | 'retrieved_context' | 'tool_results' | 'attachments';
 export interface ChatMetadata {
   chat_mode?: 'normal' | 'evidence';
   focus?: ChatTurnFocus;

@@ -1554,7 +1554,8 @@
       "older_tool_results": "ältere Werkzeugergebnisse",
       "history": "Gesprächsverlauf",
       "retrieved_context": "abgerufener Kontext",
-      "tool_results": "Werkzeugergebnisse"
+      "tool_results": "Werkzeugergebnisse",
+      "attachments": "Anhänge"
     },
     "toolsFailed": "{{count}}× Werkzeug fehlgeschlagen",
     "toolFailed": "fehlgeschlagen",
@@ -1590,7 +1591,8 @@
       "get_source_status": "Quellenstand",
       "offer_code_walkthrough": "Code-Rundgang",
       "offer_source_walkthrough": "Quellen-Rundgang"
-    }
+    },
+    "attachmentTrimmed": "„{{name}}“: {{percent}} % gesehen ({{shown}} von {{total}} Zeichen)"
   },
   "flowchartView": {
     "title": "Ablaufdiagramm",

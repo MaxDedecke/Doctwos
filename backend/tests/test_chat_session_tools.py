@@ -108,7 +108,10 @@ def test_attachments_are_stored_encrypted_and_only_named_in_metadata(db_session,
 
 
 def test_attachments_are_bounded_and_marked_as_untrusted():
-    block = chat_attachments.prompt_block([{"name": 'a"b.log', "content": "x" * 50_000}], 8192)
+    block, trimmed = chat_attachments.prompt_block(
+        [{"name": 'a"b.log', "content": "x" * 50_000}], 8192
+    )
+    assert trimmed[0]["name"] == 'a"b.log' and trimmed[0]["total"] == 50_000
     assert block.count("<untrusted_attachment") == 1 and "name='a\"b.log'" in block
     assert "Anhang gekürzt" in block and len(block) < 9_000
     with pytest.raises(ChatInvalid):

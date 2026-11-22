@@ -70,4 +70,11 @@ describe('AgentSteps', () => {
 
     expect(screen.getByText('agentSteps.compaction.failed:{"count":8}')).toBeTruthy();
   });
+
+  it('says how much of a trimmed attachment the model saw', () => {
+    render(<AgentSteps theme="dark" steps={[{ type: 'context_trimmed', turn: 0, parts: ['attachments'], attachments: [{ name: 'bench.html', shown: 8600, total: 52322 }] }]} />);
+    fireEvent.click(screen.getByRole('button', { name: /agentSteps\.showThoughts/ }));
+
+    expect(screen.getByText(/agentSteps\.attachmentTrimmed/).textContent).toContain('"percent":16');
+  });
 });
