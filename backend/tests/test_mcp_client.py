@@ -210,3 +210,72 @@ async def test_sources_without_a_token_are_skipped():
         clients = await init_mcp_clients_for_sources([src])
         assert clients == []
         MockClient.assert_not_called()
+
+
+# Ein Server wie mcp-atlassian am Pilot: fängt SIGTERM ab und bleibt auch nach geschlossenem stdin am Leben.
+_STUBBORN_SERVER_SCRIPT = textwrap.dedent("""
+    import json, signal, sys, time
+    signal.signal(signal.SIGTERM, lambda *_: None)
+    line = sys.stdin.readline()
+    req = json.loads(line)
+    sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": req["id"], "result": {}}) + "\\n")
+    sys.stdout.flush()
+    while True:
+        time.sleep(1)
+""")
+
+
+@pytest.mark.asyncio
+async def test_stop_kills_a_server_that_ignores_sigterm(tmp_path, monkeypatch):
+    import asyncio
+
+    import mcp_client
+
+    monkeypatch.setattr(mcp_client, "_STOP_GRACE_SECONDS", 0.5)
+    script = tmp_path / "stubborn.py"
+    script.write_text(_STUBBORN_SERVER_SCRIPT)
+    client = MCPClient(name="stubborn", command=sys.executable, args=[str(script)], env={})
+    assert await client.start() is True
+    proc = client.proc
+
+    await asyncio.wait_for(client.stop(), timeout=5)
+
+    assert client.proc is None
+    assert proc.returncode is not None
+
+
+@pytest.mark.asyncio
+async def test_stop_is_quick_for_a_server_that_exits_on_eof(fake_server_script):
+    import asyncio
+
+    client = MCPClient(name="fake", command=sys.executable, args=[fake_server_script], env={})
+    assert await client.start() is True
+    proc = client.proc
+
+    await asyncio.wait_for(client.stop(), timeout=2)
+
+    assert proc.returncode is not None
+    await client.stop()  # zweiter Aufruf ist ein No-op
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "src_type,spaces,expected",
+    [
+        ("confluence", {"ids": ["SEC"], "verify_ssl": False}, {"CONFLUENCE_SSL_VERIFY": "false"}),
+        ("jira", {"ids": ["SEC"], "verify_ssl": False}, {"JIRA_SSL_VERIFY": "false"}),
+        ("confluence", {"ids": ["SEC"], "ca_bundle": "/certs/ca.pem"}, {"REQUESTS_CA_BUNDLE": "/certs/ca.pem"}),
+        ("confluence", ["SEC"], {}),
+    ],
+)
+async def test_atlassian_sources_pass_their_tls_setting_to_mcp_atlassian(src_type, spaces, expected, monkeypatch):
+    monkeypatch.delenv("CUSTOM_CA_BUNDLE", raising=False)
+    src = SimpleNamespace(
+        id=9, type=src_type, url="https://wiki.firma.local/docs", username=None, token="pat", spaces=spaces
+    )
+    with patch("mcp_client.MCPClient") as MockClient:
+        MockClient.return_value.start = AsyncMock(return_value=True)
+        await init_mcp_clients_for_sources([src])
+        _, kwargs = MockClient.call_args
+    tls_keys = {"CONFLUENCE_SSL_VERIFY", "JIRA_SSL_VERIFY", "REQUESTS_CA_BUNDLE"}
+    assert {k: v for k, v in kwargs["env"].items() if k in tls_keys} == expected

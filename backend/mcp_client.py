@@ -16,6 +16,8 @@ logger = logging.getLogger(__name__)
 # handful of Cloud domains Atlassian actually uses, not their SSRF/DNS checks.
 _ATLASSIAN_CLOUD_SUFFIXES = (".atlassian.net", ".jira.com", ".jira-dev.com", ".atlassian.com")
 
+_STOP_GRACE_SECONDS = 3.0
+
 
 def _is_atlassian_cloud_url(url: str) -> bool:
     """Cloud vs. Server/Data Center — on-prem installs use the customer's own
@@ -42,6 +44,22 @@ def _atlassian_auth_env(prefix: str, src) -> Dict[str, str]:
         f"{prefix}_USERNAME": src.username or "",
         f"{prefix}_API_TOKEN": src.token,
     }
+
+
+def _atlassian_tls_env(prefix: str, src) -> Dict[str, str]:
+    """TLS-Einstellungen der Quelle für mcp-atlassian, in derselben Reihenfolge wie beim Sync
+    (``parser/connectors/tls.py``): CA-Bundle der Quelle, abgeschaltete Prüfung, CUSTOM_CA_BUNDLE."""
+    config = getattr(src, "spaces", None)
+    config = config if isinstance(config, dict) else {}
+    ca_bundle = config.get("ca_bundle")
+    if ca_bundle:
+        return {"REQUESTS_CA_BUNDLE": ca_bundle}
+    if config.get("verify_ssl") is False:
+        return {f"{prefix}_SSL_VERIFY": "false"}
+    env_bundle = os.getenv("CUSTOM_CA_BUNDLE")
+    if env_bundle and os.path.isfile(env_bundle):
+        return {"REQUESTS_CA_BUNDLE": env_bundle}
+    return {}
 
 
 class MCPClient:
@@ -212,20 +230,41 @@ class MCPClient:
         return await self.send_request("tools/call", {"name": tool_name, "arguments": arguments})
 
     async def stop(self):
-        """Stops the reader tasks and terminates the subprocess."""
+        """Stops the reader tasks and ends the subprocess, forcibly if it does not exit in time.
+
+        mcp-atlassian fängt SIGTERM ab und beendet sich darauf nicht; ein Warten ohne Grenze hielt die
+        Chatrunde fest, die fertige Antwort wurde nie gespeichert (Pilot 24.11.2026).
+        """
         if self._read_task:
             self._read_task.cancel()
             self._read_task = None
         if self._stderr_task:
             self._stderr_task.cancel()
             self._stderr_task = None
-        if self.proc:
-            try:
-                self.proc.terminate()
-                await self.proc.wait()
-            except Exception:
-                pass
-            self.proc = None
+        proc, self.proc = self.proc, None
+        if proc is None or proc.returncode is not None:
+            return
+        try:
+            if proc.stdin and not proc.stdin.is_closing():
+                proc.stdin.close()
+            proc.terminate()
+        except (ProcessLookupError, OSError):
+            pass
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=_STOP_GRACE_SECONDS)
+            return
+        except asyncio.TimeoutError:
+            logger.warning(
+                "MCP server %s did not exit within %.0f s; killing it", self.name, _STOP_GRACE_SECONDS
+            )
+        try:
+            proc.kill()
+        except ProcessLookupError:
+            return
+        try:
+            await asyncio.wait_for(proc.wait(), timeout=_STOP_GRACE_SECONDS)
+        except asyncio.TimeoutError:
+            logger.error("MCP server %s (pid %s) survived SIGKILL", self.name, proc.pid)
 
 
 # Helper to build and run MCP Clients for active knowledge sources
@@ -256,6 +295,7 @@ async def init_mcp_clients_for_sources(sources: List[Any], status_callback=None)
             env = {
                 "JIRA_URL": src.url,
                 **_atlassian_auth_env("JIRA", src),
+                **_atlassian_tls_env("JIRA", src),
             }
             client = MCPClient(
                 name=f"jira-{src.id}",
@@ -292,6 +332,7 @@ async def init_mcp_clients_for_sources(sources: List[Any], status_callback=None)
             env = {
                 "CONFLUENCE_URL": confluence_url,
                 **_atlassian_auth_env("CONFLUENCE", src),
+                **_atlassian_tls_env("CONFLUENCE", src),
             }
             client = MCPClient(
                 name=f"confluence-{src.id}",
