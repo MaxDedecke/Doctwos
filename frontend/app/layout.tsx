@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Archivo, Space_Grotesk, IBM_Plex_Mono } from "next/font/google";
+import { Archivo, Space_Grotesk, IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 
@@ -10,6 +10,8 @@ import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 const archivo = Archivo({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-archivo" });
 const spaceGrotesk = Space_Grotesk({ subsets: ["latin"], weight: ["400", "500", "600", "700"], variable: "--font-space-grotesk" });
 const ibmPlexMono = IBM_Plex_Mono({ subsets: ["latin"], weight: ["400", "500", "600"], variable: "--font-ibm-plex-mono" });
+// Nur für den Codena-Schriftzug in components/Logo.tsx.
+const manrope = Manrope({ subsets: ["latin"], weight: ["800"], variable: "--font-manrope" });
 
 // process.env.API_URL must be read at request time, not baked in at build
 // time like NEXT_PUBLIC_* vars are — force-dynamic stops Next.js from
@@ -102,7 +104,7 @@ export default async function RootLayout({
           }}
         />
       </head>
-      <body className={`${archivo.className} ${archivo.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable}`}>
+      <body className={`${archivo.className} ${archivo.variable} ${spaceGrotesk.variable} ${ibmPlexMono.variable} ${manrope.variable}`}>
         <LanguageProvider>{children}</LanguageProvider>
       </body>
     </html>

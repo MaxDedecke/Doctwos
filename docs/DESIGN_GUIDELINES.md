@@ -37,7 +37,7 @@ Informationsdichte und wenige, bewusst gesetzte Signalfarben.
 
 - Standardradius 6 px; große Container höchstens 10 px. Pills nur für Status.
 - Flächen erhalten 1-px-Linien, keine weichen Ambient-Schatten.
-- Space Grotesk für Display/Überschriften, Archivo für UI, IBM Plex Mono für Code.
+- Space Grotesk für Display/Überschriften, Archivo für UI, IBM Plex Mono für Code; Manrope ExtraBold nur im Codena-Schriftzug.
 - Überschriften dürfen eng und groß sein; Utility-Labels sind uppercase mit Tracking.
 - Übergänge 120–180 ms. Bewegung erklärt Zustandswechsel, sie dekoriert nicht.
 - Leerer Chat: Bewegung bleibt dezent und bedeutungstragend — getippte

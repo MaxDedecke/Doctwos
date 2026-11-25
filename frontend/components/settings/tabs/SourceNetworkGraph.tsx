@@ -1,7 +1,7 @@
 "use client";
 import type { KnowledgeSource } from '@/types/domain';
 
-import { DoctusIcon } from '@/components/Logo';
+import { CodenaMark } from '@/components/Logo';
 import { canvasColor } from '@/lib/designTokens';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getConnectorMetadata } from '@/lib/sourceConnectors';
@@ -107,7 +107,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
 
       {sources.length === 0 ? (
         <div className="flex items-center justify-center py-8">
-          <DoctusIcon className="w-10 h-10 opacity-30 shrink-0" />
+          <CodenaMark className="w-10 h-10 opacity-30 shrink-0" />
           <p className={cn("text-sm ml-4 max-w-sm leading-relaxed", theme === 'dark' ? "text-ds-zinc-500" : "text-ds-zinc-450")}>
             {t('sourceNetworkGraph.empty')}
           </p>
@@ -184,7 +184,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
               "h-12 w-12 rounded-xl flex items-center justify-center border-2 shadow-md p-2",
               theme === 'dark' ? "bg-ds-zinc-950 border-ds-indigo-500/50" : "bg-ds-white border-ds-indigo-400"
             )}>
-              <DoctusIcon className="w-full h-full" />
+              <CodenaMark className="w-full h-full" />
             </div>
             <span className={cn("text-[0.625rem] font-extrabold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
               Doctus

@@ -6,7 +6,7 @@ import type { AgentCallGraphViewAction, AgentCodeViewAction, AgentDocumentViewAc
 import type { CallFlowData } from '@/lib/callFlow';
 import { extractCallFlowData, extractChangeImpactData } from '@/lib/callFlow';
 import { api } from '@/app/services/api';
-import { DoctusIcon } from "@/components/Logo";
+import { CodenaMark } from "@/components/Logo";
 import { RevealedMarkdown } from "@/components/RevealedMarkdown";
 import { useChatFollowScroll } from "@/hooks/useChatFollowScroll";
 import { ProvenanceDisclosure } from "@/components/ProvenanceDisclosure";
@@ -327,7 +327,7 @@ export function ChatView({
                     {/* Avatar for Assistant */}
                     {!isUser && (
                       <div className="w-7 h-7 @sm/chat:w-8 @sm/chat:h-8 rounded-lg flex items-center justify-center shrink-0 border border-ds-blue-500/20 bg-ds-blue-500/10 shadow-lg shadow-ds-blue-500/10">
-                        <DoctusIcon className="w-4 h-4" />
+                        <CodenaMark className="w-4 h-4" />
                       </div>
                     )}
 

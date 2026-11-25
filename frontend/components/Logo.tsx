@@ -1,80 +1,61 @@
-import React from 'react';
+import React, { useId } from 'react';
 import { cn } from "@/lib/utils";
 
 interface LogoProps extends React.SVGProps<SVGSVGElement> {
   className?: string;
-  theme?: string;
 }
 
 /**
- * DoctusIcon - A structural D assembled from a frame and a forward trace.
+ * CodenaMark – zwei ineinandergreifende Kettenglieder.
+ *
+ * Wo das linke Glied oben über dem rechten liegt, schneidet eine Maske einen
+ * Spalt in das rechte Glied. Der Spalt ist durchsichtig statt in Hintergrundfarbe
+ * gemalt, damit die Marke auf jeder Fläche (Karten, getönte Badges) stimmt.
  */
-export const DoctusIcon: React.FC<LogoProps> = ({ className, ...props }) => {
+export const CodenaMark: React.FC<LogoProps> = ({ className, ...props }) => {
+  const maskId = `codena-gap-${useId().replace(/:/g, '')}`;
   return (
     <svg
       viewBox="0 0 100 100"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className={cn("w-full h-full", className)}
+      aria-hidden="true"
       {...props}
     >
-      <path d="M18 14H48C72 14 86 28 86 50C86 72 72 86 48 86H18V14Z" fill="rgb(var(--ds-accent))" />
-      <path d="M35 30H48C61 30 69 37 69 50C69 63 61 70 48 70H35V30Z" fill="rgb(var(--ds-background))" />
-      <path d="M8 50H50" stroke="rgb(var(--ds-on-accent))" strokeWidth="8" />
-      <path d="M43 40L55 50L43 60" stroke="rgb(var(--ds-on-accent))" strokeWidth="6" strokeLinecap="square" strokeLinejoin="miter" />
+      <defs>
+        <mask id={maskId} maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
+          <rect width="100" height="100" fill="#fff" />
+          <path d="M42.6 30.1A21 21 0 0 1 55.8 38" stroke="#000" strokeWidth="15" />
+        </mask>
+      </defs>
+      <circle cx="36" cy="50" r="21" stroke="rgb(var(--ds-foreground))" strokeWidth="9" />
+      <circle cx="64" cy="50" r="21" stroke="rgb(var(--ds-accent))" strokeWidth="9" mask={`url(#${maskId})`} />
     </svg>
   );
 };
 
-/**
- * DoctusWordmark - Renders only the "doctus" text, adapting the color to light/dark mode.
- */
-export const DoctusWordmark: React.FC<LogoProps> = ({ className, theme, ...props }) => {
-  const isDark = theme === 'dark';
-  return (
-    <svg
-      viewBox="0 0 220 100"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      className={cn("w-full h-full", className)}
-      {...props}
-    >
-      <text
-        x="5"
-        y="65"
-        fontFamily="'Space Grotesk', Helvetica, Arial, sans-serif"
-        fontSize="42"
-        fontWeight="600"
-        letterSpacing="-1"
-        fill={isDark ? "rgb(var(--ds-neutral-100))" : "rgb(var(--ds-neutral-800))"}
-        className="transition-colors duration-200"
-      >
-        Doctus
-      </text>
-    </svg>
-  );
-};
-
-interface DoctusLogoProps {
+interface CodenaLogoProps {
   className?: string;
-  theme?: string;
-  iconClassName?: string;
-  wordmarkClassName?: string;
 }
 
 /**
- * DoctusLogo - Combined C icon + "doctus" wordmark side-by-side.
+ * CodenaLogo – Marke + Schriftzug „codena“. Die Größe kommt aus der Schriftgröße
+ * (z. B. `text-5xl`), Marke und Abstand skalieren mit.
  */
-export const DoctusLogo: React.FC<DoctusLogoProps> = ({
-  className,
-  theme,
-  iconClassName,
-  wordmarkClassName
-}) => {
-  return (
-    <div className={cn("flex items-center gap-2", className)}>
-      <DoctusIcon className={cn("h-8 w-8 shrink-0", iconClassName)} />
-      <DoctusWordmark className={cn("h-8 w-24 shrink-0", wordmarkClassName)} theme={theme} />
-    </div>
-  );
-};
+export const CodenaLogo: React.FC<CodenaLogoProps> = ({ className }) => (
+  <span
+    className={cn("inline-flex items-center gap-[0.32em] leading-none whitespace-nowrap text-foreground", className)}
+    role="img"
+    aria-label="Codena"
+  >
+    <CodenaMark className="h-[1.05em] w-[1.05em] shrink-0" />
+    <span
+      aria-hidden="true"
+      className="font-extrabold tracking-[-0.035em]"
+      style={{ fontFamily: "var(--font-manrope), system-ui, sans-serif" }}
+    >
+      codena
+    </span>
+  </span>
+);

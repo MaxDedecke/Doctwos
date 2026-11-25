@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { JobCenter } from './JobCenter';
 import { InsightInbox } from './InsightInbox';
 import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
-import { DoctusIcon } from './Logo';
+import { CodenaMark } from './Logo';
 import { SaveSessionDialog } from './SaveSessionDialog';
 
 
@@ -372,7 +372,7 @@ export function GlobalSearch({
             : "bg-ds-zinc-50 border-ds-zinc-300 text-ds-zinc-700 hover:text-ds-indigo-700 hover:border-ds-indigo-500"
         )}
       >
-        <DoctusIcon className="h-5 w-5 block group-hover:hidden" />
+        <CodenaMark className="h-5 w-5 block group-hover:hidden" />
         <Menu className="w-4 h-4 hidden group-hover:block" />
       </Button>
 

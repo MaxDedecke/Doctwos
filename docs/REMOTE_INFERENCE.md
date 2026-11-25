@@ -197,6 +197,6 @@ The offline delivery bundle (`dist/doctus-offline-bundle-...`) is completely sel
   ```
 
 - **Air-Gapped Guarantee (Zero External Network Calls)**:
-  - **Fonts**: All UI typography (Archivo, Space Grotesk, IBM Plex Mono) is bundled statically inside the frontend image. No requests to Google Fonts or CDNs are made.
+  - **Fonts**: All UI typography (Archivo, Space Grotesk, IBM Plex Mono, Manrope for the Codena wordmark) is bundled statically inside the frontend image. No requests to Google Fonts or CDNs are made.
   - **Code Viewer**: Monaco Editor is pre-packaged locally (`/monaco/vs/`); it never requests CDN scripts.
   - **Model Pulling**: `EMBEDDING_AUTO_PULL=false` by default; Doctus never attempts to pull models over the internet.

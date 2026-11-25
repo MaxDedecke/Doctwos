@@ -9,7 +9,7 @@ import { isAxiosError } from 'axios';
 import { motion } from 'framer-motion';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
-import { DoctusIcon, DoctusWordmark } from './Logo';
+import { CodenaLogo } from './Logo';
 import { NetworkLoopCanvas } from './NetworkLoopCanvas';
 
 const MIN_PASSWORD_LENGTH = 12;
@@ -132,8 +132,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
       <div className="relative z-10 w-full max-w-[420px] space-y-10">
 
         <div className="flex items-center justify-center gap-4 select-none">
-          <DoctusIcon className="h-20 w-20" />
-          <DoctusWordmark className="h-20 w-48" theme={theme} />
+          <CodenaLogo className="text-[3.75rem]" />
         </div>
 
         {/* Login Card */}
