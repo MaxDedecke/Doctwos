@@ -22,7 +22,7 @@ MAX_SUGGESTIONS = 3
 MAX_SUGGESTION_CHARS = 140
 _EXCERPT_CHARS = 2500
 _SYSTEM = (
-    "Du schlägst Anschlussfragen für ein Gespräch mit dem Code-Assistenten Doctus vor. Antworte nur mit "
+    "Du schlägst Anschlussfragen für ein Gespräch mit dem Code-Assistenten Codena vor. Antworte nur mit "
     "genau drei kurzen Fragen, eine je Zeile, ohne Nummern oder Einleitung, in der Sprache der Frage. Die "
     "Fragen sollen das Thema vertiefen (Aufrufer, Datenherkunft, betroffene Programme, Tests) und dürfen "
     "keine Fakten behaupten."

@@ -228,7 +228,7 @@ _origins = sorted({cfg.API_URL, cfg.FRONTEND_URL, *cfg.MCP_ALLOWED_ORIGINS})
 mcp = FastMCP(
     "doctus",
     instructions=(
-        "Doctus indexes source code. For a question about code call answer_context first with the question text: "
+        "Codena indexes source code. For a question about code call answer_context first with the question text: "
         "it resolves the named classes, methods, programs and copybooks and returns source with line numbers, "
         "callers, callees, data access and users in one call, and who shares a file, dataset or table when "
         "the question asks. Use explain_symbol for one named symbol, "
@@ -340,7 +340,7 @@ def explain_symbol(
 
 @mcp.tool(annotations=READ_ONLY)
 def list_visible_projects(ctx: Context, limit: int = 20, offset: int = 0) -> dict:
-    """List projects the current Doctus user may open."""
+    """List projects the current Codena user may open."""
     limit = max(1, min(limit, 50))
     offset = max(0, min(offset, 100_000))
     with _tool_context(ctx, "list_visible_projects", None, {"limit": limit, "offset": offset}) as (
@@ -1225,7 +1225,7 @@ class MCPBearerGate:
             await PlainTextResponse(
                 "Authentication required",
                 status_code=401,
-                headers={"WWW-Authenticate": 'Bearer realm="Doctus MCP"'},
+                headers={"WWW-Authenticate": 'Bearer realm="Codena MCP"'},
             )(scope, receive, send)
             return
         try:
@@ -1239,7 +1239,7 @@ class MCPBearerGate:
             await PlainTextResponse(
                 "Authentication required",
                 status_code=401,
-                headers={"WWW-Authenticate": 'Bearer realm="Doctus MCP"'},
+                headers={"WWW-Authenticate": 'Bearer realm="Codena MCP"'},
             )(scope, receive, send)
             return
         scope.setdefault("state", {})["mcp_user_id"] = user_id

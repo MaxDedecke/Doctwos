@@ -65,7 +65,7 @@ def test_normal_mode_prompt_adds_guards_once_and_skips_source_context():
         mode="normal", system_prompt=None, project_id=None, source_id=None, metadata=None
     )
     prompt = build_system_prompt(None, None, request)
-    assert prompt.startswith("Du bist Doctus, ein hilfreicher Gesprächsassistent.")
+    assert prompt.startswith("Du bist Codena, ein hilfreicher Gesprächsassistent.")
     assert prompt.count("### Sicherheitshinweis") == 1
     assert prompt.count("### Sprachkonsistenz") == 1
     assert "### Normaler Chat" in prompt

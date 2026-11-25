@@ -65,7 +65,7 @@ def _patch_ollama_http(monkeypatch, *, response=None, raises=None):
 def test_root_reports_running(unauthenticated_client):
     res = unauthenticated_client.get("/")
     assert res.status_code == 200
-    assert res.json() == {"message": "Doctus AI Backend is running"}
+    assert res.json() == {"message": "Codena Backend is running"}
 
 
 # ── GET /health ────────────────────────────────────────────────────────────

@@ -34,7 +34,7 @@ def export_markdown(db: Session, session: ChatSession) -> str:
         .all()
     )
     created = session.created_at.strftime("%d.%m.%Y %H:%M") if session.created_at else ""
-    parts = [f"# {session.title or 'Doctus-Chat'}", ""]
+    parts = [f"# {session.title or 'Codena-Chat'}", ""]
     meta = [created, session.project.name if session.project else None]
     if any(meta):
         parts += [" · ".join(item for item in meta if item), ""]

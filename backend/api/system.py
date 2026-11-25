@@ -234,7 +234,7 @@ def _validate_embedding_profile_values(
 
 @router.get("/")
 async def root():
-    return {"message": "Doctus AI Backend is running"}
+    return {"message": "Codena Backend is running"}
 
 
 @router.get("/health/live")
@@ -549,7 +549,7 @@ async def test_embedding_profile(
                 _joined_url(profile.base_url, profile.path),
                 kind="batch",
                 wait_timeout_seconds=15.0,
-                json={"model": profile.model, "input": "Doctus connection test"},
+                json={"model": profile.model, "input": "Codena connection test"},
                 headers=headers,
             )
             response.raise_for_status()

@@ -22,7 +22,7 @@ HINTS = {
     "auth": "Zugangsdaten abgelehnt (401/403). Token oder Passwort der Quelle erneuern bzw. Rechte des "
     "Dienstkontos prüfen, dann manuell synchronisieren.",
     "network": "Quelle nicht erreichbar (Netzwerk, DNS, Zertifikat oder Serverfehler). Erreichbarkeit vom "
-    "Doctus-Host prüfen; der automatische Sync versucht es mit wachsendem Abstand erneut.",
+    "Codena-Host prüfen; der automatische Sync versucht es mit wachsendem Abstand erneut.",
     "not_found": "Adresse, Projekt, Bereich oder Branch existiert nicht (mehr). Konfiguration der Quelle prüfen.",
     "config": "Konfiguration der Quelle ist ungültig. Einstellungen der Quelle prüfen.",
     "source_content": "Einzelne Inhalte konnten nicht verarbeitet werden oder die Quelle lieferte deutlich weniger "

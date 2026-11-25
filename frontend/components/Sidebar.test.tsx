@@ -512,7 +512,7 @@ describe('Sidebar', () => {
     it('fällt ohne Nutzerdaten auf die Standardbeschriftung zurück', () => {
       renderSidebar({ currentUser: null });
 
-      expect(screen.getByText('Doctus Nutzer')).toBeTruthy();
+      expect(screen.getByText('Codena Nutzer')).toBeTruthy();
       expect(screen.getByText('Lokale Sitzung')).toBeTruthy();
     });
 

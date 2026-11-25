@@ -209,12 +209,12 @@ def select_chat_profile(db: Session, profile_id: Optional[int]):
 
 def build_system_prompt(db: Session, user: User, request: "ChatRequest") -> str:
     if request.mode == "normal":
-        base = "Du bist Doctus, ein hilfreicher Gesprächsassistent."
+        base = "Du bist Codena, ein hilfreicher Gesprächsassistent."
     else:
         base = (
             _onboarding_prompt(db, user, request)
             or request.system_prompt
-            or "Du bist Doctus, ein hilfreicher Enterprise AI Knowledge-Assistent."
+            or "Du bist Codena, ein hilfreicher Enterprise AI Knowledge-Assistent."
         )
     prompt = base
     if "Sicherheitshinweis" not in base:

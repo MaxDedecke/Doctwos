@@ -38,7 +38,7 @@ AGENT_TOOL_PROTOCOLS = frozenset(
 )
 _PROBE_TOOL = {
     "name": "doctus_probe",
-    "description": "Prüfwerkzeug von Doctus. Liefert ein Kennwort zu einem Wort.",
+    "description": "Prüfwerkzeug von Codena. Liefert ein Kennwort zu einem Wort.",
     "inputSchema": {
         "type": "object",
         "properties": {"word": {"type": "string", "description": "Das zu prüfende Wort."}},

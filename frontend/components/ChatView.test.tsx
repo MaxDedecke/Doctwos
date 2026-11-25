@@ -446,7 +446,7 @@ describe('ChatView', () => {
       const handleSendChat = vi.fn();
 
       renderChat({ currentMessage: 'Hallo', handleSendChat });
-      const textarea = screen.getByPlaceholderText('Frag Doctus AI...');
+      const textarea = screen.getByPlaceholderText('Frag Codena...');
 
       fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: true });
       expect(handleSendChat).not.toHaveBeenCalled();
@@ -459,7 +459,7 @@ describe('ChatView', () => {
       const setCurrentMessage = vi.fn();
 
       renderChat({ setCurrentMessage });
-      const textarea = screen.getByPlaceholderText('Frag Doctus AI...');
+      const textarea = screen.getByPlaceholderText('Frag Codena...');
 
       fireEvent.change(textarea, { target: { value: 'Neuer Text' } });
 

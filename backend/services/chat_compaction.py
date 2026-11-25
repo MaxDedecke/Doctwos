@@ -43,7 +43,7 @@ MAX_SUMMARY_CHARS = 4000
 MAX_ADHOC_MESSAGES = 60
 
 _SUMMARY_SYSTEM = (
-    "Du fasst den bisherigen Verlauf eines Gesprächs zwischen einem Nutzer und dem Code-Assistenten Doctus "
+    "Du fasst den bisherigen Verlauf eines Gesprächs zwischen einem Nutzer und dem Code-Assistenten Codena "
     "zusammen, damit das Gespräch mit wenig Kontext weitergehen kann. Schreibe in der Sprache des Gesprächs, "
     "sachlich und knapp, als Stichpunkte, höchstens 250 Wörter. Behalte: worum es dem Nutzer geht, "
     "getroffene Festlegungen und Vorlieben, genannte Programme, Klassen, Felder und Dateien mit Zeilen, "
@@ -96,7 +96,7 @@ def _summary_input(previous: Optional[str], messages: list[ChatMessage], context
     limit = int((context_length or DEFAULT_CONTEXT_TOKENS) * CHARS_PER_TOKEN * SUMMARY_INPUT_SHARE)
     lines: list[str] = []
     for message in reversed(messages):
-        speaker = "Nutzer" if message.role == "user" else "Doctus"
+        speaker = "Nutzer" if message.role == "user" else "Codena"
         text = (message.content or "").strip()
         if len(text) > MAX_MESSAGE_CHARS:
             text = text[:MAX_MESSAGE_CHARS] + " […]"

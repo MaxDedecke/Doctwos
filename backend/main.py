@@ -110,7 +110,7 @@ async def _lifespan(app: FastAPI):
         yield
 
 
-app = FastAPI(title="Doctus AI Backend", lifespan=_lifespan)
+app = FastAPI(title="Codena Backend", lifespan=_lifespan)
 
 
 app.add_middleware(

@@ -19,7 +19,7 @@ const manrope = Manrope({ subsets: ["latin"], weight: ["800"], variable: "--font
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Doctus AI - Code Knowledge System",
+  title: "Codena – Code Knowledge System",
   description: "Enterprise Knowledge for Legacy Codebases",
 };
 

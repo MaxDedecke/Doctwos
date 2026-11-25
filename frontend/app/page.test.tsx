@@ -197,7 +197,7 @@ describe('app/page.tsx — Orchestrierung', () => {
     mockedApi.getMe.mockReturnValue(new Promise((_resolve, reject) => { rejectGetMe = reject; }));
     renderApp();
 
-    expect(screen.getByText('Doctus wird geladen...')).toBeTruthy();
+    expect(screen.getByText('Codena wird geladen...')).toBeTruthy();
 
     await act(async () => { rejectGetMe(new Error('not logged in')); });
 

@@ -1836,7 +1836,7 @@ def export_neo4j_cypher(
     edges = graph["edges"]
 
     lines: list[str] = [
-        "// Doctus Knowledge Graph — Neo4j Cypher import",
+        "// Codena Knowledge Graph — Neo4j Cypher import",
         f"// Nodes: {len(nodes)}  Edges: {len(edges)}",
         "// Run in Neo4j Browser or cypher-shell",
         "",

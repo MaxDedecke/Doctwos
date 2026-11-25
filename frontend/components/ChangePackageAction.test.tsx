@@ -141,7 +141,7 @@ describe('ChangePackageAction', () => {
     expect(screen.getByText('Direkte Codeabhängigkeiten', { exact: false })).toBeTruthy();
     expect(screen.getByText('Datenzugriffe · 1')).toBeTruthy();
     expect(screen.getByText('Freigegebene Dokumentbelege · 1')).toBeTruthy();
-    expect(screen.getByText(/Doctus bestätigt daraus keine Fachregel/)).toBeTruthy();
+    expect(screen.getByText(/Codena bestätigt daraus keine Fachregel/)).toBeTruthy();
     expect(screen.getByText(/Dynamic calls may be missing/)).toBeTruthy();
     expect(screen.getByText(/Umfangsgrenzen gekürzt/)).toBeTruthy();
     expect(screen.getAllByText(/Automatisch analysierter Codefakt/).length).toBeGreaterThan(0);

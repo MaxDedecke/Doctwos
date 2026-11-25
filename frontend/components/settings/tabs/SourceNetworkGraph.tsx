@@ -187,7 +187,7 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
               <CodenaMark className="w-full h-full" />
             </div>
             <span className={cn("text-[0.625rem] font-extrabold uppercase tracking-wider", theme === 'dark' ? "text-ds-zinc-300" : "text-ds-zinc-700")}>
-              Doctus
+              Codena
             </span>
           </div>
 

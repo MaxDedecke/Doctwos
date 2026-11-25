@@ -100,7 +100,7 @@ export function SessionHistory({
     try {
       const res = await api.exportChatSession(id);
       const title = (overrides[id]?.title ?? byId.get(id)?.title ?? 'chat').replace(/[^\w\-äöüÄÖÜß]+/g, '-');
-      download(res.data, `doctus-${title}.md`);
+      download(res.data, `codena-${title}.md`);
     } catch {
       setError(t('sidebar.sessionActionFailed'));
     }

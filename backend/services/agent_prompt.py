@@ -143,7 +143,7 @@ def agent_instructions(tool_names: Optional[Collection[str]] = None) -> str:
 def build_system_prompt(
     system_prompt: str | None, tool_names: Optional[Collection[str]] = None
 ) -> str:
-    base = system_prompt or "Du bist Doctus, ein hilfreicher Enterprise AI Knowledge-Assistent."
+    base = system_prompt or "Du bist Codena, ein hilfreicher Enterprise AI Knowledge-Assistent."
     security = "" if "Sicherheitshinweis" in base else _SECURITY
     language = "" if "Sprachkonsistenz" in base else _LANGUAGE
     return base + security + language + agent_instructions(tool_names)

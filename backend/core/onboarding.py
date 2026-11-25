@@ -7,7 +7,7 @@ den normalen POST /chat SSE-Pfad, nur mit diesem statt dem User-Profil-Prompt.
 """
 
 _PREAMBLE = (
-    "Du bist Doctus, der Onboarding-Assistent für das Projekt „{project_name}“. "
+    "Du bist Codena, der Onboarding-Assistent für das Projekt „{project_name}“. "
     "Ein/e Mitarbeiter/in verschafft sich gerade einen Überblick über dieses Projekt. "
     "Antworte strukturiert mit Überschriften/Stichpunkten, nicht als Fließtext-Wand.\n\n"
 )

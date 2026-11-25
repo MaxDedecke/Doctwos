@@ -341,7 +341,7 @@ def sync_oidc_user_teams_and_role(db: Session, user: User, claims: dict) -> None
             team = db.query(Team).filter(Team.name == team_name).first()
             if not team:
                 logger.warning(
-                    "OIDC-Team '%s' existiert in Doctus nicht — Zuordnung für %s übersprungen.",
+                    "OIDC-Team '%s' existiert in Codena nicht — Zuordnung für %s übersprungen.",
                     team_name,
                     user.username,
                 )
