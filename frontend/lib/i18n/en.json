@@ -1833,7 +1833,8 @@
     "currentProjectScope": "This project only",
     "allScope": "All projects",
     "toLightModeTitle": "Switch to light mode",
-    "toDarkModeTitle": "Switch to dark mode"
+    "toDarkModeTitle": "Switch to dark mode",
+    "filterTitle": "Filter search scope"
   },
   "linkChatView": {
     "commError": "Error communicating with the server. Please try again.",

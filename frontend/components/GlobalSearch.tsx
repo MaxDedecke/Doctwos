@@ -470,7 +470,7 @@ export function GlobalSearch({
                   <SelectTrigger className={cn(
                     "h-9 w-9 shrink-0 rounded-none border-0 border-l bg-transparent p-0 flex items-center justify-center [&>svg:last-child]:hidden",
                     theme === 'dark' ? "border-ds-zinc-800 text-ds-zinc-300" : "border-ds-zinc-200 text-ds-zinc-700"
-                  )} title={t('globalSearch.filterTitle') || 'Suchbereich filtern'}>
+                  )} title={t('globalSearch.filterTitle')}>
                     <Filter className="h-3.5 w-3.5" />
                   </SelectTrigger>
                   <SelectContent className={theme === 'dark' ? "bg-ds-zinc-900 border-ds-zinc-800 text-ds-zinc-200" : "bg-ds-white border-ds-zinc-200 text-ds-zinc-800"}>

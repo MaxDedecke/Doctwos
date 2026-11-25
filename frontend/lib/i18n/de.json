@@ -1833,7 +1833,8 @@
     "currentProjectScope": "Nur dieses Projekt",
     "allScope": "Alle Projekte",
     "toLightModeTitle": "Hellmodus aktivieren",
-    "toDarkModeTitle": "Dunkelmodus aktivieren"
+    "toDarkModeTitle": "Dunkelmodus aktivieren",
+    "filterTitle": "Suchbereich filtern"
   },
   "linkChatView": {
     "commError": "Fehler bei der Kommunikation mit dem Server. Bitte versuche es erneut.",
