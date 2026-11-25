@@ -61,7 +61,7 @@ async def run(db):
     ])
     secrets = {}
     for i, name in enumerate(['valid', 'revoked', 'expired', 'disabled', 'foreign-owner']):
-        secret = 'dct_mcp_synthetic_audit_only_' + name
+        secret = 'codena_mcp_synthetic_audit_only_' + name
         secrets[name] = secret
         db.add(MCPAccessToken(id=-8900-i, user_id=disabled.id if name in ('disabled', 'foreign-owner') else user.id,
             name='synthetic-'+name, token_hash=hashlib.sha256(secret.encode()).hexdigest(), token_prefix=secret[:16],
@@ -97,7 +97,7 @@ async def run(db):
                 record('valid bearer initializes', response.status_code==200, response.status_code)
                 for name in ('missing','invalid','revoked','expired','disabled'):
                     headers={'Accept':base['Accept']}
-                    if name!='missing': headers['Authorization']='Bearer '+secrets.get(name, 'dct_mcp_no_such_token')
+                    if name!='missing': headers['Authorization']='Bearer '+secrets.get(name, 'codena_mcp_no_such_token')
                     response=await post(init, headers)
                     record(name+' credential denied', response.status_code==401, response.status_code)
                 response=await post(init, [('Accept',base['Accept']),('Authorization',base['Authorization']),('Authorization',base['Authorization'])])

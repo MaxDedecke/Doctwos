@@ -62,7 +62,7 @@ sudo systemctl start docker       # falls "inactive"
 ## 3. Repository holen
 
 ```sh
-git clone --branch main --single-branch https://github.com/MaxDedecke/Doctus.git
+git clone --branch main --single-branch https://github.com/MaxDedecke/Doctwos.git
 cd Codena
 ```
 

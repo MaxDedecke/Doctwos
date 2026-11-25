@@ -1,5 +1,5 @@
 {
- "lead": "Qwen3-8B beantwortet sechs Fragen zu COBOL- und Java-Code in drei Varianten: ohne Werkzeuge, mit einfachen lokalen Dateitools und mit der Doctus-MCP-Schnittstelle. 90 Sitzungen, alle Zahlen gepaart und vorab festgelegt. Kurz gesagt: MCP macht das Modell nicht schneller und braucht mehr als doppelt so viele Tokens. Es liefert aber als einzige Variante überhaupt brauchbare Antworten, und zwar bei COBOL.",
+ "lead": "Qwen3-8B beantwortet sechs Fragen zu COBOL- und Java-Code in drei Varianten: ohne Werkzeuge, mit einfachen lokalen Dateitools und mit der Codena-MCP-Schnittstelle. 90 Sitzungen, alle Zahlen gepaart und vorab festgelegt. Kurz gesagt: MCP macht das Modell nicht schneller und braucht mehr als doppelt so viele Tokens. Es liefert aber als einzige Variante überhaupt brauchbare Antworten, und zwar bei COBOL.",
  "findings": [
   "<b>Qualität:</b> Mit MCP erfüllt das Modell im Mittel 20 % der Rubrikpunkte, mit lokalen Dateitools 9 %, ohne Werkzeuge 18 %. Der Vorsprung von MCP vor den lokalen Tools beträgt 11 Prozentpunkte, das Konfidenzintervall reicht aber von −9 bis +31 (p = 0,06). Das ist nach dem vorab festgelegten Maßstab (p &lt; 0,0125) <b>nicht abgesichert</b>.",
   "<b>Der Wert ohne Werkzeuge täuscht:</b> Neun Rubrikpunkte trifft das Modell auch ohne Code, aus Allgemeinwissen (zum Beispiel „Passwort“, „MFA“, „Provisioning“). Lässt man sie weg, sinken die Werte auf 2 % (ohne Werkzeuge), 3 % (lokale Tools) und 10 % (MCP). Auf den spezifischen Punkten liegt MCP um 8,6 Prozentpunkte vor „ohne Werkzeuge“ (p = 0,012). Diese Auswertung wurde nachträglich ergänzt und ist explorativ.",
@@ -12,9 +12,9 @@
   "<b>Belegtreue:</b> Von den zitierten Dateien gibt es im Checkout 95 % (MCP), 82 % (lokale Tools) und 56 % (ohne Werkzeuge, dort erfindet das Modell Dateinamen). Es wurden insgesamt nur 76 Dateizitate gezählt, die Zahlen sind deshalb grob."
  ],
  "method": [
-  "<b>Modell:</b> Qwen3-8B (Q4) in Ollama, 8-GB-GPU, Kontext 8.192 Tokens (Doctus-Standard), Temperatur 0,3, kein Denkmodus. Chat- und Embedding-Modell liegen gleichzeitig vollständig auf der GPU.",
+  "<b>Modell:</b> Qwen3-8B (Q4) in Ollama, 8-GB-GPU, Kontext 8.192 Tokens (Codena-Standard), Temperatur 0,3, kein Denkmodus. Chat- und Embedding-Modell liegen gleichzeitig vollständig auf der GPU.",
   "<b>Design:</b> 6 Aufgaben × 3 Varianten × 5 Wiederholungen = 90 Sitzungen. Je (Aufgabe, Wiederholung) gleicher Seed, Reihenfolge der Varianten zufällig gemischt. Hauptvergleich: MCP gegen lokale Dateitools.",
-  "<b>Aufgaben:</b> Drei COBOL-Fragen (AWS CardDemo) und drei Java-Fragen (Apache Syncope) mit festem Commit und Sollantwort an Datei und Zeile. Beide Bestände sind vollständig in Doctus indexiert.",
+  "<b>Aufgaben:</b> Drei COBOL-Fragen (AWS CardDemo) und drei Java-Fragen (Apache Syncope) mit festem Commit und Sollantwort an Datei und Zeile. Beide Bestände sind vollständig in Codena indexiert.",
   "<b>Bewertung:</b> Deterministische Rubrik aus gewichteten Punkten mit festen Suchmustern, kein KI-Richter. Rubrik und Protokoll wurden vor dem ersten Lauf per Prüfsumme eingefroren.",
   "<b>Statistik:</b> Gepaarte Differenzen, 95-%-Konfidenzintervall per Bootstrap über Aufgaben, exakter Permutationstest. Für die vier Hauptkennzahlen gilt die Schwelle p &lt; 0,0125.",
   "<b>Abweichungen:</b> Eine Sitzung (J1, ohne Werkzeuge, Wiederholung 4) fiel durch einen Speicherfehler von Ollama aus und wurde mit gleichem Seed wiederholt. Die Kennzahlen „Werkzeug genutzt“ und „Qualität ohne erratbare Punkte“ wurden nachträglich ergänzt. Beides ist in <code>ANALYSIS_NOTES.md</code> festgehalten."

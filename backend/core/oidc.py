@@ -47,7 +47,7 @@ OIDC_STATE_COOKIE_NAME = "codena_oidc_state"
 # zurück) — deutlich kürzer als die 14-Tage-Session-Cookie, absichtlich.
 OIDC_STATE_MAX_AGE_SECONDS = 600
 
-_state_serializer = URLSafeTimedSerializer(cfg.SESSION_SECRET_KEY, salt="doctus-oidc-state")
+_state_serializer = URLSafeTimedSerializer(cfg.SESSION_SECRET_KEY, salt="codena-oidc-state")
 
 # Discovery-Dokument und JWKS ändern sich beim laufenden Prozess praktisch nie —
 # pro Prozess einmal geholt statt bei jedem Login erneut.

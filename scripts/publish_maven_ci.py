@@ -21,8 +21,7 @@ from maven_ci_artifacts import collect, fit_payload, clear_previous_artifacts  #
 
 
 def setting(name, default=None):
-    """CODENA_<name>; Übergang doctus→codena: bestehende Pipelines setzen noch DOCTUS_<name>."""
-    return os.environ.get(f"CODENA_{name}") or os.environ.get(f"DOCTUS_{name}") or default
+    return os.environ.get(f"CODENA_{name}", default)
 
 
 def git(root, *args):

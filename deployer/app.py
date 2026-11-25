@@ -23,14 +23,14 @@ from docker.types import DeviceRequest
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from engines import CONTAINER_PREFIX, LABEL, LEGACY_CONTAINER_PREFIX, LEGACY_LABEL, DeploymentSpec, SpecError, plan
+from engines import CONTAINER_PREFIX, LABEL, DeploymentSpec, SpecError, plan
 
 logger = logging.getLogger("deployer")
 app = FastAPI(title="Codena Deployer", docs_url=None, redoc_url=None, openapi_url=None)
 
 TOKEN = os.getenv("DEPLOYER_TOKEN", "")
 NETWORK = os.getenv("DEPLOYER_NETWORK", "codena_default")
-MODELS_VOLUME = os.getenv("DEPLOYER_MODELS_VOLUME", "doctus_llm_models")
+MODELS_VOLUME = os.getenv("DEPLOYER_MODELS_VOLUME", "codena_llm_models")
 
 _client: docker.DockerClient | None = None
 # Fortschritt des Modell-Downloads je Deployment (nur Ollama; vLLM/llama.cpp laden beim Start selbst).
@@ -83,28 +83,10 @@ def _answers(container_name: str, engine: str) -> bool:
         return False
 
 
-def _label(labels: dict[str, str], key: str, default: str = "") -> str:
-    return labels.get(f"codena.{key}") or labels.get(f"doctus.{key}") or default
-
-
-def _attach(container) -> None:
-    """Hängt einen Container aus der Zeit vor der Umbenennung ins aktuelle Compose-Netz, damit Backend und
-    Deployer ihn unter seinem Namen erreichen (Projekt doctus → codena, Netz doctus_default → codena_default)."""
-    attrs = getattr(container, "attrs", None)
-    networks = ((attrs or {}).get("NetworkSettings") or {}).get("Networks") or {} if isinstance(attrs, dict) else {}
-    if not isinstance(attrs, dict) or NETWORK in networks:
-        return
-    try:
-        client().networks.get(NETWORK).connect(container)
-        container.reload()
-    except DockerException:
-        logging.getLogger(__name__).warning("Container %s ließ sich nicht an %s anhängen", container.name, NETWORK)
-
-
 def _describe(container, *, include_health: bool = True) -> dict[str, Any]:
     labels = container.labels or {}
-    name = _label(labels, "deployment")
-    engine = _label(labels, "engine")
+    name = labels.get(LABEL, "")
+    engine = labels.get("codena.engine", "")
     state = container.status
     port = {"ollama": 11434, "vllm": 8000, "llamacpp": 8080}.get(engine, 0)
     ready = include_health and state == "running" and _answers(container.name, engine)
@@ -122,23 +104,21 @@ def _describe(container, *, include_health: bool = True) -> dict[str, Any]:
     base = f"http://{container.name}:{port}"
     return {
         "name": name, "container": container.name, "engine": engine,
-        "role": _label(labels, "role", "chat"), "model": _label(labels, "model"),
-        "gpu": _label(labels, "gpu") == "true", "status": status, "detail": pull.get("detail", ""),
+        "role": labels.get("codena.role", "chat"), "model": labels.get("codena.model", ""),
+        "gpu": labels.get("codena.gpu") == "true", "status": status, "detail": pull.get("detail", ""),
         "base_url": base if engine == "ollama" else f"{base}/v1",
         "image": container.image.tags[0] if container.image and container.image.tags else "",
     }
 
 
 def _find(name: str):
-    for prefix in (CONTAINER_PREFIX, LEGACY_CONTAINER_PREFIX):
-        try:
-            container = client().containers.get(f"{prefix}{name}")
-        except NotFound:
-            continue
-        if {LABEL, LEGACY_LABEL} & set(container.labels or {}):
-            _attach(container)
-            return container
-    raise HTTPException(status_code=404, detail="Deployment nicht gefunden")
+    try:
+        container = client().containers.get(container_name(name))
+    except NotFound:
+        raise HTTPException(status_code=404, detail="Deployment nicht gefunden")
+    if LABEL not in (container.labels or {}):
+        raise HTTPException(status_code=404, detail="Deployment nicht gefunden")
+    return container
 
 
 def _pull_ollama(name: str, model: str) -> None:
@@ -174,13 +154,7 @@ def capabilities() -> dict[str, Any]:
 
 @app.get("/deployments", dependencies=[Depends(require_token)])
 def list_deployments() -> list[dict[str, Any]]:
-    containers = [
-        container
-        for label in (LABEL, LEGACY_LABEL)
-        for container in client().containers.list(all=True, filters={"label": label})
-    ]
-    for container in containers:
-        _attach(container)
+    containers = client().containers.list(all=True, filters={"label": LABEL})
     return [_describe(container) for container in containers]
 
 
@@ -198,11 +172,6 @@ def create_deployment(request: DeploymentRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc))
     if spec.gpu and not gpu_available():
         raise HTTPException(status_code=400, detail="Auf diesem Host ist keine NVIDIA-GPU-Laufzeit verfügbar")
-    try:
-        client().containers.get(f"{LEGACY_CONTAINER_PREFIX}{spec.name}")
-        raise HTTPException(status_code=409, detail="Ein Deployment dieses Namens existiert bereits")
-    except NotFound:
-        pass
     labels = {**container_plan.labels, "codena.model": spec.model, "codena.gpu": str(spec.gpu).lower()}
     environment = dict(container_plan.environment)
     hf_token = os.getenv("HF_TOKEN")

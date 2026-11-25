@@ -59,15 +59,6 @@ if grep -q '^POSTGRES_PASSWORD=change-me$' .env; then
     echo "Set POSTGRES_PASSWORD in .env before starting the customer deployment." >&2
     exit 1
 fi
-# Übergang doctus→codena (docs/UMBENENNUNG_CODENA.md): Container des alten Compose-Projekts "doctus" würden neben
-# dem neuen Projekt "codena" weiterlaufen und um die Ports streiten. Daten liegen unter ./data und bleiben erhalten;
-# vom Deployer gestartete Modellcontainer gehören nicht zum Projekt und laufen weiter.
-legacy_containers=$(docker ps -aq --filter label=com.docker.compose.project=doctus)
-if [ -n "$legacy_containers" ]; then
-    echo "==> Removing containers of the previous compose project 'doctus' (data in ./data is kept)"
-    docker rm -f $legacy_containers >/dev/null
-fi
-
 echo "==> Starting services (no build — images come from the loaded bundle)"
 # No -f here: sync_compose_file above set COMPOSE_FILE in .env to
 # docker-compose.offline.yml, plus docker-compose.gpu.yml when a GPU was

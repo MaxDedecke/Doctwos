@@ -34,7 +34,6 @@ import core.config as cfg
 import core.oidc as oidc_service
 from core.auth_dependency import (
     SESSION_COOKIE_NAME,
-    LEGACY_SESSION_COOKIE_NAME,
     SESSION_MAX_AGE_SECONDS,
     create_session_cookie_value,
     get_current_user,
@@ -169,7 +168,6 @@ async def login(
 @router.post("/logout")
 async def logout(response: Response):
     response.delete_cookie(SESSION_COOKIE_NAME)
-    response.delete_cookie(LEGACY_SESSION_COOKIE_NAME)
     return {"status": "ok"}
 
 

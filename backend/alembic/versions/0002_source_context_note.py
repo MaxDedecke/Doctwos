@@ -11,7 +11,7 @@ Notiz selbst wird nicht eingebettet/durchsucht, sondern immer dann komplett
 mitgeschickt, wenn ihre Quelle im aktuellen Chat-Scope liegt.
 
 Revision ID: 0002_source_context_note
-Revises: 0001_doctus_baseline
+Revises: 0001_codena_baseline
 Create Date: 2026-08-08
 """
 
@@ -19,7 +19,7 @@ from alembic import op
 import sqlalchemy as sa
 
 revision = "0002_source_context_note"
-down_revision = "0001_doctus_baseline"
+down_revision = "0001_codena_baseline"
 branch_labels = None
 depends_on = None
 

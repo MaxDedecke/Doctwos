@@ -21,9 +21,6 @@ MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}$")
 
 CONTAINER_PREFIX = "codena-llm-"
 LABEL = "codena.deployment"
-# Übergang doctus→codena (docs/UMBENENNUNG_CODENA.md): vor der Umbenennung gestartete Container laufen weiter.
-LEGACY_CONTAINER_PREFIX = "doctus-llm-"
-LEGACY_LABEL = "doctus.deployment"
 
 # Images lassen sich je Kunde per Umgebungsvariable festschreiben (Digest/Tag), sonst gelten diese Standardwerte.
 DEFAULT_IMAGES = {

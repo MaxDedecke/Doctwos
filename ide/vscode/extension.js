@@ -4,26 +4,10 @@ const fs = require('node:fs/promises');
 
 const cache = new Map();
 
-// Übergang doctus→codena (docs/UMBENENNUNG_CODENA.md): Einstellungen von vor der Umbenennung stehen noch unter
-// doctus.*; sie gelten, solange unter codena.* nichts Eigenes gesetzt ist.
-function settingsFor(uri) {
-  const current = vscode.workspace.getConfiguration('codena', uri);
-  const legacy = vscode.workspace.getConfiguration('doctus', uri);
-  return {
-    get(key) {
-      const own = current.inspect(key);
-      const set = own && [own.workspaceFolderValue, own.workspaceValue, own.globalValue].some(value => value !== undefined);
-      if (set) return current.get(key);
-      const old = legacy.get(key);
-      return old !== undefined && old !== null ? old : current.get(key);
-    }
-  };
-}
-
 function config(document) {
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (!folder || document.uri.scheme !== 'file') return null;
-  const settings = settingsFor(document.uri);
+  const settings = vscode.workspace.getConfiguration('codena', document.uri);
   const projectId = settings.get('projectId');
   const sourceId = settings.get('sourceId');
   if (!Number.isSafeInteger(projectId) || projectId <= 0 || !Number.isSafeInteger(sourceId) || sourceId <= 0) return null;
@@ -133,7 +117,7 @@ async function openTarget(settings, ref) {
     return;
   }
   const folder = vscode.workspace.workspaceFolders?.find(item => {
-    const root = path.resolve(item.uri.fsPath, settingsFor(item.uri).get('repositoryRoot') || '.');
+    const root = path.resolve(item.uri.fsPath, vscode.workspace.getConfiguration('codena', item.uri).get('repositoryRoot') || '.');
     return root === settings.repositoryRoot;
   });
   if (!folder) {
@@ -169,7 +153,7 @@ async function activate(context) {
   const tokenHandoff = path.join(context.globalStorageUri.fsPath, 'codena-token-once');
   try {
     const token = (await fs.readFile(tokenHandoff, 'utf8')).trim();
-    if (!token.startsWith('dct_mcp_')) throw new Error('Invalid Codena token handoff');
+    if (!token.startsWith('codena_mcp_')) throw new Error('Invalid Codena token handoff');
     await context.secrets.store('codena.personalToken', token);
     await fs.unlink(tokenHandoff);
     cache.clear();
@@ -243,7 +227,7 @@ async function activate(context) {
   }));
   context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => cache.clear()));
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
-    if (event.affectsConfiguration('codena') || event.affectsConfiguration('doctus')) cache.clear();
+    if (event.affectsConfiguration('codena')) cache.clear();
   }));
 }
 

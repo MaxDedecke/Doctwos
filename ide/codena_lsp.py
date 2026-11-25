@@ -17,8 +17,7 @@ from urllib.request import Request, url2pathname, urlopen
 
 
 def _setting(name: str, default: str) -> str:
-    """CODENA_<name>; Übergang doctus→codena: bestehende Editor-Konfigurationen setzen noch DOCTUS_<name>."""
-    return os.environ.get(f"CODENA_{name}") or os.environ.get(f"DOCTUS_{name}") or default
+    return os.environ.get(f"CODENA_{name}", default)
 
 
 API_URL = _setting("API_URL", "http://localhost:8000").rstrip("/")

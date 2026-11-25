@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from codena_models.database import MCPAccessToken, User
 
 
-TOKEN_PREFIX = "dct_mcp_"
+TOKEN_PREFIX = "codena_mcp_"
 
 
 def _now() -> datetime:

@@ -1,7 +1,7 @@
 # EVALRUN_1 – Apache Syncope und AWS CardDemo mit RunPod
 
 **Zweck:** Reproduzierbare fachliche und technische Evaluation der bestehenden
-Doctus-Projekte Apache Syncope (Java) und AWS CardDemo (COBOL), sobald der
+Codena-Projekte Apache Syncope (Java) und AWS CardDemo (COBOL), sobald der
 RunPod-Endpunkt bereitgestellt wird. Bei der Aufforderung „Schau dir
 `EVALRUN_1.md` an und let's go – hier ist der Pod“ dieses Dokument als
 Arbeitsablauf verwenden.
@@ -13,7 +13,7 @@ keinen RunPod-Aufruf oder Reindex ausgelöst.
 
 ## Festgelegte Projekte und Indexstand
 
-Stand der Doctus-Datenbankabfrage: 20.09.2026. Beide Quellen waren vollständig
+Stand der Codena-Datenbankabfrage: 20.09.2026. Beide Quellen waren vollständig
 abgeschlossen; die Synchronisation lief zuletzt am 18.09.2026.
 
 | Sprache | Projekt-ID | Quelle-ID | Branch | Git-Commit | Dateien / geparst | Entities | Kanten | Chunks |
@@ -22,11 +22,11 @@ abgeschlossen; die Synchronisation lief zuletzt am 18.09.2026.
 | COBOL | 728 – AWS CardDemo (Mainframe Modernization Reference App) | 564 | `main` | `59cc6c2fd7ebd7ef7925cad552a01a4b8b6e4d5e` | 329 / 254 | 10.400 | 6.987 | 3.635 |
 
 Die Chunks beider Quellen sind mit `qwen3-embedding:4b`, Dimension 1024,
-gespeichert. Das aktuell aktive Doctus-Profil heißt „RunPod Ollama – Qwen 32B“
+gespeichert. Das aktuell aktive Codena-Profil heißt „RunPod Ollama – Qwen 32B“
 (`qwen3:32b`, Protokoll `ollama`); als Embedding-Profil ist „RunPod Qwen
 Embedding 4B (1024d)“ mit Kontext 8100 aktiv. Endpunkte und Schlüssel stehen
 absichtlich nicht in dieser Datei. Beim Start den tatsächlich bereitgestellten
-Pod mit diesen Profilen abgleichen und Zugangsdaten ausschließlich in Doctus'
+Pod mit diesen Profilen abgleichen und Zugangsdaten ausschließlich in Codena'
 Profilverwaltung verwenden.
 
 Compose-Dienste waren bei der Vorbereitung gesund. Der Code-Branch stand auf
@@ -37,7 +37,7 @@ nicht annehmen, dass der lokale Worktree bereits deployed ist.
 ### Ollama im RunPod vorbereiten
 
 Der Ollama-Container im bereitgestellten Pod ist zunächst leer. Vor dem
-Evaluationstart müssen die beiden in den Doctus-Profilen eingetragenen Qwen-
+Evaluationstart müssen die beiden in den Codena-Profilen eingetragenen Qwen-
 Modelle in genau diesem Ollama geladen sein:
 
 ```sh
@@ -59,14 +59,14 @@ vorhandenen Stand weiterläuft; ein harter Pod-Neustart ohne erhaltenes Volume
 kann den Teilfortschritt verlieren.
 
 Jedes Modell einzeln bis zum erfolgreichen Abschluss laden; erst wenn beide in
-`ollama list` erscheinen, Doctus-Chat und Embedding prüfen und die Evaluation
+`ollama list` erscheinen, Codena-Chat und Embedding prüfen und die Evaluation
 starten. Modellkennung und bestätigten Ladezustand im Ergebnisprotokoll
 festhalten. Zugangsdaten und vollständige Pod-URLs gehören weiterhin nur in die
-Doctus-Profilverwaltung.
+Codena-Profilverwaltung.
 
 ### vLLM im RunPod vorbereiten (Chat-/Tool-Calling-Eval)
 
-Für den vLLM-Vergleich wird derselbe Doctus-Index verwendet. Das vermeidet eine
+Für den vLLM-Vergleich wird derselbe Codena-Index verwendet. Das vermeidet eine
 unnötige Neueinbettung: Chat- und Embedding-Profil sind getrennt. Das bestehende
 Embedding-Profil `qwen3-embedding:4b` mit 1024 Dimensionen aktiv lassen, solange
 der Lauf nur den Chat-Backendwechsel evaluiert. Ein Embedding-Modellwechsel
@@ -97,7 +97,7 @@ fehlschlagen. Siehe die [vLLM Tool-Calling-Dokumentation](https://docs.vllm.ai/e
 Die konkrete Modell-Chat-Template-Kompatibilität mit der installierten vLLM-
 Version gehört zur Abnahme.
 
-Im Doctus-Backend-Netz (nicht nur im lokalen Browser) müssen vor den Evalfragen
+Im Codena-Backend-Netz (nicht nur im lokalen Browser) müssen vor den Evalfragen
 diese API-Funktionen erreichbar sein:
 
 1. `GET /health` liefert HTTP 200.
@@ -107,14 +107,14 @@ diese API-Funktionen erreichbar sein:
    `tool_choice: "required"` und `stream: false` liefert einen strukturierten
    `tool_calls`-Eintrag.
 
-Der Doctus-Test des vLLM-Chatprofils soll diese Prüfungen ausführen. Erst wenn
+Der Codena-Test des vLLM-Chatprofils soll diese Prüfungen ausführen. Erst wenn
 auch der erzwungene Tool-Aufruf bestanden ist, mit J1–C6 beginnen. Der Test
 erzeugt echte Inferenz und kann RunPod-GPU-Zeit verbrauchen. Bei Fehlern zuerst
 Modell-ID, Parser/Chat-Template und die beiden vLLM-Flags prüfen; Fehler nicht
 durch stilles Entfernen der Tools oder durch Wechsel auf einen anderen Index
 kaschieren.
 
-**Doctus-Profil:** ein Remote-Chatprofil mit Provider `vllm`, OpenAI-Chat-
+**Codena-Profil:** ein Remote-Chatprofil mit Provider `vllm`, OpenAI-Chat-
 Protokoll, Basis-URL des Pods mit `/v1`, Modell-ID exakt wie
 `--served-model-name` und passendem API-Key, falls aktiviert. Der API-Key gehört
 nur in die Profilverwaltung. Das separate Embedding-Profil bleibt auf dem
@@ -124,7 +124,7 @@ Token oder URL mit eingebettetem Token.
 
 **Netzgrenze:** vLLM dokumentiert, dass der API-Key die API-Routen schützt,
 `/health` jedoch nicht. Den RunPod-Endpunkt deshalb auf vertrauenswürdige
-Netze beziehungsweise den benötigten Doctus-Zugriff beschränken und nicht
+Netze beziehungsweise den benötigten Codena-Zugriff beschränken und nicht
 ungeschützt öffentlich lassen. Details: [vLLM Security](https://docs.vllm.ai/en/latest/usage/security/).
 
 **RunPod-Preflight protokollieren:** GPU-Modell, Anzahl und VRAM, Treiber/CUDA,
@@ -142,7 +142,7 @@ Backends. Modell- und Größenunterschiede bei jeder Interpretation nennen.
 
 ### Lessons Learned und Run-2-Preflight (22.09.2026)
 
-Der erste RunPod-Start benötigte bis zum betriebsbereiten Ollama-/Doctus-Setup
+Der erste RunPod-Start benötigte bis zum betriebsbereiten Ollama-/Codena-Setup
 etwa 15 Minuten. Der Modell-Download war dabei nicht der Hauptverursacher und
 dauerte ungefähr 5 Minuten. Für Run 2 ist eine Vorbereitungszeit von etwa 10
 Minuten realistisch, wenn die folgenden Punkte als feste Checkliste verwendet
@@ -158,9 +158,9 @@ werden:
    anlegen. Vor dem Profilaufbau mit `ollama list` beziehungsweise `/api/tags`
    beide Modelle bestätigen.
 3. **Embedding-Vertrag fest einplanen:** Das Modell liefert nativ 2560
-   Dimensionen. Für den bestehenden Doctus-Vektorraum muss der Ollama-Request
+   Dimensionen. Für den bestehenden Codena-Vektorraum muss der Ollama-Request
    das Top-Level-Feld `"dimensions": 1024` enthalten; `options.dimensions` und
-   `truncate` sind dafür nicht ausreichend. Der produktive Doctus-Client sendet
+   `truncate` sind dafür nicht ausreichend. Der produktive Codena-Client sendet
    dieses Feld bereits. Vor dem Import einen echten `/api/embed`-Smoke-Test mit
    `dimensions: 1024` aus dem Backend-/Parser-Netz ausführen und die Länge der
    Antwort prüfen.
@@ -226,8 +226,8 @@ prüfen → Syncope importieren → Syncope abnehmen → CardDemo importieren.
 Dieser Lauf verwendet den Pod `zlvxw8vam438nz` mit Ollama 0.34.4,
 `qwen3:32b` für Chat und `bge-m3` für Embeddings. Beide Modelle wurden auf dem
 Pod geladen. Der direkte Chat-Smoke antwortete korrekt; `/api/embed` und ein
-Aufruf aus dem Doctus-Parser lieferten jeweils 1024 Dimensionen. Nach der
-Profilumschaltung und dem Backend-Neustart meldete Doctus `/health` HTTP 200
+Aufruf aus dem Codena-Parser lieferten jeweils 1024 Dimensionen. Nach der
+Profilumschaltung und dem Backend-Neustart meldete Codena `/health` HTTP 200
 mit `database`, `redis` und `ollama` jeweils `ok`. Das aktive Chatprofil ist
 Nr. 58, das neue, separate RunPod-BGE-Profil Nr. 4. Das bisherige lokale
 BGE-Profil Nr. 3 blieb erhalten.
@@ -273,9 +273,9 @@ Anweisungen oben gelten für diesen BGE-Lauf nicht.
 
 ### RunPod-Abnahme der Agenten-MCP-Funktionen (O-342–O-345)
 
-Für diese Abnahme Ollama in RunPod als **Chatmodell** im Doctus-Remote-Profil
-verwenden und den Doctus-Agenten mit dem vorgesehenen, berechtigten MCP-Server
-starten. RunPod stellt das Modell bereit; die MCP-Tools werden vom Doctus-
+Für diese Abnahme Ollama in RunPod als **Chatmodell** im Codena-Remote-Profil
+verwenden und den Codena-Agenten mit dem vorgesehenen, berechtigten MCP-Server
+starten. RunPod stellt das Modell bereit; die MCP-Tools werden vom Codena-
 Agenten/Backend angeboten. Ein direkter MCP-Aufruf aus einem IDE-Client wäre
 ein separater Client-Abnahmepfad und zählt nicht als Agentenlauf in dieser
 Checkliste. Während des Vergleichs weder MCP-Konfiguration noch Modell,
@@ -285,14 +285,14 @@ Projekt-Index oder Frageformulierung wechseln.
    binden und HTTP-Port 11434 beim Pod anlegen. Die Ollama-API nicht dauerhaft
    ungeschützt öffentlich lassen: Zugriff mit einer Authentifizierungsschicht
    und/oder zeitlich begrenzter, eng beschränkter Erreichbarkeit absichern.
-   Geheimnisse nur in Doctus-Profilen beziehungsweise dem Secret Store
+   Geheimnisse nur in Codena-Profilen beziehungsweise dem Secret Store
    hinterlegen. RunPod-URLs mit Query-/Token-Anteilen nie in Logs oder dieses
    Protokoll kopieren.
 2. **API- und Modell-Readiness:** `/api/version` und `/api/tags` müssen HTTP
    200 liefern. Vorhandensein der exakten Kennungen `qwen3:32b` und
    `qwen3-embedding:4b` festhalten. Wenn der Pod neu ist, beide Modelle einzeln
    laden und ein persistentes Volume für Ollamas Modellbestand verwenden.
-3. **Doctus-Profil-Smokes:** Remote-Ollama-Chatprofil aktivieren und eine kurze
+3. **Codena-Profil-Smokes:** Remote-Ollama-Chatprofil aktivieren und eine kurze
    normale Chatantwort prüfen. Das unabhängige Embedding-Profil mit
    `qwen3-embedding:4b` und Dimension 1024 testen; zusätzlich im Backend-/Parser-
    Netz einen echten `/api/embed`-Aufruf mit `dimensions: 1024` ausführen und
@@ -301,7 +301,7 @@ Projekt-Index oder Frageformulierung wechseln.
    durch einen anderen Pfad oder ein anderes Modell stillschweigend umgehen.
    Bei diesem Fehler können rein symbol-/graphbasierte Diagnosen separat
    weiterlaufen, müssen aber als solche gekennzeichnet sein.
-4. **MCP-Preflight:** Einen neuen Doctus-Agentenlauf starten und im sichtbaren
+4. **MCP-Preflight:** Einen neuen Codena-Agentenlauf starten und im sichtbaren
    Preflight prüfen, dass der erwartete Server `available` ist und `tools/list`
    die vorgesehenen lesenden Tools enthält. Zusätzlich kontrollieren, dass nur
    das ausgewählte Projekt sichtbar ist. `not_configured`, `unavailable` oder
@@ -375,7 +375,7 @@ Prüfungen fortsetzen und die Einschränkung im Ergebnisprotokoll nennen.
 1. **Pod-Daten aufnehmen:** erreichbare Basis-URL, Chat- und Embedding-Pfad,
    Modellkennungen, Protokoll, Auth-Verfahren und Laufzeitfenster erfassen.
    Keine Schlüssel in dieses Markdown oder Git schreiben.
-2. **Doctus-Zustand aufnehmen:** laufende API-Version/SHA, Compose-Health,
+2. **Codena-Zustand aufnehmen:** laufende API-Version/SHA, Compose-Health,
    aktives Chat- und Embedding-Profil, Quellstatus, letzter Commit und
    Chunk-Modell/Dimension für Projekt 727 und 728 festhalten.
 3. **Profile separat prüfen:** Bei Ollama Chat-Antwort und Embedding-Aufruf
@@ -436,7 +436,7 @@ die eine vollständig aufgelöste Aufrufkette behauptet, ist ein Fehler.
 
 **J3 – Maven-Modulbaum**
 
-> Welche Untermodule deklariert `core/pom.xml`, und wie unterscheidet Doctus das
+> Welche Untermodule deklariert `core/pom.xml`, und wie unterscheidet Codena das
 > Modul `logic` dort vom gleichnamigen Modul in `ext/flowable/pom.xml`? Zeige
 > beide Quellfundstellen.
 
@@ -448,7 +448,7 @@ analysiert, nicht ausgeführt.
 
 > Zeige in `core/rest-cxf/src/main/resources/wadl2html/index.xsl` die Templates
 > `wadl:resource`, `methods` und `wadl:method`. Welche statisch belegten
-> Template-Aufrufe oder Beziehungen verbindet Doctus zwischen ihnen?
+> Template-Aufrufe oder Beziehungen verbindet Codena zwischen ihnen?
 
 Prüfpunkte: Templates und Quellzeilen müssen aus genau dieser XSL-Datei stammen.
 Nicht im Graph belegte Aufrufpfade als Lücke melden.
@@ -550,7 +550,7 @@ Jede Frage mit 0–2 Punkten in drei Kategorien bewerten (maximal 6 Punkte):
 |---|---|---|---|
 | Fundstellen | keine oder falsche Quelle | richtige Datei, aber ungenaue/unvollständige Zeilen | richtige Datei und überprüfbare Zeilen |
 | Fachliche Richtigkeit | wesentliche Erfindung oder falsche Beziehung | überwiegend richtig, wichtige Lücke/Unsicherheit fehlt | korrekt und Grenzen passend benannt |
-| Doctus-Nachvollziehbarkeit | keine passenden Treffer/Tools | teilweise passende Treffer oder unvollständige Tool-Schritte | passende Recherche, sichtbare Tool-Schritte und nachvollziehbarer Belegpfad |
+| Codena-Nachvollziehbarkeit | keine passenden Treffer/Tools | teilweise passende Treffer oder unvollständige Tool-Schritte | passende Recherche, sichtbare Tool-Schritte und nachvollziehbarer Belegpfad |
 
 Zusätzlich pro Antwort First-Token-Zeit, Gesamtdauer, Anzahl der Tool-Aufrufe,
 Fehler/Timeout und benötigte Nutzerkorrektur erfassen. Bei nicht belegbaren
@@ -565,7 +565,7 @@ eintragen.
 | Feld | Wert |
 |---|---|
 | Datum / Zeitzone | 2026-09-22 / UTC |
-| Doctus API-Version und SHA | Offen |
+| Codena API-Version und SHA | Offen |
 | RunPod GPU / VRAM | Offen |
 | Chat-Profil / exakte Modellkennung | Ollama / `qwen3:32b` |
 | Embedding-Profil / exakte Modellkennung / Dimension | Ollama / `qwen3-embedding:4b` / 1024 |
@@ -590,7 +590,7 @@ Einzelabfragen.
 | Feld | vLLM-Lauf |
 |---|---|
 | Datum / Zeitzone | Offen |
-| Doctus API-Version und SHA | Offen |
+| Codena API-Version und SHA | Offen |
 | RunPod-Pod-Bezeichner (ohne geheime URL) | Offen |
 | GPU / Anzahl / VRAM / Treiber / CUDA | Offen |
 | vLLM-Version / Modell-Revision | Offen |
@@ -621,17 +621,17 @@ URLs, Kundeninhalte oder unredigierten Prompt-/Tool-Inhalte eintragen.
 | Datum / Zeitzone | 28.09.2026 / UTC |
 | RunPod-Pod-Bezeichner (ohne URL) / Laufzeitfenster | `zlvxw8vam438nz` / MCP-Läufe ca. 5 Minuten, danach A/B-Retry |
 | Endpoint-Zugriffsschutz / Auth-Schicht bestätigt | `/mcp` ohne Bearer-Token HTTP 401; authentifizierte Toolaufrufe erfolgreich; beide temporären Tokens widerrufen |
-| Doctus API-Version und SHA | Lokaler Doctus-Build-SHA nicht erfasst; RunPod Ollama `0.34.4` |
+| Codena API-Version und SHA | Lokaler Codena-Build-SHA nicht erfasst; RunPod Ollama `0.34.4` |
 | Aktives Chatprofil / Modell / Kontext | Profil 58 / `qwen3:32b`; tatsächliches Profil-Kontextlimit nicht erfasst |
 | Aktives Embeddingprofil / Modell / Dimension | Profil 4 / `bge-m3` / 1024 |
-| `/api/version`, `/api/tags`, Chat-Smoke | HTTP 200; Ollama `0.34.4`, `qwen3:32b` und `bge-m3` vorhanden; Doctus-Chat-SSE erfolgreich |
+| `/api/version`, `/api/tags`, Chat-Smoke | HTTP 200; Ollama `0.34.4`, `qwen3:32b` und `bge-m3` vorhanden; Codena-Chat-SSE erfolgreich |
 | `/api/embed` mit `dimensions: 1024`, Ergebnisdimension | HTTP 200, Ergebnisvektor 1024 Dimensionen |
-| MCP-Serverstatus / Tool-Anzahl / sichtbare Projekt-ID | `doctus-inbound` verfügbar; 7 lesende Tools; Qwen-Aufrufe in Projekt 1246/1247 |
+| MCP-Serverstatus / Tool-Anzahl / sichtbare Projekt-ID | `codena-inbound` verfügbar; 7 lesende Tools; Qwen-Aufrufe in Projekt 1246/1247 |
 | O-342: Fragefall, alte Tools Aufrufe/Turns, `research_project` Aufrufe/Turns | COBOL `research_project`: 1 MCP-Toolaufruf; Java-Methode einfacher Name: `no_exact_match`, exakter Klassenname: `entry_point_selection_required` mit `create`-Kandidat. Vollständiger quantitativer Alt-Tool-Vergleich offen. |
 | O-342: Antwortqualität/Belege und Zeit je Variante | COBOL MCP-Antwort korrekt mit Root/Kantenstatus: 65,0 s; normale gleichlautende C1-Antwort 75,5 s, `sources=[]`; wortgleiche MCP-Antwort am Proxy 524, gekürzter Retry ohne Toolaufruf. Qualitativer Vorteil beobachtet, striktes A/B unvollständig. |
 | O-343: eindeutiger / mehrdeutiger / fehlender Einstieg | Eindeutig bestanden: `unique_cobol_entry`, `MAIN-PARA`, 7 Knoten/8 Kanten; mehrdeutiger und fehlender Einstieg offen. |
 | O-344: Graphlimit / Kürzungsgrund / Cursor-Folgeseite | Limit 3, `relationship_page_has_more`, Cursor `3` → `6`; beide Seiten 0 Kanten und 1 Dateiknoten. Ungültiger Cursor vom MCP abgewiesen, Qwen verschwieg den Fehlversuch final. |
-| O-345: ohne Server / verfügbar ohne Aufruf / erfolgreicher Aufruf | Ohne Token: HTTP 401; erfolgreicher MCP-Clientlauf und MCP-Audit `success`/`error` belegt. Interner Doctus-Chat meldete `not_configured`; verfügbar-aber-nicht-aufgerufen nicht separat geprüft. |
+| O-345: ohne Server / verfügbar ohne Aufruf / erfolgreicher Aufruf | Ohne Token: HTTP 401; erfolgreicher MCP-Clientlauf und MCP-Audit `success`/`error` belegt. Interner Codena-Chat meldete `not_configured`; verfügbar-aber-nicht-aufgerufen nicht separat geprüft. |
 | Fehler / bekannte Einschränkungen / Abnahme je O-Nummer | Siehe Direktlauf O-342–O-345 und C1-Kontrollvergleich unten; MCP-Token wurden widerrufen. |
 
 ### Lauf 28.09.2026: allgemeine Bestandsabnahme parallel zum Syncope-Import
@@ -641,7 +641,7 @@ Syncope-BGE-Reindex von Quelle 1004 lief während der folgenden Abfragen.
 
 | Fall | Live-Befund | Dauer / First Token / Tools | Bewertung / Folge |
 |---|---|---|---|
-| C1 (`COPAUA0C.MAIN-PARA`) | Doctus-Chat, Projekt 1247, Quelle 1005, Qwen-Profil 58: nur `view_repo_file` Zeilen 1–150 als Tool-Schritt; Antwort behauptete Zeilen 220 ff., lieferte 0 Quellenobjekte, verschwieg die aufgelösten Aufrufe `1000-INITIALIZE` → `1100-OPEN-REQUEST-QUEUE` (Zeile 244) und `3100-READ-REQUEST-MQ` (Zeile 246) und bezeichnete `MAIN-PARA` → `9000-TERMINATE` (Zeile 224) entgegen dem Index als aufgelöst. Die drei Kanten wurden direkt gegen `code_edges` von Quelle 1005 geprüft. | 171,2 s / 64,7 s / 1 | 1/6 (Fundstellen 0, Richtigkeit 0, Nachvollziehbarkeit 1). O-317/O-318/O-319/O-321 weiter offen; neuer Bug O-346. |
+| C1 (`COPAUA0C.MAIN-PARA`) | Codena-Chat, Projekt 1247, Quelle 1005, Qwen-Profil 58: nur `view_repo_file` Zeilen 1–150 als Tool-Schritt; Antwort behauptete Zeilen 220 ff., lieferte 0 Quellenobjekte, verschwieg die aufgelösten Aufrufe `1000-INITIALIZE` → `1100-OPEN-REQUEST-QUEUE` (Zeile 244) und `3100-READ-REQUEST-MQ` (Zeile 246) und bezeichnete `MAIN-PARA` → `9000-TERMINATE` (Zeile 224) entgegen dem Index als aufgelöst. Die drei Kanten wurden direkt gegen `code_edges` von Quelle 1005 geprüft. | 171,2 s / 64,7 s / 1 | 1/6 (Fundstellen 0, Richtigkeit 0, Nachvollziehbarkeit 1). O-317/O-318/O-319/O-321 weiter offen; neuer Bug O-346. |
 | C2 (`COPAUA0C`-Copybooks) | Der einzige Tool-Aufruf war `get_repo_entities(limit=20)` ohne Dateifokus; er lieferte nur Entities aus `PAUDBUNL.CBL`. Die Antwort meldete `COPAUA0C` fälschlich als im Index unbelegt und enthielt 0 Quellenobjekte. Direkt in Quelle 1005 bestehen aber 16 `COPY`-Kanten für `COPAUA0C.cbl`: acht aufgelöst (`CCPAURQY`, `CCPAURLY`, `CCPAUERY`, `CIPAUSMY`, `CIPAUDTY`, `CVACT03Y`, `CVACT01Y`, `CVCUS01Y`) und acht offen (u. a. `CMQODV`, `CMQMDV`, `CMQV`). | 123,8 s / 87,3 s / 1 | 0/6; O-317/O-319 bleiben offen, neuer Bug O-347. |
 | C3 (DB2-SQL) | Chat-Bootstrap `get_repo_entities(limit=20)` zeigte wieder nur `PAUDBUNL.CBL`; zweiter Tool-Aufruf las dort Zeilen 157–170. Die Antwort erfand einen `EXEC SQL`/`SELECT AUTH_TYPE, AUTH_STATUS FROM AUTHORIZATION_SUMMARY`-Block in Zeilen 207–247 und gab 0 Quellenobjekte zurück. Der Originaltext dieser Zeilen enthält `CALL 'CBLTDLI'` für IMS und keinen SQL-Block; im Index sind für `PAUDBUNL.CBL` 0 `sql_block`-Entities, für `COTRTLIC.cbl` 16. | 186,1 s / 155,9 s / 2 | 0/6; schwerer Quellenkonsistenzfehler O-346. |
 | C4 (Copybook-Feldkette) | Chat-Bootstrap lieferte erneut nur `PAUDBUNL.CBL`; danach suchte das Modell irrtümlich `COPY COPAU00.cpy` und meldete die Kette unbelegt, `sources=[]`. Im Index existiert aber z. B. `CCPAUERY.cpy:24` (`ERR-LOCATION`) → aufgelöste `COPY`-Kante in `COPAUA0C.cbl:185` → aufgelöste `USES`-Kante aus `1100-OPEN-REQUEST-QUEUE` in `COPAUA0C.cbl:273`. | 172,4 s / 127,7 s / 2 | 0/6; O-317/O-319, O-346/O-347. |
@@ -699,9 +699,9 @@ Referenzwissen einordnen. Danach priorisierte Folge-Todos mit konkreten
 Fundstellen und reproduzierbaren Fällen in `docs/TODO.md`
 übernehmen.
 
-### RunPod-Wiederholung 28.09.2026: aktives Doctus-Profil und Antwortbindung
+### RunPod-Wiederholung 28.09.2026: aktives Codena-Profil und Antwortbindung
 
-Erneut live über die lokale Doctus-Chat-API angemeldet und das konfigurierte
+Erneut live über die lokale Codena-Chat-API angemeldet und das konfigurierte
 Chatprofil **58 (RunPod Ollama – Qwen 32B, `qwen3:32b`)** sowie das aktive
 Embeddingprofil **4 (RunPod BGE-M3, 1024 Dimensionen)** verwendet. Projekt 1246 /
 Quelle 1004 ist Syncope; Projekt 1247 / Quelle 1005 ist CardDemo. Für jede Frage
@@ -751,10 +751,10 @@ wurde in dieser Wiederholung nicht bedient.
 
 ### Direktlauf O-342–O-345 mit Qwen als MCP-Client (28.09.2026)
 
-Für diesen getrennten MCP-Client-Lauf wurde ein persönlicher eintägiger Doctus-
+Für diesen getrennten MCP-Client-Lauf wurde ein persönlicher eintägiger Codena-
 Testtoken angelegt und nach den Toolaufrufen widerrufen (HTTP 204). Der Token
 steht nicht in diesem Protokoll. Qwen `qwen3:32b` auf RunPod erhielt die echte
-`tools/list`-Antwort von `doctus-inbound` und rief die Tools über Streamable HTTP
+`tools/list`-Antwort von `codena-inbound` und rief die Tools über Streamable HTTP
 auf. Die geschützte MCP-Audit-API wurde anschließend gelesen; keine Datenbank-
 Direktabfragen.
 
@@ -766,18 +766,18 @@ Direktabfragen.
 | O-343 eindeutig | `get_call_flow(project=1247, entity=121997, hops=2)` meldete `unique_cobol_entry`, Root `COPAUA0C.MAIN-PARA` Zeile 220, 7 Knoten/8 Kanten, kein Kürzen. Qwen gab `entry_resolution` korrekt wieder. | Qwen 41,9 s; Tool success 6 ms |
 | O-343 mehrdeutig/fehlend | In diesem kurzen Lauf nicht abgenommen; kein synthetischer Fixture-Fall angelegt. | Offen |
 | O-344 Cursor | Qwen rief `get_graph_neighbors(entity=122000, limit=3)` auf: ein Dateiknoten, null Kanten, `has_more=true`, Cursor `3`; gültige Folgeseite mit Cursor `3` ergab erneut ein Dateiknoten, null Kanten, `has_more=true`, Cursor `6`. Qwen probierte dazwischen `abc123`; MCP gab `invalid cursor` zurück und das Audit markierte `error`. Qwen korrigierte danach den Cursor, ließ den Fehlversuch aber in der finalen Antwort unerwähnt. Der Paging-Vertrag funktioniert, aber die Graphantwort hat bei diesem Fokus trotz Fortsetzung keine Kanten. | Qwen 95,9 s; success 15/16 ms, error 1 ms, success 16 ms |
-| O-345 Berechtigung / Telemetrie | MCP `POST /mcp` ohne Token: HTTP 401. Authentifizierte Tools wurden im Admin-Audit als `success`, ungültiger Cursor als `error` mit Toolname und Dauer protokolliert. Im normalen Doctus-Chat bleibt das MCP-Preflight `not_configured`; „Server verfügbar, aber nicht aufgerufen“ und dessen Chat-Telemetrie wurden nicht erzeugt. | Admin-Audit HTTP 200; Retention 90 Tage |
+| O-345 Berechtigung / Telemetrie | MCP `POST /mcp` ohne Token: HTTP 401. Authentifizierte Tools wurden im Admin-Audit als `success`, ungültiger Cursor als `error` mit Toolname und Dauer protokolliert. Im normalen Codena-Chat bleibt das MCP-Preflight `not_configured`; „Server verfügbar, aber nicht aufgerufen“ und dessen Chat-Telemetrie wurden nicht erzeugt. | Admin-Audit HTTP 200; Retention 90 Tage |
 
 **MCP-Abnahmestand:** O-343 eindeutig bestanden, O-342 teilweise bestanden, O-344
 teilweise bestanden mit fehlenden Kanten und einer von Qwen verschwiegenen
 Toolfehlermeldung, O-345 teilweise bestanden. Der direkte MCP-Clientlauf belegt,
-dass Qwen den Doctus-MCP-Endpunkt tatsächlich ansprechen kann. Er ist keine
-Abnahme des Doctus-internen optionalen MCP-Preflights. Die Java-`create`-Kette,
+dass Qwen den Codena-MCP-Endpunkt tatsächlich ansprechen kann. Er ist keine
+Abnahme des Codena-internen optionalen MCP-Preflights. Die Java-`create`-Kette,
 mehrdeutige/fehlende COBOL-Einstiege und der Graph-Panel-UI-Pfad bleiben offen.
 
 ### MCP-Vorteil gegen normale Codeanalyse – C1-Kontrollvergleich
 
-Normale Doctus-Chat-Baseline ohne MCP mit der festgelegten Frage zu
+Normale Codena-Chat-Baseline ohne MCP mit der festgelegten Frage zu
 `COPAUA0C.MAIN-PARA`: 75,5 s, `mcp_preflight=not_configured`, 1 lokaler
 `get_repo_entities`-Toolschritt, anschließend pauschal „nicht belegt“ und
 `sources=[]`.

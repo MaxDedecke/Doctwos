@@ -87,7 +87,7 @@ With the profile active, an administrator creates a model in **Settings > AI**: 
 (LLM) and the same for the embedding profile. Codena then asks the `deployer` service to start an Ollama, vLLM or
 llama.cpp container on this host, creates the matching profile and activates it when it is the first one. Without
 the profile, the dialog states that local deployments are not enabled. Models are downloaded on first start into the shared volume
-`doctus_llm_models` (vLLM and llama.cpp from Hugging Face; set `HF_TOKEN` in `.env` for gated models).
+`codena_llm_models` (vLLM and llama.cpp from Hugging Face; set `HF_TOKEN` in `.env` for gated models).
 The profile row shows the container status (starting, downloading, ready, stopped) and offers start/stop and the
 container log. Deleting the profile removes the container.
 

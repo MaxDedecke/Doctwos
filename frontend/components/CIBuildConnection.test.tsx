@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.mocked(api.getCITokens).mockResolvedValue(axiosResponse({
     can_manage: true, sources: [{ id: 8, name: 'repo', branch: 'main' }], tokens: [],
   }));
-  vi.mocked(api.createCIToken).mockResolvedValue(axiosResponse({ token: 'dct_ci_secret_once' }));
+  vi.mocked(api.createCIToken).mockResolvedValue(axiosResponse({ token: 'codena_ci_secret_once' }));
 });
 
 it('issues a source-bound credential and clears the displayed secret on close', async () => {
@@ -23,10 +23,10 @@ it('issues a source-bound credential and clears the displayed secret on close', 
   const name = await screen.findByLabelText('Name des CI-Zugangs');
   fireEvent.change(name, { target: { value: 'GitHub main' } });
   fireEvent.click(screen.getByRole('button', { name: 'CI-Token erstellen' }));
-  expect(await screen.findByDisplayValue('dct_ci_secret_once')).toBeTruthy();
+  expect(await screen.findByDisplayValue('codena_ci_secret_once')).toBeTruthy();
   expect(api.createCIToken).toHaveBeenCalledWith(3, { source_id: 8, name: 'GitHub main' });
   fireEvent.click(screen.getByText('CI-Anbindung verwalten'));
-  await waitFor(() => expect(screen.queryByDisplayValue('dct_ci_secret_once')).toBeNull());
+  await waitFor(() => expect(screen.queryByDisplayValue('codena_ci_secret_once')).toBeNull());
 });
 
 it('explains management permissions to a project member', async () => {

@@ -1,6 +1,6 @@
 {
   "title": "MCP im Benchmark: Qwen und Luna, drei Fassungen der Schnittstelle",
-  "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Doctus-MCP-Schnittstelle. Gemessen wurden die erste Fassung (v1), eine Überarbeitung (v2) und für Qwen eine dritte Fassung (v3), bei der der Server die Arbeit macht. Alles zuerst an sechs Entwicklungsfragen, dann an zehn neuen Fragen. Unten stehen die Ergebnisse je Modell in sechs Kapiteln, am Ende der Vergleich.",
+  "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Codena-MCP-Schnittstelle. Gemessen wurden die erste Fassung (v1), eine Überarbeitung (v2) und für Qwen eine dritte Fassung (v3), bei der der Server die Arbeit macht. Alles zuerst an sechs Entwicklungsfragen, dann an zehn neuen Fragen. Unten stehen die Ergebnisse je Modell in sechs Kapiteln, am Ende der Vergleich.",
   "top": [
     "<b>Qwen:</b> An den neuen Fragen steigt die Qualität von 17 % (v2) auf 36 % (v3, schlanke Werkzeugliste mit Denkmodus). Dafür braucht es mehr als doppelt so lange (32 s statt 14 s).",
     "<b>Luna:</b> Mit Werkzeugen bleibt sie weit vorn (74 % bis 81 %), MCP v2 liegt aber auch an neuen Fragen hinter der lokalen Shell. Die neue Schnittstelle wurde bei Luna nicht gemessen.",

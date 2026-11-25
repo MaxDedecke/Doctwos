@@ -4,7 +4,7 @@ Stand: 26.10.2026 · gilt ab 27.10.2026 bis zum Start eines Pilotkunden.
 
 Diese Datei ist die **zentrale Arbeitsleitlinie**. Sie steht über `docs/TODO.md`: Wo die Reihenfolge dort
 abweicht, gilt diese Datei. Grundlage ist die Schwachstellenanalyse vom 26.10.2026
-(`~/doctus-berichte/doctus_schwachstellenanalyse_2026-10-26.html`, außerhalb des Repos).
+(`~/codena-berichte/codena_schwachstellenanalyse_2026-10-26.html`, außerhalb des Repos).
 
 Ziel: Die Befunde mit hoher Schwere schließen oder messbar machen, bevor neue Funktionen entstehen.
 
@@ -73,7 +73,7 @@ nächsten Morgen zuerst erledigt; der Plan verschiebt sich, er wird nicht übers
    `:latest` ohne `@sha256:` in Compose-Dateien und `.env.example`.
 4. **O-389** (Frontend-Image ohne `devDependencies`) und **O-390** (Python-Basisimage ≥ 3.11.17,
    `setuptools` aktualisieren).
-5. `scripts/sbom-scan.sh` erneut ausführen und den SBOM-Bericht in `~/doctus-berichte/` nachziehen.
+5. `scripts/sbom-scan.sh` erneut ausführen und den SBOM-Bericht in `~/codena-berichte/` nachziehen.
 
 **Fertig, wenn:** `docker compose up -d` keinen Container mit `docker.sock` startet; `grep -n ':latest' docker-compose*.yml`
 nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 nicht mehr enthält.
@@ -111,7 +111,7 @@ nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 n
    Coder-Modell der 32B-Klasse laden. Embedding-Profil unverändert lassen (kein Reindex).
 2. Hold-out v1 laufen lassen: Varianten `qwen3:8b` lokal, 32B-Modell(e) remote; je Variante Agent- und
    Chat-Betrieb; 3 Wiederholungen.
-3. Ergebnis als **eine HTML-Datei** in `~/doctus-berichte/` (Qualität, nutzbare Antworten ≥ 50 %, Halluzinationen
+3. Ergebnis als **eine HTML-Datei** in `~/codena-berichte/` (Qualität, nutzbare Antworten ≥ 50 %, Halluzinationen
    in Negativfällen, Zeit, Tokens). Keine Logs oder Rohdaten im Repo.
 4. **Entscheidung E-17 „Mindestmodellklasse“** in `docs/ENTSCHEIDUNGEN.md` festhalten: welches Modell als
    Produktvoraussetzung gilt, welche GPU dafür nötig ist und dass `qwen3:8b` nur als Demo-/Notbetrieb ausgewiesen wird.
@@ -124,7 +124,7 @@ nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 n
 1. **Lasttest.** Mit `scripts/generate_synthetic_cobol_corpus.py` einen Korpus mit **mindestens 5 Mio. Zeilen**
    erzeugen (`--programs` entsprechend erhöhen, `--seed 42`) und mit `scripts/loadtest_ingest_synthetic_corpus.py`
    importieren. Messen: Dauer von Parsen, Persistenz, Linking und Embedding-Stichprobe, DB-Größe, Antwortzeit von
-   Call-Graph-Abfragen mit 3 Hops. Ergebnis als HTML in `~/doctus-berichte/`.
+   Call-Graph-Abfragen mit 3 Hops. Ergebnis als HTML in `~/codena-berichte/`.
    README-Aussagen zur Skalierung an das Messergebnis anpassen (Regel 4).
 2. **Pilot anstoßen (Nicht-Code, wichtigster Punkt der Woche).** Einen einseitigen Pilotsteckbrief erstellen:
    Problem, Umfang (ein Bestand, 4 Wochen), Erfolgskriterien (aus O-278: Einarbeitungszeit, Fehleranalysezeit),

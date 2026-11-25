@@ -654,7 +654,7 @@ def test_mcp_token_expiry_deactivated_accounts_and_malformed_secrets_are_rejecte
         db_session.commit()
     assert find_token_user(db_session, secret).id == user.id
 
-    assert find_token_user(db_session, "dct_mcp_" + "x" * 43) is None  # unbekannt
+    assert find_token_user(db_session, "codena_mcp_" + "x" * 43) is None  # unbekannt
     assert find_token_user(db_session, "Bearer " + secret) is None  # falsches Präfix
     assert find_token_user(db_session, secret + "x" * 200) is None  # überlang
 

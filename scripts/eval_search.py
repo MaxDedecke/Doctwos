@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Prüft die versionierten Such-Erwartungen (O-277) gegen eine laufende Codena-Instanz über MCP.
 
-    CODENA_MCP_TOKEN=dct_mcp_... python3 scripts/eval_search.py [--url http://localhost:8000/mcp]
+    CODENA_MCP_TOKEN=codena_mcp_... python3 scripts/eval_search.py [--url http://localhost:8000/mcp]
 
 Exit-Code 1, sobald eine Erwartung verfehlt wird. Ein Treffer zählt, wenn Qualified Name und Datei
 innerhalb der ersten `top` Ergebnisse stehen; Negativfälle müssen leer bleiben.

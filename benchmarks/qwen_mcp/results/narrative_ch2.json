@@ -13,7 +13,7 @@
  "method": [
   "<b>Modell:</b> <code>gpt-6-luna</code> mit Reasoning <code>medium</code>, ausgeführt über die Codex CLI 0.160.0 (<code>codex exec</code>) mit Cloud-Anbindung. Kein Seed und keine Temperaturkontrolle.",
   "<b>Design:</b> Identisch zu Kapitel 1: 6 Aufgaben × 3 Varianten × 5 Wiederholungen = 90 Sitzungen, gleiche Fragen, gleiche Rubrik (gleicher Prüfsummenwert), gleicher Reihenfolgeplan, gleiche Statistik.",
-  "<b>Varianten:</b> Ohne Werkzeuge: Shell und MCP abgeschaltet, leeres Arbeitsverzeichnis. Lokal: nur die Codex-Shell (lesend) im Checkout. MCP: nur die Doctus-Werkzeuge, Shell abgeschaltet.",
+  "<b>Varianten:</b> Ohne Werkzeuge: Shell und MCP abgeschaltet, leeres Arbeitsverzeichnis. Lokal: nur die Codex-Shell (lesend) im Checkout. MCP: nur die Codena-Werkzeuge, Shell abgeschaltet.",
   "<b>Isolierung:</b> Eigenes Codex-Verzeichnis ohne Plugins, Apps, Websuche und Gedächtnis. Der Checkout lag in einer Kopie außerhalb des Repositorys, jeder Shell-Befehl wurde auf Zugriffe außerhalb davon und auf Benchmarkbegriffe geprüft. Es gab keinen Treffer.",
   "<b>Abweichungen:</b> Keine Sitzung ist ausgefallen oder wurde wiederholt. Protokoll und Prüfsumme stehen in <code>PROTOCOL_CH2.md</code> und <code>manifest_ch2.lock</code>."
  ],

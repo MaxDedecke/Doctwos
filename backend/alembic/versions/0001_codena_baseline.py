@@ -11,7 +11,7 @@ Enthält gegenüber dem Template:
   - knowledge_sources.branch/repo_fingerprint/sync_cursor (F-019/NF-004)
 Entfallen: alle compliance_*/regulation_*-Tabellen, ifc/dwg/gaeb_scan_files.
 
-Revision ID: 0001_doctus_baseline
+Revision ID: 0001_codena_baseline
 Revises:
 Create Date: 2026-07-31
 """
@@ -21,7 +21,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 from pgvector.sqlalchemy import Vector
 
-revision = "0001_doctus_baseline"
+revision = "0001_codena_baseline"
 down_revision = None
 branch_labels = None
 depends_on = None

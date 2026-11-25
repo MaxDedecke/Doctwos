@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Doctus Einführung</title>
+<title>Codena Einführung</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
 <style>
@@ -194,10 +194,10 @@
   <!-- Titel -->
   <section class="slide title" aria-label="Titel">
     <div class="inner">
-      <h1><span>Doctus</span></h1>
+      <h1><span>Codena</span></h1>
       <p class="claim">Fragen an den eigenen Code. Antworten mit Beleg.</p>
       <p class="who">Für das Team hinter SecDocs und DSEngine</p>
-      <p class="say">Doctus liest euren Code, eure Wikiseiten und Issues und beantwortet Fragen dazu mit Verweis auf die Originalstelle.</p>
+      <p class="say">Codena liest euren Code, eure Wikiseiten und Issues und beantwortet Fragen dazu mit Verweis auf die Originalstelle.</p>
     </div>
   </section>
 
@@ -240,7 +240,7 @@
           <line class="e" x1="920" y1="354" x2="920" y2="396" marker-end="url(#a)"/>
         </svg>
       </figure>
-      <p class="say"><strong>Ziel: bessere Kapselung.</strong> Die Processoren vorne an der Schnittstelle kennen nur noch den StorageService. Die folgenden Folien zeigen an diesem Umbau, wie Doctus dabei hilft.</p>
+      <p class="say"><strong>Ziel: bessere Kapselung.</strong> Die Processoren vorne an der Schnittstelle kennen nur noch den StorageService. Die folgenden Folien zeigen an diesem Umbau, wie Codena dabei hilft.</p>
     </div>
   </section>
 
@@ -290,7 +290,7 @@
     <div class="inner">
       <h2>Das Wissen ist da. Es liegt nur verteilt.</h2>
       <figure class="fig">
-        <svg viewBox="0 0 1100 330" role="img" aria-label="Git, Confluence und Issues fließen in Doctus, heraus kommt eine Antwort mit Datei und Zeile">
+        <svg viewBox="0 0 1100 330" role="img" aria-label="Git, Confluence und Issues fließen in Codena, heraus kommt eine Antwort mit Datei und Zeile">
           <rect class="box" x="20" y="20" width="220" height="70" rx="8"/>
           <text class="b" x="130" y="64" text-anchor="middle">Git-Repos</text>
           <rect class="box" x="20" y="130" width="220" height="70" rx="8"/>
@@ -303,7 +303,7 @@
           <path class="e" d="M240,275 C340,275 340,165 426,165" marker-end="url(#a)"/>
 
           <rect class="box hi" x="430" y="100" width="240" height="130" rx="10"/>
-          <text class="b xl" x="550" y="177" text-anchor="middle">Doctus</text>
+          <text class="b xl" x="550" y="177" text-anchor="middle">Codena</text>
 
           <path class="e hi" d="M670,165 L816,165" marker-end="url(#ah)"/>
 
@@ -312,7 +312,7 @@
           <text class="tr s" x="950" y="195" text-anchor="middle">+ Datei und Zeile</text>
         </svg>
       </figure>
-      <p class="say">Doctus verbindet die Quellen, die ihr ohnehin pflegt, statt ein weiteres System zum Befüllen einzuführen.</p>
+      <p class="say">Codena verbindet die Quellen, die ihr ohnehin pflegt, statt ein weiteres System zum Befüllen einzuführen.</p>
     </div>
   </section>
 
@@ -586,7 +586,7 @@
           <p class="gap"><code>ExportProcessor</code> ruft sein Ziel dynamisch auf. Ob dort gespeichert wird, ist nicht belegbar.</p>
         </div>
       </div>
-      <p class="say">Klick auf die Quelle öffnet die Zeile. Was sich nicht belegen lässt, nennt Doctus ausdrücklich als Lücke, statt es zu erfinden.</p>
+      <p class="say">Klick auf die Quelle öffnet die Zeile. Was sich nicht belegen lässt, nennt Codena ausdrücklich als Lücke, statt es zu erfinden.</p>
     </div>
   </section>
 
@@ -686,7 +686,7 @@
       <figure class="fig">
         <svg viewBox="0 0 1200 370" role="img" aria-label="Parallele Abläufe: Dokument, Hash und Zeitstempel, Algorithmus schwach, Erneuerung entsprechen Aussage, Beleg und Commit, Code geändert, erneute Prüfung">
           <text class="b" x="20" y="54">Beweiswerterhaltung</text>
-          <text class="b hi" x="20" y="234">Doctus</text>
+          <text class="b hi" x="20" y="234">Codena</text>
           <line class="e" x1="180" y1="100" x2="1160" y2="100"/>
           <line class="e hi" x1="180" y1="280" x2="1160" y2="280"/>
 
@@ -755,19 +755,19 @@
           <text class="tr s" x="708" y="408" text-anchor="middle">meldet</text>
         </svg>
       </figure>
-      <p class="say">Doctus startet selbst keinen Build. Eure Pipeline meldet Maven- und Testergebnisse mit einem quellengebundenen Token, und Doctus hängt sie an genau diesen Commit.</p>
+      <p class="say">Codena startet selbst keinen Build. Eure Pipeline meldet Maven- und Testergebnisse mit einem quellengebundenen Token, und Codena hängt sie an genau diesen Commit.</p>
     </div>
   </section>
 
   <!-- MCP -->
   <section class="slide">
     <div class="inner">
-      <h2>Auch Coding-Agenten fragen Doctus</h2>
+      <h2>Auch Coding-Agenten fragen Codena</h2>
       <figure class="fig">
-        <svg viewBox="0 0 1200 400" role="img" aria-label="Ohne Doctus braucht ein Agent zehn Such- und Leseaufrufe, mit Doctus einen einzigen Aufruf answer_context, der das Belegpaket liefert">
+        <svg viewBox="0 0 1200 400" role="img" aria-label="Ohne Codena braucht ein Agent zehn Such- und Leseaufrufe, mit Codena einen einzigen Aufruf answer_context, der das Belegpaket liefert">
           <line x1="600" y1="20" x2="600" y2="380" class="e" style="stroke:var(--line-strong);stroke-width:1.5"/>
-          <text class="b" x="20" y="44">Ohne Doctus</text>
-          <text class="b hi" x="640" y="44">Mit Doctus</text>
+          <text class="b" x="20" y="44">Ohne Codena</text>
+          <text class="b hi" x="640" y="44">Mit Codena</text>
 
           <rect class="box" x="20" y="160" width="150" height="76" rx="8"/>
           <text class="b" x="95" y="206" text-anchor="middle">Agent</text>
@@ -795,7 +795,7 @@
           <text class="hi" x="900" y="384" text-anchor="middle">1 Aufruf</text>
         </svg>
       </figure>
-      <p class="say">Agenten in IDE oder Terminal nutzen Doctus über das Model Context Protocol und bekommen dasselbe Belegpaket wie der Chat.</p>
+      <p class="say">Agenten in IDE oder Terminal nutzen Codena über das Model Context Protocol und bekommen dasselbe Belegpaket wie der Chat.</p>
     </div>
   </section>
 
@@ -861,14 +861,14 @@
   <!-- Nicht -->
   <section class="slide">
     <div class="inner">
-      <h2>Was Doctus nicht ist</h2>
+      <h2>Was Codena nicht ist</h2>
       <ul class="nots">
         <li><span>✕</span> Ersatz für Review und Tests</li>
         <li><span>✕</span> noch ein Wiki zum Pflegen</li>
         <li><span>✕</span> Code-Generator</li>
         <li><span>✕</span> Orakel ohne Beleg</li>
       </ul>
-      <p class="say">Doctus verkürzt den Weg zu den richtigen Stellen, die Entscheidung bleibt bei euch.</p>
+      <p class="say">Codena verkürzt den Weg zu den richtigen Stellen, die Entscheidung bleibt bei euch.</p>
     </div>
   </section>
 

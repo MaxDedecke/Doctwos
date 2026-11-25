@@ -34,7 +34,7 @@ _ASSET_MAX_REDIRECTS = 3
 _INDEX_MAX_CHUNKS = 400
 _MAX_LINKS = 200
 
-_signer = URLSafeTimedSerializer(cfg.SESSION_SECRET_KEY, salt="doctus-web-asset")
+_signer = URLSafeTimedSerializer(cfg.SESSION_SECRET_KEY, salt="codena-web-asset")
 _TAG_RE = re.compile(r"<(a|img)\b([^>]*)>", re.IGNORECASE)
 
 

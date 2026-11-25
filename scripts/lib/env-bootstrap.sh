@@ -117,8 +117,6 @@ bootstrap_env() {
         exit 1
     fi
     image_version=${2:-$(sed -n 's/^CODENA_VERSION=//p' "$repo_root/.env" | head -n 1)}
-    # Übergang doctus→codena: ältere .env-Dateien kennen nur DOCTUS_VERSION.
-    [ -n "$image_version" ] || image_version=$(sed -n 's/^DOCTUS_VERSION=//p' "$repo_root/.env" | head -n 1)
     if [ -z "$master_key" ]; then
         master_key=$(docker run --rm --pull=never --network none --entrypoint python \
             "codena-backend-api:${image_version:-latest}" -c \

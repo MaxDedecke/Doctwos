@@ -37,7 +37,7 @@ time="2026-11-17T17:20:42+01:00" level=warning msg="Docker Compose is configured
 #5 transferring context: 396.31kB 0.1s done
 #5 DONE 0.5s
 
-#8 [backend-api builder 7/8] COPY --from=models . /tmp/doctus-models
+#8 [backend-api builder 7/8] COPY --from=models . /tmp/codena-models
 #8 CACHED
 
 #9 [backend-api builder 5/8] COPY vendor/ vendor/
@@ -52,7 +52,7 @@ time="2026-11-17T17:20:42+01:00" level=warning msg="Docker Compose is configured
 #12 [backend-api builder 6/8] RUN pip install --no-cache-dir --user -r requirements.txt
 #12 CACHED
 
-#13 [backend-api builder 8/8] RUN pip install --no-cache-dir --user /tmp/doctus-models
+#13 [backend-api builder 8/8] RUN pip install --no-cache-dir --user /tmp/codena-models
 #13 CACHED
 
 #14 [backend-api stage-1  4/12] COPY --from=builder /root/.local /root/.local
@@ -95,21 +95,21 @@ time="2026-11-17T17:20:42+01:00" level=warning msg="Docker Compose is configured
 #25 exporting config sha256:93292b91f15dc7b65fc37b35bd5653a62ecb72dbdf8d53517a1324a339b55381 0.0s done
 #25 exporting attestation manifest sha256:eb51ca01818adc23776064a49d62e1f7f74e8a10f745cbc071e345ac82416264 0.0s done
 #25 exporting manifest list sha256:f075e50d043ea0f53b318e59182cecfc7047f3ce8ccd0532c2d16f409236c5eb 0.0s done
-#25 naming to docker.io/library/doctus-backend-api:latest done
-#25 unpacking to docker.io/library/doctus-backend-api:latest
-#25 unpacking to docker.io/library/doctus-backend-api:latest 0.2s done
+#25 naming to docker.io/library/codena-backend-api:latest done
+#25 unpacking to docker.io/library/codena-backend-api:latest
+#25 unpacking to docker.io/library/codena-backend-api:latest 0.2s done
 #25 DONE 0.7s
 
 #26 [backend-api] resolving provenance for metadata file
 #26 DONE 0.0s
  backend-api  Built
- Container doctus-db  Running
- Container doctus-redis  Running
- Container doctus-backend  Recreate
- Container doctus-backend  Recreated
- Container doctus-redis  Waiting
- Container doctus-db  Waiting
- Container doctus-db  Healthy
- Container doctus-redis  Healthy
- Container doctus-backend  Starting
- Container doctus-backend  Started
+ Container codena-db  Running
+ Container codena-redis  Running
+ Container codena-backend  Recreate
+ Container codena-backend  Recreated
+ Container codena-redis  Waiting
+ Container codena-db  Waiting
+ Container codena-db  Healthy
+ Container codena-redis  Healthy
+ Container codena-backend  Starting
+ Container codena-backend  Started

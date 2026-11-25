@@ -12,7 +12,7 @@ from core.projects import get_project_role
 from codena_models.database import CIBuildToken, User
 from services.ci_builds import repository_identity
 
-PREFIX = "dct_ci_"
+PREFIX = "codena_ci_"
 
 
 def public_token(row):

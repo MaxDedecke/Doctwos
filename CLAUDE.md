@@ -8,12 +8,8 @@ Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
 Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
 die heutige Fachlogik und Architektur sind COBOL-zentriert.
 
-**Name:** Seit 25.11.2026 heißt das Produkt **Codena**; „Doctus“ war der Arbeitstitel (E-21). Auch die technischen
-Bezeichner heißen `codena` (`codena_models`, Container `codena-*`, `CODENA_*`). Alte `doctus`-Namen werden während
-der Übergangszeit weiter gelesen (Umgebungsvariablen, Sitzungs-Cookie, Browser-Speicher, IDE-Einstellungen,
-Deployer-Container); diese Stellen tragen den Kommentar `Übergang doctus→codena`. Bewusst beim alten Namen bleiben
-Signatur-Salts, Alembic-Revisionen, das Modellvolume `doctus_llm_models` und bestehende Datenbanknamen
-(`docs/UMBENENNUNG_CODENA.md`). Neu immer „codena“ schreiben.
+**Name:** Das Produkt heißt **Codena** (E-21), technische Bezeichner durchgängig `codena` (`codena_models`,
+Container `codena-*`, `CODENA_*`).
 
 **Vor jeder Arbeit lesen:** zuerst `docs/ARBEITSLEITLINIE.md` (zentrale
 Arbeitsleitlinie mit Wochenplan; der frühere Feature-Stopp ist seit 21.11.2026 aufgehoben und
@@ -90,7 +86,7 @@ Regeln dafür:
 
 ## Umgebung
 
-- DB: `postgresql://admin:password@db:5432/<POSTGRES_DB>` (neue Installationen `codena`, bestehende behalten `doctus`)
+- DB: `postgresql://admin:password@db:5432/codena`
 - Redis: `redis://redis:6379/0`, Ollama: `http://ollama:11434`
 - Frontend: `http://localhost:3000`, Backend: `http://localhost:8000`
 - Erststart legt einen Superuser an (`BOOTSTRAP_SUPERUSER`, Passwort aus

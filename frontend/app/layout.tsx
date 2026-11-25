@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Space_Grotesk, IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
-import { LEGACY_BROWSER_STORAGE_SCRIPT } from "@/lib/legacyBrowserStorage";
 
 // Codena brand type system (from the Codena Design blueprint mock): Archivo
 // for body/UI text, Space Grotesk for headings, IBM Plex Mono for
@@ -54,7 +53,6 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: LEGACY_BROWSER_STORAGE_SCRIPT }} />
         <script
           dangerouslySetInnerHTML={{
             // Runs before hydration so the `.dark` class (which now gates the

@@ -76,22 +76,22 @@ A single `WATCHED_FOLDER` mount covers one host path. To index documents from **
 If the NAS shares can be mounted on the **same host machine** under a common parent directory, set `WATCHED_FOLDER` to that parent:
 
 ```env
-WATCHED_FOLDER=/mnt/doctus-watched
+WATCHED_FOLDER=/mnt/codena-watched
 ```
 
 The IT team then mounts each share as a subdirectory of that parent. On Linux this is typically done with CIFS/SMB or NFS:
 
 ```sh
 # /etc/fstab entries — example with CIFS
-//nas.firma.local/Ausschreibungen  /mnt/doctus-watched/ausschreibungen  cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
-//nas.firma.local/Projektarchiv    /mnt/doctus-watched/projekte          cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
-//nas.firma.local/Normen           /mnt/doctus-watched/normen            cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
+//nas.firma.local/Ausschreibungen  /mnt/codena-watched/ausschreibungen  cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
+//nas.firma.local/Projektarchiv    /mnt/codena-watched/projekte          cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
+//nas.firma.local/Normen           /mnt/codena-watched/normen            cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
 ```
 
 After mounting, the directory structure looks like:
 
 ```
-/mnt/doctus-watched/
+/mnt/codena-watched/
   ausschreibungen/   ← maps to /watched/ausschreibungen inside containers
   projekte/          ← maps to /watched/projekte
   normen/            ← maps to /watched/normen

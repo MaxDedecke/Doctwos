@@ -217,7 +217,7 @@ Runtime-Abhängigkeiten begrenzt.
 
 - **Container-Images / SBOM (06.10.2026, erster Lauf):** `scripts/sbom-scan.sh` erzeugt per `syft` ein
   CycloneDX-SBOM und per `grype` einen Schwachstellenbericht je Image (Ergebnisse und Bewertung liegen
-  außerhalb des Repos in `~/doctus-berichte/`). Lizenzbefund: Die Debian-/Alpine-Basis der Images enthält
+  außerhalb des Repos in `~/codena-berichte/`). Lizenzbefund: Die Debian-/Alpine-Basis der Images enthält
   erwartungsgemäß GPL-/LGPL-Systempakete (bash, coreutils, glibc, libgmp, busybox …), die Codena nicht
   linkt; hinzu kommen in den Python-Images `autocommand` (LGPL-3.0, von `setuptools/_vendor` mitgebracht,
   von `pip-licenses` nicht erfasst, nicht von Codena genutzt). Im Frontend-Image liegen die

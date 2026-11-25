@@ -1,4 +1,4 @@
-<title>Doctus Qwen-Benchmark</title>
+<title>Codena Qwen-Benchmark</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,9 +117,9 @@ details.faq > summary:focus-visible { outline: 2px solid var(--mcp); outline-off
 <div class="wrap">
   <header>
     <div>
-      <div class="eyebrow">Doctus · Kapitel 9 · 17.11.2026</div>
-      <h1>Wie viel hilft Doctus-MCP lokalen Qwen-Modellen?</h1>
-      <p class="lede">18 Entwickleraufgaben auf AWS CardDemo (COBOL) und Apache Syncope (Java). Jedes Modell bekommt dieselbe Aufgabe dreimal: ohne Werkzeuge, mit direktem Zugriff auf den Code-Ordner und mit den Doctus-MCP-Werkzeugen. Bewertet wird nach festen Prüfpunkten je Aufgabe (Rubrik 0 bis 1).</p>
+      <div class="eyebrow">Codena · Kapitel 9 · 17.11.2026</div>
+      <h1>Wie viel hilft Codena-MCP lokalen Qwen-Modellen?</h1>
+      <p class="lede">18 Entwickleraufgaben auf AWS CardDemo (COBOL) und Apache Syncope (Java). Jedes Modell bekommt dieselbe Aufgabe dreimal: ohne Werkzeuge, mit direktem Zugriff auf den Code-Ordner und mit den Codena-MCP-Werkzeugen. Bewertet wird nach festen Prüfpunkten je Aufgabe (Rubrik 0 bis 1).</p>
     </div>
     <button class="theme-toggle" id="themeToggle" type="button">Hell/Dunkel</button>
   </header>
@@ -127,7 +127,7 @@ details.faq > summary:focus-visible { outline: 2px solid var(--mcp); outline-off
   <div class="groups">
     <div class="group"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><path d="M7,1.25 L12.25,10.75 L1.75,10.75 Z" fill="var(--none)"/></svg><div><b>ohne Werkzeuge</b><span>Das Modell bekommt nur die Frage und antwortet aus seinem Trainingswissen, ohne den Code zu sehen.</span></div></div>
     <div class="group"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><rect x="2" y="2" width="10" height="10" rx="1.5" fill="var(--files)"/></svg><div><b>Code-Ordner direkt</b><span>Das Modell kann im Quellcode-Ordner Dateien auflisten, nach Text suchen und Dateien lesen, ähnlich einem Entwickler mit Texteditor und grep.</span></div></div>
-    <div class="group"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--mcp)"/></svg><div><b>Doctus-MCP</b><span>Das Modell fragt den Doctus-Index ab und bekommt fertige Belege mit Fundstellen zu Programmen, Methoden, Aufrufern und Datenzugriffen.</span></div></div>
+    <div class="group"><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="5" fill="var(--mcp)"/></svg><div><b>Codena-MCP</b><span>Das Modell fragt den Codena-Index ab und bekommt fertige Belege mit Fundstellen zu Programmen, Methoden, Aufrufern und Datenzugriffen.</span></div></div>
   </div>
   <p class="note">Alle drei Gruppen haben dieselbe Frage, denselben Systemprompt, dieselben Seeds und höchstens 10 Werkzeugaufrufe. Werkzeugergebnisse werden in allen Gruppen gleich auf 6000 Zeichen gekürzt.</p>
 
@@ -139,7 +139,7 @@ details.faq > summary:focus-visible { outline: 2px solid var(--mcp); outline-off
     <div class="panel-head">
       <div class="eyebrow">Hauptfigur</div>
       <h2 id="h-frontier">Qualität gegen Aufwand je Modell</h2>
-      <p>Jeder Punkt ist ein Tupel aus Aufwand und mittlerer Rubrik. Die drei Punkte eines Modells sind verbunden: ohne Werkzeuge, Code-Ordner direkt, Doctus-MCP. Senkrechte Striche zeigen das 95-%-Intervall (Bootstrap über Aufgaben). Oben links ist gut.</p>
+      <p>Jeder Punkt ist ein Tupel aus Aufwand und mittlerer Rubrik. Die drei Punkte eines Modells sind verbunden: ohne Werkzeuge, Code-Ordner direkt, Codena-MCP. Senkrechte Striche zeigen das 95-%-Intervall (Bootstrap über Aufgaben). Oben links ist gut.</p>
     </div>
     <div class="controls">
       <div><span class="ctl-label">Aufgaben</span><span class="seg" id="segSet"></span></div>
@@ -192,7 +192,7 @@ details.faq > summary:focus-visible { outline: 2px solid var(--mcp); outline-off
       <ul>
         <li><b>ohne:</b> Das Modell bekommt nur die Frage und antwortet aus seinem Trainingswissen, ohne den Code zu sehen.</li>
         <li><b>Code-Ordner:</b> Das Modell kann im Quellcode-Ordner Dateien auflisten, nach Text suchen und Dateien lesen, ähnlich einem Entwickler mit Texteditor und <code>grep</code>.</li>
-        <li><b>MCP:</b> Das Modell fragt den Doctus-Index ab und bekommt fertige Belege mit Fundstellen zu Programmen, Methoden, Aufrufern und Datenzugriffen.</li>
+        <li><b>MCP:</b> Das Modell fragt den Codena-Index ab und bekommt fertige Belege mit Fundstellen zu Programmen, Methoden, Aufrufern und Datenzugriffen.</li>
       </ul>
     </div>
     <div id="faq"></div>
@@ -203,7 +203,7 @@ details.faq > summary:focus-visible { outline: 2px solid var(--mcp); outline-off
     <div class="method">
       <div><h3>Aufgaben</h3><p>12 Team-Aufgaben (Einarbeitung, Änderungsstelle, Auswirkung, Fehlersuche, Erweiterung, Review, Tests) und 6 Prüfaufgaben, die erst nach dem Umbau des MCP-Servers geschrieben und eingefroren wurden. Je Aufgabe 2 Wiederholungen mit festen Seeds; bei 8B wurden nur Wiederholung 1 und 2 der drei gemessenen ausgewertet.</p></div>
       <div><h3>Bewertung</h3><p>Rubrik = gewichteter Anteil der erfüllten Prüfpunkte je Aufgabe (Datei, Einheit, Zeilenbeleg, fachliche Aussage), abzüglich Strafen für erfundene Angaben, begrenzt auf 0 bis 1. „Brauchbar“ heißt Rubrik ≥ 0,5. Bewertet wird maschinell nach festen Mustern, nicht durch ein Modell; die Prüfpunkte stehen bei jeder Frage.</p></div>
-      <div><h3>Umgebung</h3><p>Ollama mit nativer API, Q4-Quantisierung, 32k Kontext, Temperatur des Modells, höchstens 10 Werkzeugaufrufe. Hardware: RunPod RTX A6000 (48 GB); 8B zusätzlich lokal mit 8k Kontext. Doctus lief lokal mit dem Stand vom 17.11.2026.</p></div>
+      <div><h3>Umgebung</h3><p>Ollama mit nativer API, Q4-Quantisierung, 32k Kontext, Temperatur des Modells, höchstens 10 Werkzeugaufrufe. Hardware: RunPod RTX A6000 (48 GB); 8B zusätzlich lokal mit 8k Kontext. Codena lief lokal mit dem Stand vom 17.11.2026.</p></div>
       <div><h3>Grenzen</h3><p>18 Aufgaben aus zwei Projekten, je Gruppe 12 bis 24 Sitzungen: Unterschiede unter etwa 0,1 sind meist nicht belegt. 14B ist ein Teillauf. Die Zeiten stammen vom Pod, dessen CPU die GPU ausbremste; die Reihenfolge der Modelle gilt, die absoluten Sekunden nicht.</p></div>
     </div>
   </section>
@@ -214,7 +214,7 @@ const DATA = {"tasks":{"T-C1-ONBOARD":{"set":"team","lang":"COBOL","cat":"Einarb
 const ARMS = [
   { key: 'n', name: 'ohne Werkzeuge', color: 'var(--none)', shape: 'tri' },
   { key: 'l', name: 'Code-Ordner direkt', color: 'var(--files)', shape: 'sq' },
-  { key: 'm', name: 'Doctus-MCP', color: 'var(--mcp)', shape: 'dot' },
+  { key: 'm', name: 'Codena-MCP', color: 'var(--mcp)', shape: 'dot' },
 ];
 const ARM = Object.fromEntries(ARMS.map(a => [a.key, a]));
 const XS = {
@@ -455,7 +455,7 @@ seg('segSet', [['all', 'Alle 18'], ['team', 'Team (12)'], ['holdout', 'Prüfaufg
 seg('segLang', [['all', 'Beide'], ['COBOL', 'COBOL'], ['Java', 'Java']], 'lang', renderAll);
 seg('segX', [['wall', 'Zeit'], ['tools', 'Aufrufe'], ['tok', 'Tokens']], 'x', frontier);
 seg('segLabels', [['mcp', 'nur MCP'], ['all', 'alle'], ['none', 'keine']], 'labels', frontier);
-seg('segHeatArm', [['m', 'Doctus-MCP'], ['l', 'Code-Ordner direkt'], ['n', 'ohne Werkzeuge']], 'heatArm', heat);
+seg('segHeatArm', [['m', 'Codena-MCP'], ['l', 'Code-Ordner direkt'], ['n', 'ohne Werkzeuge']], 'heatArm', heat);
 chips(); legend(); findings(); renderAll();
 
 document.getElementById('themeToggle').onclick = () => {

@@ -1,6 +1,6 @@
 {
  "title": "MCP im Benchmark: zwei Modelle, drei Kapitel",
- "lead": "Sechs Code-Fragen an Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI), je ohne Werkzeuge, mit lokalen Werkzeugen und mit Doctus-MCP. Kapitel 1 und 2 messen die erste MCP-Fassung, Kapitel 3 die überarbeitete Schnittstelle v2. Kurz gesagt: Das Modell entscheidet über die Qualität. Die Überarbeitung hat dem kleinen Modell die Qualität mehr als verdoppelt, dem starken Modell wenig geändert, und sie hat Zeit und Tokens insgesamt nicht gesenkt.",
+ "lead": "Sechs Code-Fragen an Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI), je ohne Werkzeuge, mit lokalen Werkzeugen und mit Codena-MCP. Kapitel 1 und 2 messen die erste MCP-Fassung, Kapitel 3 die überarbeitete Schnittstelle v2. Kurz gesagt: Das Modell entscheidet über die Qualität. Die Überarbeitung hat dem kleinen Modell die Qualität mehr als verdoppelt, dem starken Modell wenig geändert, und sie hat Zeit und Tokens insgesamt nicht gesenkt.",
  "findings": [
   "<b>Das Modell zählt mehr als das Werkzeug.</b> Luna erreicht mit Shell und mit MCP 95 % und 92 % der Rubrikpunkte, Qwen in der besten Variante 20 %. Der Abstand zwischen den Modellen beträgt etwa das Fünffache, der zwischen den Werkzeugwegen höchstens ein paar Prozentpunkte.",
   "<b>Qualität mit MCP gegenüber lokalen Werkzeugen:</b> Bei Qwen +11 Prozentpunkte (p = 0,06), bei Luna −3 Prozentpunkte (p = 0,067). Beide Unterschiede sind nach dem vorab festgelegten Maßstab nicht abgesichert und zeigen in entgegengesetzte Richtungen.",

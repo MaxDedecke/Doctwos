@@ -104,14 +104,14 @@ services:
   deployer:
     profiles: ["deployer"]
     build: ./deployer
-    image: codena-deployer:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-deployer:${CODENA_VERSION:-latest}
     container_name: codena-deployer
     restart: always
     logging: *default-logging
     environment:
       DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:-}
       DEPLOYER_NETWORK: codena_default
-      DEPLOYER_MODELS_VOLUME: doctus_llm_models
+      DEPLOYER_MODELS_VOLUME: codena_llm_models
       HF_TOKEN: ${HF_TOKEN:-}
       OLLAMA_IMAGE: ${OLLAMA_IMAGE:-ollama/ollama:latest@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a}
       VLLM_IMAGE: ${VLLM_IMAGE:-vllm/vllm-openai:latest}
@@ -139,7 +139,7 @@ services:
     # Explicit image name+tag (not Compose's auto "<project>-<service>") so a
     # pre-built/loaded image is found regardless of what folder this is checked
     # out into — required for the air-gapped path (docker-compose.offline.yml).
-    image: codena-backend-api:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-backend-api:${CODENA_VERSION:-latest}
     # Eine aus dem Ruder laufende Anfrage soll den Container (restart: always) treffen, nicht die
     # WSL-VM samt Host. Normalbetrieb liegt weit darunter.
     mem_limit: ${BACKEND_MEM_LIMIT:-3g}
@@ -204,7 +204,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       API_URL: ${API_URL:-http://localhost:8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+      CODENA_VERSION: ${CODENA_VERSION:-latest}
       MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
@@ -224,7 +224,7 @@ services:
       OIDC_TEAM_MAPPING: ${OIDC_TEAM_MAPPING:-}
     volumes:
       - ./repos:/repos
-      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      - ${WATCHED_FOLDER:-/tmp/codena-watched}:/watched:ro
       # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
       - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       - ./config:/config:ro
@@ -250,7 +250,7 @@ services:
       args:
         GIT_SHA: ${GIT_SHA:-}
         BUILD_TIME: ${BUILD_TIME:-}
-    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-parser-worker:${CODENA_VERSION:-latest}
     container_name: codena-parser
     # Modellserver auf demselben Host (Port auf 0.0.0.0) über host.docker.internal; `localhost`
     # ist im Container der Container selbst (docs/PILOT_DEPLOYMENT.md).
@@ -309,14 +309,14 @@ services:
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
       LOG_FILE_PATH: /var/log/codena/parser-worker/parser-worker.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+      CODENA_VERSION: ${CODENA_VERSION:-latest}
       # Logdateien unter data/logs: stündlich ab dieser Größe gekürzt, ältere Stände als .1 … .N behalten.
       LOG_FILE_MAX_MB: ${LOG_FILE_MAX_MB:-100}
       LOG_FILE_KEEP: ${LOG_FILE_KEEP:-3}
       ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
     volumes:
       - ./repos:/repos
-      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      - ${WATCHED_FOLDER:-/tmp/codena-watched}:/watched:ro
       # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
       - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       # Whole logs tree (not just its own subdir, unlike every other service
@@ -359,7 +359,7 @@ services:
       context: ./parser
       additional_contexts:
         models: ./packages/codena-models
-    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-parser-worker:${CODENA_VERSION:-latest}
     container_name: codena-beat
     restart: always
     logging: *default-logging
@@ -389,9 +389,9 @@ services:
       LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/codena/parser-beat/parser-beat.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+      CODENA_VERSION: ${CODENA_VERSION:-latest}
     volumes:
-      - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+      - ${WATCHED_FOLDER:-/tmp/codena-watched}:/watched:ro
       # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
       - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
       - ./data/logs/parser-beat:/var/log/codena/parser-beat
@@ -404,7 +404,7 @@ services:
 
   frontend:
     build: ./frontend
-    image: codena-frontend:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-frontend:${CODENA_VERSION:-latest}
     container_name: codena-frontend
     restart: always
     logging: *default-logging
@@ -433,4 +433,4 @@ services:
 
 volumes:
   llm_models:
-    name: doctus_llm_models
+    name: codena_llm_models

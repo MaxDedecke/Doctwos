@@ -156,24 +156,3 @@ def test_ollama_pull_waits_for_the_server_and_marks_failures(api, monkeypatch):
     container.exec_run.return_value = SimpleNamespace(exit_code=1, output=b"manifest unknown")
     app_module._pull_ollama("x", "nope")
     assert app_module._pull_state["x"]["status"] == "failed" and "manifest" in app_module._pull_state["x"]["detail"]
-
-
-def test_containers_from_before_the_rename_stay_managed(api):
-    """Übergang doctus→codena: alte Container werden erkannt und ins aktuelle Netz gehängt."""
-    from docker.errors import NotFound
-    client, fake, app_module = api
-    legacy = SimpleNamespace(
-        name="doctus-llm-chat-a", status="exited", image=SimpleNamespace(tags=["img"]),
-        labels={engines.LEGACY_LABEL: "chat-a", "doctus.engine": "llamacpp", "doctus.model": "m", "doctus.role": "chat"},
-        attrs={"NetworkSettings": {"Networks": {"doctus_default": {}}}}, reload=lambda: None,
-    )
-    fake.containers.list.side_effect = lambda all, filters: [legacy] if filters["label"] == engines.LEGACY_LABEL else []
-    body = client.get("/deployments", headers=HEAD).json()
-    assert body[0]["name"] == "chat-a" and body[0]["model"] == "m" and body[0]["base_url"] == "http://doctus-llm-chat-a:8080/v1"
-    fake.networks.get.assert_called_with(app_module.NETWORK)
-    fake.networks.get.return_value.connect.assert_called_with(legacy)
-
-    fake.containers.get.side_effect = lambda name: legacy if name == "doctus-llm-chat-a" else (_ for _ in ()).throw(NotFound("x"))
-    assert client.get("/deployments/chat-a", headers=HEAD).json()["container"] == "doctus-llm-chat-a"
-    response = client.post("/deployments", headers=HEAD, json={"name": "chat-a", "engine": "llamacpp", "model": "org/m"})
-    assert response.status_code == 409

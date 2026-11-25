@@ -46,7 +46,7 @@ umgesetzt oder haben einen offenen Abnahmeschritt.
 
 ### Lizenz- und Sicherheitsabschluss aus dem SBOM-Scan vom 06.10.2026 (zuerst, ab 07.10.2026)
 
-Grundlage: `scripts/sbom-scan.sh`, Bericht `~/doctus-berichte/codena_sbom_scan_2026-10-06.html`, Befund in
+Grundlage: `scripts/sbom-scan.sh`, Bericht `~/codena-berichte/codena_sbom_scan_2026-10-06.html`, Befund in
 [OSS-CLEARING.md](OSS-CLEARING.md) („Nicht automatisch geprüft“). Nach jedem Punkt Images neu bauen, Tests laufen lassen,
 `scripts/sbom-scan.sh` erneut ausführen und den Bericht nachziehen.
 

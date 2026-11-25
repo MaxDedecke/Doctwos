@@ -67,8 +67,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system"])
 
 _PROFILE_KINDS = {"local", "remote", "cloud"}
-# Übergang doctus→codena: Profile von vor der Umbenennung zeigen noch auf doctus-llm-* (docs/UMBENENNUNG_CODENA.md).
-MANAGED_URL_PREFIX = ("http://codena-llm-", "http://doctus-llm-")
+MANAGED_URL_PREFIX = "http://codena-llm-"
 _PROFILE_PROTOCOLS = {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
 
 

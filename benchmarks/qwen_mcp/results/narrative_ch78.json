@@ -1,6 +1,6 @@
 {
  "title": "MCP im Benchmark: Qwen und Luna, vier Fassungen der Schnittstelle",
- "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Doctus-MCP-Schnittstelle. Gemessen wurden v1, die Überarbeitung v2 und für Qwen zwei weitere Fassungen, bei denen der Server die Arbeit übernimmt (v3, v4/v4.1). Alles zuerst an sechs Entwicklungsfragen, dann an zehn neuen Fragen. Unten stehen die Ergebnisse je Modell in acht Kapiteln, am Ende der Vergleich.",
+ "lead": "Qwen3-8B (lokal) und GPT-6-Luna (Codex CLI) beantworten Fragen zu COBOL- und Java-Code, ohne Werkzeuge, mit lokalen Dateiwerkzeugen und mit der Codena-MCP-Schnittstelle. Gemessen wurden v1, die Überarbeitung v2 und für Qwen zwei weitere Fassungen, bei denen der Server die Arbeit übernimmt (v3, v4/v4.1). Alles zuerst an sechs Entwicklungsfragen, dann an zehn neuen Fragen. Unten stehen die Ergebnisse je Modell in acht Kapiteln, am Ende der Vergleich.",
  "top": [
   "<b>Qwen:</b> Wenn der Server den Evidenz-Pack selbst als ersten Schritt ausführt (v4/v4.1), antwortet Qwen in 23 s statt 32 s und mit 3.500 statt 4.600 Tokens je Antwort (beides belegt gegenüber v3). Die Qualität liegt an den neuen Fragen bei 37 % bis 40 % gegenüber 36 % bei v3, das ist <b>kein belegter Unterschied</b>. Gegenüber v2 (17 %) ist der Gewinn belegt.",
   "<b>Luna:</b> Mit Werkzeugen bleibt sie weit vorn (74 % bis 81 %), MCP v2 liegt aber auch an neuen Fragen hinter der lokalen Shell. Die neuen Fassungen wurden bei Luna nicht gemessen.",
@@ -16,7 +16,7 @@
  "k7": {
   "title": "Kapitel 7: Der Server führt den Evidenz-Pack selbst aus (v4)",
   "intro": [
-   "<b>Idee:</b> In Kapitel 5 und 6 musste Qwen das neue Werkzeug <code>answer_context</code> erst wählen. Jetzt führt der Server es als ersten Schritt selbst aus (wie es der Chat in Doctus künftig tut) und legt das Ergebnis in die Unterhaltung. Qwen schreibt danach direkt die Antwort, weitere Werkzeuge bleiben erlaubt (nur <code>answer_context</code>, <code>explain_symbol</code>, <code>get_code_entity</code>, Denkmodus).",
+   "<b>Idee:</b> In Kapitel 5 und 6 musste Qwen das neue Werkzeug <code>answer_context</code> erst wählen. Jetzt führt der Server es als ersten Schritt selbst aus (wie es der Chat in Codena künftig tut) und legt das Ergebnis in die Unterhaltung. Qwen schreibt danach direkt die Antwort, weitere Werkzeuge bleiben erlaubt (nur <code>answer_context</code>, <code>explain_symbol</code>, <code>get_code_entity</code>, Denkmodus).",
    "<b>Was v4 gegenüber v3 ändert:</b> (1) Fakten je Absatz oder Methode: Meldungstexte und zugewiesene Codes, zum Beispiel <code>sets WS-VALIDATION-FAIL-REASON=100</code>; (2) Auswahl der Absätze und Hilfsmethoden zusätzlich per bge-m3-Embedding; (3) die Aufrufkette wird bis Tiefe 2 verfolgt; (4) Parameter <code>symbols</code> und <code>topic</code> statt der ganzen Frage. Die Fakten berechnet der Server beim Abruf aus dem indexierten Quelltext, nicht im Parser. Ein neuer Import ist dafür nicht nötig.",
    "<b>Messung:</b> Zehn Hold-out-Fragen × 3 Wiederholungen, nur MCP-Arm, gepaart gegen v3 (Kapitel 6) und v2 (Kapitel 4). Erwartungen vorab in <code>manifest_ch7.json</code> festgelegt: Qualität höher als v3, weniger Aufrufe, Zeit nicht über v3 + 5 s."
   ],
@@ -66,7 +66,7 @@
  "limits_add": [
   "<b>Kapitel 8 ist kein unabhängiger Test:</b> Die Nachbesserungen folgen aus der Fehleranalyse derselben Fragen. Dass C1 steigt, ist erwartbar. Ob die Auswahllogik allgemein trägt, zeigt nur ein Test mit neuen Fragen.",
   "<b>Wörterbuch und Stoppwörter</b> (<code>formel</code>, <code>buchung</code>, „Programm“ …) sind deutsch und COBOL-nah. Für andere Sprachen und Fachgebiete wären sie anzupassen.",
-  "<b>Der Prefetch ist in der Messung ein Harness-Schritt:</b> Er ruft denselben Code wie der Chat auf, aber über MCP. Der Chat in Doctus selbst wurde mit einem Modell noch nicht Ende-zu-Ende gemessen.",
+  "<b>Der Prefetch ist in der Messung ein Harness-Schritt:</b> Er ruft denselben Code wie der Chat auf, aber über MCP. Der Chat in Codena selbst wurde mit einem Modell noch nicht Ende-zu-Ende gemessen.",
   "<b>Nur Qwen:</b> Luna wurde mit v4 und v4.1 nicht gemessen. v4.1 ist committet und auf <code>origin/develop</code>, produktiv deployed ist es nicht (dort läuft MCP v2)."
  ]
 }

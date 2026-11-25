@@ -4,13 +4,13 @@
 #
 # Requirement: the host directory in WATCHED_FOLDER must sit on a shared or slave mount (the default for systemd
 # hosts). Without it Docker refuses to start the containers with "is not a shared or slave mount"; then either make
-# the mount shared (`mount --make-rshared /mnt/doctus-watched`) or leave this overlay out and restart the stack after
+# the mount shared (`mount --make-rshared /mnt/codena-watched`) or leave this overlay out and restart the stack after
 # adding a share (see docs/FOLDER_WATCH.md).
 services:
   backend-api:
     volumes:
       - type: bind
-        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        source: ${WATCHED_FOLDER:-/tmp/codena-watched}
         target: /watched
         read_only: true
         bind:
@@ -18,7 +18,7 @@ services:
   parser-worker:
     volumes:
       - type: bind
-        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        source: ${WATCHED_FOLDER:-/tmp/codena-watched}
         target: /watched
         read_only: true
         bind:
@@ -26,7 +26,7 @@ services:
   parser-beat:
     volumes:
       - type: bind
-        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        source: ${WATCHED_FOLDER:-/tmp/codena-watched}
         target: /watched
         read_only: true
         bind:
@@ -34,7 +34,7 @@ services:
   link-worker:
     volumes:
       - type: bind
-        source: ${WATCHED_FOLDER:-/tmp/doctus-watched}
+        source: ${WATCHED_FOLDER:-/tmp/codena-watched}
         target: /watched
         read_only: true
         bind:

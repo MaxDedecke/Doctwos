@@ -7,7 +7,7 @@ x-logging: &id001
     max-file: '3'
 services:
   db:
-    image: codena-db:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-db:${CODENA_VERSION:-latest}
     container_name: codena-db
     restart: always
     logging: *id001
@@ -27,7 +27,7 @@ services:
       timeout: 5s
       retries: 5
   redis:
-    image: codena-redis:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-redis:${CODENA_VERSION:-latest}
     container_name: codena-redis
     restart: always
     logging: *id001
@@ -42,7 +42,7 @@ services:
       timeout: 5s
       retries: 5
   ollama:
-    image: codena-ollama:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-ollama:${CODENA_VERSION:-latest}
     container_name: codena-ollama
     restart: always
     logging: *id001
@@ -65,7 +65,7 @@ services:
       timeout: 5s
       retries: 5
   backend-api:
-    image: codena-backend-api:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-backend-api:${CODENA_VERSION:-latest}
     mem_limit: ${BACKEND_MEM_LIMIT:-3g}
     container_name: codena-backend
     extra_hosts:
@@ -118,7 +118,7 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       API_URL: ${API_URL:-http://localhost:8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+      CODENA_VERSION: ${CODENA_VERSION:-latest}
       MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
@@ -136,7 +136,7 @@ services:
       OIDC_TEAM_MAPPING: ${OIDC_TEAM_MAPPING:-}
     volumes:
     - ./repos:/repos
-    - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+    - ${WATCHED_FOLDER:-/tmp/codena-watched}:/watched:ro
     - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
     - ./config:/config:ro
     - ./data/logs/backend-api:/var/log/codena/backend-api
@@ -151,7 +151,7 @@ services:
       retries: 5
       start_period: 15s
   parser-worker:
-    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-parser-worker:${CODENA_VERSION:-latest}
     container_name: codena-parser
     extra_hosts:
     - host.docker.internal:host-gateway
@@ -203,7 +203,7 @@ services:
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
       LOG_FILE_PATH: /var/log/codena/parser-worker/parser-worker.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+      CODENA_VERSION: ${CODENA_VERSION:-latest}
       # Logdateien unter data/logs: stündlich ab dieser Größe gekürzt, ältere Stände als .1 … .N behalten.
       LOG_FILE_MAX_MB: ${LOG_FILE_MAX_MB:-100}
       LOG_FILE_KEEP: ${LOG_FILE_KEEP:-3}
@@ -211,7 +211,7 @@ services:
       LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-true}
     volumes:
     - ./repos:/repos
-    - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+    - ${WATCHED_FOLDER:-/tmp/codena-watched}:/watched:ro
     - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
     - ./data/logs:/var/log/codena
     mem_limit: ${PARSER_MEM_LIMIT:-5g}
@@ -254,7 +254,7 @@ services:
       retries: 5
       start_period: 20s
   parser-beat:
-    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-parser-worker:${CODENA_VERSION:-latest}
     container_name: codena-beat
     restart: always
     logging: *id001
@@ -291,11 +291,11 @@ services:
       LLM_MODEL: ${LLM_MODEL:-disabled}
       LOG_FILE_PATH: /var/log/codena/parser-beat/parser-beat.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+      CODENA_VERSION: ${CODENA_VERSION:-latest}
       LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-true}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-${OLLAMA_BASE_URL:-http://ollama:11434}}
     volumes:
-    - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
+    - ${WATCHED_FOLDER:-/tmp/codena-watched}:/watched:ro
     - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
     - ./data/logs/parser-beat:/var/log/codena/parser-beat
     healthcheck:
@@ -308,7 +308,7 @@ services:
       retries: 5
       start_period: 15s
   frontend:
-    image: codena-frontend:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    image: codena-frontend:${CODENA_VERSION:-latest}
     container_name: codena-frontend
     restart: always
     logging: *id001

@@ -724,7 +724,7 @@ llama.cpp betreiben wollte, musste Compose-Dateien selbst ändern.
    `DEPLOYER_TOKEN`. Er startet ausschließlich Container aus festen Engine-Definitionen
    (`deployer/engines.py`): feste Images (per Umgebungsvariable je Kunde festschreibbar), strukturierte
    Parameter statt freier Kommandozeilen (Modellkennung per Regex geprüft, Tool-Parser aus einer
-   Liste), nur das Modellvolume `doctus_llm_models` als Mount, kein Privileged-Modus, kein Host-Netzwerk,
+   Liste), nur das Modellvolume `codena_llm_models` als Mount, kein Privileged-Modus, kein Host-Netzwerk,
    GPU nur über `device_requests`, Log-Rotation. Verwaltet wird nur, was das Label `codena.deployment`
    trägt.
 3. **Profil und Container gehören zusammen.** `POST /llm-deployments` startet den Container und legt das
@@ -1026,15 +1026,12 @@ ihrer Quelle. Migration 0049 und Modellpaket 1.11.0 sind erforderlich.
 
 ## E-21 — Produktname Codena (25.11.2026)
 
-Der Arbeitstitel Doctus ist abgelöst; das Produkt heißt **Codena** (Kunstwort aus „Code“ und lateinisch *catena*,
-die Kette). Das Logo zeigt zwei ineinandergreifende Kettenglieder (`frontend/components/Logo.tsx`), Schriftzug
-„codena“ in Manrope ExtraBold. Das übrige Design (Farben, Schriften, Markenverlauf) bleibt unverändert; die Marke
-nimmt Vordergrund- und Akzentfarbe aus den Theme-Tokens.
+Das Produkt heißt **Codena** (Kunstwort aus „Code“ und lateinisch *catena*, die Kette: Aufrufketten,
+Herkunftsketten von Daten und die Kette von der Antwort bis zur Originalzeile). Das Logo zeigt zwei ineinandergreifende
+Kettenglieder (`frontend/components/Logo.tsx`), Schriftzug „codena“ in Manrope ExtraBold. Farben, Schriften und
+Markenverlauf der Oberfläche bleiben; die Marke nimmt Vordergrund- und Akzentfarbe aus den Theme-Tokens.
 
-Umgestellt sind alle sichtbaren Texte (Oberfläche, Chat- und Onboarding-Prompts, MCP-Hinweise, IDE-Erweiterung), die
-laufende Doku und die technischen Bezeichner (Modellpaket `codena_models`, Compose-Projekt, Container und Images
-`codena-*`, `CODENA_*`, Cookies, Browser-Speicher, Deployer-Labels). Bestehende Installationen gehen ohne Datenverlust
-über: alte Namen werden während einer Übergangszeit weiter gelesen. Bewusst beim alten Namen bleiben Signatur-Salts
-(sonst wären alle Sitzungen ungültig), Alembic-Revisionen, das Modellvolume `doctus_llm_models` und bestehende
-Datenbanknamen. Plan, Update-Schritte und Ende der Übergangszeit: `docs/UMBENENNUNG_CODENA.md`. Historische Belege
-(Pitch-Unterlagen, Eval- und Benchmark-Ergebnisse, Namensvorschläge) bleiben unter dem alten Namen.
+Der Name gilt durchgängig: sichtbare Texte, Doku, Modellpaket `codena_models`, Compose-Projekt, Container und Images
+`codena-*`, Umgebungsvariablen `CODENA_*`, Cookies, Browser-Speicher, Token-Präfixe (`codena_mcp_`, `codena_ci_`),
+Deployer-Labels und IDE-Erweiterung. Es gibt keine Rückfälle auf frühere Bezeichner; es existierte keine
+Produktivumgebung, deren Sitzungen, Tokens oder Einstellungen zu erhalten gewesen wären.

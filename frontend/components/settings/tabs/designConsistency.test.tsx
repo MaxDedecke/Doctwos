@@ -50,7 +50,7 @@ function expectSharedDesign(container: HTMLElement, theme: 'dark' | 'light') {
 describe.each(['dark', 'light'] as const)('shared tab design (%s)', (theme) => {
   const setup = () => {
     settingsValue = createSettingsContextValue({ theme, currentUser: { id: 1, username: 'admin', is_admin: true }, llmProfiles: [{ id: '1', name: 'Lokal', kind: 'local', provider: 'ollama', protocol: 'ollama', model: 'qwen3:32b', isSystem: true }, { id: '2', name: 'On-Prem', kind: 'remote', provider: 'openai', protocol: 'openai_chat', model: 'qwen', baseUrl: 'https://llm.local/v1' }], activeProfileId: '1' });
-    apiMocks.getMcpTokens.mockResolvedValue(axiosResponse([{ id: 1, name: 'Meine IDE', prefix: 'dct_mcp_ab', created_at: '2026-09-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', revoked_at: null }]));
+    apiMocks.getMcpTokens.mockResolvedValue(axiosResponse([{ id: 1, name: 'Meine IDE', prefix: 'codena_mcp_ab', created_at: '2026-09-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', revoked_at: null }]));
     apiMocks.getMcpToolAuditLogs.mockResolvedValue(axiosResponse({ entries: [], total: 0, offset: 0, limit: 20, retention_days: 30 }));
     apiMocks.getSystemConfig.mockResolvedValue(axiosResponse(config));
   };
