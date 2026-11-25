@@ -829,7 +829,7 @@ der Server selbst zerlegen (vLLM: `--tool-call-parser qwen3_coder`).
 
 **Offen.** Der MCP-Vorsprung gegenüber reinem Dateizugriff liegt bei Java bei 11 statt der geforderten
 15 Prozentpunkte. Der interne Web-Chat mit diesem Modell ist an Java noch nicht gemessen (`scripts/eval_chat.py`).
-Der Hinweis in der Oberfläche beim 8B-Modell sowie die Nennung in README und Handbuch stehen aus
+Der Hinweis in der Oberfläche beim 8B-Modell sowie die Nennung im README stehen aus (Handbuch seit 25.11.2026)
 (`docs/ARBEITSLEITLINIE.md`, Tag 4).
 
 ## E-19 — Transaktionsgrenzen des Imports und sichtbarer Indexstand statt atomarer Umschaltung
