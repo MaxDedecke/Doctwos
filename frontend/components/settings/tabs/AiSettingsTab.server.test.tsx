@@ -58,7 +58,7 @@ describe('AiSettingsTab server profiles', () => {
     fireEvent.change(screen.getByLabelText('settings.profilesTab.baseUrlLabel'), { target: { value: 'https://gpu.local/v1' } });
     fireEvent.click(screen.getByText('settings.profilesTab.saveProfile'));
     await waitFor(() => expect(apiMocks.createAiProfile).toHaveBeenCalledWith(expect.objectContaining({ kind: 'remote', protocol: 'openai_chat', llm_api_key: 'secret' })));
-    expect(localStorage.getItem('doctus-llm-profiles')).toBeNull();
+    expect(localStorage.getItem('codena-llm-profiles')).toBeNull();
   });
 
   it('stores context length and parallel requests per profile', async () => {

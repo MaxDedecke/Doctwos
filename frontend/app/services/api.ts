@@ -13,7 +13,7 @@ import type { WebDocumentData } from '@/lib/webDocumentHtml';
 
 declare global {
     interface Window {
-        __DOCTUS_API_URL__?: string;
+        __CODENA_API_URL__?: string;
     }
 }
 
@@ -21,7 +21,7 @@ declare global {
 // Container-ENV gelesen) — nicht NEXT_PUBLIC_*, das waere build-time
 // in den JS-Bundle eingebacken und wuerde pro Kunde ein eigenes Image
 // erfordern.
-export const API_URL = (typeof window !== 'undefined' && window.__DOCTUS_API_URL__) || 'http://localhost:8000';
+export const API_URL = (typeof window !== 'undefined' && window.__CODENA_API_URL__) || 'http://localhost:8000';
 
 /**
  * Uses the same expired-session handling as Axios for endpoints that need a
@@ -32,7 +32,7 @@ async function fetchWithSessionHandling(input: RequestInfo | URL, init: RequestI
     // O-073: auch dieser Weg (SSE, Downloads) traegt die Trace-ID bei.
     rememberTraceIdFromHeaders(response.headers);
     if (response.status === 401 && typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('doctus:unauthorized'));
+        window.dispatchEvent(new CustomEvent('codena:unauthorized'));
     }
     return response;
 }
@@ -58,7 +58,7 @@ axios.interceptors.response.use(
     (error) => {
         rememberTraceIdFromHeaders(error?.response?.headers);
         if (error?.response?.status === 401 && typeof window !== 'undefined') {
-            window.dispatchEvent(new CustomEvent('doctus:unauthorized'));
+            window.dispatchEvent(new CustomEvent('codena:unauthorized'));
         }
         return Promise.reject(error);
     }

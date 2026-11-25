@@ -7,15 +7,15 @@ from pathlib import Path
 
 
 def configuration_fingerprint():
-    return hashlib.sha256(os.getenv("DOCTUS_ASCIIDOC_ATTRIBUTES", "{}").encode()).hexdigest()
+    return hashlib.sha256(os.getenv("CODENA_ASCIIDOC_ATTRIBUTES", "{}").encode()).hexdigest()
 
 
 def prepare_asciidoc_source(root, extensions, profiles):
-    attributes = json.loads(os.getenv("DOCTUS_ASCIIDOC_ATTRIBUTES", "{}"))
+    attributes = json.loads(os.getenv("CODENA_ASCIIDOC_ATTRIBUTES", "{}"))
     if not isinstance(attributes, dict) or not all(
         isinstance(k, str) and isinstance(v, (str, int, bool)) for k, v in attributes.items()
     ):
-        raise ValueError("DOCTUS_ASCIIDOC_ATTRIBUTES must be an object of scalar attributes")
+        raise ValueError("CODENA_ASCIIDOC_ATTRIBUTES must be an object of scalar attributes")
     return {
         "root": str(Path(root).resolve()),
         "attributes": {

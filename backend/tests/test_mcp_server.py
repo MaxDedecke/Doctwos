@@ -8,7 +8,7 @@ import pytest
 
 import mcp_server
 from services import answer_context, call_flow_page, code_symbols, entity_explanation
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     CodeEdge,
     DocumentChunk,
@@ -1835,7 +1835,7 @@ def test_ide_file_marks_known_system_targets_as_external(
     unauthenticated_client, db_session, mcp_project_context
 ):
     """O-325: ein COPY auf ein MQ-Systemcopybook ist `unresolved`, aber extern und keine Indexlücke."""
-    from doctus_models.database import CodeEdge
+    from codena_models.database import CodeEdge
 
     owner, _outsider, project_id, _foreign = mcp_project_context
     source = KnowledgeSource(
@@ -1897,7 +1897,7 @@ def test_data_access_summary_lists_the_dataset_assigned_through_a_jcl_dd(
     db_session, mcp_project_context
 ):
     """O-147: `ASSIGNED_DATASET` erscheint in der Datenzugriffsübersicht mit DD-Name und JCL-Fundstelle."""
-    from doctus_models.database import CodeEdge
+    from codena_models.database import CodeEdge
 
     _owner, _outsider, project_id, _foreign = mcp_project_context
     source = KnowledgeSource(
@@ -2165,7 +2165,7 @@ def test_answer_context_follows_a_data_field_back_to_its_origin(
 
 
 def test_language_profile_gives_cobol_java_and_jcl_the_same_roles():
-    from doctus_models.language_profile import CONTROL_EDGES, INCLUDE_EDGES, profile_of, role_of
+    from codena_models.language_profile import CONTROL_EDGES, INCLUDE_EDGES, profile_of, role_of
 
     assert [role_of(t) for t in ("program", "paragraph", "data_item")] == [
         "container",

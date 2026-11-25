@@ -22,7 +22,7 @@ from dataclasses import dataclass, field
 from typing import Any, AsyncIterator, Optional, Union
 
 import core.config as cfg
-from doctus_models.inference_admission import admitted_stream
+from codena_models.inference_admission import admitted_stream
 from core.inference_errors import ContextWindowExceeded, raise_for_stream_status
 from core.llm_providers import is_self_hosted_openai
 from services.think_filter import ThinkFilter, strip_thinking

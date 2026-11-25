@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from api import chat as chat_api
-from doctus_models.database import ChatLinkFeedbackSignal, ChatMessage, ChatSession, User
+from codena_models.database import ChatLinkFeedbackSignal, ChatMessage, ChatSession, User
 from services.agent_tool_results import tool_result_failed
 from services.chat_sessions import begin_turn, persist_assistant_message, serialize_messages
 from services.think_filter import ThinkFilter, strip_thinking

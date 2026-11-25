@@ -8,7 +8,7 @@ from java.modules import is_build_excluded
 from java.fingerprint import grammar_fingerprint
 from markup.parse import parse_xml_document
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS
-from doctus_models.database import CodeEdge, KnowledgeSource, Project, Team
+from codena_models.database import CodeEdge, KnowledgeSource, Project, Team
 from structure_persist import persist_parse_result
 from tasks.edge_resolver import resolve_global_edges
 
@@ -167,7 +167,7 @@ def test_generated_java_requires_explicit_opt_in_and_changes_fingerprint(monkeyp
     path = "client/target/generated-sources/wsimport/api/Orders.java"
     before = grammar_fingerprint()
     assert is_build_excluded(path, DEFAULT_LANGUAGE_EXTENSIONS)
-    monkeypatch.setenv("DOCTUS_INCLUDE_GENERATED_JAVA", "true")
+    monkeypatch.setenv("CODENA_INCLUDE_GENERATED_JAVA", "true")
     assert not is_build_excluded(path, DEFAULT_LANGUAGE_EXTENSIONS)
     assert is_build_excluded("client/target/classes/Orders.java", DEFAULT_LANGUAGE_EXTENSIONS)
     assert grammar_fingerprint() != before

@@ -7,7 +7,7 @@ Parameterzahl (Varargs berücksichtigt), (4) bei Receivern ist der im Quelltext 
 Vorfahre davon (nur wenn eine Deklaration auffindbar ist, sonst „nicht prüfbar“).
 
 Lauf im Backend-Container (liest Datenbank und Worktree):
-    docker exec -w /app doctus-backend python /app/audit_java_resolution_sample.py SOURCE_ID [--per-reason 60]
+    docker exec -w /app codena-backend python /app/audit_java_resolution_sample.py SOURCE_ID [--per-reason 60]
 """
 import argparse
 import json

@@ -12,9 +12,9 @@ import pytest
 from sqlalchemy import text
 
 from connectors.git import GitConnector
-from doctus_models.code_file_edges import file_edges_params, file_edges_query
+from codena_models.code_file_edges import file_edges_params, file_edges_query
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     Team,
     Project,
     KnowledgeSource,
@@ -44,7 +44,7 @@ def enterprise(tmp_path, monkeypatch):
     git(remote, "commit", "-m", "enterprise fixture")
     monkeypatch.setattr("connectors.git.REPOS_ROOT", str(tmp_path / "repos"))
     monkeypatch.setenv("PARSE_WORKERS", "0")
-    monkeypatch.setenv("DOCTUS_ASCIIDOC_ATTRIBUTES", '{"lang-de":""}')
+    monkeypatch.setenv("CODENA_ASCIIDOC_ATTRIBUTES", '{"lang-de":""}')
     db = SessionLocal()
     team = Team(name="enterprise-" + uuid.uuid4().hex)
     db.add(team)

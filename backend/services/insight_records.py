@@ -1,7 +1,7 @@
 """Detailed insight snapshots for explicit reads and writes."""
 
-from doctus_models.database import Insight, KnowledgeSource
-from doctus_models.insight_versions import capture_versions, version_state
+from codena_models.database import Insight, KnowledgeSource
+from codena_models.insight_versions import capture_versions, version_state
 
 
 def serialize_insight(insight: Insight, db=None) -> dict:

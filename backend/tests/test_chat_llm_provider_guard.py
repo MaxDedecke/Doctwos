@@ -1,7 +1,7 @@
 import json
 
 from core.config import cloud_llm_allowed as _cloud_llm_allowed
-from doctus_models.database import AIProfile
+from codena_models.database import AIProfile
 
 
 def _cloud_profile(db_session):

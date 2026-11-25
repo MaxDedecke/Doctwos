@@ -15,9 +15,14 @@ import urllib.request
 from urllib.parse import urlsplit
 
 TOOLS_ROOT = Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(TOOLS_ROOT / "packages" / "doctus-models"))
+sys.path.insert(0, str(TOOLS_ROOT / "packages" / "codena-models"))
 sys.path.insert(0, str(Path(__file__).resolve().parent / "lib"))
 from maven_ci_artifacts import collect, fit_payload, clear_previous_artifacts  # noqa: E402
+
+
+def setting(name, default=None):
+    """CODENA_<name>; Übergang doctus→codena: bestehende Pipelines setzen noch DOCTUS_<name>."""
+    return os.environ.get(f"CODENA_{name}") or os.environ.get(f"DOCTUS_{name}") or default
 
 
 def git(root, *args):
@@ -104,12 +109,12 @@ def run_maven(root, args):
     goals = [
         [
             "org.apache.maven.plugins:maven-help-plugin:3.5.2:effective-pom",
-            "-Doutput=target/doctus-ci/effective-pom.xml",
+            "-Doutput=target/codena-ci/effective-pom.xml",
         ],
         [
             "org.apache.maven.plugins:maven-dependency-plugin:3.11.0:tree",
             "-DoutputType=json",
-            "-DoutputFile=target/doctus-ci/dependencies.json",
+            "-DoutputFile=target/codena-ci/dependencies.json",
         ],
     ]
     for index, goal in enumerate(goals):
@@ -133,8 +138,8 @@ def publish(url, secret, payload):
         or parts.username
         or parts.password
     ):
-        raise ValueError("A credential-free HTTP Doctus URL is required")
-    context = ssl.create_default_context(cafile=os.environ.get("DOCTUS_CA_FILE"))
+        raise ValueError("A credential-free HTTP Codena URL is required")
+    context = ssl.create_default_context(cafile=setting("CA_FILE"))
     opener = urllib.request.build_opener(NoRedirect(), urllib.request.HTTPSHandler(context=context))
     data = json.dumps(payload).encode()
     for attempt in range(3):
@@ -146,7 +151,7 @@ def publish(url, secret, payload):
         try:
             with opener.open(request, timeout=30) as response:
                 result = json.loads(response.read(20000))
-            print("Doctus CI report stored, build ID", result["build"]["id"])
+            print("Codena CI report stored, build ID", result["build"]["id"])
             return
         except urllib.error.HTTPError as exc:
             if exc.code < 500 and exc.code != 429:
@@ -160,24 +165,24 @@ def publish(url, secret, payload):
                 except (ValueError, AttributeError):
                     pass
                 detail = detail.replace(secret, "[redacted]")[:400]
-                raise ValueError(f"Doctus rejected CI report (HTTP {exc.code}): {detail}") from None
+                raise ValueError(f"Codena rejected CI report (HTTP {exc.code}): {detail}") from None
         except urllib.error.URLError:
             pass
         if attempt < 2:
             time.sleep(2**attempt)
-    raise ValueError("Doctus CI upload failed after three attempts")
+    raise ValueError("Codena CI upload failed after three attempts")
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--workspace", default=".")
-    parser.add_argument("--url", default=os.getenv("DOCTUS_URL"))
-    parser.add_argument("--source-id", type=int, default=os.getenv("DOCTUS_SOURCE_ID"))
+    parser.add_argument("--url", default=setting("URL"))
+    parser.add_argument("--source-id", type=int, default=setting("SOURCE_ID"))
     parser.add_argument("--provider", choices=["github", "gitlab", "jenkins", "generic"])
     parser.add_argument("--run-id")
     parser.add_argument("--attempt", type=int)
     parser.add_argument("--job-name")
-    parser.add_argument("--variant", default=os.getenv("DOCTUS_CI_VARIANT", "default"))
+    parser.add_argument("--variant", default=setting("CI_VARIANT", "default"))
     parser.add_argument("--pipeline-url")
     parser.add_argument("--commit")
     parser.add_argument("--branch")
@@ -188,9 +193,9 @@ def main(argv=None):
     parser.add_argument("--publish-only", action="store_true")
     parser.add_argument("--status", choices=["success", "failed", "cancelled"])
     args = parser.parse_args(argv)
-    secret = os.environ.get("DOCTUS_CI_TOKEN")
+    secret = setting("CI_TOKEN")
     if not args.url or not args.source_id or not secret:
-        parser.error("DOCTUS_URL, DOCTUS_SOURCE_ID and DOCTUS_CI_TOKEN are required")
+        parser.error("CODENA_URL, CODENA_SOURCE_ID and CODENA_CI_TOKEN are required")
     root = Path(args.workspace).resolve()
     build_exit = 0
     try:
@@ -216,7 +221,7 @@ def main(argv=None):
         )
         publish(args.url, secret, fit_payload(payload))
     except (ValueError, OSError, subprocess.SubprocessError) as exc:
-        print("Doctus CI:", str(exc), file=sys.stderr)
+        print("Codena CI:", str(exc), file=sys.stderr)
         return build_exit or 1
     return build_exit
 

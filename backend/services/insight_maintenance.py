@@ -4,9 +4,9 @@ from datetime import datetime, timezone
 from fastapi import HTTPException
 from sqlalchemy import cast, func
 from sqlalchemy.dialects.postgresql import JSONB
-from doctus_models.database import Insight, InsightNotification, CodeEntity, DocumentChunk, CodeEdge
-from doctus_models.insight_evidence import snapshot_evidence, project_chunk_scope
-from doctus_models.insight_workflow import notify_insight, touched
+from codena_models.database import Insight, InsightNotification, CodeEntity, DocumentChunk, CodeEdge
+from codena_models.insight_evidence import snapshot_evidence, project_chunk_scope
+from codena_models.insight_workflow import notify_insight, touched
 from services.ci_builds import validate_insight_ci_evidence
 
 

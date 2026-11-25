@@ -544,7 +544,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                   range: range,
                   options: {
                     isWholeLine: true,
-                    className: 'doctus-line-flash'
+                    className: 'codena-line-flash'
                   }
                 }
               ]
@@ -803,19 +803,19 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           range: new monaco.Range(lineNum, 1, lineNum, 1),
           options: {
             isWholeLine: true,
-            className: 'doctus-selected-entity-line'
+            className: 'codena-selected-entity-line'
           }
         });
       }
 
       // Kein eigener Hover-Text: Die Randmarke der Zeile zeigt schon „Anpinnen“ (siehe unten); zwei
       // Texte würden als doppeltes Menü übereinanderliegen. Das Menü öffnet erst der Klick.
-      const glyph = { glyphMarginClassName: 'doctus-entity-glyph-margin' };
+      const glyph = { glyphMarginClassName: 'codena-entity-glyph-margin' };
       if (anchor) {
         newDecorations.push({
           range: new monaco.Range(anchor.line, anchor.startColumn, anchor.line, anchor.endColumn),
           options: {
-            inlineClassName: isSelected ? 'doctus-selected-entity' : 'doctus-clickable-entity',
+            inlineClassName: isSelected ? 'codena-selected-entity' : 'codena-clickable-entity',
             hoverMessage: {
               value: `**${ent.name}** (${getEntityTypeLabel(ent.type, language)})\n\n${t('splitPane.clickToSelectReferences')}`
             },
@@ -843,7 +843,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         newDecorations.push({
           range: new monaco.Range(anchor.line, anchor.startColumn, anchor.line, anchor.endColumn),
           options: {
-            inlineClassName: 'doctus-usage-reference',
+            inlineClassName: 'codena-usage-reference',
             hoverMessage: {
               value: `**${reference.target.name}** (${getEntityTypeLabel(reference.target.type, language)}) · ${getEdgeTypeLabel(reference.type, t)}\n\n${t('splitPane.clickToSelectReferences')}`
             },
@@ -890,7 +890,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
         decorations.push({
           range: new monaco.Range(lineNumber, keyword.startColumn, lineNumber, keyword.endColumn),
           options: {
-            inlineClassName: 'doctus-statement-keyword',
+            inlineClassName: 'codena-statement-keyword',
             hoverMessage: { value: t('splitPane.statementHover', { verb: keyword.verb }) },
           },
         });
@@ -1016,7 +1016,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
           {
             range: new monaco.Range(lineNumber, 1, lineNumber, 1),
             options: {
-              glyphMarginClassName: 'doctus-ask-glyph-margin',
+              glyphMarginClassName: 'codena-ask-glyph-margin',
               glyphMarginHoverMessage: { value: t('splitPane.pinGlyphHover') }
             }
           }

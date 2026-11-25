@@ -110,7 +110,7 @@ export function LocalDeploymentForm({ theme, role, capabilities, existing, deplo
     </label>
     {gpuMissing && <p role="alert" className="text-xs text-ds-amber-500">{t('settings.deployments.gpuRequired')}</p>}
     {role === 'embedding' && <p className={helpTextClass}>{t('settings.deployments.dimensionHint')}</p>}
-    <p className={cn(helpTextClass, 'font-mono')}>doctus-llm-{slug}</p>
+    <p className={cn(helpTextClass, 'font-mono')}>codena-llm-{slug}</p>
     <div className="flex justify-end gap-2">
       <Button variant="outline" onClick={onCancel} className={cn(secondaryButtonClass(theme), 'h-9 text-xs')}>{t('common.cancel')}</Button>
       <Button onClick={submit} disabled={!canSubmit} className={primaryButtonClass}>

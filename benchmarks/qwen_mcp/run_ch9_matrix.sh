@@ -25,7 +25,7 @@ fi
 run() {  # <Aufgabendatei> <Festlegung> <Ausgabekennung>
   docker run --rm --name "bench-ch9n-$TAG-$3" --network host --memory 1g --cpus 1 --env-file .env.local \
     -e OLLAMA_URL="$URL" -e BENCH_MODEL="$MODEL" -e BENCH_NUM_CTX="$CTX" \
-    -v "$PWD:/bench" -w /bench --entrypoint python doctus-backend-api:latest harness/run.py \
+    -v "$PWD:/bench" -w /bench --entrypoint python codena-backend-api:latest harness/run.py \
     --lock "$2" --tasks-file "$1" --reps "$REPS" --arms "$ARMS" ${RESUME:+--resume} --out "ch9n_${TAG}_$3" >> "$LOG" 2>&1
 }
 case " $STEPS " in *" team "*) run tasks_team.json manifest_ch9.json team;; esac

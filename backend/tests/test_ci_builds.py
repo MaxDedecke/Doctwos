@@ -5,7 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 import pytest
 from sqlalchemy import func
-from doctus_models.database import CIBuildRun, CIBuildToken, CodeEntity, KnowledgeSource, User
+from codena_models.database import CIBuildRun, CIBuildToken, CodeEntity, KnowledgeSource, User
 from core.db_setup import SessionLocal
 from services.ci_builds import CIBuildUpload, store_upload
 
@@ -205,10 +205,10 @@ if 'verify' in sys.argv:
  (p/'TEST-integration.xml').write_text('<testsuite><testcase name="integration"/></testsuite>')
  raise SystemExit(3)
 if any('effective-pom' in arg for arg in sys.argv):
- p=Path('target/doctus-ci'); p.mkdir(parents=True,exist_ok=True)
+ p=Path('target/codena-ci'); p.mkdir(parents=True,exist_ok=True)
  (p/'effective-pom.xml').write_text('<projects><project><groupId>demo</groupId><artifactId>reactor</artifactId><version>1</version><properties><password>DO_NOT_UPLOAD</password></properties></project></projects>')
 if any(':tree' in arg for arg in sys.argv):
- p=Path('app/target/doctus-ci'); p.mkdir(parents=True,exist_ok=True)
+ p=Path('app/target/codena-ci'); p.mkdir(parents=True,exist_ok=True)
  (p/'dependencies.json').write_text('{"artifactId":"app","children":[{"artifactId":"api","version":"2"}]}')
 """)
     executable.chmod(0o755)
@@ -248,9 +248,9 @@ if any(':tree' in arg for arg in sys.argv):
         script = Path(__file__).resolve().parents[2] / "scripts" / "publish_maven_ci.py"
         environment = {
             **os.environ,
-            "DOCTUS_URL": f"http://127.0.0.1:{server.server_port}",
-            "DOCTUS_SOURCE_ID": str(source.id),
-            "DOCTUS_CI_TOKEN": token["token"],
+            "CODENA_URL": f"http://127.0.0.1:{server.server_port}",
+            "CODENA_SOURCE_ID": str(source.id),
+            "CODENA_CI_TOKEN": token["token"],
         }
         for key in ("GITHUB_SHA", "GITHUB_HEAD_REF", "GITHUB_REF_NAME", "CI_COMMIT_SHA"):
             environment.pop(key, None)
@@ -295,7 +295,7 @@ def test_project_members_cannot_manage_ci_credentials(
 ):
     from uuid import uuid4
     from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-    from doctus_models.database import ProjectMembership, TeamMembership
+    from codena_models.database import ProjectMembership, TeamMembership
 
     source, _, token = ci_source
     member = User(

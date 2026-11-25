@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Misst den Produktschnitt (O-304) gegen eine laufende Doctus-Instanz.
+"""Misst den Produktschnitt (O-304) gegen eine laufende Codena-Instanz.
 
-    DOCTUS_USER=admin DOCTUS_PASSWORD=... python3 scripts/eval_product_slice.py [--url http://localhost:8000]
+    CODENA_USER=admin CODENA_PASSWORD=... python3 scripts/eval_product_slice.py [--url http://localhost:8000]
 
 Jedes Szenario aus `backend/tests/fixtures/eval_product_scenarios.json` ruft den REST-Endpunkt der jeweiligen
 Arbeitsansicht auf und vergleicht mit der Ground Truth. Exit-Code 1 bei Abweichung oder Überschreitung der
@@ -111,11 +111,11 @@ CHECKS = {"structure": check_structure, "process": check_process, "impact": chec
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default=os.environ.get("DOCTUS_URL", "http://localhost:8000"))
+    parser.add_argument("--url", default=os.environ.get("CODENA_URL", "http://localhost:8000"))
     args = parser.parse_args()
-    user, password = os.environ.get("DOCTUS_USER"), os.environ.get("DOCTUS_PASSWORD")
+    user, password = os.environ.get("CODENA_USER"), os.environ.get("CODENA_PASSWORD")
     if not user or not password:
-        sys.exit("DOCTUS_USER und DOCTUS_PASSWORD fehlen")
+        sys.exit("CODENA_USER und CODENA_PASSWORD fehlen")
     catalogue = json.loads(SCENARIOS.read_text(encoding="utf-8"))
     client = Client(args.url, user, password)
     projects = {item["name"]: item["id"] for item in client.get("/projects")[0].json()}

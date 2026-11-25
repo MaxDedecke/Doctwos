@@ -11,7 +11,7 @@ import worker
 from connectors import errors
 from connectors.gitlab_issues import GitLabIssuesConnector
 from db import SessionLocal
-from doctus_models.database import DocumentChunk, EmbeddingMigration, KnowledgeSource
+from codena_models.database import DocumentChunk, EmbeddingMigration, KnowledgeSource
 from tasks import embedding_migration as job
 
 

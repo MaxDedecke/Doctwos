@@ -1,6 +1,6 @@
 {
-  "name": "doctus-ide",
-  "publisher": "doctus",
+  "name": "codena-ide",
+  "publisher": "codena",
   "displayName": "Codena IDE",
   "description": "Codena graph links and indexed cross-language references",
   "version": "0.1.3",
@@ -10,21 +10,21 @@
   "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
-      { "command": "doctus.setToken", "title": "Codena: Set personal token" },
-      { "command": "doctus.openGraph", "title": "Codena: Open source line in graph" },
-      { "command": "doctus.openTarget", "title": "Codena: Open indexed target" }
+      { "command": "codena.setToken", "title": "Codena: Set personal token" },
+      { "command": "codena.openGraph", "title": "Codena: Open source line in graph" },
+      { "command": "codena.openTarget", "title": "Codena: Open indexed target" }
     ],
     "configuration": {
       "title": "Codena",
       "properties": {
-        "doctus.apiUrl": { "type": "string", "default": "http://localhost:8000", "description": "Codena backend URL" },
-        "doctus.webUrl": { "type": "string", "default": "http://localhost:3000", "description": "Codena browser URL" },
-        "doctus.projectId": { "type": "integer", "default": 0, "description": "Codena project ID for this workspace" },
-        "doctus.sourceId": { "type": "integer", "default": 0, "description": "Codena Git source ID for this workspace" },
-        "doctus.variantKey": { "type": "string", "default": "", "description": "Optional indexed build variant" },
-        "doctus.repositoryRoot": { "type": "string", "default": ".", "description": "Repository path relative to the VS Code workspace folder" }
+        "codena.apiUrl": { "type": "string", "default": "http://localhost:8000", "description": "Codena backend URL" },
+        "codena.webUrl": { "type": "string", "default": "http://localhost:3000", "description": "Codena browser URL" },
+        "codena.projectId": { "type": "integer", "default": 0, "description": "Codena project ID for this workspace" },
+        "codena.sourceId": { "type": "integer", "default": 0, "description": "Codena Git source ID for this workspace" },
+        "codena.variantKey": { "type": "string", "default": "", "description": "Optional indexed build variant" },
+        "codena.repositoryRoot": { "type": "string", "default": ".", "description": "Repository path relative to the VS Code workspace folder" }
       }
     },
-    "menus": { "editor/context": [{ "command": "doctus.openGraph", "group": "navigation" }] }
+    "menus": { "editor/context": [{ "command": "codena.openGraph", "group": "navigation" }] }
   }
 }

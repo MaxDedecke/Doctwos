@@ -8,10 +8,12 @@ Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
 Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
 die heutige Fachlogik und Architektur sind COBOL-zentriert.
 
-**Name:** Seit 25.11.2026 heißt das Produkt **Codena**; „Doctus“ war der Arbeitstitel. Technische Bezeichner
-(`doctus_models`, Container `doctus-*`, DB `doctus`, `DOCTUS_*`, MCP-Server `doctus`, `// Doctus:`-Marker u. a.)
-tragen vorerst noch den alten Namen und werden nicht nebenbei umbenannt (`docs/ENTSCHEIDUNGEN.md` E-21).
-In neuen Texten, Prompts und Oberflächen immer „Codena“ schreiben.
+**Name:** Seit 25.11.2026 heißt das Produkt **Codena**; „Doctus“ war der Arbeitstitel (E-21). Auch die technischen
+Bezeichner heißen `codena` (`codena_models`, Container `codena-*`, `CODENA_*`). Alte `doctus`-Namen werden während
+der Übergangszeit weiter gelesen (Umgebungsvariablen, Sitzungs-Cookie, Browser-Speicher, IDE-Einstellungen,
+Deployer-Container); diese Stellen tragen den Kommentar `Übergang doctus→codena`. Bewusst beim alten Namen bleiben
+Signatur-Salts, Alembic-Revisionen, das Modellvolume `doctus_llm_models` und bestehende Datenbanknamen
+(`docs/UMBENENNUNG_CODENA.md`). Neu immer „codena“ schreiben.
 
 **Vor jeder Arbeit lesen:** zuerst `docs/ARBEITSLEITLINIE.md` (zentrale
 Arbeitsleitlinie mit Wochenplan; der frühere Feature-Stopp ist seit 21.11.2026 aufgehoben und
@@ -56,7 +58,7 @@ die Prüfung zuverlässig; wo der Agent selbst suchen muss, schwankt sie.
 Regeln dafür:
 
 1. **Sprachunabhängig bauen.** Beweispaket-Bausteine (Einbindungen, Kontrollfluss, Datenherkunft, ...) lesen nur
-   Rollen aus dem `LanguageProfile` (`packages/doctus-models/doctus_models/language_profile.py`), nie `COPY`, `PERFORM`, `data_item` oder
+   Rollen aus dem `LanguageProfile` (`packages/codena-models/codena_models/language_profile.py`), nie `COPY`, `PERFORM`, `data_item` oder
    `IMPORTS` direkt. COBOL und Java müssen mit demselben Baustein funktionieren; weitere Sprachen kommen durch einen
    Profil-Eintrag dazu, nicht durch neuen Servercode.
 2. **Fehlt dem Server eine Angabe, wird der Parser erweitert** (Entscheidung E-15), nicht im Server geraten oder mit
@@ -79,16 +81,16 @@ Regeln dafür:
 - **DB:** PostgreSQL + pgvector (HNSW, bge-m3 = 1024 Dimensionen)
 - **Queue:** Redis/Valkey
 - **LLM:** Ollama (`qwen3:8b` als Standard, nur Untergrenze/Demo), Embeddings `bge-m3`
-- **Datenmodell:** ein gemeinsames Paket `packages/doctus-models` (Import `doctus_models`,
-  ORM in `doctus_models/database.py`, Spaltentypen in `crypto_types.py`). Backend- und
+- **Datenmodell:** ein gemeinsames Paket `packages/codena-models` (Import `codena_models`,
+  ORM in `codena_models/database.py`, Spaltentypen in `crypto_types.py`). Backend- und
   Parser-Image installieren es über den zweiten Build-Kontext `models`
-  (`additional_contexts` in `docker-compose.yml`); lokal/CI `pip install packages/doctus-models`.
+  (`additional_contexts` in `docker-compose.yml`); lokal/CI `pip install packages/codena-models`.
   Modelländerung = Alembic-Migration in `backend/alembic/` + Versionsnummer in
-  `doctus_models/__init__.py` erhöhen + Backend **und** Parser neu bauen.
+  `codena_models/__init__.py` erhöhen + Backend **und** Parser neu bauen.
 
 ## Umgebung
 
-- DB: `postgresql://admin:password@db:5432/doctus`
+- DB: `postgresql://admin:password@db:5432/<POSTGRES_DB>` (neue Installationen `codena`, bestehende behalten `doctus`)
 - Redis: `redis://redis:6379/0`, Ollama: `http://ollama:11434`
 - Frontend: `http://localhost:3000`, Backend: `http://localhost:8000`
 - Erststart legt einen Superuser an (`BOOTSTRAP_SUPERUSER`, Passwort aus
@@ -112,11 +114,11 @@ Regeln dafür:
   Ablauf-View beheben, Testschalter in der Abhängigkeiten-View.
 - **Expliziter Auftrag 06.11.2026:** Link-Manager – Analyse-Arbeitsfläche (bildschirmbreiter Dialog): Menge A gegen
   Menge B aus Filtern (Typ je Sprache, Repository, Wissensquelle) und einzeln gesuchten Objekten, auch leer beginnend;
-  erweiterbar für weitere Sprachen und Quelltypen (`doctus_models/link_sets.py`, `docs/LINK_MANAGER_LAYOUT.md`).
+  erweiterbar für weitere Sprachen und Quelltypen (`codena_models/link_sets.py`, `docs/LINK_MANAGER_LAYOUT.md`).
 
 - **Expliziter Auftrag 06.11.2026 (Dialekte):** COBOL-Parser Dialekt für Dialekt erweitern, zuerst Standard-Konstrukte,
   die auch IBM-Bestände betreffen (verschachtelte Programme, `EXIT PERFORM [CYCLE]/PARAGRAPH/SECTION`), danach
-  GnuCOBOL/Micro Focus (Stand: `docs/MAINFRAME_KOMPATIBILITAET.md`). Grammatikänderungen in `parser/cobol/grammar/Cobol85.g4` sind mit `// Doctus:` markiert;
+  GnuCOBOL/Micro Focus (Stand: `docs/MAINFRAME_KOMPATIBILITAET.md`). Grammatikänderungen in `parser/cobol/grammar/Cobol85.g4` sind mit `// Codena:` markiert;
   Neuerzeugung mit ANTLR 4.13.2 nur zur Entwicklungszeit (`parser/cobol/grammar/README.md`, E-11).
 
 - **Expliziter Auftrag 06.11.2026 (Benutzerinfo):** Klick auf den Nutzer in der Sidebar öffnet einen kleinen Dialog mit

@@ -1,4 +1,4 @@
-from doctus_models.database import Team
+from codena_models.database import Team
 
 
 def test_admin_teams_operations(client, db_session):

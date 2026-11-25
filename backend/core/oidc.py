@@ -37,12 +37,12 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.users import create_oidc_user, get_by_oidc_subject
-from doctus_models.database import Team, TeamMembership, User
+from codena_models.database import Team, TeamMembership, User
 
 
 logger = logging.getLogger(__name__)
 
-OIDC_STATE_COOKIE_NAME = "doctus_oidc_state"
+OIDC_STATE_COOKIE_NAME = "codena_oidc_state"
 # Reicht für einen Login-Vorgang beim IdP (Redirect, Login-Formular, Redirect
 # zurück) — deutlich kürzer als die 14-Tage-Session-Cookie, absichtlich.
 OIDC_STATE_MAX_AGE_SECONDS = 600
@@ -278,7 +278,7 @@ def extract_idp_roles_and_groups(claims: dict) -> set[str]:
 
 
 def get_oidc_user_role(idp_items: set[str]) -> str:
-    """Ermittelt die Doctus-Rolle ('superuser' oder 'user') anhand von OIDC_ADMIN_ROLES."""
+    """Ermittelt die Codena-Rolle ('superuser' oder 'user') anhand von OIDC_ADMIN_ROLES."""
     if not cfg.OIDC_ADMIN_ROLES:
         return "user"
     admin_roles = {r.strip() for r in cfg.OIDC_ADMIN_ROLES.split(",") if r.strip()}
@@ -288,7 +288,7 @@ def get_oidc_user_role(idp_items: set[str]) -> str:
 
 
 def get_oidc_target_teams(idp_items: set[str]) -> set[str]:
-    """Ermittelt die Namen der Doctus-Teams anhand OIDC_DEFAULT_TEAM und OIDC_TEAM_MAPPING."""
+    """Ermittelt die Namen der Codena-Teams anhand OIDC_DEFAULT_TEAM und OIDC_TEAM_MAPPING."""
     target_teams: set[str] = set()
 
     if cfg.OIDC_DEFAULT_TEAM:

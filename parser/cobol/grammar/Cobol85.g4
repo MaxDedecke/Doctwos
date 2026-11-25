@@ -1190,7 +1190,7 @@ dataDescriptionEntryFormat1
     )* DOT_FS
     ;
 
-// Doctus (GnuCOBOL/Micro Focus, COBOL 2002/2014): PIC X ANY LENGTH (LINKAGE) and BASED storage.
+// Codena (GnuCOBOL/Micro Focus, COBOL 2002/2014): PIC X ANY LENGTH (LINKAGE) and BASED storage.
 dataAnyLengthClause
     : ANY LENGTH
     ;
@@ -1242,7 +1242,7 @@ dataJustifiedClause
     : (JUSTIFIED | JUST) RIGHT?
     ;
 
-// Doctus: OCCURS UNBOUNDED / OCCURS n TO UNBOUNDED (COBOL 2014, GnuCOBOL), OCCURS constant-name TIMES (level 78).
+// Codena: OCCURS UNBOUNDED / OCCURS n TO UNBOUNDED (COBOL 2014, GnuCOBOL), OCCURS constant-name TIMES (level 78).
 dataOccursClause
     : OCCURS (integerLiteral dataOccursTo? | UNBOUNDED | cobolWord dataOccursTo?) TIMES? (DEPENDING ON? qualifiedDataName)? dataOccursSort* (
         INDEXED BY? LOCAL? indexName+
@@ -1356,13 +1356,13 @@ dataUsageClause
         | PROCEDURE_POINTER
         | REAL
         | TASK
-        // Doctus: GnuCOBOL/Micro Focus/COBOL 2002 usages without PICTURE.
+        // Codena: GnuCOBOL/Micro Focus/COBOL 2002 usages without PICTURE.
         | (BINARY_CHAR | BINARY_SHORT | BINARY_LONG | BINARY_DOUBLE | BINARY_LONG_LONG | BINARY_C_LONG) (SIGNED | UNSIGNED)?
         | FLOAT_SHORT
         | FLOAT_LONG
         | FLOAT_EXTENDED
         | PROGRAM_POINTER
-        // Doctus: Micro Focus COMP-X/COMP-N.
+        // Codena: Micro Focus COMP-X/COMP-N.
         | COMP_X
         | COMPUTATIONAL_X
         | COMP_N
@@ -1385,7 +1385,7 @@ dataValueInterval
 dataValueIntervalFrom
     : literal
     | cobolWord
-    // Doctus: VALUE LENGTH OF item (GnuCOBOL constant expression).
+    // Codena: VALUE LENGTH OF item (GnuCOBOL constant expression).
     | LENGTH OF? identifier
     ;
 
@@ -1722,7 +1722,7 @@ computeStore
     : identifier roundedPhrase?
     ;
 
-// Doctus: ROUNDED MODE IS AWAY-FROM-ZERO|NEAREST-EVEN|TOWARD-LESSER|... (COBOL 2014).
+// Codena: ROUNDED MODE IS AWAY-FROM-ZERO|NEAREST-EVEN|TOWARD-LESSER|... (COBOL 2014).
 roundedPhrase
     : ROUNDED (MODE IS? cobolWord)?
     ;
@@ -1848,7 +1848,7 @@ evaluateCondition
     | NOT? evaluateValue evaluateThrough?
     | condition
     | booleanLiteral
-    // Doctus: partial relation "WHEN < 90", also combined "WHEN = A OR = B" (GnuCOBOL, Micro Focus).
+    // Codena: partial relation "WHEN < 90", also combined "WHEN = A OR = B" (GnuCOBOL, Micro Focus).
     | relationalOperator arithmeticExpression ((OR | AND) relationalOperator? arithmeticExpression)*
     ;
 
@@ -1901,12 +1901,12 @@ exhibitOperand
 
 // exit statement
 
-// Doctus: EXIT PERFORM [CYCLE], EXIT PARAGRAPH and EXIT SECTION (COBOL 2002, IBM Enterprise COBOL, GnuCOBOL, Micro Focus).
+// Codena: EXIT PERFORM [CYCLE], EXIT PARAGRAPH and EXIT SECTION (COBOL 2002, IBM Enterprise COBOL, GnuCOBOL, Micro Focus).
 exitStatement
     : EXIT (PROGRAM | PERFORM CYCLE? | PARAGRAPH | SECTION)?
     ;
 
-// Doctus: ALLOCATE/FREE (COBOL 2002, GnuCOBOL, Micro Focus, IBM Enterprise COBOL 6.4).
+// Codena: ALLOCATE/FREE (COBOL 2002, GnuCOBOL, Micro Focus, IBM Enterprise COBOL 6.4).
 allocateStatement
     : ALLOCATE (arithmeticExpression CHARACTERS | identifier) INITIALIZED? (RETURNING identifier)?
     ;
@@ -1923,7 +1923,7 @@ generateStatement
 
 // goback statement
 
-// Doctus: GOBACK RETURNING|GIVING x (GnuCOBOL, Micro Focus).
+// Codena: GOBACK RETURNING|GIVING x (GnuCOBOL, Micro Focus).
 gobackStatement
     : GOBACK ((RETURNING | GIVING) (identifier | integerLiteral))?
     ;
@@ -2194,7 +2194,7 @@ performType
     : performTimes
     | performUntil
     | performVarying
-    // Doctus: PERFORM FOREVER (Micro Focus, GnuCOBOL).
+    // Codena: PERFORM FOREVER (Micro Focus, GnuCOBOL).
     | FOREVER
     ;
 
@@ -2202,7 +2202,7 @@ performTimes
     : (identifier | integerLiteral) TIMES
     ;
 
-// Doctus: PERFORM UNTIL EXIT is an endless loop (GnuCOBOL, Micro Focus).
+// Codena: PERFORM UNTIL EXIT is an endless loop (GnuCOBOL, Micro Focus).
 performUntil
     : performTestClause? UNTIL (EXIT | condition)
     ;
@@ -2429,7 +2429,7 @@ setByValue
 
 // sort statement
 
-// Doctus: SORT table without KEY phrase (COBOL 2002 table sort, GnuCOBOL, Micro Focus).
+// Codena: SORT table without KEY phrase (COBOL 2002 table sort, GnuCOBOL, Micro Focus).
 sortStatement
     : SORT fileName sortOnKeyClause* sortDuplicatesPhrase? sortCollatingSequencePhrase? sortInputProcedurePhrase? sortUsing* sortOutputProcedurePhrase
         ? sortGivingPhrase*
@@ -2504,7 +2504,7 @@ startKey
 
 // stop statement
 
-// Doctus: STOP RUN RETURNING|GIVING x und STOP RUN WITH ERROR STATUS [x] (GnuCOBOL, Micro Focus).
+// Codena: STOP RUN RETURNING|GIVING x und STOP RUN WITH ERROR STATUS [x] (GnuCOBOL, Micro Focus).
 stopStatement
     : STOP (RUN stopRunStatus? | literal)
     ;
@@ -2520,7 +2520,7 @@ stringStatement
     : STRING stringSendingPhrase+ stringIntoPhrase stringWithPointerPhrase? onOverflowPhrase? notOnOverflowPhrase? END_STRING?
     ;
 
-// Doctus: DELIMITED BY is optional since COBOL 2014 (GnuCOBOL, Micro Focus).
+// Codena: DELIMITED BY is optional since COBOL 2014 (GnuCOBOL, Micro Focus).
 stringSendingPhrase
     : stringSending+ (stringDelimitedByPhrase | stringForPhrase)?
     ;
@@ -2765,7 +2765,7 @@ multDivs
     : powers multDiv*
     ;
 
-// Doctus: bitwise operators B-AND, B-OR, B-XOR, B-SHIFT-L/R/LC/RC (GnuCOBOL, Micro Focus).
+// Codena: bitwise operators B-AND, B-OR, B-XOR, B-SHIFT-L/R/LC/RC (GnuCOBOL, Micro Focus).
 multDiv
     : (ASTERISKCHAR | SLASHCHAR | B_AND | B_OR | B_XOR | B_SHIFT_L | B_SHIFT_R | B_SHIFT_LC | B_SHIFT_RC) powers
     ;
@@ -2813,7 +2813,7 @@ classCondition
         | ALPHABETIC_UPPER
         | DBCS
         | KANJI
-        // Doctus: IS [NOT] OMITTED (COBOL 2002, GnuCOBOL, Micro Focus).
+        // Codena: IS [NOT] OMITTED (COBOL 2002, GnuCOBOL, Micro Focus).
         | OMITTED
         | className
     )
@@ -2908,7 +2908,7 @@ subscript_
 
 argument
     : literal
-    // Doctus: FUNCTION TRIM(x, LEADING|TRAILING) (COBOL 2002, GnuCOBOL, Micro Focus).
+    // Codena: FUNCTION TRIM(x, LEADING|TRAILING) (COBOL 2002, GnuCOBOL, Micro Focus).
     | LEADING
     | TRAILING
     | identifier
@@ -3246,7 +3246,7 @@ booleanLiteral
 
 numericLiteral
     : NUMERICLITERAL
-    // Doctus: hexadecimal numeric literal H'FF' (GnuCOBOL, Micro Focus).
+    // Codena: hexadecimal numeric literal H'FF' (GnuCOBOL, Micro Focus).
     | HEXNUMERICLITERAL
     | ZERO
     | integerLiteral
@@ -5544,7 +5544,7 @@ NONNUMERICLITERAL
     | NULLTERMINATED
     ;
 
-// Doctus: lower-case hex digits (X"0a00") are valid in GnuCOBOL and Micro Focus.
+// Codena: lower-case hex digits (X"0a00") are valid in GnuCOBOL and Micro Focus.
 fragment HEXNUMBER
     : X '"' [0-9A-Fa-f]+ '"'
     | X '\'' [0-9A-Fa-f]+ '\''
@@ -5587,7 +5587,7 @@ NUMERICLITERAL
     )?
     ;
 
-// Doctus: keywords of the GnuCOBOL/Micro Focus wave (before IDENTIFIER: equal-length matches take the first rule).
+// Codena: keywords of the GnuCOBOL/Micro Focus wave (before IDENTIFIER: equal-length matches take the first rule).
 // They are reserved there and deliberately not part of cobolWord: dataValueClause may omit VALUE, so a
 // cobolWord after a data name would be read as its value (01 X BASED.).
 ALLOCATE

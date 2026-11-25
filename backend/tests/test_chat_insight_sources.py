@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 
 import pytest
 
-from doctus_models.database import ChatMessage, ChatSession, Insight, User
+from codena_models.database import ChatMessage, ChatSession, Insight, User
 
 
 @pytest.mark.parametrize("agent", [False, True])

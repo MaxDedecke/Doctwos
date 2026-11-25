@@ -16,7 +16,7 @@ from sqlalchemy import Integer, Numeric, and_, cast, func, literal, select
 from sqlalchemy.orm import Session
 
 from core.scan_report import summarize_edges, summarize_scan_reasons
-from doctus_models.database import DocumentChunk, SourceScanFile
+from codena_models.database import DocumentChunk, SourceScanFile
 
 MAX_PAGE = 500
 

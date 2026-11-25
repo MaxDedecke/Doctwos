@@ -8,7 +8,7 @@ from typing import Annotated, Literal
 from pydantic import Field
 
 from api.change_packages import get_change_package
-from doctus_models.database import User
+from codena_models.database import User
 from services.code_symbols import _project
 from services.project_evidence import project_evidence
 from services.agent_tool_results import _compact_change_package_for_agent

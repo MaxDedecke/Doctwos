@@ -3,7 +3,7 @@
 import pytest
 
 import api.knowledge_sources as ks_api
-from doctus_models.database import KnowledgeSource, Project
+from codena_models.database import KnowledgeSource, Project
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ def test_a_folder_source_reads_only_below_the_watched_root(
 def test_a_git_file_is_shown_with_the_encoding_it_was_imported_with(
     client, make_source, tmp_path, monkeypatch, db_session
 ):
-    from doctus_models.database import SourceScanFile
+    from codena_models.database import SourceScanFile
 
     monkeypatch.setattr(ks_api, "REPOS_ROOT", str(tmp_path))
     source = make_source("Git", {})

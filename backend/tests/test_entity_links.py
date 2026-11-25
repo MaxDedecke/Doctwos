@@ -24,7 +24,7 @@ import api.entity_links as entity_links_api
 import services.link_run_start as link_run_start
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
 from tests.conftest import make_fake_llm_json
-from doctus_models.database import (
+from codena_models.database import (
     AIProfile,
     CodeEntity,
     DocumentChunk,

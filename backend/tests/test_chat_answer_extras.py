@@ -4,7 +4,7 @@ import uuid
 
 import pytest
 
-from doctus_models.database import ChatMessage, ChatSession, User
+from codena_models.database import ChatMessage, ChatSession, User
 from services import chat_followups
 from services.chat_feedback import set_message_feedback
 from services.chat_followups import follow_up_suggestions, parse_suggestions

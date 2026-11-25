@@ -2,8 +2,9 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Space_Grotesk, IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
+import { LEGACY_BROWSER_STORAGE_SCRIPT } from "@/lib/legacyBrowserStorage";
 
-// Doctus brand type system (from the Doctus Design blueprint mock): Archivo
+// Codena brand type system (from the Codena Design blueprint mock): Archivo
 // for body/UI text, Space Grotesk for headings, IBM Plex Mono for
 // labels/badges/code — exposed as CSS vars and wired into Tailwind's
 // font-sans/font-heading/font-mono in tailwind.config.js.
@@ -53,18 +54,19 @@ export default async function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: LEGACY_BROWSER_STORAGE_SCRIPT }} />
         <script
           dangerouslySetInnerHTML={{
             // Runs before hydration so the `.dark` class (which now gates the
             // shadcn CSS vars in globals.css) is set before first paint —
             // otherwise the page flashes the light "drafting paper" palette
             // before app/page.tsx's theme useEffect corrects it.
-            __html: `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)doctus-theme=(light|dark)(?:;|$)/);var t=m?m[1]:localStorage.getItem('doctus-theme');document.documentElement.classList.toggle('dark',t!=='light');}catch(e){document.documentElement.classList.add('dark');}})();`,
+            __html: `(function(){try{var m=document.cookie.match(/(?:^|;\\s*)codena-theme=(light|dark)(?:;|$)/);var t=m?m[1]:localStorage.getItem('codena-theme');document.documentElement.classList.toggle('dark',t!=='light');}catch(e){document.documentElement.classList.add('dark');}})();`,
           }}
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__DOCTUS_API_URL__ = ${JSON.stringify(process.env.API_URL || "http://localhost:8000")}; window.__DOCTUS_FEATURES__ = ${JSON.stringify(features)};`,
+            __html: `window.__CODENA_API_URL__ = ${JSON.stringify(process.env.API_URL || "http://localhost:8000")}; window.__CODENA_FEATURES__ = ${JSON.stringify(features)};`,
           }}
         />
         <script

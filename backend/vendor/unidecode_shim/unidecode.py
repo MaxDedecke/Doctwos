@@ -3,7 +3,7 @@
 
 Why this file exists (docs/ENTSCHEIDUNGEN.md E-7): `mcp-atlassian` declares a
 hard dependency on PyPI's `Unidecode` package, which is GPL-2.0-or-later —
-that violates CLAUDE.md's "nur MIT/BSD/Apache-2.0" rule for Doctus. The only
+that violates CLAUDE.md's "nur MIT/BSD/Apache-2.0" rule for Codena. The only
 place `mcp-atlassian` actually calls it is
 `mcp_atlassian/jira/users.py::normalize_text()`, which ASCII-transliterates a
 name/email before a casefolded equality check, purely to fuzzy-match Jira

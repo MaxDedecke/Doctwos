@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session, defer
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
-from doctus_models.database import (
+from codena_models.database import (
     Insight,
     InsightNotification,
     CodeEntity,
@@ -17,9 +17,9 @@ from doctus_models.database import (
     CIBuildRun,
     Project,
 )
-from doctus_models.insight_versions import version_state
-from doctus_models.insight_evidence import project_chunk_scope
-from doctus_models.insight_workflow import notify_insight, touched
+from codena_models.insight_versions import version_state
+from codena_models.insight_evidence import project_chunk_scope
+from codena_models.insight_workflow import notify_insight, touched
 from services.insight_queue import (
     worklist_query,
     order_worklist,

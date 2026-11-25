@@ -15,19 +15,19 @@ gpl_packages="git"
 seen=" "
 
 {
-    echo "THIRD-PARTY NOTICES — Doctus"
+    echo "THIRD-PARTY NOTICES — Codena"
     echo "============================"
     echo
-    echo "Die Doctus-Images enthalten neben Doctus-Code und Python-/Node-Bibliotheken"
+    echo "Die Codena-Images enthalten neben Codena-Code und Python-/Node-Bibliotheken"
     echo "(Lizenzuebersicht: OSS-CLEARING.md) Debian-Systempakete. Die folgenden stehen"
-    echo "unter der GNU General Public License. Doctus ruft sie nur als eigene Prozesse"
+    echo "unter der GNU General Public License. Codena ruft sie nur als eigene Prozesse"
     echo "auf; sie sind weder gelinkt noch veraendert."
     echo
     echo "ANGEBOT ZUR QUELLCODE-ABGABE (GPL-2.0 §3)"
     echo "-----------------------------------------"
     echo "Den vollstaendigen Quellcode der unten genannten Pakete in genau der"
     echo "ausgelieferten Version erhalten Sie fuer mindestens drei Jahre ab Auslieferung"
-    echo "auf Anfrage bei Ihrem Doctus-Ansprechpartner. Er ist ausserdem oeffentlich bei"
+    echo "auf Anfrage bei Ihrem Codena-Ansprechpartner. Er ist ausserdem oeffentlich bei"
     echo "Debian verfuegbar: 'apt-get source <paket>=<version>' bzw."
     echo "https://snapshot.debian.org/ und https://sources.debian.org/."
     echo

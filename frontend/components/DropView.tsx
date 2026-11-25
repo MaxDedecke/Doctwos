@@ -44,7 +44,7 @@ function edgeColor(type: string): string {
   return 'accent-base';
 }
 
-const ORIENTATION_STORAGE_KEY = 'doctus-drop-orientation';
+const ORIENTATION_STORAGE_KEY = 'codena-drop-orientation';
 
 function storedOrientation(): DropOrientation {
   try {

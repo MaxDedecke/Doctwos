@@ -142,7 +142,7 @@ interface Props {
 // `projectEntities`. Every current caller happens to always pass it, so this was
 // latent until testing without every prop first exercised it (O-053 test work).
 const EMPTY_PROJECT_ENTITIES: CodeEntity[] = [];
-const AUTO_EXPAND_STORAGE_KEY = 'doctus-graph-auto-expand';
+const AUTO_EXPAND_STORAGE_KEY = 'codena-graph-auto-expand';
 
 type GroupBeingLoaded = { nodeId: string; label: string };
 

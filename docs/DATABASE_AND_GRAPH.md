@@ -1,7 +1,7 @@
 # Datenbank & Graph-Bildung
 
 Zwei Fragen in einem Dokument, weil sie zusammenhängen: was in PostgreSQL
-liegt (`packages/doctus-models/doctus_models/database.py`, ein gemeinsames Paket für Backend und
+liegt (`packages/codena-models/codena_models/database.py`, ein gemeinsames Paket für Backend und
 Parser, siehe CLAUDE.md), und wie aus diesen Zeilen zur Laufzeit **drei
 verschiedene** Graphen entstehen, die unterschiedlichen Zwecken dienen.
 
@@ -233,7 +233,7 @@ Nachbarn mit in den LLM-Kontext bekommt. Dazu gehören bei COBOL `COPY`-Ziele un
 Beziehungen sonst verpassen, wenn der Nachbartext nicht zufällig semantisch
 nah am Suchtext liegt.
 
-Quelle: `packages/doctus-models/doctus_models/database.py`, `backend/api/graph.py`,
+Quelle: `packages/codena-models/codena_models/database.py`, `backend/api/graph.py`,
 `backend/api/callgraph.py`, `backend/services/graph_retrieval.py`,
 `backend/core/projects.py`, `parser/tasks/edge_resolver.py`,
 `parser/tasks/link_builder.py`, `parser/tasks/cross_link_builder.py`,

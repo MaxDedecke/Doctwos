@@ -1,14 +1,14 @@
-name: Maven results for Doctus
+name: Maven results for Codena (alter Pfad maven-doctus, Übergang – bitte maven-codena verwenden)
 description: Run clean verify and publish commit-bound Maven and JUnit evidence.
 inputs:
   url:
-    description: Doctus API base URL reachable from this runner
+    description: Codena API base URL reachable from this runner
     required: true
   source-id:
-    description: Configured Doctus Git source ID
+    description: Configured Codena Git source ID
     required: true
   token:
-    description: Source-scoped Doctus CI token
+    description: Source-scoped Codena CI token
     required: true
   profiles:
     description: Comma-separated Maven profiles
@@ -24,10 +24,10 @@ runs:
   steps:
     - shell: bash
       env:
-        DOCTUS_URL: ${{ inputs.url }}
-        DOCTUS_SOURCE_ID: ${{ inputs.source-id }}
-        DOCTUS_CI_TOKEN: ${{ inputs.token }}
+        CODENA_URL: ${{ inputs.url }}
+        CODENA_SOURCE_ID: ${{ inputs.source-id }}
+        CODENA_CI_TOKEN: ${{ inputs.token }}
         MAVEN_PROFILES: ${{ inputs.profiles }}
-        DOCTUS_CI_VARIANT: ${{ inputs.variant }}
+        CODENA_CI_VARIANT: ${{ inputs.variant }}
         JAVA_VERSION: ${{ inputs.java-version }}
       run: python3 "${{ github.action_path }}/../../../scripts/publish_maven_ci.py"

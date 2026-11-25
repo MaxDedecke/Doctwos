@@ -22,9 +22,9 @@ services:
     build:
       context: ./parser
       additional_contexts:
-        models: ./packages/doctus-models
+        models: ./packages/codena-models
       target: dev
-    image: doctus-parser-test:dev
+    image: codena-parser-test:dev
     command: ["python", "-m", "pytest", "tests/", "-q"]
     depends_on:
       db:

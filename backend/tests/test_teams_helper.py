@@ -1,7 +1,7 @@
 import pytest
 
 from core.teams import get_visible_team_ids, is_admin
-from doctus_models.database import Team, TeamMembership, User
+from codena_models.database import Team, TeamMembership, User
 
 
 @pytest.fixture

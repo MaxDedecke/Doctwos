@@ -37,7 +37,7 @@ describe('WebDocumentView', () => {
     expect(screen.queryByText('2026-01-02T10:00:00Z')).toBeNull();
   });
 
-  it('opens known entries in Doctus and leaves the rest as links', () => {
+  it('opens known entries in Codena and leaves the rest as links', () => {
     const onOpenKnown = show();
     fireEvent.click(screen.getByRole('button', { name: 'Bekannt' }));
     expect(onOpenKnown).toHaveBeenCalledWith('https://w/1', 3);
@@ -78,11 +78,11 @@ describe('WebDocumentView', () => {
     const onOpenKnown = show();
     const frame = screen.getByTitle('Fehler <b>x</b>') as HTMLIFrameElement;
     const message = (source: unknown, data: unknown) => window.dispatchEvent(new MessageEvent('message', { source: source as MessageEventSource, data }));
-    message(window, { type: 'doctus-web-link', url: 'https://x', sourceId: '1' });
+    message(window, { type: 'codena-web-link', url: 'https://x', sourceId: '1' });
     message(frame.contentWindow, { type: 'other', url: 'https://x', sourceId: '1' });
-    message(frame.contentWindow, { type: 'doctus-web-link', url: 'https://x', sourceId: 'evil' });
+    message(frame.contentWindow, { type: 'codena-web-link', url: 'https://x', sourceId: 'evil' });
     expect(onOpenKnown).not.toHaveBeenCalled();
-    message(frame.contentWindow, { type: 'doctus-web-link', url: 'https://x', sourceId: '4' });
+    message(frame.contentWindow, { type: 'codena-web-link', url: 'https://x', sourceId: '4' });
     expect(onOpenKnown).toHaveBeenCalledWith('https://x', 4);
   });
 });

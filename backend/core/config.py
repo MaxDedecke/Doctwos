@@ -1,7 +1,7 @@
 """
 backend/core/config.py
 =======================
-Zentrale Konfiguration für den Doctus-Backend-Service.
+Zentrale Konfiguration für den Codena-Backend-Service.
 
 Alle Umgebungsvariablen und geteilten Konstanten sind hier definiert.
 Router-Module importieren von hier statt aus main.py oder aus den Funktionen
@@ -176,7 +176,7 @@ REPOS_ROOT: str = "/repos"
 UPLOADS_DIR: str = "/repos/uploads"
 
 # ── Auth (lokal) ──────────────────────────────────────────────────────────────
-# Doctus authentifiziert lokal gegen die eigene users-Tabelle (F-001): kein IdP,
+# Codena authentifiziert lokal gegen die eigene users-Tabelle (F-001): kein IdP,
 # kein Netzzugang, keine Fremdkomponente im Betriebshandbuch. Die Session-Schicht
 # darunter (signierte HTTP-only-Cookie) ist unverändert die aus dem Template.
 

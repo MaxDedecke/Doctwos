@@ -298,7 +298,7 @@ Entpacken, Konfigurieren, Installation, Prüfung, Diagnose und Wiederanlauf.
 Keine Entwicklungsdatenbank, echten Zugangsdaten oder echte `.env` mitliefern.
 
 Größenreferenz, keine aktuelle Freigabe: Das vorhandene Bundle
-`dist/doctus-offline-bundle-t54-20260916` umfasst ungefähr 4,9 GiB (3,9 GiB Images,
+`dist/codena-offline-bundle-t54-20260916` umfasst ungefähr 4,9 GiB (3,9 GiB Images,
 1 GiB Modelle). Es enthält nicht alle aktuellen Remote-Dateien. Ein zusätzliches
 Chat-Modell erhöht die Größe. ZIP ist hier primär Transportverpackung, da die
 enthaltenen Archive bereits komprimiert sind.
@@ -319,7 +319,7 @@ geschützt sind: [Docker: Packet filtering and firewalls](https://docs.docker.co
 - [ ] Versionswechsel bei vorhandener `.env` explizit behandeln.
 - [ ] Stabile Datenpfade, Backup und Wiederherstellung dokumentieren und testen.
 
-Befund: Der Installer erhält eine bestehende `.env` einschließlich `DOCTUS_VERSION`.
+Befund: Der Installer erhält eine bestehende `.env` einschließlich `CODENA_VERSION`.
 Dadurch können trotz neu geladener Images weiterhin die alten Tags gestartet werden.
 
 Abnahme: Ein Update startet nachweislich die vorgesehene Version, erhält Daten und

@@ -23,10 +23,10 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.llm_providers import is_self_hosted_openai
-from doctus_models.inference_admission import admitted_post
+from codena_models.inference_admission import admitted_post
 from core.inference_errors import raise_for_inference_status
-from doctus_models.database import DocumentChunk, KnowledgeSource
-from doctus_models.vector_index import indexed_type as vector_indexed_type
+from codena_models.database import DocumentChunk, KnowledgeSource
+from codena_models.vector_index import indexed_type as vector_indexed_type
 
 logger = logging.getLogger(__name__)
 

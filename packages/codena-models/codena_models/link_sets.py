@@ -19,7 +19,7 @@ from typing import Any, Callable
 
 from sqlalchemy import and_, false, or_, select, tuple_
 
-from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource
+from codena_models.database import CodeEntity, DocumentChunk, KnowledgeSource
 
 CODE = "code"
 DOCS = "docs"

@@ -40,7 +40,7 @@ diesen lokalen Pfad referenziert, installiert pip unser Shim und lädt das
 echte `Unidecode` von PyPI nie herunter — `mcp-atlassian` selbst bleibt
 unverändert und normal upgradebar, kein Fork/Patch nötig.
 
-Die Versionsnummer (`1.3.8+doctus.mit.shim`) erfüllt `>=1.3.0` und trägt
+Die Versionsnummer (`1.3.8+codena.mit.shim`) erfüllt `>=1.3.0` und trägt
 gleichzeitig ein PEP-440-Lokalversions-Suffix, damit `pip list`/`pip show`
 sofort zeigen, dass das nicht das Original ist.
 

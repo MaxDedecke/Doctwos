@@ -51,15 +51,15 @@ show_bootstrap_credentials "$startup_since"
 # Einstellungen > KI an (LLM-Profile und Embedding-Profile).
 # Wer den alten festen Ollama-Dienst weiter nutzen will: LEGACY_OLLAMA_SERVICE=true in .env,
 # `docker compose --profile local-ollama up -d` und die Modelle selbst ziehen, z. B.
-#   docker exec doctus-ollama ollama pull bge-m3
-if docker ps --format '{{.Names}}' | grep -qx doctus-ollama; then
+#   docker exec codena-ollama ollama pull bge-m3
+if docker ps --format '{{.Names}}' | grep -qx codena-ollama; then
     llm_model=$(grep -E "^LLM_MODEL=" "$repo_root/.env" | cut -d= -f2-)
     if [ -n "$llm_model" ] && [ "$llm_model" != "disabled" ]; then
         echo "Pulling optional Ollama LLM (${llm_model})..."
-        docker exec doctus-ollama ollama pull "$llm_model"
+        docker exec codena-ollama ollama pull "$llm_model"
     fi
     echo "Pulling Ollama embedding model (bge-m3)..."
-    docker exec doctus-ollama ollama pull bge-m3
+    docker exec codena-ollama ollama pull bge-m3
 elif [ "$deployer_enabled" = 1 ]; then
     echo "No LLM container in the default stack — create a local deployment under Settings > AI."
 else

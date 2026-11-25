@@ -19,7 +19,7 @@ interface Props {
   document: WebDocumentData;
   theme: string;
   anchor?: string | null;
-  /** Öffnet einen Eintrag, den der Index kennt, in Doctus statt im fremden System. */
+  /** Öffnet einen Eintrag, den der Index kennt, in Codena statt im fremden System. */
   onOpenKnown: (url: string, sourceId: number) => void;
   onOpenCode: (path: string, line: number | null | undefined, sourceId: number | null | undefined) => void;
 }

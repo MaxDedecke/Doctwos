@@ -29,10 +29,10 @@ describe('useAiSettings', () => {
   });
 
   it('migrates the legacy model settings and restores the active profile parameters', async () => {
-    localStorage.setItem('doctus-llm-provider', 'openai');
-    localStorage.setItem('doctus-llm-model', 'gpt-4o');
-    localStorage.setItem('doctus-llm-api-key', 'secret');
-    localStorage.setItem('doctus-llm-base-url', 'https://example.test');
+    localStorage.setItem('codena-llm-provider', 'openai');
+    localStorage.setItem('codena-llm-model', 'gpt-4o');
+    localStorage.setItem('codena-llm-api-key', 'secret');
+    localStorage.setItem('codena-llm-base-url', 'https://example.test');
 
     const { result } = renderHook(() => useAiSettings({ isLoggedIn: false, t: translate }));
 
@@ -44,16 +44,16 @@ describe('useAiSettings', () => {
       apiKeySet: true,
       baseUrl: 'https://example.test',
     });
-    expect(localStorage.getItem('doctus-llm-api-key')).toBeNull();
-    expect(localStorage.getItem('doctus-active-profile-id')).toBe('ollama-default');
+    expect(localStorage.getItem('codena-llm-api-key')).toBeNull();
+    expect(localStorage.getItem('codena-active-profile-id')).toBe('ollama-default');
   });
 
   it('loads models only for an authenticated session and synchronizes profile parameters on switch', async () => {
-    localStorage.setItem('doctus-llm-profiles', JSON.stringify([
+    localStorage.setItem('codena-llm-profiles', JSON.stringify([
       { id: 'one', name: 'One', provider: 'ollama', model: 'one', temperature: 0.2, systemPrompt: 'one prompt' },
       { id: 'two', name: 'Two', provider: 'ollama', model: 'two', temperature: 0.9, systemPrompt: 'two prompt' },
     ]));
-    localStorage.setItem('doctus-active-profile-id', 'one');
+    localStorage.setItem('codena-active-profile-id', 'one');
     // Server nicht erreichbar: die im Browser gemerkten Profile bleiben erhalten.
     mockedApi.getAiProfiles.mockRejectedValue(new Error('offline') as never);
 
@@ -69,17 +69,17 @@ describe('useAiSettings', () => {
     expect(result.current.activeProfileId).toBe('two');
     expect(result.current.temperature).toBe(0.9);
     expect(result.current.systemPrompt).toBe('two prompt');
-    expect(localStorage.getItem('doctus-active-profile-id')).toBe('two');
+    expect(localStorage.getItem('codena-active-profile-id')).toBe('two');
     expect(mockedApi.getModelInfo).toHaveBeenCalledTimes(1);
     expect(mockedApi.getModels).toHaveBeenCalledTimes(1);
   });
 
   it('leaves the temperature to the server when the profile does not set one', async () => {
-    localStorage.setItem('doctus-llm-profiles', JSON.stringify([
+    localStorage.setItem('codena-llm-profiles', JSON.stringify([
       { id: 'tuned', name: 'Tuned', provider: 'ollama', model: 'one', temperature: 0.9 },
       { id: 'plain', name: 'Plain', provider: 'ollama', model: 'two' },
     ]));
-    localStorage.setItem('doctus-active-profile-id', 'tuned');
+    localStorage.setItem('codena-active-profile-id', 'tuned');
     mockedApi.getAiProfiles.mockRejectedValue(new Error('offline') as never);
 
     const { result } = renderHook(() => useAiSettings({ isLoggedIn: false, t: translate }));
@@ -91,14 +91,14 @@ describe('useAiSettings', () => {
   });
 
   it('shows no profile when the server has none (stack without an LLM container) and drops browser defaults', async () => {
-    localStorage.setItem('doctus-active-profile-id', 'ollama-default');
+    localStorage.setItem('codena-active-profile-id', 'ollama-default');
     mockedApi.getEmbeddingProfiles.mockResolvedValue({ data: { active_embedding_profile_id: null, profiles: [] } } as never);
 
     const { result } = renderHook(() => useAiSettings({ isLoggedIn: true, t: translate }));
 
     await waitFor(() => expect(result.current.llmProfiles).toEqual([]));
     expect(result.current.activeProfileId).toBe('');
-    expect(localStorage.getItem('doctus-active-profile-id')).toBeNull();
+    expect(localStorage.getItem('codena-active-profile-id')).toBeNull();
     expect(result.current.embeddingProfiles).toEqual([]);
   });
 });

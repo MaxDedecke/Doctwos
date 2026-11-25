@@ -20,10 +20,10 @@ gezielt und ausschließlich über diesen Präfix wieder gelöscht werden können
 Läuft NICHT vom Host aus (DATABASE_URL zeigt auf den Hostnamen "db", nur im
 Docker-Netz auflösbar, siehe docs/TODO.md). Aufruf:
 
-    docker cp scripts/loadtest_ingest_synthetic_corpus.py doctus-parser:/app/
-    docker cp loadtest/synthetic-corpus doctus-parser:/tmp/synthetic-corpus
-    docker exec doctus-parser python /app/loadtest_ingest_synthetic_corpus.py /tmp/synthetic-corpus
-    docker exec doctus-parser python /app/loadtest_ingest_synthetic_corpus.py --cleanup
+    docker cp scripts/loadtest_ingest_synthetic_corpus.py codena-parser:/app/
+    docker cp loadtest/synthetic-corpus codena-parser:/tmp/synthetic-corpus
+    docker exec codena-parser python /app/loadtest_ingest_synthetic_corpus.py /tmp/synthetic-corpus
+    docker exec codena-parser python /app/loadtest_ingest_synthetic_corpus.py --cleanup
 """
 
 import argparse
@@ -39,7 +39,7 @@ from cobol.parse import parse_program, parse_copybook  # noqa: E402
 from structure_persist import persist_parse_result  # noqa: E402
 from tasks.edge_resolver import resolve_global_edges  # noqa: E402
 from db import SessionLocal  # noqa: E402
-from doctus_models.database import CodeEntity, CodeEdge  # noqa: E402
+from codena_models.database import CodeEntity, CodeEdge  # noqa: E402
 from ollama_client import get_embeddings_batch  # noqa: E402
 
 

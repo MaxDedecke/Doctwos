@@ -1,4 +1,4 @@
-"""Größenbegrenzung der Logdateien unter /var/log/doctus (``data/logs`` auf dem Host).
+"""Größenbegrenzung der Logdateien unter /var/log/codena (``data/logs`` auf dem Host).
 
 Backend, Worker und Beat schreiben dort zusätzlich zu stdout, damit das Diagnosepaket ohne Docker-Socket an die Logs
 kommt. Docker begrenzt nur seine eigenen Logs; diese Dateien wuchsen bisher unbegrenzt. Mehrere Prozesse schreiben im
@@ -15,7 +15,7 @@ import shutil
 
 logger = logging.getLogger(__name__)
 
-LOGS_ROOT = "/var/log/doctus"
+LOGS_ROOT = "/var/log/codena"
 
 
 def trim_logs(root: str = LOGS_ROOT) -> list[str]:

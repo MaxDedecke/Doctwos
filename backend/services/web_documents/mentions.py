@@ -14,8 +14,8 @@ from html import unescape
 
 from sqlalchemy.orm import Session
 
-from doctus_models.database import CodeEntity, User
-from doctus_models.language_profile import role_of
+from codena_models.database import CodeEntity, User
+from codena_models.language_profile import role_of
 from services.call_flow import TEST_PATH_PATTERN
 from services.source_access import source_visible
 from services.web_documents.base import CodeRef

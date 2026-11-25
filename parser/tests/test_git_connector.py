@@ -13,7 +13,7 @@ from core.analysis_fingerprint import analysis_fingerprint
 from core import config
 from core.registry import ParserEntry, STRUCTURE_PARSERS
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     KnowledgeSource,
@@ -85,8 +85,8 @@ def test_resolve_extension_config_prefers_new_key_over_old():
 
 
 def test_common_programming_languages_are_detected_by_default(monkeypatch):
-    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
-    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_COBOL_EXTENSIONS", raising=False)
     defaults = _resolve_extension_config({})
 
     assert classify_extension("src/App.java", defaults) == "java"
@@ -102,8 +102,8 @@ def test_common_programming_languages_are_detected_by_default(monkeypatch):
 
 
 def test_extensionless_shell_script_is_detected_from_bounded_shebang(monkeypatch):
-    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
-    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_COBOL_EXTENSIONS", raising=False)
     defaults = _resolve_extension_config({})
 
     assert classify_extension("bin/start", defaults, "#!/usr/bin/env bash\nset -eu\n") == "shell"
@@ -111,16 +111,16 @@ def test_extensionless_shell_script_is_detected_from_bounded_shebang(monkeypatch
 
 
 def test_custom_language_extension_can_be_added_worker_wide(monkeypatch):
-    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
-    monkeypatch.setenv("DOCTUS_LANGUAGE_EXTENSIONS", '{"python": [".python-source"]}')
+    monkeypatch.delenv("CODENA_COBOL_EXTENSIONS", raising=False)
+    monkeypatch.setenv("CODENA_LANGUAGE_EXTENSIONS", '{"python": [".python-source"]}')
     cfg = _resolve_extension_config({})
 
     assert classify_extension("src/tool.python-source", cfg) == "python"
 
 
 def test_java_build_directory_excludes_are_scoped_to_java_sources(monkeypatch):
-    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
-    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_COBOL_EXTENSIONS", raising=False)
     opted_in = _resolve_extension_config({"language_extensions": {"java": [".java"]}})
 
     assert _is_java_build_excluded("module/target/generated/App.java", opted_in)
@@ -130,8 +130,8 @@ def test_java_build_directory_excludes_are_scoped_to_java_sources(monkeypatch):
 
 
 def test_java_packages_named_like_build_directories_stay_source(monkeypatch):
-    monkeypatch.delenv("DOCTUS_LANGUAGE_EXTENSIONS", raising=False)
-    monkeypatch.delenv("DOCTUS_COBOL_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_LANGUAGE_EXTENSIONS", raising=False)
+    monkeypatch.delenv("CODENA_COBOL_EXTENSIONS", raising=False)
     extensions = _resolve_extension_config({"language_extensions": {"java": [".java"]}})
     for path in (
         "core/camel-xml-io/src/main/java/org/apache/camel/xml/out/BaseWriter.java",
@@ -221,8 +221,8 @@ def test_resolve_document_profile_reads_literal_delimiter():
 
 def _init_remote(path: str) -> None:
     subprocess.run(["git", "init", "--initial-branch=main", path], check=True, capture_output=True)
-    subprocess.run(["git", "-C", path, "config", "user.email", "test@doctus.local"], check=True)
-    subprocess.run(["git", "-C", path, "config", "user.name", "Doctus Test"], check=True)
+    subprocess.run(["git", "-C", path, "config", "user.email", "test@codena.local"], check=True)
+    subprocess.run(["git", "-C", path, "config", "user.name", "Codena Test"], check=True)
 
 
 def _commit_file(repo: str, rel_path: str, content: str, message: str) -> None:
@@ -253,7 +253,7 @@ def git_remote(tmp_path):
     path = str(tmp_path / "remote.git")
     _init_remote(path)
     _commit_file(path, "PROG.CBL", "IDENTIFICATION DIVISION.\nPROGRAM-ID. PROG.\n", "init")
-    _commit_file(path, "README.md", "# Doctus Test Repo\n", "readme")
+    _commit_file(path, "README.md", "# Codena Test Repo\n", "readme")
     return path
 
 

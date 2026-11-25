@@ -11,11 +11,11 @@ RUN apt-get update && apt-get install -y \
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir --user -r requirements.txt
-# Gemeinsames Datenmodell (packages/doctus-models) kommt als zweiter Build-Kontext
+# Gemeinsames Datenmodell (packages/codena-models) kommt als zweiter Build-Kontext
 # `models` (docker-compose.yml: additional_contexts) und wird wie jede andere
 # Abhängigkeit nach /root/.local installiert.
-COPY --from=models . /tmp/doctus-models
-RUN pip install --no-cache-dir --user /tmp/doctus-models
+COPY --from=models . /tmp/codena-models
+RUN pip install --no-cache-dir --user /tmp/codena-models
 
 # Development-only test image. The source tree and tests are mounted by the
 # parser-test service in docker-compose.dev.yml; production keeps using the

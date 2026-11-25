@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 import core.config as cfg
 from core.db_setup import get_db
 from core.teams import require_admin
-from doctus_models.database import AIProfile, User
+from codena_models.database import AIProfile, User
 from services.ai_settings import get_settings, serialize_profile
 from services.profile_capabilities import probe_capabilities
 

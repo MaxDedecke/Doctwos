@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Prüft die versionierten Such-Erwartungen (O-277) gegen eine laufende Doctus-Instanz über MCP.
+"""Prüft die versionierten Such-Erwartungen (O-277) gegen eine laufende Codena-Instanz über MCP.
 
-    DOCTUS_MCP_TOKEN=dct_mcp_... python3 scripts/eval_search.py [--url http://localhost:8000/mcp]
+    CODENA_MCP_TOKEN=dct_mcp_... python3 scripts/eval_search.py [--url http://localhost:8000/mcp]
 
 Exit-Code 1, sobald eine Erwartung verfehlt wird. Ein Treffer zählt, wenn Qualified Name und Datei
 innerhalb der ersten `top` Ergebnisse stehen; Negativfälle müssen leer bleiben.
@@ -188,11 +188,11 @@ def evaluate_fact(client, project_id, fact):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default=os.environ.get("DOCTUS_MCP_URL", "http://localhost:8000/mcp"))
+    parser.add_argument("--url", default=os.environ.get("CODENA_MCP_URL", "http://localhost:8000/mcp"))
     args = parser.parse_args()
-    token = os.environ.get("DOCTUS_MCP_TOKEN")
+    token = os.environ.get("CODENA_MCP_TOKEN")
     if not token:
-        sys.exit("DOCTUS_MCP_TOKEN fehlt")
+        sys.exit("CODENA_MCP_TOKEN fehlt")
     catalogue = json.loads(CASES.read_text(encoding="utf-8"))
     client = Mcp(args.url, token)
     visible = client.call("list_visible_projects", {}).get("projects", [])

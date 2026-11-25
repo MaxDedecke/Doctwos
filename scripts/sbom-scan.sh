@@ -4,7 +4,7 @@
 # muss installiert werden; die Images muessen lokal vorhanden sein.
 #
 # Aufruf: sbom-scan.sh <ausgabeverzeichnis> [<image> ...]
-# Ohne Image-Angabe: die drei Doctus-Images, der Deployer und DB/Valkey aus
+# Ohne Image-Angabe: die drei Codena-Images, der Deployer und DB/Valkey aus
 # docker-compose.yml. Ergebnis je Image: <name>.cdx.json (CycloneDX-SBOM,
 # inkl. Lizenzen) und <name>.grype.json (Schwachstellen). Das Skript bricht
 # nicht bei Funden ab, es liefert Daten fuer die manuelle Bewertung.
@@ -15,10 +15,10 @@ mkdir -p "$out"
 out=$(cd "$out" && pwd)
 
 if [ "$#" -eq 0 ]; then
-    set -- "doctus-backend-api:${DOCTUS_VERSION:-latest}" \
-           "doctus-parser-worker:${DOCTUS_VERSION:-latest}" \
-           "doctus-frontend:${DOCTUS_VERSION:-latest}" \
-           "doctus-deployer:${DOCTUS_VERSION:-latest}" \
+    set -- "codena-backend-api:${CODENA_VERSION:-latest}" \
+           "codena-parser-worker:${CODENA_VERSION:-latest}" \
+           "codena-frontend:${CODENA_VERSION:-latest}" \
+           "codena-deployer:${CODENA_VERSION:-latest}" \
            "$(docker compose config --images db)" \
            "$(docker compose config --images redis)"
 fi

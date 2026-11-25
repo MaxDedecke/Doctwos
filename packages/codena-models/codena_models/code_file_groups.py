@@ -26,8 +26,8 @@ from typing import Iterable, Optional
 from sqlalchemy import insert, text
 from sqlalchemy.orm import Session
 
-from doctus_models.code_file_edges import file_edges_params, file_edges_query
-from doctus_models.database import (
+from codena_models.code_file_edges import file_edges_params, file_edges_query
+from codena_models.database import (
     CodeEntity,
     CodeFileGroup,
     CodeFileGroupMember,

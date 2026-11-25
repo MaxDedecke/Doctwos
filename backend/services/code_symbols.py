@@ -15,7 +15,7 @@ from core.projects import (
     get_visible_project_ids,
 )
 from core.teams import get_visible_team_ids
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     Project,
     User,

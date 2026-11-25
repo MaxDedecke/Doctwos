@@ -1,7 +1,7 @@
 """
 parser/core/config.py
 =====================
-Zentrale Konfiguration für den Doctus-Parser-Worker.
+Zentrale Konfiguration für den Codena-Parser-Worker.
 
 Alle Konstanten, die in mehreren Modulen gebraucht werden, sind hier definiert.
 Neue Module importieren von hier statt Werte zu duplizieren — so reicht eine
@@ -41,7 +41,7 @@ COMPLIANCE_LLM_TIMEOUT: float = float(os.getenv("COMPLIANCE_LLM_TIMEOUT") or "18
 
 # ── Datenbank & Queue ─────────────────────────────────────────────────────────
 
-DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/doctus")
+DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/codena")
 REDIS_URL: str = os.getenv("REDIS_URL", "redis://redis:6379/0")
 
 # Pfad innerhalb des Containers, in den Repositories geklont werden

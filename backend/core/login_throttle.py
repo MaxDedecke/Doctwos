@@ -34,8 +34,8 @@ MAX_LOCK_SECONDS = 3600
 # Nach dieser Ruhezeit ohne Fehlversuch verfällt der Redis-Zähler.
 FAILURE_WINDOW_SECONDS = 900
 
-_KEY_PREFIX = "doctus:login:fail"
-_LOCK_PREFIX = "doctus:login:lock"
+_KEY_PREFIX = "codena:login:fail"
+_LOCK_PREFIX = "codena:login:lock"
 
 _client: Optional[redis.Redis] = None
 _client_broken = False

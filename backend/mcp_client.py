@@ -119,7 +119,7 @@ class MCPClient:
                     {
                         "protocolVersion": "2024-11-05",
                         "capabilities": {},
-                        "clientInfo": {"name": "doctus-mcp-client", "version": "1.0.0"},
+                        "clientInfo": {"name": "codena-mcp-client", "version": "1.0.0"},
                     },
                 )
                 # "initialized" ist eine JSON-RPC Notification (kein "id"-Feld, keine Antwort) —

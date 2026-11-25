@@ -7,7 +7,7 @@ from connectors.textio import read_text_file
 from core import config
 from core.sync_lock import SyncLock
 from db import SessionLocal
-from doctus_models.database import KnowledgeSource, DocumentChunk
+from codena_models.database import KnowledgeSource, DocumentChunk
 from insight_review import mark_source_insights_outdated
 from code_parser import CodeParser
 from doc_structure import boundary_lines, markdown_outline, section_path

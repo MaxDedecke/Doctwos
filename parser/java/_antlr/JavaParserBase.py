@@ -1,4 +1,4 @@
-"""Doctus-owned Python support for semantic predicates in JavaParser.g4."""
+"""Codena-owned Python support for semantic predicates in JavaParser.g4."""
 
 from __future__ import annotations
 

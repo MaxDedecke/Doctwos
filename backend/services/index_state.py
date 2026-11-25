@@ -29,7 +29,7 @@ import redis
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 from services.source_health import HINTS, is_overdue
 
 logger = logging.getLogger(__name__)

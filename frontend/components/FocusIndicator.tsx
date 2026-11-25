@@ -66,7 +66,7 @@ export const FocusIndicator: React.FC<FocusIndicatorProps> = ({ selection, theme
     <div
       key={`${focus.path}:${focus.label}`}
       className={cn(
-        'doctus-focus-flash flex h-9 min-w-0 max-w-[24rem] items-center rounded-md border text-[0.6875rem]',
+        'codena-focus-flash flex h-9 min-w-0 max-w-[24rem] items-center rounded-md border text-[0.6875rem]',
         isDark ? 'border-ds-zinc-800 bg-ds-zinc-900' : 'border-ds-zinc-200 bg-ds-white',
       )}
     >

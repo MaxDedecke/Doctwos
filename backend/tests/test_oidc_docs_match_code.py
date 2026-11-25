@@ -6,7 +6,7 @@ Die Doku beschrieb einen Login, den es so nie gab: `OIDC_ISSUER_URL` statt
 gibt, der Wert wird aus `API_URL` abgeleitet), den Callback-Pfad
 `/auth/callback` statt `/auth/oidc/callback` und ein `ADMIN_EMAILS`, das im
 Backend nirgends vorkommt. Wer sich daran hielt, bekam vom IdP „Invalid
-parameter: redirect_uri" und von Doctus gar keine Fehlermeldung.
+parameter: redirect_uri" und von Codena gar keine Fehlermeldung.
 
 Solche Abweichungen fallen niemandem auf, solange niemand eine echte
 Installation gegen die Doku fährt. Deshalb hier festgenagelt: jeder in der
@@ -26,7 +26,7 @@ DOC_PATHS = [
     os.path.join(REPO_ROOT, "docs", "deployment-customer.md"),
     os.path.join(REPO_ROOT, ".env.example"),
 ]
-REALM_PATH = os.path.join(REPO_ROOT, ".github", "keycloak", "doctus-realm.json")
+REALM_PATH = os.path.join(REPO_ROOT, ".github", "keycloak", "codena-realm.json")
 
 # Die Namen, die core/config.py tatsaechlich aus der Umgebung liest.
 SUPPORTED_OIDC_VARS = {
@@ -90,12 +90,12 @@ def test_docs_do_not_promise_an_admin_email_variable():
 
 def test_test_realm_matches_the_derived_redirect_uri():
     """Der mitgelieferte Wegwerf-Keycloak muss zum Code passen, sonst
-    scheitert die dokumentierte Demo am IdP statt an Doctus."""
+    scheitert die dokumentierte Demo am IdP statt an Codena."""
     import json
 
     assert os.path.exists(REALM_PATH), "Die Doku verweist auf eine Realm-Datei, die es nicht gibt."
     realm = json.load(open(REALM_PATH, encoding="utf-8"))
-    client = next(c for c in realm["clients"] if c["clientId"] == "doctus-backend")
+    client = next(c for c in realm["clients"] if c["clientId"] == "codena-backend")
 
     assert client["redirectUris"], "Client ohne Redirect-URI kann keinen Login abschliessen."
     for uri in client["redirectUris"]:

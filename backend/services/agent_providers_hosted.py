@@ -13,7 +13,7 @@ from typing import Any, Optional
 
 import core.config as cfg
 from core.inference_errors import raise_for_inference_status, raise_for_stream_status
-from doctus_models.inference_admission import admitted_post, admitted_stream
+from codena_models.inference_admission import admitted_post, admitted_stream
 from services.agent_providers import (
     _NON_STRICT_TOOLS,
     ModelTurn,

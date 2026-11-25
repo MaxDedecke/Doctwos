@@ -4,11 +4,11 @@ const DEFAULT_THEME = 'dark';
 const DEFAULT_EDITOR_FONT_SIZE = 13;
 const DEFAULT_EDITOR_MINIMAP = true;
 const DEFAULT_EDITOR_FONT_FAMILY = "'JetBrains Mono', monospace";
-const THEME_COOKIE = 'doctus-theme';
+const THEME_COOKIE = 'codena-theme';
 const THEME_COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 
 function readThemeCookie(): string | null {
-  const match = document.cookie.match(/(?:^|;\s*)doctus-theme=(light|dark)(?:;|$)/);
+  const match = document.cookie.match(/(?:^|;\s*)codena-theme=(light|dark)(?:;|$)/);
   return match?.[1] ?? null;
 }
 
@@ -20,17 +20,17 @@ function readStoredTheme(): string | null {
 }
 
 function readEditorFontSize(): number {
-  const stored = Number(localStorage.getItem('doctus-editor-font-size'));
+  const stored = Number(localStorage.getItem('codena-editor-font-size'));
   return [12, 13, 14, 15, 16, 18].includes(stored) ? stored : DEFAULT_EDITOR_FONT_SIZE;
 }
 
 function readEditorMinimap(): boolean {
-  const stored = localStorage.getItem('doctus-editor-minimap');
+  const stored = localStorage.getItem('codena-editor-minimap');
   return stored === null ? DEFAULT_EDITOR_MINIMAP : stored === 'true';
 }
 
 function readEditorFontFamily(): string {
-  const stored = localStorage.getItem('doctus-editor-font-family');
+  const stored = localStorage.getItem('codena-editor-font-family');
   return stored === "'Fira Code', monospace" || stored === 'monospace'
     ? stored
     : DEFAULT_EDITOR_FONT_FAMILY;
@@ -63,22 +63,22 @@ export function useDisplaySettings() {
     document.cookie = `${THEME_COOKIE}=${nextTheme}; Path=/; Max-Age=${THEME_COOKIE_MAX_AGE}; SameSite=Lax`;
     // Keep the legacy key in sync so older open tabs and deployments migrate
     // without losing the user's preference.
-    localStorage.setItem('doctus-theme', nextTheme);
+    localStorage.setItem('codena-theme', nextTheme);
   }, []);
 
   const setEditorFontSize = useCallback((size: number) => {
     setEditorFontSizeState(size);
-    localStorage.setItem('doctus-editor-font-size', String(size));
+    localStorage.setItem('codena-editor-font-size', String(size));
   }, []);
 
   const setEditorMinimap = useCallback((show: boolean) => {
     setEditorMinimapState(show);
-    localStorage.setItem('doctus-editor-minimap', String(show));
+    localStorage.setItem('codena-editor-minimap', String(show));
   }, []);
 
   const setEditorFontFamily = useCallback((family: string) => {
     setEditorFontFamilyState(family);
-    localStorage.setItem('doctus-editor-font-family', family);
+    localStorage.setItem('codena-editor-font-family', family);
   }, []);
 
   return {

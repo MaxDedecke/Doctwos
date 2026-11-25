@@ -13,7 +13,7 @@ from sqlalchemy import text
 from unittest.mock import patch, AsyncMock
 
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     KnowledgeSource,
@@ -25,8 +25,8 @@ from connectors.git import GitConnector
 
 def _init_remote(path: str) -> None:
     subprocess.run(["git", "init", "--initial-branch=main", path], check=True, capture_output=True)
-    subprocess.run(["git", "-C", path, "config", "user.email", "test@doctus.local"], check=True)
-    subprocess.run(["git", "-C", path, "config", "user.name", "Doctus Test"], check=True)
+    subprocess.run(["git", "-C", path, "config", "user.email", "test@codena.local"], check=True)
+    subprocess.run(["git", "-C", path, "config", "user.name", "Codena Test"], check=True)
 
 
 def _commit_file(repo: str, rel_path: str, content: str, message: str) -> None:

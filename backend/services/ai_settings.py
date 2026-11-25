@@ -4,8 +4,8 @@ from dataclasses import dataclass
 from typing import Any
 
 import core.config as cfg
-from doctus_models.inference_admission import set_endpoint_limit
-from doctus_models.database import AIProfile, AISettings, EmbeddingProfile
+from codena_models.inference_admission import set_endpoint_limit
+from codena_models.database import AIProfile, AISettings, EmbeddingProfile
 from services.profile_capabilities import stored_capabilities
 from sqlalchemy.orm import Session
 

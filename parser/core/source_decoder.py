@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 
-from doctus_models.source_text import codec_name, decode_text, detect_ebcdic, is_ebcdic
+from codena_models.source_text import codec_name, decode_text, detect_ebcdic, is_ebcdic
 
 from core.model import ParseDiagnostic
 

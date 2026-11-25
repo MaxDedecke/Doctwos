@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from core.db_setup import get_db
 from core.projects import get_project_role
-from doctus_models.database import CIBuildToken, User
+from codena_models.database import CIBuildToken, User
 from services.ci_builds import repository_identity
 
 PREFIX = "dct_ci_"

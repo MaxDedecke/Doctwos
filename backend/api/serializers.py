@@ -9,7 +9,7 @@ Zentralisiert, damit alle Router dasselbe Format zurückgeben.
 
 from services import source_health
 from typing import Optional
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,

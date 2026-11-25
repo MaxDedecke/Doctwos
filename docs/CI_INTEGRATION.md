@@ -2,8 +2,8 @@
 
 Im Änderungspaket „CI-Anbindung verwalten“ öffnen. Ein Projekt-Admin wählt die
 Git-Quelle, gibt dem Zugang einen Namen und erstellt ein CI-Token.
-Das Token einmalig als Secret `DOCTUS_CI_TOKEN` in der Pipeline speichern.
-`DOCTUS_SOURCE_ID` und `DOCTUS_URL` als Pipelinevariablen setzen. Die URL zeigt
+Das Token einmalig als Secret `CODENA_CI_TOKEN` in der Pipeline speichern.
+`CODENA_SOURCE_ID` und `CODENA_URL` als Pipelinevariablen setzen. Die URL zeigt
 auf die erreichbare Backend-Basis einschließlich etwaigem API-Präfix.
 Token sind an Quelle, Repository, konfigurierten Branch und die Berechtigungen
 ihres Erstellers gebunden. Die Oberfläche stellt standardmäßig 90 Tage
@@ -13,7 +13,7 @@ Der CI-Runner benötigt Python 3.11+, Git und das Projekt-JDK. Er verwendet den
 vorhandenen Maven-Wrapper, andernfalls `mvn` aus dem PATH. Das Git-Checkout
 muss dem gemeldeten Commit entsprechen und für versionierte Dateien sauber sein.
 Die Codena-Instanz muss vom Runner aus erreichbar sein. Für Unternehmens-CAs
-kann `DOCTUS_CA_FILE` auf ein PEM-Bundle zeigen.
+kann `CODENA_CA_FILE` auf ein PEM-Bundle zeigen.
 
 ## GitHub Actions
 
@@ -34,7 +34,7 @@ selbst gehosteten GitHub-Runner im selben Netz.
 ## GitLab und andere CI-Systeme
 
 Der Offline-Bundle enthält `ci-runner/`. Diesen Ordner auf dem CI-Runner
-bereitstellen und `DOCTUS_CI_RUNNER` auf
+bereitstellen und `CODENA_CI_RUNNER` auf
 `ci-runner/scripts/publish_maven_ci.py` setzen. Alternativ dieselbe Datei
 aus einem vollständigen Codena-Checkout verwenden. Die beiden zugehörigen
 Python-Helfer werden relativ zum Tool-Verzeichnis geladen. Eine zusätzliche

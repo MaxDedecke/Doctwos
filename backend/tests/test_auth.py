@@ -2,7 +2,7 @@ import core.config as cfg
 import core.oidc as oidc_service
 from core import login_throttle
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from doctus_models.database import User
+from codena_models.database import User
 
 
 def test_protected_endpoint_without_session_returns_401(unauthenticated_client):
@@ -11,7 +11,7 @@ def test_protected_endpoint_without_session_returns_401(unauthenticated_client):
 
 
 def test_protected_endpoint_with_garbage_cookie_returns_401(unauthenticated_client):
-    unauthenticated_client.cookies.set("doctus_session", "not-a-valid-signed-value")
+    unauthenticated_client.cookies.set("codena_session", "not-a-valid-signed-value")
     resp = unauthenticated_client.get("/projects")
     assert resp.status_code == 401
 
@@ -90,7 +90,7 @@ def test_health_endpoint_does_not_require_auth(unauthenticated_client):
 
 def _enable_oidc(monkeypatch):
     monkeypatch.setattr(cfg, "OIDC_ISSUER", "https://idp.example.com")
-    monkeypatch.setattr(cfg, "OIDC_CLIENT_ID", "doctus-client")
+    monkeypatch.setattr(cfg, "OIDC_CLIENT_ID", "codena-client")
     monkeypatch.setattr(cfg, "OIDC_CLIENT_SECRET", "secret")
 
 
@@ -157,9 +157,9 @@ def test_oidc_callback_establishes_a_session_on_success(
         assert resp.headers["location"] == cfg.FRONTEND_URL
         assert not resp.cookies.get(oidc_service.OIDC_STATE_COOKIE_NAME)
 
-        session_cookie = resp.cookies.get("doctus_session")
+        session_cookie = resp.cookies.get("codena_session")
         assert session_cookie
-        unauthenticated_client.cookies.set("doctus_session", session_cookie)
+        unauthenticated_client.cookies.set("codena_session", session_cookie)
         me = unauthenticated_client.get("/auth/me")
         assert me.status_code == 200
         assert me.json()["username"] == "test-oidc-callback-user"
@@ -179,7 +179,7 @@ def test_oidc_callback_redirects_with_error_message_on_failure(unauthenticated_c
     assert resp.status_code == 302
     assert resp.headers["location"].startswith(cfg.FRONTEND_URL)
     assert "oidc_error=" in resp.headers["location"]
-    assert not resp.cookies.get("doctus_session")
+    assert not resp.cookies.get("codena_session")
 
 
 def test_oidc_callback_surfaces_idp_error_query_param(unauthenticated_client, monkeypatch):

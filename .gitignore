@@ -25,7 +25,7 @@ docs/UMSETZUNGSSTAND.md
 # scripts/build-offline-bundle.sh Ausgabe (mehrere GB, nie committen)
 dist/
 
-# Lokale Datenbank-Backups enthalten sämtliche Doctus-Daten und Geheimnisse
+# Lokale Datenbank-Backups enthalten sämtliche Codena-Daten und Geheimnisse
 backups/
 
 # AP-9-Lasttest: generierter synthetischer Ersatzkorpus (Skript ist committet,

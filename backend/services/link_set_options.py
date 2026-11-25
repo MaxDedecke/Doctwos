@@ -1,5 +1,5 @@
 """Bausteine der Analyse-Arbeitsfläche: wählbare Facetten je Mengenart, Suche nach einzelnen Objekten und Vorschau
-einer Menge. Die Bedingungen selbst stehen in ``doctus_models.link_sets``; hier nur, was die Oberfläche anzeigt.
+einer Menge. Die Bedingungen selbst stehen in ``codena_models.link_sets``; hier nur, was die Oberfläche anzeigt.
 
 Neue Facette: Wertequelle in ``_FACET_VALUES`` ergänzen (und die Bedingung in ``link_sets.FACETS``).
 Neue Objektart: Suche in ``_SEARCH`` und Vorschau in ``_SAMPLE`` ergänzen.
@@ -12,9 +12,9 @@ from typing import Callable
 from sqlalchemy import func, tuple_
 from sqlalchemy.orm import Session
 
-from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource
-from doctus_models.language_profile import profile_of
-from doctus_models.link_sets import (
+from codena_models.database import CodeEntity, DocumentChunk, KnowledgeSource
+from codena_models.language_profile import profile_of
+from codena_models.link_sets import (
     CODE,
     DOC_ENTITY_TYPES,
     DOCS,

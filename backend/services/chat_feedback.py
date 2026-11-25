@@ -17,7 +17,7 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, aliased
 
 from core.teams import is_admin
-from doctus_models.database import (
+from codena_models.database import (
     ChatLinkFeedbackSignal,
     ChatMessage,
     EntityDocLink,
@@ -201,7 +201,7 @@ def list_negative_feedback(
     needle = (q or "").strip().casefold()
     search_truncated = False
     if needle:
-        # Nachrichteninhalte sind at-rest verschlüsselt (siehe doctus_models.database) und
+        # Nachrichteninhalte sind at-rest verschlüsselt (siehe codena_models.database) und
         # lassen sich deshalb nicht per SQL-LIKE durchsuchen. Die Suche läuft daher
         # gestreamt auf den entschlüsselten Werten und hält nur die Treffer-IDs im
         # Speicher; nur die angeforderte Seite wird danach vollständig geladen.

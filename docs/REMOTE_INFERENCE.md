@@ -177,7 +177,7 @@ The script verifies:
 
 ### 3. Deploying Machine A & Ad-Hoc Switching
 
-The offline delivery bundle (`dist/doctus-offline-bundle-...`) is completely self-contained and contains all Docker images including the Ollama container and model weights.
+The offline delivery bundle (`dist/codena-offline-bundle-...`) is completely self-contained and contains all Docker images including the Ollama container and model weights.
 
 - **Primary Remote Operation**:
   Run the installer with `--remote-inference`:

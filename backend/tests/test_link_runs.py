@@ -5,14 +5,14 @@ from unittest.mock import patch
 import pytest
 
 import services.link_run_start as link_run_start
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     KnowledgeSource,
     LinkBuilderRun,
     Project,
 )
-from doctus_models.link_sets import LinkSet, RunSets
+from codena_models.link_sets import LinkSet, RunSets
 from services.link_set_options import language_of_type
 from tests import test_entity_links
 from tests.test_entity_links import _as

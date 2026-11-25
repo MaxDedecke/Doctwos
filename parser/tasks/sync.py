@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 from connectors.errors import classify_exception, record_outcome
 from connectors.registry import get_connector
 from db import SessionLocal
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 
 logger = logging.getLogger(__name__)
 

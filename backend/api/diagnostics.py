@@ -26,7 +26,7 @@ from sqlalchemy.orm import Session
 from core.tracing import get_trace_id
 from core.db_setup import get_db
 from core.auth_dependency import get_current_user
-from doctus_models.database import DiagnosticsRun, User
+from codena_models.database import DiagnosticsRun, User
 from services.job_control import send_tracked_task
 
 logger = logging.getLogger(__name__)
@@ -58,7 +58,7 @@ def report_client_error(report: ClientErrorReport):
     Opt-in only — the frontend error boundary never calls this automatically,
     only when the user clicks "Send error report". No persistence beyond the
     log line: this is meant to make a crash visible in the same place every
-    other service's logs land (see the shared /var/log/doctus mount), not to
+    other service's logs land (see the shared /var/log/codena mount), not to
     build a client-side crash database.
     """
     logger.error(

@@ -1,7 +1,7 @@
 import { cn } from '@/lib/utils';
 
 interface ProjectEdgeBarProps {
-  /** Farbe des gewählten Projekts; ohne Projekt oder ohne Farbe gilt der Doctus-Markenverlauf. */
+  /** Farbe des gewählten Projekts; ohne Projekt oder ohne Farbe gilt der Codena-Markenverlauf. */
   color?: string | null;
 }
 
@@ -17,7 +17,7 @@ export function ProjectEdgeBar({ color }: ProjectEdgeBarProps) {
       aria-hidden="true"
       className={cn(
         'absolute left-0 top-0 bottom-0 w-1 pointer-events-none z-50 transition-colors duration-300',
-        !color && 'doctus-brand-gradient',
+        !color && 'codena-brand-gradient',
       )}
       style={color ? { backgroundColor: color } : undefined}
     />

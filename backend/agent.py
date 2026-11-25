@@ -7,7 +7,7 @@ import httpx
 from typing import Dict, List, Any, Optional, AsyncGenerator
 import core.config as cfg
 from mcp_client import MCPClient
-from doctus_models.database import User
+from codena_models.database import User
 from services.agent_providers import (
     ModelTurn,
     ProviderAdapter,

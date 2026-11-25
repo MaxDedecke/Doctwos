@@ -11,7 +11,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 
 PAUSE_AFTER_FAILURES = 3
 NEEDS_ACTION = {"auth", "config", "not_found"}

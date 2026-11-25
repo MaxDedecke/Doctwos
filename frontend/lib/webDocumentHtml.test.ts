@@ -24,13 +24,13 @@ it('resolves the current theme tokens for the isolated document of every system'
 
 it('survives sanitizing: scripts go, known link marks stay, links open apart, anchors stay in the page', () => {
   const html = build({
-    body_html: '<script>bad()</script><a href="#s" id="i">A</a><a href="https://x" data-doctus-url="https://x" data-doctus-source="3" target="_self">B</a><a href="javascript:bad()">C</a>',
+    body_html: '<script>bad()</script><a href="#s" id="i">A</a><a href="https://x" data-codena-url="https://x" data-codena-source="3" target="_self">B</a><a href="javascript:bad()">C</a>',
   });
   const page = new DOMParser().parseFromString(html, 'text/html');
   expect(page.querySelector('main script')).toBeNull();
   expect(html).not.toContain('bad()');
   expect(page.querySelector('a[href="#s"]')?.getAttribute('target')).toBeNull();
-  const known = page.querySelector('a[data-doctus-source="3"]');
+  const known = page.querySelector('a[data-codena-source="3"]');
   expect(known?.getAttribute('target')).toBe('_blank');
   expect(known?.getAttribute('rel')).toBe('noopener noreferrer');
 });

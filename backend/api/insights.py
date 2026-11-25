@@ -10,12 +10,12 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
 from core.teams import is_admin
-from doctus_models.database import Insight, KnowledgeSource, User, DocumentChunk
-from doctus_models.insight_evidence import snapshot_evidence, project_chunk_scope
+from codena_models.database import Insight, KnowledgeSource, User, DocumentChunk
+from codena_models.insight_evidence import snapshot_evidence, project_chunk_scope
 from services.ci_builds import validate_insight_ci_evidence
 from services.insight_records import serialize_insight as _serialize
-from doctus_models.insight_workflow import notify_insight, touched
-from doctus_models.insight_versions import capture_versions, version_state, versions_match
+from codena_models.insight_workflow import notify_insight, touched
+from codena_models.insight_versions import capture_versions, version_state, versions_match
 
 
 router = APIRouter(prefix="/projects", tags=["insights"])

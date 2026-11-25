@@ -45,7 +45,7 @@ compilationUnit
     | compactCompilationUnit EOF
     ;
 
-// Doctus Java 25 additions (JEP 511/512). Keep original physical lines.
+// Codena Java 25 additions (JEP 511/512). Keep original physical lines.
 moduleImportDeclaration
     : IMPORT MODULE qualifiedName ';'
     ;
@@ -689,7 +689,7 @@ expression
     | lambdaExpression                                        #ExpressionLambda
     ;
 
-// Doctus: `var` type patterns and the match-all `_` (JLS 14.30.1) inside record
+// Codena: `var` type patterns and the match-all `_` (JLS 14.30.1) inside record
 // patterns. `_` lexes as IDENTIFIER, hence the plain identifier alternative.
 pattern
     : variableModifier* typeType annotation* variableDeclarators

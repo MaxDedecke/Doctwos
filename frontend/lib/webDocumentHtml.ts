@@ -27,7 +27,7 @@ export interface WebDocumentData {
   synced_at?: string | null;
 }
 
-export const WEB_LINK_MESSAGE = 'doctus-web-link';
+export const WEB_LINK_MESSAGE = 'codena-web-link';
 
 /** Pfade der Server-Antwort auf Bilder und Anhänge zeigen auf die API, nicht auf das Frontend. */
 export const webAssetHref = (url: string, apiUrl: string) => (url.startsWith('/knowledge-sources/') ? `${apiUrl}${url}` : url);
@@ -89,7 +89,7 @@ hr{border:0;border-top:1px solid var(--wd-border)}
 }
 
 // Fremdes HTML ist bereinigt und führt nichts aus; dieses Skript ist das einzige im Dokument und kennt keine Inhalte.
-const LINK_SCRIPT = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(!a)return;var h=a.getAttribute('href')||'';if(h.charAt(0)==='#'){e.preventDefault();var id=h.slice(1);try{id=decodeURIComponent(id)}catch(x){}var t=document.getElementById(id)||document.getElementsByName(id)[0];if(t)t.scrollIntoView();return}if(a.dataset.doctusUrl){e.preventDefault();parent.postMessage({type:'${WEB_LINK_MESSAGE}',url:a.dataset.doctusUrl,sourceId:a.dataset.doctusSource},'*')}})</script>`;
+const LINK_SCRIPT = `<script>document.addEventListener('click',function(e){var a=e.target.closest&&e.target.closest('a');if(!a)return;var h=a.getAttribute('href')||'';if(h.charAt(0)==='#'){e.preventDefault();var id=h.slice(1);try{id=decodeURIComponent(id)}catch(x){}var t=document.getElementById(id)||document.getElementsByName(id)[0];if(t)t.scrollIntoView();return}if(a.dataset.codenaUrl){e.preventDefault();parent.postMessage({type:'${WEB_LINK_MESSAGE}',url:a.dataset.codenaUrl,sourceId:a.dataset.codenaSource},'*')}})</script>`;
 
 export interface WebDocumentLabels {
   empty: string;

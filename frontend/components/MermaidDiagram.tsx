@@ -55,7 +55,7 @@ function MermaidSvg({ code, theme, expanded = false }: MermaidSvgProps) {
       try {
         const { default: mermaid } = await import('mermaid');
         mermaid.initialize(getMermaidRenderConfig(theme));
-        const result = await mermaid.render(`doctus-mermaid-${reactId}`, repairMermaidSource(code));
+        const result = await mermaid.render(`codena-mermaid-${reactId}`, repairMermaidSource(code));
         if (!cancelled) setSvg(sanitizeSvg(result.svg));
       } catch {
         if (!cancelled) setError('Das Ablaufdiagramm konnte nicht gerendert werden.');

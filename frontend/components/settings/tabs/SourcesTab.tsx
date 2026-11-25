@@ -246,7 +246,7 @@ export const SourcesTab: React.FC<SourcesTabProps> = ({
         </div>
       </div>
 
-      {/* Netzwerk-Visualisierung: zeigt den Informationsfluss aller (gefilterten) Quellen in Doctus */}
+      {/* Netzwerk-Visualisierung: zeigt den Informationsfluss aller (gefilterten) Quellen in Codena */}
       <SourceNetworkGraph sources={filteredSources} theme={theme} scopeLabel={networkScopeLabel} />
 
       {/* SECTION 1: Active Connected Sources */}

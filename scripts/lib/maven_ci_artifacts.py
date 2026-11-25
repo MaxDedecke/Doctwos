@@ -3,7 +3,7 @@
 import hashlib
 import json
 
-from doctus_models.ci_artifacts import parse_test_report, sanitize_pom
+from codena_models.ci_artifacts import parse_test_report, sanitize_pom
 
 MAX_FILE = 5_000_000
 
@@ -42,7 +42,7 @@ def collect(root):
             ("effective_pom", "effective-pom.xml"),
             ("dependency_tree", "dependencies.json"),
         ):
-            path = target / "doctus-ci" / filename
+            path = target / "codena-ci" / filename
             if not path.is_file():
                 continue
             try:
@@ -104,8 +104,8 @@ def clear_previous_artifacts(root):
         if not target.is_dir() or target.is_symlink() or not target.resolve().is_relative_to(root):
             continue
         paths = [
-            target / "doctus-ci" / "effective-pom.xml",
-            target / "doctus-ci" / "dependencies.json",
+            target / "codena-ci" / "effective-pom.xml",
+            target / "codena-ci" / "dependencies.json",
         ]
         for folder in ("surefire-reports", "failsafe-reports"):
             paths.extend((target / folder).glob("TEST-*.xml"))

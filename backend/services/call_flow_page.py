@@ -12,7 +12,7 @@ import re
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

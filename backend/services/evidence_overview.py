@@ -16,8 +16,8 @@ from collections import Counter
 from sqlalchemy import String, cast, func, or_
 from sqlalchemy.orm import Session, aliased
 
-from doctus_models.database import CodeEdge, CodeEntity, CodeFileEdge, DocumentChunk
-from doctus_models.language_profile import CONTAINER_TYPES, CONTROL_EDGES, PROFILES, profile_of
+from codena_models.database import CodeEdge, CodeEntity, CodeFileEdge, DocumentChunk
+from codena_models.language_profile import CONTAINER_TYPES, CONTROL_EDGES, PROFILES, profile_of
 from services.call_flow import TEST_PATH_PATTERN
 
 OVERVIEW_INTENT = re.compile(

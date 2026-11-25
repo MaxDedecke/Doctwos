@@ -72,7 +72,7 @@ geprüft, bevor der cp1252-Rückfall greift (viele Leerzeichen 0x40, kaum 0x20, 
 COBOL-Satzzeichen). Die Codepage wählt der Inhalt: Umlaute entscheiden für cp273, sonst gilt `EBCDIC_DEFAULT_CODEPAGE`
 (Standard cp037). Exporte ohne Zeilenende werden in 80-Byte-Sätze geteilt, auch bei konfigurierter Codepage;
 `CCSID-1141` liest wie 273. Die Webansicht dekodiert mit der beim Import gespeicherten Kodierung
-(`doctus_models/source_text.py`, gemeinsam für Parser und Backend), damit Zeilen und Umlaute übereinstimmen; das
+(`codena_models/source_text.py`, gemeinsam für Parser und Backend), damit Zeilen und Umlaute übereinstimmen; das
 behebt auch fehlende Umlaute beim cp1252-Rückfall. Datendateien (gepackte Felder) bleiben übersprungen. Nicht
 abgedeckt: variable Satzlängen (RDW, O-128) und endungslose EBCDIC-Dateien (die Inhaltserkennung liest ASCII).
 
@@ -95,7 +95,7 @@ Auftrag: Dialekt für Dialekt erweitern (`CLAUDE.md`). Prüfbestände: CardDemo 
 
 | Bereich | Stand |
 |---|---|
-| EXIT-Varianten | Grammatik kennt `EXIT PERFORM [CYCLE]`, `EXIT PARAGRAPH`, `EXIT SECTION` (`// Doctus:` in `Cobol85.g4`; `CYCLE`/`PARAGRAPH` bleiben als Namen erlaubt). Der Ablauf-Scanner las `EXIT PERFORM` als neue Schleife (falscher Kontrollpfad bis zum Absatzende) und `EXIT PERFORM CYCLE` als Aufruf eines Paragraphen „CYCLE“. |
+| EXIT-Varianten | Grammatik kennt `EXIT PERFORM [CYCLE]`, `EXIT PARAGRAPH`, `EXIT SECTION` (`// Codena:` in `Cobol85.g4`; `CYCLE`/`PARAGRAPH` bleiben als Namen erlaubt). Der Ablauf-Scanner las `EXIT PERFORM` als neue Schleife (falscher Kontrollpfad bis zum Absatzende) und `EXIT PERFORM CYCLE` als Aufruf eines Paragraphen „CYCLE“. |
 | Mehrere Programme je Datei | Jedes Programm der obersten Ebene wird für sich geparst (`cobol/units.py`); verschachtelte bleiben bei ihrem äußeren. Vorher verschluckte ein Syntaxfehler alle folgenden Programme der Datei (CobolCraft `blocks_loot_table.cob`: 5 statt 24 Programme). |
 | Scheinsections | Die Fehlerkorrektur ergänzte nach unbekannten Anweisungen ein fehlendes `SECTION` und machte Wörter wie `TRIM` oder Feldnamen zu Sections; diese werden verworfen, ihre Paragraphen hängen an der letzten echten Section. |
 | Abdeckung | Section-Kopfzeilen zwischen Paragraphen und der Bereich verschachtelter Programme zählen nicht mehr als „nicht erfasster Code“ (sie machten erkannte Dateien zu `partial`). |
@@ -104,7 +104,7 @@ Auftrag: Dialekt für Dialekt erweitern (`CLAUDE.md`). Prüfbestände: CardDemo 
 
 ## Stand 06.11.2026: Dialekte, Welle 2 (GnuCOBOL/Micro Focus)
 
-Grammatik (`// Doctus` in `Cobol85.g4`), gemessen an CobolCraft:
+Grammatik (`// Codena` in `Cobol85.g4`), gemessen an CobolCraft:
 
 | Bereich | Erweiterung |
 |---|---|

@@ -342,8 +342,8 @@ function ProfileFormView({ form, set, canEdit }: { form: ProfileForm; set: SetFi
     <Group icon={<Cpu className="h-3.5 w-3.5" />} title={t('settings.sourceProfile.groupCompiler')}>
       <div className="grid gap-3 sm:grid-cols-2">
         <Label text={t('settings.sourceProfile.compilerFamily')}>
-          <input list="doctus-compiler-families" placeholder={example('IBM_ENTERPRISE_COBOL')} {...text('compiler_family')} />
-          <datalist id="doctus-compiler-families">{COMPILER_FAMILIES.map((family) => <option key={family} value={family} />)}</datalist>
+          <input list="codena-compiler-families" placeholder={example('IBM_ENTERPRISE_COBOL')} {...text('compiler_family')} />
+          <datalist id="codena-compiler-families">{COMPILER_FAMILIES.map((family) => <option key={family} value={family} />)}</datalist>
         </Label>
         <Label text={t('settings.sourceProfile.compilerVersion')}><input placeholder={example('6.4')} {...text('compiler_version')} /></Label>
       </div>

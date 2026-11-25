@@ -14,7 +14,7 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible
 from core.teams import require_admin
-from doctus_models.database import (
+from codena_models.database import (
     DocumentChunk,
     EmbeddingMigration,
     EmbeddingProfile,

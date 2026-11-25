@@ -149,7 +149,7 @@ def _resolve_property_key(edge, by_id, properties_by_key) -> int:
     candidates = properties_by_key.get((key, edge.variant_key), [])
     import os
 
-    profiles = set(filter(None, os.getenv("DOCTUS_SPRING_PROFILES", "").split(","))) or {"default"}
+    profiles = set(filter(None, os.getenv("CODENA_SPRING_PROFILES", "").split(","))) or {"default"}
     candidates = [
         c
         for c in candidates

@@ -12,10 +12,13 @@ export async function POST(req: NextRequest) {
     // manually attach it to the upstream backend call, working around the
     // SameSite=Lax + CORS-preflight block that prevents the browser from sending
     // it directly to the backend on port 8000.
-    const sessionCookie = req.cookies.get('doctus_session');
+    // Übergang doctus→codena: Sitzungen von vor der Umbenennung tragen noch das alte Cookie.
+    const sessionCookie = ['codena_session', 'doctus_session']
+        .map((name) => ({ name, cookie: req.cookies.get(name) }))
+        .find((entry) => entry.cookie);
     const headers: HeadersInit = { 'Content-Type': 'application/json' };
-    if (sessionCookie) {
-        headers['Cookie'] = `doctus_session=${sessionCookie.value}`;
+    if (sessionCookie?.cookie) {
+        headers['Cookie'] = `${sessionCookie.name}=${sessionCookie.cookie.value}`;
     }
 
     const upstream = await fetch(`${BACKEND}/chat`, {

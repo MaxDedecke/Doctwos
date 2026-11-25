@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Prueft eine echte Confluence-Instanz (Server, Data Center oder Cloud) mit den Abfragen des Doctus-Connectors.
+"""Prueft eine echte Confluence-Instanz (Server, Data Center oder Cloud) mit den Abfragen des Codena-Connectors.
 
 Nur lesend. Zeigt, ob REST-Wurzel, Anmeldung, Spaces, Seiten (mit Vorfahren und Leseeinschraenkungen),
 Blogposts, Anhaenge und Kommentare so antworten, wie der Connector es erwartet, und wie lange ein Listenabruf dauert.
 
 Beispiel (im Parser-Image, ohne weitere Installation):
-  docker run --rm -v "$PWD/scripts:/s:ro" doctus-parser-worker:latest \\
+  docker run --rm -v "$PWD/scripts:/s:ro" codena-parser-worker:latest \\
       python /s/check_confluence.py --url https://wiki.firma.local/confluence --token <PAT> --space DOCS
 
   --user NAME      Benutzername fuer Basic Auth (Cloud: E-Mail); ohne Angabe wird das Token als Bearer-PAT genutzt

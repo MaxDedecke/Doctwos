@@ -422,7 +422,7 @@ describe('ChatView', () => {
     it('ruft handleSendChat beim Klick auf den Senden-Button auf', () => {
       const handleSendChat = vi.fn();
 
-      renderChat({ currentMessage: 'Hallo Doctus', handleSendChat });
+      renderChat({ currentMessage: 'Hallo Codena', handleSendChat });
 
       fireEvent.click(screen.getByLabelText('Nachricht senden'));
 

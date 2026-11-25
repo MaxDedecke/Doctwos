@@ -9,8 +9,8 @@ from sqlalchemy import or_, cast
 from sqlalchemy.dialects.postgresql import JSONB
 
 from core.projects import assert_project_visible
-from doctus_models.database import Insight, CodeEntity
-from doctus_models.insight_versions import version_state
+from codena_models.database import Insight, CodeEntity
+from codena_models.insight_versions import version_state
 
 
 def related_insights(db, project_id, nodes, limit=40):

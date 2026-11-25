@@ -18,11 +18,11 @@ describe('api.fetch', () => {
   it('notifies the application when a native request receives 401', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(null, { status: 401 })));
     const unauthorized = vi.fn();
-    window.addEventListener('doctus:unauthorized', unauthorized);
+    window.addEventListener('codena:unauthorized', unauthorized);
 
     await api.fetch('/stream');
 
     expect(unauthorized).toHaveBeenCalledOnce();
-    window.removeEventListener('doctus:unauthorized', unauthorized);
+    window.removeEventListener('codena:unauthorized', unauthorized);
   });
 });

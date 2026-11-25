@@ -23,7 +23,7 @@ import { ConfigSettingsTab } from './ConfigSettingsTab';
 import { McpSettingsTab } from './McpSettingsTab';
 
 const config = {
-  sso: { enabled: true, issuer: 'https://idp.test', client_id: 'doctus', client_secret_configured: true, redirect_uri: null, default_team: null, default_team_exists: null, admin_roles: [], team_mapping: {}, roles_claim: 'roles', groups_claim: 'groups' },
+  sso: { enabled: true, issuer: 'https://idp.test', client_id: 'codena', client_secret_configured: true, redirect_uri: null, default_team: null, default_team_exists: null, admin_roles: [], team_mapping: {}, roles_claim: 'roles', groups_claim: 'groups' },
   system: { version: '1', api_url: 'a', frontend_url: 'f', log_level: 'INFO', mcp_audit_retention_days: 90, watched_folder: null },
   existing_teams: [],
 };

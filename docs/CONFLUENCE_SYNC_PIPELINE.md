@@ -163,7 +163,7 @@ flowchart TD
 
 **Gegen eine echte Instanz prüfen:** `scripts/check_confluence.py` (nur lesend) fragt die Endpunkte des Connectors ab und meldet
 REST-Wurzel, Seiten mit Elternseiten, Antwortzeit, erkannte Leseeinschränkungen, Blogposts, Anhänge und Kommentare, z. B.
-`docker run --rm -v "$PWD/scripts:/s:ro" doctus-parser-worker:latest python /s/check_confluence.py --url https://wiki.firma.local/confluence --token <PAT> --space DOCS`
+`docker run --rm -v "$PWD/scripts:/s:ro" codena-parser-worker:latest python /s/check_confluence.py --url https://wiki.firma.local/confluence --token <PAT> --space DOCS`
 (`--user` für Basic Auth, `--ca`/`--insecure` für Zertifikate).
 
 Quelle: `parser/connectors/base.py` (`sync`, `_process_document`,

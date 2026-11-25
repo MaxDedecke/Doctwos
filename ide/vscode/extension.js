@@ -4,10 +4,26 @@ const fs = require('node:fs/promises');
 
 const cache = new Map();
 
+// Übergang doctus→codena (docs/UMBENENNUNG_CODENA.md): Einstellungen von vor der Umbenennung stehen noch unter
+// doctus.*; sie gelten, solange unter codena.* nichts Eigenes gesetzt ist.
+function settingsFor(uri) {
+  const current = vscode.workspace.getConfiguration('codena', uri);
+  const legacy = vscode.workspace.getConfiguration('doctus', uri);
+  return {
+    get(key) {
+      const own = current.inspect(key);
+      const set = own && [own.workspaceFolderValue, own.workspaceValue, own.globalValue].some(value => value !== undefined);
+      if (set) return current.get(key);
+      const old = legacy.get(key);
+      return old !== undefined && old !== null ? old : current.get(key);
+    }
+  };
+}
+
 function config(document) {
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   if (!folder || document.uri.scheme !== 'file') return null;
-  const settings = vscode.workspace.getConfiguration('doctus', document.uri);
+  const settings = settingsFor(document.uri);
   const projectId = settings.get('projectId');
   const sourceId = settings.get('sourceId');
   if (!Number.isSafeInteger(projectId) || projectId <= 0 || !Number.isSafeInteger(sourceId) || sourceId <= 0) return null;
@@ -46,7 +62,7 @@ function graphUrlForReference(settings, ref) {
 async function annotations(document, context) {
   const settings = config(document);
   if (!settings) return null;
-  const token = await context.secrets.get('doctus.personalToken');
+  const token = await context.secrets.get('codena.personalToken');
   if (!token) return null;
   const key = `${document.uri.toString()}|${JSON.stringify(settings)}`;
   const cached = cache.get(key);
@@ -117,7 +133,7 @@ async function openTarget(settings, ref) {
     return;
   }
   const folder = vscode.workspace.workspaceFolders?.find(item => {
-    const root = path.resolve(item.uri.fsPath, vscode.workspace.getConfiguration('doctus', item.uri).get('repositoryRoot') || '.');
+    const root = path.resolve(item.uri.fsPath, settingsFor(item.uri).get('repositoryRoot') || '.');
     return root === settings.repositoryRoot;
   });
   if (!folder) {
@@ -150,25 +166,25 @@ async function activate(context) {
   // One-time migration hook for an administrator-provisioned token. The token
   // is moved immediately into VS Code's encrypted SecretStorage and the staged
   // plaintext is removed before any providers are registered.
-  const tokenHandoff = path.join(context.globalStorageUri.fsPath, 'doctus-token-once');
+  const tokenHandoff = path.join(context.globalStorageUri.fsPath, 'codena-token-once');
   try {
     const token = (await fs.readFile(tokenHandoff, 'utf8')).trim();
     if (!token.startsWith('dct_mcp_')) throw new Error('Invalid Codena token handoff');
-    await context.secrets.store('doctus.personalToken', token);
+    await context.secrets.store('codena.personalToken', token);
     await fs.unlink(tokenHandoff);
     cache.clear();
   } catch (error) {
     if (error.code !== 'ENOENT') console.error('Codena token handoff failed:', error);
   }
-  context.subscriptions.push(vscode.commands.registerCommand('doctus.setToken', async () => {
+  context.subscriptions.push(vscode.commands.registerCommand('codena.setToken', async () => {
     const token = await vscode.window.showInputBox({ prompt: 'Personal Codena token (from Settings → IDE / MCP)', password: true, ignoreFocusOut: true });
     if (token !== undefined) {
-      await context.secrets.store('doctus.personalToken', token.trim());
+      await context.secrets.store('codena.personalToken', token.trim());
       cache.clear();
       vscode.window.showInformationMessage('Codena token saved.');
     }
   }));
-  context.subscriptions.push(vscode.commands.registerCommand('doctus.openGraph', async (settings, line) => {
+  context.subscriptions.push(vscode.commands.registerCommand('codena.openGraph', async (settings, line) => {
     if (!settings || !line) {
       const editor = vscode.window.activeTextEditor;
       if (!editor) return;
@@ -181,7 +197,7 @@ async function activate(context) {
     }
     await vscode.env.openExternal(vscode.Uri.parse(graphUrl(settings, line)));
   }));
-  context.subscriptions.push(vscode.commands.registerCommand('doctus.openTarget', openTarget));
+  context.subscriptions.push(vscode.commands.registerCommand('codena.openTarget', openTarget));
   const selector = { scheme: 'file' };
   context.subscriptions.push(vscode.languages.registerCodeLensProvider(selector, {
     async provideCodeLenses(document) {
@@ -192,7 +208,7 @@ async function activate(context) {
           const range = referenceRange(document, ref, true);
           return range && new vscode.CodeLens(range, {
             title: label(ref),
-            command: ref.target && ref.resolution === 'resolved' ? 'doctus.openTarget' : 'doctus.openGraph',
+            command: ref.target && ref.resolution === 'resolved' ? 'codena.openTarget' : 'codena.openGraph',
             arguments: ref.target && ref.resolution === 'resolved'
               ? [result.settings, ref] : [result.settings, ref.line]
           });
@@ -227,7 +243,7 @@ async function activate(context) {
   }));
   context.subscriptions.push(vscode.workspace.onDidSaveTextDocument(() => cache.clear()));
   context.subscriptions.push(vscode.workspace.onDidChangeConfiguration(event => {
-    if (event.affectsConfiguration('doctus')) cache.clear();
+    if (event.affectsConfiguration('codena') || event.affectsConfiguration('doctus')) cache.clear();
   }));
 }
 

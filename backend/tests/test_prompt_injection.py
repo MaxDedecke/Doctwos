@@ -3,7 +3,7 @@ import pytest
 from unittest.mock import MagicMock
 import contextlib
 import httpx
-from doctus_models.database import DocumentChunk, KnowledgeSource
+from codena_models.database import DocumentChunk, KnowledgeSource
 
 from conftest import requires_ollama
 

@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from doctus_models.database import CodeEdge
+from codena_models.database import CodeEdge
 from sqlalchemy import or_
 
 from java.modules import module_from_path

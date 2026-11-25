@@ -49,7 +49,7 @@ def skipped_under_other_size_limit(parse_status: str | None, parse_error: str | 
 # eine Verbindung zum Git-Server. Deployments, in denen der Server nach der
 # Erstindexierung wegfällt (NF-002, abgeschottete Umgebung), schalten auf
 # vollständigen Blob-Transfer um.
-PARTIAL_CLONE = os.environ.get("DOCTUS_GIT_PARTIAL_CLONE", "1") != "0"
+PARTIAL_CLONE = os.environ.get("CODENA_GIT_PARTIAL_CLONE", "1") != "0"
 
 
 class GitCommandError(RuntimeError):

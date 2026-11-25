@@ -1,6 +1,6 @@
-"""doctus baseline schema
+"""codena baseline schema
 
-Eine einzige Baseline statt der 32 Condo-Migrationen: Doctus startet auf einer
+Eine einzige Baseline statt der 32 Condo-Migrationen: Codena startet auf einer
 leeren Datenbank, eine Migrationskette aus der Template-Historie hätte nur
 Tabellen angelegt, die dieselbe Kette später wieder droppt.
 

@@ -20,7 +20,7 @@ from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from doctus_models.database import DocumentChunk, KnowledgeSource, User
+from codena_models.database import DocumentChunk, KnowledgeSource, User
 from services.source_access import source_visible
 from services.web_documents import adapter_for, is_web_source
 from services.web_documents.base import FetchContext, NotRenderable, WebDocument
@@ -231,7 +231,7 @@ def _rewrite_html(html: str, page_url: str, source: KnowledgeSource, known: dict
             if _same_origin(target, source.url or ""):
                 target = asset_url(source.id, target)
         elif target in known:
-            extra = f' data-doctus-source="{known[target]}" data-doctus-url="{escape(target, quote=True)}"'
+            extra = f' data-codena-source="{known[target]}" data-codena-url="{escape(target, quote=True)}"'
         attributes = (
             attributes[: found.start()]
             + f'{name}="{escape(target, quote=True)}"'

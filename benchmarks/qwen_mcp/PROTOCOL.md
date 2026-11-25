@@ -1,4 +1,4 @@
-# Qwen3-8B × Doctus-MCP — Benchmark-Protokoll (vorab festgelegt)
+# Qwen3-8B × Codena-MCP — Benchmark-Protokoll (vorab festgelegt)
 
 Stand: 2026-10-02. Dieses Dokument und `tasks.json` werden vor dem ersten gewerteten Lauf
 per SHA-256 in `manifest.lock` eingefroren; der Runner verweigert gewertete Läufe bei Abweichung.
@@ -6,7 +6,7 @@ Pilotläufe (`--pilot`) dienen nur dem Test des Harness und gehen nicht in die A
 
 ## 1. Fragestellung
 
-Verbessert die Doctus-MCP-Schnittstelle ein **kleines lokales Modell** (Qwen3-8B, Q4, 8-GB-GPU) bei Fragen
+Verbessert die Codena-MCP-Schnittstelle ein **kleines lokales Modell** (Qwen3-8B, Q4, 8-GB-GPU) bei Fragen
 zu großen Codebeständen? Vier getrennte Teilfragen:
 
 | Nr. | Dimension | Frage |
@@ -30,13 +30,13 @@ Gepaartes Messwiederholungsdesign: 6 Aufgaben × 3 Arme × 5 Wiederholungen = 90
 |---|---|---|
 | `none` | keine | Kontrollboden: Wissen des Modells allein |
 | `local` | `list_dir`, `grep`, `read_file` auf dem gepinnten Checkout | **Hauptkontrolle** (entspricht dem „ohne MCP“-Arm der Codex-Studie: Agent mit Dateizugriff) |
-| `mcp` | alle 8 Doctus-MCP-Werkzeuge (Streamable HTTP, Bearer-Token) | Behandlung |
+| `mcp` | alle 8 Codena-MCP-Werkzeuge (Streamable HTTP, Bearer-Token) | Behandlung |
 
 Primärvergleich: `mcp − local`. Sekundär: `mcp − none` und `local − none`.
 
 Konstant über alle Arme: Modell (`qwen3:8b`, Digest wird protokolliert), Systemprompt (bis auf den
 armspezifischen Werkzeughinweis), Frage, Sampling (`temperature 0.3, top_p 0.9`), `think=false`,
-`num_ctx 8192` (Produktstandard von Doctus), `num_predict 1500` je Zug, höchstens 10 Zug, Werkzeugausgabe hart auf 6 000 Zeichen gekürzt.
+`num_ctx 8192` (Produktstandard von Codena), `num_predict 1500` je Zug, höchstens 10 Zug, Werkzeugausgabe hart auf 6 000 Zeichen gekürzt.
 Der Seed einer Sitzung ist `1000 + Wiederholung`. Die Armreihenfolge wird je (Aufgabe, Wiederholung)
 zufällig (fester Seed) gemischt, um Drift (GPU-Wärme, Cache) nicht mit einem Arm zu konfundieren.
 Ein verworfener Aufwärmlauf lädt die Modelle.
@@ -48,7 +48,7 @@ Erzwungener Abschluss: erreicht das Modell 10 Zug oder `num_ctx − 1700` Tokens
 ohne Werkzeuge zur Antwort aufgefordert (`forced_final`), die Sitzung zählt dann als „nicht
 ohne erzwungenen Abschluss“. Werkzeugfehler gehen an das Modell zurück (kein Abbruch).
 
-Kontextwahl: `num_ctx 8192` ist der Doctus-Standard und die größte Einstellung, bei der Chat-Modell
+Kontextwahl: `num_ctx 8192` ist der Codena-Standard und die größte Einstellung, bei der Chat-Modell
 (5,6 GB) und Embedding-Modell `bge-m3` (0,66 GB) gleichzeitig vollständig im 8-GB-VRAM bleiben
 (gemessen: bei 12 288/16 384 verdrängen sie sich bzw. ein Teil des Chat-Modells läuft auf der CPU, was die
 Zeitmessung verfälschen würde). Die Wahl wurde nach einem Pilot an einer Aufgabe und einer Hardwareprüfung
@@ -59,7 +59,7 @@ größerem Kontext ist optional und wird getrennt berichtet.
 ## 3. Aufgaben („Disziplinen“)
 
 Sechs Aufgaben aus zwei Beständen mit festem Commit (CardDemo/COBOL, Syncope/Java), je mit
-Ground Truth an Datei und Zeile. Beide Bestände sind vollständig in Doctus indexiert (Stand: Parser
+Ground Truth an Datei und Zeile. Beide Bestände sind vollständig in Codena indexiert (Stand: Parser
 nach Commit `ed19866`/`ab30eee`); Index und Checkout stammen aus demselben Commit.
 
 | Disziplin | Aufgabe | Bestand |

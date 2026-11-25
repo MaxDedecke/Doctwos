@@ -20,10 +20,10 @@ from joserfc.jwk import RSAKey
 
 import core.oidc as oidc
 from core.users import get_by_oidc_subject
-from doctus_models.database import Team, TeamMembership, User
+from codena_models.database import Team, TeamMembership, User
 
 ISSUER = "https://idp.example.com"
-CLIENT_ID = "doctus-client"
+CLIENT_ID = "codena-client"
 
 
 @pytest.fixture(autouse=True)
@@ -36,7 +36,7 @@ def _reset_oidc_caches(monkeypatch):
     monkeypatch.setattr("core.config.OIDC_ISSUER", ISSUER)
     monkeypatch.setattr("core.config.OIDC_CLIENT_ID", CLIENT_ID)
     monkeypatch.setattr("core.config.OIDC_CLIENT_SECRET", "secret")
-    monkeypatch.setattr("core.config.API_URL", "https://doctus.example.com")
+    monkeypatch.setattr("core.config.API_URL", "https://codena.example.com")
 
 
 @pytest.fixture
@@ -467,7 +467,7 @@ def test_extract_idp_roles_and_groups(monkeypatch):
         "groups": ["/engineers", "testers"],
         "realm_access": {"roles": ["default-roles-master", "admin"]},
         "resource_access": {
-            "doctus-app": {"roles": ["app-user"]},
+            "codena-app": {"roles": ["app-user"]},
             "account": {"roles": ["manage-account"]},
         },
         "custom_roles": "custom1, custom2",
@@ -492,9 +492,9 @@ def test_get_oidc_user_role(monkeypatch):
     monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "")
     assert oidc.get_oidc_user_role({"admin", "user"}) == "user"
 
-    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-admin, sysadmin")
+    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "codena-admin, sysadmin")
     assert oidc.get_oidc_user_role({"user", "guest"}) == "user"
-    assert oidc.get_oidc_user_role({"doctus-admin"}) == "superuser"
+    assert oidc.get_oidc_user_role({"codena-admin"}) == "superuser"
     assert oidc.get_oidc_user_role({"sysadmin", "other"}) == "superuser"
 
 
@@ -527,7 +527,7 @@ def test_provision_or_link_user_with_admin_role_and_team_mapping(
     db_session.commit()
 
     try:
-        monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-superadmin")
+        monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "codena-superadmin")
         monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "TestOIDCTeamA")
         monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", '{"eng": "TestOIDCTeamB"}')
 
@@ -535,7 +535,7 @@ def test_provision_or_link_user_with_admin_role_and_team_mapping(
             "sub": "test-oidc-mapped-admin",
             "email": "admin@example.com",
             "name": "Admin User",
-            "roles": ["doctus-superadmin", "eng"],
+            "roles": ["codena-superadmin", "eng"],
         }
         user = oidc.provision_or_link_user(claims, db_session)
 
@@ -564,7 +564,7 @@ def test_provision_or_link_user_syncs_on_repeat_login(db_session, cleanup_oidc_u
     db_session.commit()
 
     try:
-        monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-admin")
+        monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "codena-admin")
         monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "TestOIDCSyncTeamA")
         monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", '{"lead": "TestOIDCSyncTeamB"}')
 
@@ -583,11 +583,11 @@ def test_provision_or_link_user_syncs_on_repeat_login(db_session, cleanup_oidc_u
         assert len(memberships1) == 1
         assert memberships1[0].team_id == team_a.id
 
-        # Folge-Login: IdP meldet Rolle doctus-admin und Gruppe lead
+        # Folge-Login: IdP meldet Rolle codena-admin und Gruppe lead
         claims2 = {
             "sub": "test-oidc-sync-user",
             "email": "sync@example.com",
-            "roles": ["developer", "doctus-admin", "lead"],
+            "roles": ["developer", "codena-admin", "lead"],
         }
         user2 = oidc.provision_or_link_user(claims2, db_session)
         assert user2.id == user1.id

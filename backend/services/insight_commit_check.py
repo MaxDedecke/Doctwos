@@ -8,8 +8,8 @@ from sqlalchemy import cast, or_, and_, func
 from sqlalchemy.dialects.postgresql import JSONB
 
 import core.config as cfg
-from doctus_models.database import Insight, KnowledgeSource
-from doctus_models.insight_versions import capture_versions, version_state
+from codena_models.database import Insight, KnowledgeSource
+from codena_models.insight_versions import capture_versions, version_state
 from services.change_diff import _git_commit, _git_worktree, _safe_diff_path
 
 MAX_PATHS = 150

@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 import pytest
 
 import core.config as cfg
-from doctus_models.database import AIProfile, EmbeddingProfile
+from codena_models.database import AIProfile, EmbeddingProfile
 from services import ai_settings
 from services.deployer_client import DeployerError
 
@@ -23,7 +23,7 @@ class FakeDeployer:
             "name": spec["name"],
             "engine": spec["engine"],
             "status": "starting",
-            "base_url": f"http://doctus-llm-{spec['name']}:{port}{suffix}",
+            "base_url": f"http://codena-llm-{spec['name']}:{port}{suffix}",
         }
 
     def delete_deployment(self, name):
@@ -126,7 +126,7 @@ def test_chat_deployment_creates_local_profile(
         )
         assert (
             profile["llm_path"] == path
-            and profile["llm_base_url"] == f"http://doctus-llm-{name}{suffix}"
+            and profile["llm_base_url"] == f"http://codena-llm-{name}{suffix}"
         )
         assert profile["deployment_name"] == name and profile["name"] == "Test llama.cpp"
         assert deployer.created[0]["engine"] == engine
@@ -145,7 +145,7 @@ def test_embedding_deployment_creates_embedding_profile(client, db_session, depl
         profile = response.json()["profile"]
         assert profile["provider"] == "openai" and profile["path"] == "/embeddings"
         assert (
-            profile["base_url"] == f"http://doctus-llm-{name}:8080/v1"
+            profile["base_url"] == f"http://codena-llm-{name}:8080/v1"
             and profile["deployment_name"] == name
         )
     finally:

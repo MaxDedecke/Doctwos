@@ -3,7 +3,7 @@
 import json
 import subprocess
 
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 from services import commit_diff as commit_diff_module
 from services.agent_tool_executor import AgentToolExecutor
 from services.chat_sources import extract_tool_sources

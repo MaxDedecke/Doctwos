@@ -46,7 +46,7 @@ from code_parser import CodeParser
 from core import config
 from core.sync_lock import SyncLock
 from db import SessionLocal
-from doctus_models.database import DocumentChunk, KnowledgeSource
+from codena_models.database import DocumentChunk, KnowledgeSource
 from insight_review import mark_source_insights_outdated
 from ollama_client import (
     embedding_batch_slots,

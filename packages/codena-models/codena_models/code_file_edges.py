@@ -23,7 +23,7 @@ from typing import Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from doctus_models.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, NAMING_EDGES
+from codena_models.language_profile import CONTROL_EDGES, DATA_EDGES, INCLUDE_EDGES, NAMING_EDGES
 
 BACKBONE_MIN_FILE_EDGES = 1000
 BACKBONE_EDGES_PER_NODE = 3

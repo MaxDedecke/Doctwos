@@ -8,7 +8,7 @@
 
 Der Remote-Modus liefert API, Parser (inklusive Scheduler/Link-Worker), Frontend, PostgreSQL und Valkey, aber keine Ollama-Images oder Modellgewichte. Ohne `--remote-inference` werden lokales Ollama und die konfigurierten Modelle mitgeliefert. Der Builder setzt keine laufenden Dienste neu auf.
 
-Das Verzeichnis `dist/doctus-offline-bundle-<version>` als ZIP oder tar übertragen. Keine echte `.env`, Entwicklungsdatenbank oder Zugangsdaten hinzufügen. Enthalten sind Prüfsummen, Build-/Modell-/Imagemanifest, Feature-Konfiguration, Installer sowie Confluence-/Inferenz-Prüfskripte. Die Basisimages erhalten versionierte lokale Namen; das Imagemanifest hält ihre gepinnten Upstream-Referenzen fest. So ist der Start nach `docker load` nicht von erhalten gebliebenen Registry-Digest-Metadaten abhängig.
+Das Verzeichnis `dist/codena-offline-bundle-<version>` als ZIP oder tar übertragen. Keine echte `.env`, Entwicklungsdatenbank oder Zugangsdaten hinzufügen. Enthalten sind Prüfsummen, Build-/Modell-/Imagemanifest, Feature-Konfiguration, Installer sowie Confluence-/Inferenz-Prüfskripte. Die Basisimages erhalten versionierte lokale Namen; das Imagemanifest hält ihre gepinnten Upstream-Referenzen fest. So ist der Start nach `docker load` nicht von erhalten gebliebenen Registry-Digest-Metadaten abhängig.
 
 ## Zielhost vorbereiten
 
@@ -19,8 +19,8 @@ Im entpackten Paket `.env.example` nach `.env` kopieren. `POSTGRES_PASSWORD` dur
 Adressen und Modelle konfigurieren, Beispiel für zwei interne OpenAI-kompatible Server:
 
 ```dotenv
-API_URL=https://doctus.intern/api
-FRONTEND_URL=https://doctus.intern
+API_URL=https://codena.intern/api
+FRONTEND_URL=https://codena.intern
 LLM_PROVIDER=vllm
 LLM_BASE_URL=http://chatserver.intern:8000/v1
 LLM_MODEL=<exakte Modellkennung>
@@ -37,7 +37,7 @@ EMBEDDING_AUTO_PULL=false
 `localhost` ist in den Codena-Containern der jeweilige Container selbst; `http://localhost:<port>/v1` erreicht den Modellserver deshalb nicht. Zwei Wege:
 
 1. **Port auf allen Schnittstellen veröffentlicht** (`-p 8000:8000`, nicht `-p 127.0.0.1:8000:8000`): `LLM_BASE_URL=http://host.docker.internal:8000/v1`. Die Compose-Dateien tragen `host.docker.internal` für API, Parser und Link-Worker ein, mit und ohne `--remote-inference`. Eine Host-Firewall muss Verbindungen aus dem Docker-Bridge-Netz auf diesen Port zulassen.
-2. **Port nur an 127.0.0.1 gebunden:** Den Modellcontainer ins Codena-Netz hängen (`docker network connect doctus_default <modellcontainer>`) und `LLM_BASE_URL=http://<modellcontainer>:<interner port>/v1` setzen. Nach einer Neuanlage des Modellcontainers die Verbindung wiederholen.
+2. **Port nur an 127.0.0.1 gebunden:** Den Modellcontainer ins Codena-Netz hängen (`docker network connect codena_default <modellcontainer>`) und `LLM_BASE_URL=http://<modellcontainer>:<interner port>/v1` setzen. Nach einer Neuanlage des Modellcontainers die Verbindung wiederholen.
 
 ```dotenv
 LLM_PROVIDER=vllm            # jeder selbst betriebene OpenAI-kompatible Server; llamacpp für llama-server

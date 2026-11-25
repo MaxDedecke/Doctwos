@@ -2,7 +2,7 @@
 
 from collections import defaultdict
 
-from doctus_models.database import CodeEdge, CodeEntity
+from codena_models.database import CodeEdge, CodeEntity
 from sqlalchemy import or_
 
 from core.model import Entity, ParseResult

@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.orm import Session
 
-from doctus_models.database import MCPAccessToken, User
+from codena_models.database import MCPAccessToken, User
 
 
 TOKEN_PREFIX = "dct_mcp_"

@@ -91,7 +91,7 @@ interface Port {} @Configuration class Config { @Bean("fast") Port port() { retu
 class Client { @Autowired @Qualifier("fast") Port port; }""")
     derived = [e for _, e in derive_injection_edges([result]) if e.type == "INJECTS"]
     assert derived[0].meta["target_qualified_name"] == "Config#port()"
-    monkeypatch.setenv("DOCTUS_SPRING_PROFILES", "prod")
+    monkeypatch.setenv("CODENA_SPRING_PROFILES", "prod")
     profiled = parse("""import org.springframework.stereotype.*; import org.springframework.context.annotation.*; import org.springframework.beans.factory.annotation.*;
 interface Port {} @Service @Profile("dev") class Dev implements Port {} class Client { @Autowired Port port; }""")
     assert (

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 
 from conftest import TEST_USERNAME
-from doctus_models.database import (
+from codena_models.database import (
     ChatFeedbackDiagnosticCase,
     ChatFeedbackDiagnosticSettings,
     ChatMessage,

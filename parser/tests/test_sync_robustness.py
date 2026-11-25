@@ -11,7 +11,7 @@ import worker
 from connectors.base import BaseConnector
 from core import sync_lock
 from db import SessionLocal
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 from tasks import recovery
 
 

@@ -234,15 +234,15 @@ describe('app/page.tsx — Orchestrierung', () => {
       renderApp();
       await screen.findByTestId('sidebar');
 
-      expect(screen.getByTestId('project-edge-bar').className).toContain('doctus-brand-gradient');
+      expect(screen.getByTestId('project-edge-bar').className).toContain('codena-brand-gradient');
 
       fireEvent.click(screen.getByText('select-project-1'));
       await waitFor(() => expect(screen.getByTestId('project-edge-bar').style.backgroundColor).toBe('rgb(47, 158, 107)'));
-      expect(screen.getByTestId('project-edge-bar').className).not.toContain('doctus-brand-gradient');
+      expect(screen.getByTestId('project-edge-bar').className).not.toContain('codena-brand-gradient');
 
       // Ein Projekt ohne Farbe fällt auf den Markenverlauf zurück.
       fireEvent.click(screen.getByText('select-project-2'));
-      await waitFor(() => expect(screen.getByTestId('project-edge-bar').className).toContain('doctus-brand-gradient'));
+      await waitFor(() => expect(screen.getByTestId('project-edge-bar').className).toContain('codena-brand-gradient'));
     });
 
     it('rendert keine waagerechte Projektfarbleiste mehr über den Ansichten', async () => {

@@ -1,7 +1,7 @@
 """Modellfreie Messung des MCP-Auffindens (Kapitel 9, Stufe 2).
 
 Spielt die Werkzeugaufrufe nach, die das Modell in den Läufen tatsächlich gestellt hat (`search_code`,
-`search_knowledge`, `answer_context`), gegen den laufenden Doctus-Server und prüft, ob das Ergebnis die
+`search_knowledge`, `answer_context`), gegen den laufenden Codena-Server und prüft, ob das Ergebnis die
 erwartete Datei bzw. Einheit der Aufgabe enthält. Dazu wird jede Aufgabe als Frage an `answer_context`
 gestellt (ohne Symbole), wie es ein Agent tut, der kein Symbol kennt.
 

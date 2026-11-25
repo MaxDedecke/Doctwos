@@ -4,7 +4,7 @@ from unittest.mock import patch
 
 import pytest
 
-from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project
+from codena_models.database import CodeEntity, DocumentChunk, KnowledgeSource, Project
 from services.search import _search_tokens, search_nodes
 
 REL = "app/app-authorization-ims-db2-mq"

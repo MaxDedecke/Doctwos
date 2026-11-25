@@ -116,7 +116,7 @@ Ausnahme nötig), vier Ausnahmen:
 |---|---|---|---|
 | `@img/sharp-libvips-linux-x64`, `@img/sharp-libvips-linuxmusl-x64` | LGPL-3.0-or-later | akzeptiert | Natives Binärpaket von `sharp` (Next.js-Bildoptimierung), unverändert, als separater Prozess eingebunden — analog zu `psycopg2-binary`. |
 | `caniuse-lite` | CC-BY-4.0 | akzeptiert | Reine Build-Zeit-Kompatibilitätsdaten (Browserslist/PostCSS), kein Code. Namensnennungspflicht ist mit diesem Eintrag erfüllt. |
-| `doctus-frontend` | UNLICENSED | akzeptiert | Das eigene Paket selbst, keine Fremdabhängigkeit. |
+| `codena-frontend` | UNLICENSED | akzeptiert | Das eigene Paket selbst, keine Fremdabhängigkeit. |
 
 `devDependencies` (Playwright, ESLint, Vitest u.a.) werden nicht ausgeliefert
 und sind hier bewusst ausgenommen (`--production`).

@@ -25,8 +25,8 @@ from sqlalchemy.orm import load_only
 
 from core.sync_lock import SyncLock
 from db import SessionLocal
-from doctus_models.database import DocumentChunk, EmbeddingMigration, KnowledgeSource
-from doctus_models.vector_index import create_index_sql
+from codena_models.database import DocumentChunk, EmbeddingMigration, KnowledgeSource
+from codena_models.vector_index import create_index_sql
 from ollama_client import get_embeddings_batch
 
 logger = logging.getLogger(__name__)

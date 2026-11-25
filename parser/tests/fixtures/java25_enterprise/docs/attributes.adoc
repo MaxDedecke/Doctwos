@@ -1,2 +1,2 @@
-:product: Doctus
+:product: Codena
 :chapters: chapters

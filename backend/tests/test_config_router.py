@@ -23,10 +23,10 @@ def test_get_system_config_forbidden_for_regular_user(member_client):
 
 def test_get_system_config_returns_expected_structure(client, monkeypatch):
     monkeypatch.setattr("core.config.OIDC_ISSUER", "https://idp.example.com")
-    monkeypatch.setattr("core.config.OIDC_CLIENT_ID", "doctus-app")
+    monkeypatch.setattr("core.config.OIDC_CLIENT_ID", "codena-app")
     monkeypatch.setattr("core.config.OIDC_CLIENT_SECRET", "super-secret")
     monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "Default Team")
-    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "admin, doctus-admin")
+    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "admin, codena-admin")
     monkeypatch.setattr("core.config.OIDC_TEAM_MAPPING", '{"dev": "Default Team"}')
 
     res = client.get("/config/system")
@@ -37,11 +37,11 @@ def test_get_system_config_returns_expected_structure(client, monkeypatch):
     assert "sso" in data
     assert data["sso"]["enabled"] is True
     assert data["sso"]["issuer"] == "https://idp.example.com"
-    assert data["sso"]["client_id"] == "doctus-app"
+    assert data["sso"]["client_id"] == "codena-app"
     assert data["sso"]["client_secret_configured"] is True
     assert data["sso"]["default_team"] == "Default Team"
     assert data["sso"]["default_team_exists"] is True
-    assert "doctus-admin" in data["sso"]["admin_roles"]
+    assert "codena-admin" in data["sso"]["admin_roles"]
     assert data["sso"]["team_mapping"] == {"dev": "Default Team"}
     assert data["sso"]["redirect_uri"].endswith("/auth/oidc/callback")
 
@@ -93,7 +93,7 @@ def test_test_oidc_connection_successful(client, monkeypatch):
 
 
 def test_simulate_oidc_mapping(client, monkeypatch):
-    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "doctus-admin")
+    monkeypatch.setattr("core.config.OIDC_ADMIN_ROLES", "codena-admin")
     monkeypatch.setattr("core.config.OIDC_DEFAULT_TEAM", "Default Team")
     monkeypatch.setattr(
         "core.config.OIDC_TEAM_MAPPING", '{"dev": "Default Team", "special": "NonExistentTeam"}'
@@ -102,7 +102,7 @@ def test_simulate_oidc_mapping(client, monkeypatch):
     # Simulation with admin role and dev group
     res = client.post(
         "/config/oidc/simulate-mapping",
-        json={"roles": ["doctus-admin"], "groups": ["dev", "special"]},
+        json={"roles": ["codena-admin"], "groups": ["dev", "special"]},
     )
     assert res.status_code == 200
     data = res.json()

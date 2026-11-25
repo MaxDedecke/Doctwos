@@ -1,11 +1,11 @@
-"""Doctus-Deployer: startet und verwaltet lokale LLM-Container (Ollama, vLLM, llama.cpp).
+"""Codena-Deployer: startet und verwaltet lokale LLM-Container (Ollama, vLLM, llama.cpp).
 
 Der Dienst ist die einzige Komponente mit Zugriff auf den Docker-Socket. Das Backend
 spricht ihn über das interne Compose-Netzwerk mit einem gemeinsamen Token an. Er
 startet ausschließlich Container aus den Engine-Definitionen in ``engines.py``
 (feste Images und Argumente, kein Privileged-Modus, kein Host-Netzwerk, nur das
 Modellvolume als Mount) und rührt keine fremden Container an: Verwaltet wird nur,
-was das Label ``doctus.deployment`` trägt.
+was das Label ``codena.deployment`` trägt.
 """
 
 from __future__ import annotations
@@ -23,13 +23,13 @@ from docker.types import DeviceRequest
 from fastapi import Depends, FastAPI, Header, HTTPException, Query
 from pydantic import BaseModel, Field
 
-from engines import CONTAINER_PREFIX, LABEL, DeploymentSpec, SpecError, plan
+from engines import CONTAINER_PREFIX, LABEL, LEGACY_CONTAINER_PREFIX, LEGACY_LABEL, DeploymentSpec, SpecError, plan
 
 logger = logging.getLogger("deployer")
-app = FastAPI(title="Doctus Deployer", docs_url=None, redoc_url=None, openapi_url=None)
+app = FastAPI(title="Codena Deployer", docs_url=None, redoc_url=None, openapi_url=None)
 
 TOKEN = os.getenv("DEPLOYER_TOKEN", "")
-NETWORK = os.getenv("DEPLOYER_NETWORK", "doctus_default")
+NETWORK = os.getenv("DEPLOYER_NETWORK", "codena_default")
 MODELS_VOLUME = os.getenv("DEPLOYER_MODELS_VOLUME", "doctus_llm_models")
 
 _client: docker.DockerClient | None = None
@@ -83,10 +83,28 @@ def _answers(container_name: str, engine: str) -> bool:
         return False
 
 
+def _label(labels: dict[str, str], key: str, default: str = "") -> str:
+    return labels.get(f"codena.{key}") or labels.get(f"doctus.{key}") or default
+
+
+def _attach(container) -> None:
+    """Hängt einen Container aus der Zeit vor der Umbenennung ins aktuelle Compose-Netz, damit Backend und
+    Deployer ihn unter seinem Namen erreichen (Projekt doctus → codena, Netz doctus_default → codena_default)."""
+    attrs = getattr(container, "attrs", None)
+    networks = ((attrs or {}).get("NetworkSettings") or {}).get("Networks") or {} if isinstance(attrs, dict) else {}
+    if not isinstance(attrs, dict) or NETWORK in networks:
+        return
+    try:
+        client().networks.get(NETWORK).connect(container)
+        container.reload()
+    except DockerException:
+        logging.getLogger(__name__).warning("Container %s ließ sich nicht an %s anhängen", container.name, NETWORK)
+
+
 def _describe(container, *, include_health: bool = True) -> dict[str, Any]:
     labels = container.labels or {}
-    name = labels.get(LABEL, "")
-    engine = labels.get("doctus.engine", "")
+    name = _label(labels, "deployment")
+    engine = _label(labels, "engine")
     state = container.status
     port = {"ollama": 11434, "vllm": 8000, "llamacpp": 8080}.get(engine, 0)
     ready = include_health and state == "running" and _answers(container.name, engine)
@@ -104,21 +122,23 @@ def _describe(container, *, include_health: bool = True) -> dict[str, Any]:
     base = f"http://{container.name}:{port}"
     return {
         "name": name, "container": container.name, "engine": engine,
-        "role": labels.get("doctus.role", "chat"), "model": labels.get("doctus.model", ""),
-        "gpu": labels.get("doctus.gpu") == "true", "status": status, "detail": pull.get("detail", ""),
+        "role": _label(labels, "role", "chat"), "model": _label(labels, "model"),
+        "gpu": _label(labels, "gpu") == "true", "status": status, "detail": pull.get("detail", ""),
         "base_url": base if engine == "ollama" else f"{base}/v1",
         "image": container.image.tags[0] if container.image and container.image.tags else "",
     }
 
 
 def _find(name: str):
-    try:
-        container = client().containers.get(container_name(name))
-    except NotFound:
-        raise HTTPException(status_code=404, detail="Deployment nicht gefunden")
-    if LABEL not in (container.labels or {}):
-        raise HTTPException(status_code=404, detail="Deployment nicht gefunden")
-    return container
+    for prefix in (CONTAINER_PREFIX, LEGACY_CONTAINER_PREFIX):
+        try:
+            container = client().containers.get(f"{prefix}{name}")
+        except NotFound:
+            continue
+        if {LABEL, LEGACY_LABEL} & set(container.labels or {}):
+            _attach(container)
+            return container
+    raise HTTPException(status_code=404, detail="Deployment nicht gefunden")
 
 
 def _pull_ollama(name: str, model: str) -> None:
@@ -154,7 +174,13 @@ def capabilities() -> dict[str, Any]:
 
 @app.get("/deployments", dependencies=[Depends(require_token)])
 def list_deployments() -> list[dict[str, Any]]:
-    containers = client().containers.list(all=True, filters={"label": LABEL})
+    containers = [
+        container
+        for label in (LABEL, LEGACY_LABEL)
+        for container in client().containers.list(all=True, filters={"label": label})
+    ]
+    for container in containers:
+        _attach(container)
     return [_describe(container) for container in containers]
 
 
@@ -172,7 +198,12 @@ def create_deployment(request: DeploymentRequest) -> dict[str, Any]:
         raise HTTPException(status_code=400, detail=str(exc))
     if spec.gpu and not gpu_available():
         raise HTTPException(status_code=400, detail="Auf diesem Host ist keine NVIDIA-GPU-Laufzeit verfügbar")
-    labels = {**container_plan.labels, "doctus.model": spec.model, "doctus.gpu": str(spec.gpu).lower()}
+    try:
+        client().containers.get(f"{LEGACY_CONTAINER_PREFIX}{spec.name}")
+        raise HTTPException(status_code=409, detail="Ein Deployment dieses Namens existiert bereits")
+    except NotFound:
+        pass
+    labels = {**container_plan.labels, "codena.model": spec.model, "codena.gpu": str(spec.gpu).lower()}
     environment = dict(container_plan.environment)
     hf_token = os.getenv("HF_TOKEN")
     if hf_token and spec.engine in {"vllm", "llamacpp"}:

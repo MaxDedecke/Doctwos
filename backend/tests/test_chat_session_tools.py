@@ -7,7 +7,7 @@ import pytest
 from sqlalchemy import text
 
 from conftest import TEST_USERNAME
-from doctus_models.database import ChatMessage, ChatSession, User
+from codena_models.database import ChatMessage, ChatSession, User
 from services import chat_attachments
 from services.chat_errors import ChatInvalid
 from services.chat_sessions import begin_turn

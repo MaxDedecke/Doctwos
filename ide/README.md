@@ -30,18 +30,18 @@ der Browser prüft die normale Codena-Anmeldung und Projektberechtigung.
 ## VS Code
 
 Den Ordner `ide/vscode` als lokale Extension in das VS-Code-Extensionsverzeichnis
-unter dem Namen `doctus-ide-0.1.3` kopieren und VS Code neu laden. Bei Remote-SSH
+unter dem Namen `codena-ide-0.1.3` kopieren und VS Code neu laden. Bei Remote-SSH
 gehört er in das Extensionsverzeichnis des Remote-Hosts. Alternativ kann der
 Ordner als VSIX paketiert werden.
 Beispiel für `.vscode/settings.json` im Repository:
 
 ```json
 {
-  "doctus.apiUrl": "https://doctus.example",
-  "doctus.webUrl": "https://doctus.example",
-  "doctus.projectId": 42,
-  "doctus.sourceId": 17,
-  "doctus.repositoryRoot": "."
+  "codena.apiUrl": "https://codena.example",
+  "codena.webUrl": "https://codena.example",
+  "codena.projectId": 42,
+  "codena.sourceId": 17,
+  "codena.repositoryRoot": "."
 }
 ```
 
@@ -56,7 +56,7 @@ graph** öffnet die aktuelle Editorzeile auch ohne eine solche Referenz.
 
 Die Editor-Extension und der MCP-Server haben unterschiedliche Aufgaben: CodeLens
 und Hover helfen im Editor; Copilot kann über MCP indizierte Beziehungen prüfen.
-Für die Remote-SSH-Session muss der MCP-Server `doctus` im Agenten aktiviert sein.
+Für die Remote-SSH-Session muss der MCP-Server `codena` im Agenten aktiviert sein.
 Die projektweite Datei [`.github/copilot-instructions.md`](../.github/copilot-instructions.md)
 gibt Copilot konkrete Anlässe für Codena-Abfragen vor. Für andere indizierte
 Repositories kann dieselbe Anweisung als persönliche Copilot-Anweisung unter
@@ -65,7 +65,7 @@ liest der Agent aus der jeweiligen `.vscode/settings.json`; bei fehlender ID
 fragt er die sichtbaren Projekte über MCP ab.
 
 In VS Code **Chat: Open Customizations** öffnen und für den aktiven Copilot-
-Harness prüfen, ob die Anweisung geladen und die `doctus`-Tools aktiviert sind.
+Harness prüfen, ob die Anweisung geladen und die `codena`-Tools aktiviert sind.
 In einem neuen Agent-Chat beispielsweise nach der Aufrufkette eines indizierten
 Symbols fragen. In **References** und den Tool-Aufrufen kontrollieren, ob Copilot
 die Anweisung und mindestens ein passendes Codena-Tool verwendet hat. Ein
@@ -74,24 +74,24 @@ der Index ersetzt nicht den aktuellen Quellcode im Workspace.
 
 ## JetBrains
 
-`ide/doctus_lsp.py` ist ein stdio Language Server ohne
+`ide/codena_lsp.py` ist ein stdio Language Server ohne
 Python-Pakete. Im LSP-Client der IDE als Serverkommando registrieren:
 
 ```text
-python3 /pfad/zu/Doctwos/ide/doctus_lsp.py
+python3 /pfad/zu/Doctwos/ide/codena_lsp.py
 ```
 
 Die Umgebung des Serverprozesses setzen:
 
 | Variable | Bedeutung |
 |---|---|
-| `DOCTUS_API_URL` | Backend-URL, z. B. `https://doctus.example` |
-| `DOCTUS_WEB_URL` | Browser-URL, z. B. `https://doctus.example` |
-| `DOCTUS_TOKEN` | Persönliches MCP-Token |
-| `DOCTUS_PROJECT_ID` | Numerische Projekt-ID |
-| `DOCTUS_SOURCE_ID` | Numerische Git-Quellen-ID |
-| `DOCTUS_REPOSITORY_ROOT` | Absoluter Pfad zum lokalen Repo-Root |
-| `DOCTUS_VARIANT_KEY` | Optionale Buildvariante |
+| `CODENA_API_URL` | Backend-URL, z. B. `https://codena.example` |
+| `CODENA_WEB_URL` | Browser-URL, z. B. `https://codena.example` |
+| `CODENA_TOKEN` | Persönliches MCP-Token |
+| `CODENA_PROJECT_ID` | Numerische Projekt-ID |
+| `CODENA_SOURCE_ID` | Numerische Git-Quellen-ID |
+| `CODENA_REPOSITORY_ROOT` | Absoluter Pfad zum lokalen Repo-Root |
+| `CODENA_VARIANT_KEY` | Optionale Buildvariante |
 
 Den Server für die benötigten Dateitypen aktivieren. Er bietet die LSP-Methoden
 `textDocument/codeLens`, `textDocument/hover` und `workspace/executeCommand` an.
@@ -105,9 +105,9 @@ eigene Projekt-/Quellen-IDs beziehungsweise eine eigene Serverinstanz nötig.
 Eclipse kann den stdio-Server über LSP4E anbinden. Für einen ersten Versuch
 installiere LSP4E, aktiviere den **Generic Editor** für die betroffenen Dateien
 und definiere in den LSP4E-Einstellungen einen benutzerdefinierten Language
-Server mit dem Kommando `python3 /pfad/zu/Doctwos/ide/doctus_lsp.py`. Weise ihm
+Server mit dem Kommando `python3 /pfad/zu/Doctwos/ide/codena_lsp.py`. Weise ihm
 die Content Types oder Dateiendungen des Bestands zu und setze dieselben
-`DOCTUS_*`-Umgebungsvariablen wie oben. LSP4E dokumentiert die dynamische
+`CODENA_*`-Umgebungsvariablen wie oben. LSP4E dokumentiert die dynamische
 Konfiguration ohne Eclipse-Plugin ausdrücklich als geeigneten Weg zum Testen;
 für eine dauerhaft verteilte Integration empfiehlt Eclipse den Extension Point
 `org.eclipse.lsp4e.languageServers`.
@@ -115,7 +115,7 @@ für eine dauerhaft verteilte Integration empfiehlt Eclipse den Extension Point
 Hover ist die sinnvollste erste Abnahme: LSP4E stellt Language-Server-Hover im
 Editor dar, und Codena liefert darin einen normalen HTTPS-Graph-Link. Die
 aktuelle LSP4E-Funktionsübersicht nennt CodeLens nicht ausdrücklich. Deshalb
-müssen CodeLens-Darstellung, Ausführung von `doctus.openGraph` über
+müssen CodeLens-Darstellung, Ausführung von `codena.openGraph` über
 `workspace/executeCommand` und der vom Server angeforderte externe Browseraufruf
 (`window/showDocument`) in der konkreten Eclipse-Version praktisch geprüft
 werden. Diese generische Konfiguration ist noch keine bestätigte Eclipse-

@@ -1,0 +1,33 @@
+name: Maven results for Codena
+description: Run clean verify and publish commit-bound Maven and JUnit evidence.
+inputs:
+  url:
+    description: Codena API base URL reachable from this runner
+    required: true
+  source-id:
+    description: Configured Codena Git source ID
+    required: true
+  token:
+    description: Source-scoped Codena CI token
+    required: true
+  profiles:
+    description: Comma-separated Maven profiles
+    default: ""
+  variant:
+    description: Stable matrix or build variant identifier
+    default: default
+  java-version:
+    description: Java version label for this build
+    default: ""
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        CODENA_URL: ${{ inputs.url }}
+        CODENA_SOURCE_ID: ${{ inputs.source-id }}
+        CODENA_CI_TOKEN: ${{ inputs.token }}
+        MAVEN_PROFILES: ${{ inputs.profiles }}
+        CODENA_CI_VARIANT: ${{ inputs.variant }}
+        JAVA_VERSION: ${{ inputs.java-version }}
+      run: python3 "${{ github.action_path }}/../../../scripts/publish_maven_ci.py"

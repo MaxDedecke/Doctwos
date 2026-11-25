@@ -10,7 +10,7 @@ from api.process import (
     _projection,
     _requested_kinds,
 )
-from doctus_models.database import CodeEdge, CodeEntity, Project, Team
+from codena_models.database import CodeEdge, CodeEntity, Project, Team
 
 
 @pytest.fixture

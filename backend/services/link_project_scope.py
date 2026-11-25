@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from sqlalchemy import and_, func, or_, select
 
 from core.projects import assert_project_visible
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     KnowledgeLink,

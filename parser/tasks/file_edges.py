@@ -6,8 +6,8 @@ from typing import Callable, Optional
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from doctus_models.code_file_edges import rebuild_code_file_edges
-from doctus_models.code_file_groups import rebuild_code_file_groups
+from codena_models.code_file_edges import rebuild_code_file_edges
+from codena_models.code_file_groups import rebuild_code_file_groups
 
 logger = logging.getLogger(__name__)
 

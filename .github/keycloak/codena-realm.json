@@ -1,14 +1,14 @@
 {
-  "realm": "doctus",
+  "realm": "codena",
   "enabled": true,
-  "displayName": "Doctus (Test-IdP)",
+  "displayName": "Codena (Test-IdP)",
   "sslRequired": "none",
   "registrationAllowed": false,
   "loginWithEmailAllowed": true,
   "clients": [
     {
-      "clientId": "doctus-backend",
-      "name": "Doctus Backend",
+      "clientId": "codena-backend",
+      "name": "Codena Backend",
       "description": "Nur fuer Demo-/Tests. Secret steht oeffentlich im Repo. Redirect-URIs decken nur localhost:8000 ab -- fuer andere Adressen <API_URL>/auth/oidc/callback ergaenzen.",
       "enabled": true,
       "protocol": "openid-connect",
@@ -45,7 +45,7 @@
       "username": "testuser",
       "enabled": true,
       "emailVerified": true,
-      "email": "testuser@doctus.test",
+      "email": "testuser@codena.test",
       "firstName": "Test",
       "lastName": "Nutzer",
       "credentials": [

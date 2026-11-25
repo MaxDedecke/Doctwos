@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.projects import assert_knowledge_source_visible, assert_project_visible
 from core.teams import assert_team_visible, is_admin
-from doctus_models.database import (
+from codena_models.database import (
     ChatFeedbackDiagnosticCase,
     ChatLinkFeedbackSignal,
     ChatMessage,

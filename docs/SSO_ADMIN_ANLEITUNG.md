@@ -23,7 +23,7 @@ Benötigt werden:
 Beispiel:
 
 ```text
-https://doctus.example.com/auth/oidc/callback
+https://codena.example.com/auth/oidc/callback
 ```
 
 Diese URI muss im IdP exakt eingetragen werden. Schon ein anderer Hostname, Port, Pfad oder ein zusätzlicher Slash führt zu einem Redirect-Fehler.
@@ -41,7 +41,7 @@ Im Identity-Provider einen neuen OIDC-Client anlegen:
 Die genaue Bezeichnung der Einstellungen hängt vom IdP ab. Für Keycloak ist die Issuer-URL normalerweise die Realm-URL, zum Beispiel:
 
 ```text
-https://sso.example.com/realms/doctus
+https://sso.example.com/realms/codena
 ```
 
 ## 3. Codena konfigurieren
@@ -49,11 +49,11 @@ https://sso.example.com/realms/doctus
 In der `.env` des Codena-Deployments folgende Werte setzen:
 
 ```dotenv
-API_URL=https://doctus.example.com
-FRONTEND_URL=https://doctus.example.com
+API_URL=https://codena.example.com
+FRONTEND_URL=https://codena.example.com
 
-OIDC_ISSUER=https://sso.example.com/realms/doctus
-OIDC_CLIENT_ID=doctus
+OIDC_ISSUER=https://sso.example.com/realms/codena
+OIDC_CLIENT_ID=codena
 OIDC_CLIENT_SECRET=<geheimes-client-secret>
 ```
 
@@ -86,7 +86,7 @@ Das Team muss in Codena bereits existieren. Nicht vorhandene Teams werden nicht 
 Nur ausdrücklich benannte IdP-Rollen dürfen Administratorrechte erhalten:
 
 ```dotenv
-OIDC_ADMIN_ROLES=doctus-admin,doctus-superuser
+OIDC_ADMIN_ROLES=codena-admin,codena-superuser
 ```
 
 Besitzt ein SSO-Nutzer eine dieser Rollen, erhält er in Codena die Rolle `superuser`. Ist `OIDC_ADMIN_ROLES` gesetzt, wird die Codena-Rolle bei jedem SSO-Login anhand der IdP-Rollen synchronisiert. Deshalb sollten hier nur vertrauenswürdige, eng gefasste Rollen stehen.

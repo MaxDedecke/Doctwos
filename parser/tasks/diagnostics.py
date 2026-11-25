@@ -11,7 +11,7 @@ Task läuft im parser-worker-Container, der weder Docker-CLI noch Docker-
 Socket hat (bewusst, um keinen Docker-Socket-Mount für ein "Diagnose"-Feature
 einzuführen). Deshalb:
   - DB-Metadaten: direkte SQLAlchemy-Queries statt `psql` via docker exec.
-  - Service-Logs: direktes Lesen aus dem gemeinsamen /var/log/doctus-Mount
+  - Service-Logs: direktes Lesen aus dem gemeinsamen /var/log/codena-Mount
     (siehe docker-compose.yml) statt `docker compose logs`.
   - Docker-Container-Status/Image-Digests/`ollama list` bleiben bewusst
     außen vor — dafür weiterhin scripts/generate_diagnostics.py auf dem Host
@@ -19,7 +19,7 @@ einzuführen). Deshalb:
 
 Redaction-Logik dupliziert aus generate_diagnostics.py statt importiert:
 backend/parser sind getrennte Docker-Images ohne gemeinsames Package (gleiches
-Muster wie doctus_models/database.py).
+Muster wie codena_models/database.py).
 """
 
 import csv
@@ -35,7 +35,7 @@ from datetime import datetime, timezone
 from sqlalchemy import text
 
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     AIProfile,
     AISettings,
     DiagnosticsRun,
@@ -48,7 +48,7 @@ from doctus_models.database import (
 
 logger = logging.getLogger(__name__)
 
-LOGS_ROOT = "/var/log/doctus"
+LOGS_ROOT = "/var/log/codena"
 LOG_TAIL_BYTES = 8 * 1024 * 1024
 SYNC_LOG_TAIL_LINES = 400
 BUNDLE_OUTPUT_DIR = "/repos/diagnostics"
@@ -122,17 +122,17 @@ def _write_versions(db, out_dir: str) -> None:
 
     import httpx
 
-    import doctus_models
+    import codena_models
 
     info = {
         "collected_at": datetime.now(timezone.utc).isoformat(),
         "parser": {
             "git_sha": os.getenv("GIT_SHA", "unknown"),
             "build_time": os.getenv("BUILD_TIME", "unknown"),
-            "doctus_models": getattr(doctus_models, "__version__", "unknown"),
+            "codena_models": getattr(codena_models, "__version__", "unknown"),
             "python": platform.python_version(),
         },
-        "doctus_version": os.getenv("DOCTUS_VERSION", "unknown"),
+        "codena_version": os.getenv("CODENA_VERSION", "unknown"),
     }
     try:
         info["alembic"] = db.execute(text("SELECT version_num FROM alembic_version")).scalar()
@@ -274,7 +274,7 @@ def _dump_db_tables(db, out_dir: str, secrets: set[str]) -> None:
 
 
 def _copy_service_logs(out_dir: str, secrets: set[str]) -> None:
-    """Reads every service's own log file directly off the shared /var/log/doctus
+    """Reads every service's own log file directly off the shared /var/log/codena
     mount — the reduced, no-Docker-CLI-needed equivalent of `docker compose
     logs` in generate_diagnostics.py."""
     if not os.path.isdir(LOGS_ROOT):
@@ -326,7 +326,7 @@ async def generate_diagnostics_bundle_async(run_id: int) -> None:
         return
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    bundle_name = f"doctus-diagnostics-{timestamp}"
+    bundle_name = f"codena-diagnostics-{timestamp}"
     work_dir = os.path.join(BUNDLE_OUTPUT_DIR, f".tmp-{run_id}-{bundle_name}")
     archive_path = os.path.join(BUNDLE_OUTPUT_DIR, f"{bundle_name}.tar.gz")
 

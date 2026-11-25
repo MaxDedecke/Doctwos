@@ -58,11 +58,11 @@ class ParseResult:
   `qualified_name`, `meta`) — `type` muss einer der Werte aus `EntityType`
   sein (`program`, `copybook`, `section`, `paragraph`, `data_item`,
   `file_fd`, `sql_table`, `sql_block`) und muss dabei mit
-  `doctus_models/database.py::CodeEntity.type` übereinstimmen. Eine echte
+  `codena_models/database.py::CodeEntity.type` übereinstimmen. Eine echte
   zweite Sprache braucht fast immer neue Werte hier (z. B. `class`/`method`
   für Java) — dafür `EntityType` erweitern **und** denselben String in
   `CodeEntity.type`s Dokumentationskommentar nachtragen (das Modell ist ein
-  gemeinsames Paket für Backend und Parser, `packages/doctus-models`).
+  gemeinsames Paket für Backend und Parser, `packages/codena-models`).
   `qualified_name` wird schon beim Parsen gebaut (z. B.
   `"MAIN.SECTION.PARA"`), nicht erst beim Persistieren.
 - **`ParsedEdge`** (`type`, `src_name`, `dst_name`, `resolution`,
@@ -102,7 +102,7 @@ mit einem äquivalenten Einbindungsmechanismus.
 
 ## Schritt 1: Dateiendungen klassifizieren
 
-`connectors/git.py::_DEFAULT_EXTENSIONS` (bzw. `DOCTUS_LANGUAGE_EXTENSIONS`-Env
+`connectors/git.py::_DEFAULT_EXTENSIONS` (bzw. `CODENA_LANGUAGE_EXTENSIONS`-Env
 oder `spaces["language_extensions"]` pro Wissensquelle, siehe
 `_resolve_extension_config()`) ordnet Dateiendungen einem Sprachschlüssel
 zu:

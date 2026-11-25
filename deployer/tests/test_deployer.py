@@ -61,7 +61,7 @@ def test_bad_model_ids_are_rejected(bad):
         plan(spec(model=bad))
 
 
-@pytest.mark.parametrize("bad", ["", "A", "x", "-x", "x_y", "doctus llm", "a" * 40])
+@pytest.mark.parametrize("bad", ["", "A", "x", "-x", "x_y", "codena llm", "a" * 40])
 def test_bad_names_are_rejected(bad):
     with pytest.raises(SpecError):
         plan(spec(name=bad))
@@ -108,16 +108,16 @@ def test_create_starts_labelled_container_on_internal_network(api):
     client, fake, app_module = api
     fake.containers.get.side_effect = NotFound("x")
     fake.containers.run.return_value = SimpleNamespace(
-        name="doctus-llm-chat-a", status="created", labels={engines.LABEL: "chat-a", "doctus.engine": "llamacpp", "doctus.model": "m"},
+        name="codena-llm-chat-a", status="created", labels={engines.LABEL: "chat-a", "codena.engine": "llamacpp", "codena.model": "m"},
         image=SimpleNamespace(tags=["img"]),
     )
     response = client.post("/deployments", headers=HEAD, json={"name": "chat-a", "engine": "llamacpp", "model": "org/m"})
     assert response.status_code == 201
     kwargs = fake.containers.run.call_args.kwargs
-    assert kwargs["name"] == "doctus-llm-chat-a" and kwargs["network"] == app_module.NETWORK
+    assert kwargs["name"] == "codena-llm-chat-a" and kwargs["network"] == app_module.NETWORK
     assert list(kwargs["volumes"]) == [app_module.MODELS_VOLUME]
     assert "privileged" not in kwargs and "ports" not in kwargs and kwargs["labels"][engines.LABEL] == "chat-a"
-    assert response.json()["base_url"] == "http://doctus-llm-chat-a:8080/v1"
+    assert response.json()["base_url"] == "http://codena-llm-chat-a:8080/v1"
 
 
 def test_gpu_request_fails_without_nvidia_runtime(api):
@@ -135,7 +135,7 @@ def test_invalid_spec_is_a_400(api):
 
 def test_foreign_containers_are_not_managed(api):
     client, fake, _ = api
-    fake.containers.get.return_value = SimpleNamespace(name="doctus-llm-db", labels={}, status="running")
+    fake.containers.get.return_value = SimpleNamespace(name="codena-llm-db", labels={}, status="running")
     assert client.delete("/deployments/db", headers=HEAD).status_code == 404
 
 
@@ -143,9 +143,9 @@ def test_ollama_pull_waits_for_the_server_and_marks_failures(api, monkeypatch):
     """Regression: der Pull-Thread darf nicht auf seinen eigenen "pulling"-Status warten."""
     _, fake, app_module = api
     container = MagicMock()
-    container.name = "doctus-llm-x"
+    container.name = "codena-llm-x"
     container.status = "running"
-    container.labels = {engines.LABEL: "x", "doctus.engine": "ollama"}
+    container.labels = {engines.LABEL: "x", "codena.engine": "ollama"}
     container.exec_run.return_value = SimpleNamespace(exit_code=0, output=b"")
     fake.containers.get.return_value = container
     monkeypatch.setattr(app_module, "_answers", lambda name, engine: True)
@@ -156,3 +156,24 @@ def test_ollama_pull_waits_for_the_server_and_marks_failures(api, monkeypatch):
     container.exec_run.return_value = SimpleNamespace(exit_code=1, output=b"manifest unknown")
     app_module._pull_ollama("x", "nope")
     assert app_module._pull_state["x"]["status"] == "failed" and "manifest" in app_module._pull_state["x"]["detail"]
+
+
+def test_containers_from_before_the_rename_stay_managed(api):
+    """Übergang doctus→codena: alte Container werden erkannt und ins aktuelle Netz gehängt."""
+    from docker.errors import NotFound
+    client, fake, app_module = api
+    legacy = SimpleNamespace(
+        name="doctus-llm-chat-a", status="exited", image=SimpleNamespace(tags=["img"]),
+        labels={engines.LEGACY_LABEL: "chat-a", "doctus.engine": "llamacpp", "doctus.model": "m", "doctus.role": "chat"},
+        attrs={"NetworkSettings": {"Networks": {"doctus_default": {}}}}, reload=lambda: None,
+    )
+    fake.containers.list.side_effect = lambda all, filters: [legacy] if filters["label"] == engines.LEGACY_LABEL else []
+    body = client.get("/deployments", headers=HEAD).json()
+    assert body[0]["name"] == "chat-a" and body[0]["model"] == "m" and body[0]["base_url"] == "http://doctus-llm-chat-a:8080/v1"
+    fake.networks.get.assert_called_with(app_module.NETWORK)
+    fake.networks.get.return_value.connect.assert_called_with(legacy)
+
+    fake.containers.get.side_effect = lambda name: legacy if name == "doctus-llm-chat-a" else (_ for _ in ()).throw(NotFound("x"))
+    assert client.get("/deployments/chat-a", headers=HEAD).json()["container"] == "doctus-llm-chat-a"
+    response = client.post("/deployments", headers=HEAD, json={"name": "chat-a", "engine": "llamacpp", "model": "org/m"})
+    assert response.status_code == 409

@@ -4,7 +4,7 @@ from hashlib import sha256
 from uuid import uuid4
 
 from db import SessionLocal
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, Project, Team
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource, Project, Team
 from java.parse import parse_java_file
 from structure_persist import persist_parse_result
 from tasks.edge_resolver import resolve_global_edges

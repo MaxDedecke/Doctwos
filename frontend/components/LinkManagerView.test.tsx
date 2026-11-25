@@ -344,7 +344,7 @@ describe('LinkManagerView', () => {
 
       fireEvent.change(input, { target: { value: '250' } });
       expect((input as HTMLInputElement).value).toBe('100');
-      expect(localStorage.getItem('doctus-link-min-confidence')).toBe('100');
+      expect(localStorage.getItem('codena-link-min-confidence')).toBe('100');
 
       fireEvent.change(input, { target: { value: '60' } });
       unmount();

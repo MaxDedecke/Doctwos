@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""Diagnosepaket auf dem Doctus-Host: alles, was zum Nachvollziehen eines Fehlers aus der Ferne nötig ist.
+"""Diagnosepaket auf dem Codena-Host: alles, was zum Nachvollziehen eines Fehlers aus der Ferne nötig ist.
 
 Aufruf im Installationsverzeichnis (dort, wo docker-compose.yml und .env liegen), vor jedem Neustart:
 
     python3 generate_diagnostics.py            # oder: python3 scripts/generate_diagnostics.py im Repository
 
 Ein Neustart leert den Log-Puffer des Containers, und Docker hält je Dienst nur 3 × 10 MB. Erst sammeln, dann
-eingreifen. Das Ergebnis ``doctus-diagnostics-<Zeit>.tar.gz`` enthält keine Dokumentinhalte, Chats oder Vektoren,
+eingreifen. Das Ergebnis ``codena-diagnostics-<Zeit>.tar.gz`` enthält keine Dokumentinhalte, Chats oder Vektoren,
 nur Zustand, Versionen, Konfiguration (Geheimnisse ersetzt) und Logs. Es braucht nur Python 3 und Docker.
 
 Gegenüber dem Paket aus Einstellungen > Logs kommt hinzu, was nur der Host sieht: Containerzustand mit Neustarts,
@@ -25,7 +25,7 @@ import tarfile
 from datetime import datetime
 
 STAMP = datetime.now().strftime("%Y%m%d_%H%M%S")
-OUT = f"doctus-diagnostics-{STAMP}"
+OUT = f"codena-diagnostics-{STAMP}"
 ARCHIVE = f"{OUT}.tar.gz"
 LOG_TAIL_LINES = "5000"
 FILE_LOG_TAIL_BYTES = 8 * 1024 * 1024
@@ -99,7 +99,7 @@ def write(name: str, content: str) -> None:
 
 
 os.makedirs(OUT, exist_ok=True)
-print(f"=== Doctus-Diagnose {STAMP} ===")
+print(f"=== Codena-Diagnose {STAMP} ===")
 write("env_sanitized.txt", "".join(env_lines))
 
 # ── Host und Docker ───────────────────────────────────────────────────────────
@@ -161,7 +161,7 @@ write("alembic_current.txt", compose("exec", "-T", "backend-api", "alembic", "cu
 
 # ── Datenbank: Zustand, keine Inhalte ─────────────────────────────────────────
 db_user = env.get("POSTGRES_USER", "admin")
-db_name = env.get("POSTGRES_DB", "doctus")
+db_name = env.get("POSTGRES_DB", "codena")
 QUERIES = {
     "db_knowledge_sources.csv": (
         "SELECT id, name, type, url, project_id, branch, sync_status, error_kind, failure_count, last_attempt_at, "

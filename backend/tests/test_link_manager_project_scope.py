@@ -1,6 +1,6 @@
 import pytest
 
-from doctus_models.database import DocumentChunk, KnowledgeLink, LinkBuilderRun, Project, Topic
+from codena_models.database import DocumentChunk, KnowledgeLink, LinkBuilderRun, Project, Topic
 
 
 @pytest.fixture

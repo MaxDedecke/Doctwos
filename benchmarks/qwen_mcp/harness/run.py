@@ -3,11 +3,11 @@
 Arme (gleicher Prompt, gleiches Modell, gleiche Sampling-Parameter):
   none   Kontrollboden: keine Werkzeuge (Wissen des Modells allein)
   local  Kontrolle: lokale Dateiwerkzeuge (list_dir, grep, read_file) auf dem gepinnten Checkout
-  mcp    Behandlung: die Doctus-MCP-Werkzeuge (Streamable HTTP, Bearer-Token)
+  mcp    Behandlung: die Codena-MCP-Werkzeuge (Streamable HTTP, Bearer-Token)
 
 Aufruf (im Backend-Image, damit `mcp` und `httpx` vorhanden sind):
   docker run --rm --network host --env-file .env.local -v $PWD:/bench -w /bench \
-      --entrypoint python doctus-backend-api:latest harness/run.py --reps 3
+      --entrypoint python codena-backend-api:latest harness/run.py --reps 3
 """
 
 from __future__ import annotations
@@ -58,7 +58,7 @@ ARM_HINTS = {
         "Lies den relevanten Code, bevor du antwortest."
     ),
     "mcp": (
-        "Du hast die Doctus-MCP-Werkzeuge fuer ein indexiertes Projekt (Suche, Entitaeten, Call-Flow, Datenzugriff). "
+        "Du hast die Codena-MCP-Werkzeuge fuer ein indexiertes Projekt (Suche, Entitaeten, Call-Flow, Datenzugriff). "
         "Die project_id der Frage ist {project_id}. Nutze die Werkzeuge, bevor du antwortest."
     ),
 }

@@ -173,10 +173,10 @@ npm test
 ```
 
 Backend and parser tests (both need the shared data model package
-`packages/doctus-models` installed in their environment):
+`packages/codena-models` installed in their environment):
 
 ```bash
-python -m pip install ./packages/doctus-models
+python -m pip install ./packages/codena-models
 cd backend && python -m pytest tests/
 cd ../parser && python -m pytest tests/
 ```

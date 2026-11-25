@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 import subprocess
 
 import pytest
-from doctus_models.database import CodeEntity, Insight, KnowledgeSource
+from codena_models.database import CodeEntity, Insight, KnowledgeSource
 from services.build_evidence import BuildEvidence, summarize_build_evidence
 from services.change_diff import _changed_entities
 from services.change_package import inspect_change_package
@@ -77,7 +77,7 @@ def test_package_includes_findings_by_evidence_with_status(
     db_session.add(entity)
     db_session.flush()
     # Use a fixture user as author to satisfy the real audit FK.
-    from doctus_models.database import User
+    from codena_models.database import User
 
     author = db_session.query(User).first()
     if author is None:
@@ -206,8 +206,8 @@ def test_build_artifacts_require_exact_source_revision(client, db_session, test_
 
 
 def test_unchanged_evidence_file_survives_source_sync(db_session, test_project, test_team):
-    from doctus_models.database import DocumentChunk, User
-    from doctus_models.insight_evidence import snapshot_evidence
+    from codena_models.database import DocumentChunk, User
+    from codena_models.insight_evidence import snapshot_evidence
     import sys
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "parser"))

@@ -1,7 +1,7 @@
 import uuid
 from types import SimpleNamespace
 
-from doctus_models.database import (
+from codena_models.database import (
     Team,
     Project,
     KnowledgeSource,

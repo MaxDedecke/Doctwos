@@ -8,7 +8,7 @@ Bericht wie dort, ergänzt um begrenzte Dateilisten je Status mit ihrem Grund.
 from __future__ import annotations
 
 from core.source_preflight import build_preflight
-from doctus_models.database import SourceScanFile
+from codena_models.database import SourceScanFile
 from services.commit_diff import _source
 from sqlalchemy.orm import Session
 

@@ -108,7 +108,7 @@ export function embeddingProfileFromApi(profile: Record<string, unknown>): Embed
 }
 
 function readProfiles(t: Translator): LlmProfile[] {
-  const savedProfiles = localStorage.getItem('doctus-llm-profiles');
+  const savedProfiles = localStorage.getItem('codena-llm-profiles');
   if (savedProfiles) {
     try {
       const parsed = JSON.parse(savedProfiles);
@@ -134,13 +134,13 @@ function readProfiles(t: Translator): LlmProfile[] {
     }
   }
 
-  const legacyProvider = localStorage.getItem('doctus-llm-provider') || 'ollama';
-  const storedLegacyModel = localStorage.getItem('doctus-llm-model');
+  const legacyProvider = localStorage.getItem('codena-llm-provider') || 'ollama';
+  const storedLegacyModel = localStorage.getItem('codena-llm-model');
   const legacyModel = !storedLegacyModel || storedLegacyModel === 'qwen2.5:1.5b'
     ? DEFAULT_LLM_MODEL
     : storedLegacyModel;
-  const legacyApiKey = localStorage.getItem('doctus-llm-api-key') || '';
-  const legacyBaseUrl = localStorage.getItem('doctus-llm-base-url') || '';
+  const legacyApiKey = localStorage.getItem('codena-llm-api-key') || '';
+  const legacyBaseUrl = localStorage.getItem('codena-llm-base-url') || '';
 
   const profiles: LlmProfile[] = [{
     id: 'ollama-default',
@@ -164,8 +164,8 @@ function readProfiles(t: Translator): LlmProfile[] {
     });
   }
 
-  localStorage.setItem('doctus-llm-profiles', JSON.stringify(profiles));
-  localStorage.removeItem('doctus-llm-api-key');
+  localStorage.setItem('codena-llm-profiles', JSON.stringify(profiles));
+  localStorage.removeItem('codena-llm-api-key');
   return profiles;
 }
 
@@ -198,13 +198,13 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLlmProfiles(profiles);
 
-    const storedActiveId = localStorage.getItem('doctus-active-profile-id');
+    const storedActiveId = localStorage.getItem('codena-active-profile-id');
     const initialId = storedActiveId && profiles.some(profile => profile.id === storedActiveId)
       ? storedActiveId
       : profiles[0]?.id || 'ollama-default';
 
     setActiveProfileIdState(initialId);
-    localStorage.setItem('doctus-active-profile-id', initialId);
+    localStorage.setItem('codena-active-profile-id', initialId);
 
     const activeProfile = profiles.find(profile => profile.id === initialId);
     setTemperature(activeProfile?.temperature);
@@ -227,18 +227,18 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
     api.getAiProfiles?.()
       .then(res => {
         const profiles: LlmProfile[] = (res.data.profiles || []).map(profileFromApi);
-        localStorage.removeItem('doctus-llm-profiles');
+        localStorage.removeItem('codena-llm-profiles');
         if (!profiles.length) {
           // Standard-Stack ohne LLM-Container: erst ein Admin legt ein Profil an.
           setLlmProfiles([]);
           setActiveProfileIdState('');
-          localStorage.removeItem('doctus-active-profile-id');
+          localStorage.removeItem('codena-active-profile-id');
           return;
         }
         const active = profiles.find(profile => profile.id === String(res.data.active_profile_id)) || profiles[0];
         setLlmProfiles(profiles);
         setActiveProfileIdState(active.id);
-        localStorage.setItem('doctus-active-profile-id', String(active.id));
+        localStorage.setItem('codena-active-profile-id', String(active.id));
         setActiveLlmModel(active.model);
         setLlmContextLength(active.llmContextLength || 8192);
       })
@@ -270,7 +270,7 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
 
   const setActiveProfileId = useCallback((id: string) => {
     setActiveProfileIdState(id);
-    localStorage.setItem('doctus-active-profile-id', id);
+    localStorage.setItem('codena-active-profile-id', id);
 
     const profile = llmProfiles.find(candidate => candidate.id === id);
     setTemperature(profile?.temperature);
@@ -321,6 +321,6 @@ export function useAiSettings({ isLoggedIn, t }: UseAiSettingsOptions) {
 }
 
 function initialActiveProfileId(profiles: LlmProfile[]): string {
-  const stored = localStorage.getItem('doctus-active-profile-id');
+  const stored = localStorage.getItem('codena-active-profile-id');
   return stored && profiles.some(profile => profile.id === stored) ? stored : profiles[0]?.id || 'ollama-default';
 }

@@ -3,7 +3,7 @@ backend/api/graph.py
 ======================
 Knowledge Graph: Visualization of relationships between code objects and documentation.
 
-This module provides routes to prepare the networked data of the Doctus system as
+This module provides routes to prepare the networked data of the Codena system as
 graphs (nodes and edges) for frontend visualization (Force-Graph, Mermaid).
 
 Endpoints:
@@ -51,7 +51,7 @@ from services.graph_overview_limits import (
 from services.graph_overview_sampling import compute_degree, select_overview_nodes
 from core.db_setup import get_db
 from core.analysis_status import load_analysis_status
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     EntityDocLink,

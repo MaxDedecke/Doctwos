@@ -6,8 +6,8 @@ import pytest
 
 from sqlalchemy import text
 
-from doctus_models.code_file_groups import build_groups, louvain, rebuild_code_file_groups
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, Topic, TopicNode
+from codena_models.code_file_groups import build_groups, louvain, rebuild_code_file_groups
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource, Topic, TopicNode
 
 
 def _clique(prefix, size):
@@ -90,8 +90,8 @@ def test_large_communities_are_divided_into_subgroups():
         return {n: 0 for n in adjacency} if len(calls) == 1 else louvain(adjacency)
 
     with (
-        patch("doctus_models.code_file_groups.GROUP_MAX_FILES", 10),
-        patch("doctus_models.code_file_groups.louvain", side_effect=coarse_first),
+        patch("codena_models.code_file_groups.GROUP_MAX_FILES", 10),
+        patch("codena_models.code_file_groups.louvain", side_effect=coarse_first),
     ):
         groups, leaf, _ = build_groups(_pairs(edges), {}, {})
     top = [g for g in groups if g.parent_key is None]
@@ -200,10 +200,10 @@ def test_rebuild_stores_groups_members_and_bundled_edges(db_session, test_projec
 def test_very_large_projects_group_directories_instead_of_files(
     db_session, test_project, hub_files
 ):
-    from doctus_models.code_file_edges import rebuild_code_file_edges
+    from codena_models.code_file_edges import rebuild_code_file_edges
 
     rebuild_code_file_edges(db_session, test_project)
-    with patch("doctus_models.code_file_groups.LOUVAIN_MAX_FILE_EDGES", 0):
+    with patch("codena_models.code_file_groups.LOUVAIN_MAX_FILE_EDGES", 0):
         rebuild_code_file_groups(db_session, test_project)
     db_session.commit()
     members = dict(

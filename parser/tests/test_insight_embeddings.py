@@ -3,9 +3,9 @@
 from uuid import uuid4
 import pytest
 from db import SessionLocal
-from doctus_models.database import Team, User, Project, Insight, InsightEmbedding
+from codena_models.database import Team, User, Project, Insight, InsightEmbedding
 from tasks import insight_embeddings as worker
-from doctus_models.insight_workflow import content_hash
+from codena_models.insight_workflow import content_hash
 
 
 @pytest.fixture

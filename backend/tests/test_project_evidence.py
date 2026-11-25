@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 import mcp_server
-from doctus_models.database import (
+from codena_models.database import (
     ChatMessage,
     ChatSession,
     DocumentChunk,
@@ -16,7 +16,7 @@ from doctus_models.database import (
     KnowledgeSource,
     User,
 )
-from doctus_models.insight_versions import capture_versions
+from codena_models.insight_versions import capture_versions
 from services.answer_context import build_answer_context
 from services.agent_tool_results import _compact_change_package_for_agent
 from services.insight_context import current_insights

@@ -1,4 +1,4 @@
-name: Maven with Doctus evidence
+name: Maven with Codena evidence
 on:
   push:
     branches: [main]
@@ -14,10 +14,10 @@ jobs:
           distribution: temurin
           java-version: '21'
           cache: maven
-      - uses: MaxDedecke/Doctwos/.github/actions/maven-doctus@develop
+      - uses: MaxDedecke/Doctwos/.github/actions/maven-codena@develop
         with:
-          url: ${{ vars.DOCTUS_URL }}
-          source-id: ${{ vars.DOCTUS_SOURCE_ID }}
-          token: ${{ secrets.DOCTUS_CI_TOKEN }}
+          url: ${{ vars.CODENA_URL }}
+          source-id: ${{ vars.CODENA_SOURCE_ID }}
+          token: ${{ secrets.CODENA_CI_TOKEN }}
           variant: jdk21-default
           java-version: '21'

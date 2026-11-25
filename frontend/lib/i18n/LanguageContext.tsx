@@ -8,7 +8,7 @@ export type Language = 'de' | 'en';
 
 type Dictionary = { [key: string]: string | Dictionary };
 const DICTIONARIES: Record<Language, Dictionary> = { de, en };
-const STORAGE_KEY = 'doctus-language';
+const STORAGE_KEY = 'codena-language';
 
 function resolveKey(dict: Dictionary, key: string): string | undefined {
   let node: string | Dictionary = dict;

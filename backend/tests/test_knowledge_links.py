@@ -31,7 +31,7 @@ import pytest
 import api.knowledge_links as knowledge_links_api
 import services.link_run_start as link_run_start
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from doctus_models.database import (
+from codena_models.database import (
     AIProfile,
     CodeEntity,
     DocumentChunk,

@@ -11,7 +11,7 @@ from starlette.responses import JSONResponse
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible, get_project_role
-from doctus_models.database import CIBuildToken, KnowledgeSource, User
+from codena_models.database import CIBuildToken, KnowledgeSource, User
 from services.ci_builds import CIBuildUpload, store_upload
 from services.ci_tokens import issue_token, public_token, require_ci_token, validate_token
 

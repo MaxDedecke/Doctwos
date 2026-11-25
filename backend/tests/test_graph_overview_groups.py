@@ -4,9 +4,9 @@ from unittest.mock import patch
 
 import pytest
 
-from doctus_models.code_file_edges import rebuild_code_file_edges
-from doctus_models.code_file_groups import rebuild_code_file_groups
-from doctus_models.database import (
+from codena_models.code_file_edges import rebuild_code_file_edges
+from codena_models.code_file_groups import rebuild_code_file_groups
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

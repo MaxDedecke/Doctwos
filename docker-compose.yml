@@ -1,4 +1,4 @@
-name: doctus
+name: codena
 
 # Caps each container's own log file — Docker's json-file driver has no size
 # limit by default, and these containers run indefinitely on a customer's box.
@@ -13,7 +13,7 @@ services:
     # Pinned by digest, not just :latest, so an offline bundle built today still
     # resolves to the exact same image months later (see docker-compose.offline.yml).
     image: pgvector/pgvector:0.8.6-pg16-trixie@sha256:c8483555ce48101872f888c1df8a895ff689d6c7c7a5f7ac266475f9dfe89e0b
-    container_name: doctus-db
+    container_name: codena-db
     restart: always
     logging: *default-logging
     environment:
@@ -39,7 +39,7 @@ services:
     # longer OSI open source. Valkey is the Linux Foundation's BSD-3-Clause fork,
     # wire-compatible — same REDIS_URL, same client, no code changes needed.
     image: valkey/valkey:8-alpine@sha256:77643d152547b446fc15cbafaff22004545663fcd40c6b28038ad283837baa75
-    container_name: doctus-redis
+    container_name: codena-redis
     restart: always
     logging: *default-logging
     # Loopback only — Valkey runs without auth. Containers reach it via the
@@ -60,7 +60,7 @@ services:
   ollama:
     profiles: ["local-ollama"]
     image: ollama/ollama:latest@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a
-    container_name: doctus-ollama
+    container_name: codena-ollama
     restart: always
     logging: *default-logging
     # Loopback only — Ollama has no auth. The backend/parser reach it via the
@@ -104,13 +104,13 @@ services:
   deployer:
     profiles: ["deployer"]
     build: ./deployer
-    image: doctus-deployer:${DOCTUS_VERSION:-latest}
-    container_name: doctus-deployer
+    image: codena-deployer:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-deployer
     restart: always
     logging: *default-logging
     environment:
       DEPLOYER_TOKEN: ${DEPLOYER_TOKEN:-}
-      DEPLOYER_NETWORK: doctus_default
+      DEPLOYER_NETWORK: codena_default
       DEPLOYER_MODELS_VOLUME: doctus_llm_models
       HF_TOKEN: ${HF_TOKEN:-}
       OLLAMA_IMAGE: ${OLLAMA_IMAGE:-ollama/ollama:latest@sha256:46399ef084d97b381955b5dc585c5d836dbe7ed3f79f170d1c04660fed511e3a}
@@ -130,7 +130,7 @@ services:
     build:
       context: ./backend
       additional_contexts:
-        models: ./packages/doctus-models
+        models: ./packages/codena-models
       args:
         # Unset locally, GET /version just reports "unknown" — set by
         # scripts/build-offline-bundle.sh for shipped builds.
@@ -139,11 +139,11 @@ services:
     # Explicit image name+tag (not Compose's auto "<project>-<service>") so a
     # pre-built/loaded image is found regardless of what folder this is checked
     # out into — required for the air-gapped path (docker-compose.offline.yml).
-    image: doctus-backend-api:${DOCTUS_VERSION:-latest}
+    image: codena-backend-api:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
     # Eine aus dem Ruder laufende Anfrage soll den Container (restart: always) treffen, nicht die
     # WSL-VM samt Host. Normalbetrieb liegt weit darunter.
     mem_limit: ${BACKEND_MEM_LIMIT:-3g}
-    container_name: doctus-backend
+    container_name: codena-backend
     # Modellserver auf demselben Host (Port auf 0.0.0.0) über host.docker.internal; `localhost`
     # ist im Container der Container selbst (docs/PILOT_DEPLOYMENT.md).
     extra_hosts:
@@ -204,15 +204,15 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       API_URL: ${API_URL:-http://localhost:8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DOCTUS_VERSION: ${DOCTUS_VERSION:-latest}
+      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
       MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       FEATURES_CONFIG_PATH: ${FEATURES_CONFIG_PATH:-/config/features.json}
       LLM_MODEL: ${LLM_MODEL:-disabled}
-      LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
+      LOG_FILE_PATH: /var/log/codena/backend-api/backend-api.log
       ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
-      # SSO (E-12) — leer lässt Doctus beim reinen Passwort-Login, siehe
+      # SSO (E-12) — leer lässt Codena beim reinen Passwort-Login, siehe
       # docs/deployment-customer.md Abschnitt "Identity Provider".
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -231,7 +231,7 @@ services:
       # Own app-log file, additive to the json-file driver above — lets a
       # diagnostics bundle collect this service's logs by reading a file, not
       # by shelling out to `docker compose logs` (see parser-worker below).
-      - ./data/logs/backend-api:/var/log/doctus/backend-api
+      - ./data/logs/backend-api:/var/log/codena/backend-api
     healthcheck:
       # Container health tracks whether the API process can answer HTTP.
       # Remote model discovery is reported separately by GET /health; remote
@@ -246,12 +246,12 @@ services:
     build:
       context: ./parser
       additional_contexts:
-        models: ./packages/doctus-models
+        models: ./packages/codena-models
       args:
         GIT_SHA: ${GIT_SHA:-}
         BUILD_TIME: ${BUILD_TIME:-}
-    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
-    container_name: doctus-parser
+    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-parser
     # Modellserver auf demselben Host (Port auf 0.0.0.0) über host.docker.internal; `localhost`
     # ist im Container der Container selbst (docs/PILOT_DEPLOYMENT.md).
     extra_hosts:
@@ -307,9 +307,9 @@ services:
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       LLM_MODEL: ${LLM_MODEL:-disabled}
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
-      LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
+      LOG_FILE_PATH: /var/log/codena/parser-worker/parser-worker.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DOCTUS_VERSION: ${DOCTUS_VERSION:-latest}
+      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
       # Logdateien unter data/logs: stündlich ab dieser Größe gekürzt, ältere Stände als .1 … .N behalten.
       LOG_FILE_MAX_MB: ${LOG_FILE_MAX_MB:-100}
       LOG_FILE_KEEP: ${LOG_FILE_KEEP:-3}
@@ -323,7 +323,7 @@ services:
       # here): the diagnostics-bundle Celery task runs in this container and
       # reads every service's log file directly off disk, since parser-worker
       # has no Docker socket/CLI to shell out to `docker compose logs` with.
-      - ./data/logs:/var/log/doctus
+      - ./data/logs:/var/log/codena
     # Ohne --concurrency startet Celery einen Prozess je CPU-Kern (24 unter WSL),
     # jeder mit eigenem ANTLR-Speicher; mem_limit lässt im Zweifel den Container
     # statt der WSL-VM sterben.
@@ -342,11 +342,11 @@ services:
   link-worker:
     extends:
       service: parser-worker
-    container_name: doctus-link-worker
+    container_name: codena-link-worker
     command: ["celery", "-A", "worker", "worker", "--loglevel=info", "--queues=global_link_runs", "--concurrency=1"]
     environment:
       # Eigene Logdatei statt der des parser-worker (sonst mischen sich beide Dienste in einer Datei).
-      LOG_FILE_PATH: /var/log/doctus/link-worker/link-worker.log
+      LOG_FILE_PATH: /var/log/codena/link-worker/link-worker.log
     healthcheck:
       test: ["CMD-SHELL", "celery -A worker inspect ping -d celery@$$HOSTNAME --timeout 10 | grep -q OK"]
       interval: 30s
@@ -358,9 +358,9 @@ services:
     build:
       context: ./parser
       additional_contexts:
-        models: ./packages/doctus-models
-    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
-    container_name: doctus-beat
+        models: ./packages/codena-models
+    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-beat
     restart: always
     logging: *default-logging
     depends_on:
@@ -387,14 +387,14 @@ services:
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       LLM_MODEL: ${LLM_MODEL:-disabled}
-      LOG_FILE_PATH: /var/log/doctus/parser-beat/parser-beat.log
+      LOG_FILE_PATH: /var/log/codena/parser-beat/parser-beat.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DOCTUS_VERSION: ${DOCTUS_VERSION:-latest}
+      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
     volumes:
       - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
       # Optional: CA-Bundle des Kunden (interne CA) fuer Confluence/Jira/WebDAV; ohne CUSTOM_CA_FILE ein leerer Platzhalter
       - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
-      - ./data/logs/parser-beat:/var/log/doctus/parser-beat
+      - ./data/logs/parser-beat:/var/log/codena/parser-beat
     healthcheck:
       test: ["CMD", "python3", "healthcheck_beat.py"]
       interval: 30s
@@ -404,8 +404,8 @@ services:
 
   frontend:
     build: ./frontend
-    image: doctus-frontend:${DOCTUS_VERSION:-latest}
-    container_name: doctus-frontend
+    image: codena-frontend:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-frontend
     restart: always
     logging: *default-logging
     depends_on:
@@ -419,11 +419,11 @@ services:
       NEXT_TELEMETRY_DISABLED: "1"
       HOSTNAME: "0.0.0.0"
     volumes:
-      - ./data/logs/frontend:/var/log/doctus/frontend
+      - ./data/logs/frontend:/var/log/codena/frontend
     # `next start` has no file-logging option of its own — tee its stdout
     # (server-side render errors, request logs) into the shared mount above
     # instead of building a custom logger into the app.
-    command: ["sh", "-c", "npm run start 2>&1 | tee -a /var/log/doctus/frontend/frontend.log"]
+    command: ["sh", "-c", "npm run start 2>&1 | tee -a /var/log/codena/frontend/frontend.log"]
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', r => process.exit(r.statusCode < 500 ? 0 : 1)).on('error', () => process.exit(1))"]
       interval: 30s

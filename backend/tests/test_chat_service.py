@@ -15,7 +15,7 @@ from services.chat_service import (
     extract_explicit_file_targets,
     stream_standard_rag_events,
 )
-from doctus_models.database import CodeEntity
+from codena_models.database import CodeEntity
 
 
 def _fake_chunk(start_line, end_line, content):

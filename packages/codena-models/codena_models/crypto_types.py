@@ -1,5 +1,5 @@
 """
-doctus_models/crypto_types.py
+codena_models/crypto_types.py
 =============================
 Transparente At-Rest-Verschlüsselung für Spalten mit Zugangsdaten
 (KnowledgeSource.token) UND für Dokumentinhalte (DocumentChunk.content,

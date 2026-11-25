@@ -14,7 +14,7 @@ import re
 from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     EmbeddingProfile,
@@ -24,7 +24,7 @@ from doctus_models.database import (
 from services.ai_settings import get_active_embedding_profile
 from services.index_state import stale_sources
 from services.ollama_client import embed_text
-from doctus_models.language_profile import role_of
+from codena_models.language_profile import role_of
 from services import evidence as evidence_blocks
 from services.concept_search import concept_hits
 from services.evidence_overview import OVERVIEW_INTENT, project_overview

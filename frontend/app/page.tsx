@@ -79,8 +79,8 @@ function AppContent() {
       setIsLoggedIn(false);
       setCurrentUser(null);
     };
-    window.addEventListener('doctus:unauthorized', onUnauthorized);
-    return () => window.removeEventListener('doctus:unauthorized', onUnauthorized);
+    window.addEventListener('codena:unauthorized', onUnauthorized);
+    return () => window.removeEventListener('codena:unauthorized', onUnauthorized);
   }, []);
 
   const handleLogout = useCallback(async () => {
@@ -105,13 +105,13 @@ function AppContent() {
   const [isOpenGraphDialogOpen, setIsOpenGraphDialogOpen] = useState(false);
   const [chatMode, setChatMode] = useState<'normal' | 'evidence'>('normal');
   useEffect(() => {
-    if (window.localStorage.getItem('doctus-chat-mode') === 'evidence') {
+    if (window.localStorage.getItem('codena-chat-mode') === 'evidence') {
       queueMicrotask(() => setChatMode('evidence'));
     }
   }, []);
   const changeChatMode = useCallback((mode: 'normal' | 'evidence') => {
     setChatMode(mode);
-    window.localStorage.setItem('doctus-chat-mode', mode);
+    window.localStorage.setItem('codena-chat-mode', mode);
   }, []);
   const isEditorNavigatingRef = useRef(false);
   const aiSettings = useAiSettings({ isLoggedIn, t });
@@ -1151,7 +1151,7 @@ function AppContent() {
 
   return (
     <div className={cn(
-      "h-screen w-screen flex flex-col overflow-hidden font-sans relative transition-colors duration-150 doctus-canvas",
+      "h-screen w-screen flex flex-col overflow-hidden font-sans relative transition-colors duration-150 codena-canvas",
       theme === 'dark' ? "bg-ds-zinc-950 text-ds-zinc-100" : "bg-ds-zinc-50 text-ds-zinc-900"
     )}>
 

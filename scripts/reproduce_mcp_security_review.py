@@ -1,6 +1,6 @@
 """Run bounded MCP security regressions using rollback-only TEMP tables.
 
-Requires the repository's .venv (with `pip install ./packages/doctus-models`), .env and local
+Requires the repository's .venv (with `pip install ./packages/codena-models`), .env and local
 PostgreSQL with migrated schema.
 All data is synthetic. No embedding provider or running API service is called.
 """
@@ -26,7 +26,7 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.orm import Session
 import httpx
 import mcp_server as server
-from doctus_models.database import (User, Team, TeamMembership, Project, ProjectMembership,
+from codena_models.database import (User, Team, TeamMembership, Project, ProjectMembership,
     KnowledgeSource, DocumentChunk, MCPAccessToken, CodeEntity, CodeEdge)
 from api.mcp_tokens import revoke_token
 from fastapi import HTTPException
@@ -152,7 +152,7 @@ async def run(db):
                 response=await post(init)
                 record('revocation enforced on next request',response.status_code==401,response.status_code)
 
-url=make_url(os.environ.get('DATABASE_URL','postgresql://admin:change-me@db:5432/doctus')).set(host='127.0.0.1')
+url=make_url(os.environ.get('DATABASE_URL','postgresql://admin:change-me@db:5432/codena')).set(host='127.0.0.1')
 engine=create_engine(url,connect_args={'connect_timeout':3})
 with engine.connect() as conn:
     outer=conn.begin()

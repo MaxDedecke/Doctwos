@@ -2,12 +2,12 @@
   "psycopg2-binary": {
     "blocking": false,
     "license": "LGPL-3.0-or-later (reported as \"GNU Library or Lesser General Public License (LGPL)\")",
-    "rationale": "Nur als unveraendertes, dynamisch verlinktes Paket eingebunden (reiner DB-Treiber, kein Vendoring, kein Patch). Unter LGPL entsteht dadurch keine Copyleft-Pflicht fuer Doctus selbst. Seit AP-0 gesetzte Abhaengigkeit, siehe docs/OSS-CLEARING.md."
+    "rationale": "Nur als unveraendertes, dynamisch verlinktes Paket eingebunden (reiner DB-Treiber, kein Vendoring, kein Patch). Unter LGPL entsteht dadurch keine Copyleft-Pflicht fuer Codena selbst. Seit AP-0 gesetzte Abhaengigkeit, siehe docs/OSS-CLEARING.md."
   },
   "certifi": {
     "blocking": false,
     "license": "MPL-2.0",
-    "rationale": "Transitive Abhaengigkeit von httpx/requests (CA-Zertifikatsbuendel). Datei-basierte Weak-Copyleft-Lizenz, Paket wird unveraendert eingebunden. Quasi-Standardabhaengigkeit im Python-Oekosystem, kein Vendoring/Patch von Doctus."
+    "rationale": "Transitive Abhaengigkeit von httpx/requests (CA-Zertifikatsbuendel). Datei-basierte Weak-Copyleft-Lizenz, Paket wird unveraendert eingebunden. Quasi-Standardabhaengigkeit im Python-Oekosystem, kein Vendoring/Patch von Codena."
   },
   "mcp-atlassian": {
     "blocking": false,

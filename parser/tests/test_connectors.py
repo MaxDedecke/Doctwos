@@ -12,7 +12,7 @@ def test_registry_contains_expected_connectors():
 
 def test_registry_has_no_aec_connectors():
     """Die AEC-Connectoren des Templates (IFC/DWG/GAEB/Dalux/Autodesk) und Notion
-    sind mit dem Doctus-Fork entfallen — ein versehentliches Wiedereintragen
+    sind mit dem Codena-Fork entfallen — ein versehentliches Wiedereintragen
     würde eine nicht mehr existierende Klasse importieren."""
     for gone in ("IFC", "DWG", "GAEB", "Dalux", "Autodesk", "Notion"):
         assert gone not in REGISTRY

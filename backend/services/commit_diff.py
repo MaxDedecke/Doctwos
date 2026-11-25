@@ -14,7 +14,7 @@ import tempfile
 from pathlib import Path
 
 import core.config as cfg
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 from services.change_diff import _git_commit, _git_worktree, _safe_diff_path
 from sqlalchemy.orm import Session
 
@@ -48,7 +48,7 @@ _COBOL_FUNCNAME = r"^.{7}([A-Za-z0-9][A-Za-z0-9-]*( SECTION)?)\.[[:space:]]*$"
 
 
 def _attributes_file() -> str:
-    path = Path(tempfile.gettempdir()) / "doctus-diff-attributes"
+    path = Path(tempfile.gettempdir()) / "codena-diff-attributes"
     if not path.exists() or path.read_text() != _ATTRIBUTES:
         path.write_text(_ATTRIBUTES)
     return str(path)

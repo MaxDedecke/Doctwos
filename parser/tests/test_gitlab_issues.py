@@ -143,7 +143,7 @@ async def test_http_import_persistence_comment_edits_and_last_issue_deletion(mon
     from unittest.mock import AsyncMock
     from sqlalchemy import text
     from db import SessionLocal
-    from doctus_models.database import KnowledgeSource, DocumentChunk
+    from codena_models.database import KnowledgeSource, DocumentChunk
 
     state = {"issues": [issue()], "body": "original comment"}
 

@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import text
 from sqlalchemy.schema import CreateIndex
 from sqlalchemy.dialects.postgresql import dialect
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from services.change_impact import inspect_change_impact
 
 

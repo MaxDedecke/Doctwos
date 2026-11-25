@@ -12,7 +12,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from api import entities as entity_api
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     User,

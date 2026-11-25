@@ -9,7 +9,7 @@ from typing import Callable
 
 from sqlalchemy.orm import Session, load_only
 
-from doctus_models.database import DocumentChunk, KnowledgeSource, User
+from codena_models.database import DocumentChunk, KnowledgeSource, User
 from services.source_access import source_visible
 from services.web_documents import is_web_source
 

@@ -13,7 +13,7 @@ NOTICE = (
 
 
 def insight_record(db, insight):
-    from doctus_models.insight_versions import version_state
+    from codena_models.insight_versions import version_state
 
     state = version_state(db, insight)
     return {

@@ -17,8 +17,8 @@ import httpx
 
 import core.config as cfg
 from core.inference_errors import ContextWindowExceeded, raise_for_stream_status
-from doctus_models.database import ChatMessage
-from doctus_models.inference_admission import admitted_post, admitted_stream
+from codena_models.database import ChatMessage
+from codena_models.inference_admission import admitted_post, admitted_stream
 from services.agent_providers import fit_chat_messages
 from services.think_filter import ThinkFilter, reasoning_step, strip_thinking
 

@@ -32,7 +32,7 @@ import httpx
 
 from connectors.base import BaseConnector, Document
 from connectors.http_retry import request_with_retry
-from doctus_models.database import DocumentChunk
+from codena_models.database import DocumentChunk
 
 ATTACHMENT_MAX_BYTES = 20 * 1024 * 1024  # 20 MB
 
@@ -496,7 +496,7 @@ class ConfluenceConnector(BaseConnector):
                         self._PAGE_EXPAND,
                     ):
                         if self._is_restricted_in_tree(page, restricted_ids):
-                            # Alle Projektmitglieder in Doctus sähen sonst, was in Confluence nur wenigen erlaubt ist.
+                            # Alle Projektmitglieder in Codena sähen sonst, was in Confluence nur wenigen erlaubt ist.
                             skipped_keys.add(self._page_key(page))
                             self._skipped_restricted = len(skipped_keys)
                             continue

@@ -22,9 +22,9 @@ const MAX_VISIBLE_NODES = 6;
 
 /**
  * Kompakte Netzwerk-Visualisierung: alle (gefilterten) Wissensquellen als
- * Knoten am rechten Rand, Doctus als Hub links. Pfeile zeigen die
- * Informationsrichtung an — aktuell ausschließlich Quelle -> Doctus (Ingest).
- * Für spätere bidirektionale Flüsse (z.B. Doctus schreibt zurück in eine
+ * Knoten am rechten Rand, Codena als Hub links. Pfeile zeigen die
+ * Informationsrichtung an — aktuell ausschließlich Quelle -> Codena (Ingest).
+ * Für spätere bidirektionale Flüsse (z.B. Codena schreibt zurück in eine
  * Wissensquelle) ist pro Knoten bereits ein `direction`-Feld vorgesehen,
  * das aktuell hart auf 'in' steht.
  */
@@ -68,8 +68,8 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
   // Vertikale Position jedes Quellknotens in Prozent des Containers.
   const nodeY = (i: number) => count === 1 ? 50 : (100 / (count * 2)) + (i * 100) / count;
 
-  const DOCTUS_X = 12;
-  const DOCTUS_Y = 50;
+  const CODENA_X = 12;
+  const CODENA_Y = 50;
   const NODE_X = 88;
 
   // Anteilige Position entlang jeder Kante, an der ein kleiner Pfeil sitzt.
@@ -130,8 +130,8 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
                   key={node.id}
                   x1={NODE_X}
                   y1={y}
-                  x2={DOCTUS_X + 4}
-                  y2={DOCTUS_Y}
+                  x2={CODENA_X + 4}
+                  y2={CODENA_Y}
                   stroke={edgeColor(node.status)}
                   strokeWidth={0.35}
                   opacity={node.status === 'error' ? 0.35 : 0.25}
@@ -142,12 +142,12 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
 
           {/* Pfeil-Ebene: pro Kante ein paar kleine, versetzt pulsierende Pfeile statt
               einer gestrichelten Linie — dadurch ist die Flussrichtung auf einen Blick
-              erkennbar statt nur "irgendein Strich". Aktuell immer Quelle -> Doctus
+              erkennbar statt nur "irgendein Strich". Aktuell immer Quelle -> Codena
               (node.direction === 'in'); für eine künftige Rückrichtung wählt ArrowIcon
               bereits pro Knoten das passende Symbol. */}
           {nodes.map((node, i) => {
             const y1 = nodeY(i);
-            const x1 = NODE_X, x2 = DOCTUS_X + 4, y2 = DOCTUS_Y;
+            const x1 = NODE_X, x2 = CODENA_X + 4, y2 = CODENA_Y;
             const color = edgeColor(node.status);
             const ArrowIcon = node.direction === 'out' ? ArrowRight : ArrowLeft;
             const speedClass = node.status === 'error'
@@ -175,10 +175,10 @@ export const SourceNetworkGraph: React.FC<SourceNetworkGraphProps> = ({ sources,
             });
           })}
 
-          {/* Doctus-Hub */}
+          {/* Codena-Hub */}
           <div
             className="absolute flex flex-col items-center gap-1"
-            style={{ left: `${DOCTUS_X}%`, top: `${DOCTUS_Y}%`, transform: 'translate(-50%, -50%)' }}
+            style={{ left: `${CODENA_X}%`, top: `${CODENA_Y}%`, transform: 'translate(-50%, -50%)' }}
           >
             <div className={cn(
               "h-12 w-12 rounded-xl flex items-center justify-center border-2 shadow-md p-2",

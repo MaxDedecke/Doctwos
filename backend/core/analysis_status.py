@@ -21,7 +21,7 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from doctus_models.database import SourceScanFile
+from codena_models.database import SourceScanFile
 
 
 def load_analysis_status(

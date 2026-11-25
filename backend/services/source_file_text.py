@@ -9,8 +9,8 @@ from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from doctus_models.database import KnowledgeSource, SourceScanFile
-from doctus_models.source_text import decode_text
+from codena_models.database import KnowledgeSource, SourceScanFile
+from codena_models.source_text import decode_text
 
 
 def read_source_text(db: Session, source: KnowledgeSource, path: str | None, file_path: str) -> str:

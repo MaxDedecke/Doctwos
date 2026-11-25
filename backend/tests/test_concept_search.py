@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from doctus_models.database import CodeEntity, DocumentChunk, User
+from codena_models.database import CodeEntity, DocumentChunk, User
 from services import answer_context, concept_search
 from tests import test_mcp_server as mcp_tests
 from tests.test_mcp_server import mcp_project_context  # noqa: F401  (Fixture, wird per Name eingesetzt)

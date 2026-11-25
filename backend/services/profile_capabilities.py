@@ -37,7 +37,7 @@ AGENT_TOOL_PROTOCOLS = frozenset(
     {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
 )
 _PROBE_TOOL = {
-    "name": "doctus_probe",
+    "name": "codena_probe",
     "description": "Prüfwerkzeug von Codena. Liefert ein Kennwort zu einem Wort.",
     "inputSchema": {
         "type": "object",
@@ -45,7 +45,7 @@ _PROBE_TOOL = {
         "required": ["word"],
     },
 }
-_PROBE_WORD = "Doctus"
+_PROBE_WORD = "Codena"
 _PROBE_SECRET = "KIWI-4711"
 _PROBE_SYSTEM = (
     "Du bist ein Prüfprogramm. Folge den Anweisungen genau und antworte so kurz wie möglich."
@@ -122,7 +122,7 @@ async def _probe(profile, reasoning_summary: bool) -> dict[str, Any]:
         system_prompt=_PROBE_SYSTEM,
         tools=[_PROBE_TOOL],
         history=[],
-        prompt=f"Rufe das Werkzeug doctus_probe mit word='{_PROBE_WORD}' auf.",
+        prompt=f"Rufe das Werkzeug codena_probe mit word='{_PROBE_WORD}' auf.",
         temperature=0.0,
         context_length=profile.llm_context_length,
         reasoning_summary=reasoning_summary,

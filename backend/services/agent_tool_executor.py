@@ -12,7 +12,7 @@ import time
 from typing import Any, Optional
 
 import core.config as cfg
-from doctus_models.database import CodeEntity, KnowledgeSource, User
+from codena_models.database import CodeEntity, KnowledgeSource, User
 from core.projects import get_visible_project_ids
 from core.teams import get_visible_team_ids
 from services.mcp_audit import record_mcp_tool_call

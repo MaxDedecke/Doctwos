@@ -20,7 +20,7 @@ def test_installed_unidecode_is_our_mit_shim_not_the_gpl_original():
     assert dist.metadata["License"] == "MIT"
     # PEP 440 local version segment we chose specifically so this is
     # unmistakable in `pip list`/`pip show` output too, not just in tests.
-    assert "doctus" in dist.version
+    assert "codena" in dist.version
 
 
 def test_unidecode_matches_the_real_packages_docstring_example():

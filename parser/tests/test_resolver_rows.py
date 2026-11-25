@@ -2,7 +2,7 @@
 
 import uuid
 
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, Project, Team
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource, Project, Team
 
 from db import SessionLocal
 from java.parse import parse_java_file

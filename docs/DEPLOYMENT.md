@@ -18,7 +18,7 @@ Observed lessons:
 
 - A plain Ubuntu host did not have Docker or Compose. `install.sh` validates these prerequisites but intentionally does not install system packages.
 - `.env` creation and generation of `MASTER_ENCRYPTION_KEY`/`SESSION_SECRET_KEY` worked unattended.
-- Docker 29 failed the original parallel `docker compose build`: `parser-worker` and `parser-beat` share `doctus-parser-worker:<tag>`, so their simultaneous exports raced with `image ... already exists`. The installer and offline builder now build the three distinct images serially (`backend-api`, `parser-worker`, `frontend`).
+- Docker 29 failed the original parallel `docker compose build`: `parser-worker` and `parser-beat` share `codena-parser-worker:<tag>`, so their simultaneous exports raced with `image ... already exists`. The installer and offline builder now build the three distinct images serially (`backend-api`, `parser-worker`, `frontend`).
 - Ubuntu's Compose package printed `Docker Compose is configured to build using Bake, but buildx isn't installed`. This warning was harmless; all serial builds completed without Buildx.
 - The old demo instructions had drifted behind the schema (`Repository` was migrated to `KnowledgeSource(type="Git")`), referenced a removed `IFC_FILE` constant, and omitted the Lindenhof fixture file. The scripts and fixture are now aligned with the current schema; keep the verification query in the demo section below.
 - On this 8GB CPU-only host, Mistral NeMo 12B is not a viable default. The pilot now uses `LLM_MODEL=disabled`: only `bge-m3` is installed, so ingestion/search embeddings work while local chat and LLM-based compliance intentionally return a configuration error. Do not enable a local LLM here.
@@ -114,7 +114,7 @@ On a suitably sized delivery host, set `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-I
 
 On 24GB+ VRAM hardware, set `LLM_MODEL=hf.co/bartowski/Mistral-Nemo-Instruct-2407-GGUF:Q8_0` (~13GB) instead. It is a larger, validated delivery-tier model; the only trade-off is VRAM. This is a hardware-tier decision, not a license/feature tier: Q8_0 isn't gated behind anything, it just needs more VRAM than the 16GB-standard-tier host has to spare.
 
-**Enabling or changing tiers on an existing deployment:** update `LLM_MODEL` in `.env`, pull the new tag (`docker exec doctus-ollama ollama pull <new-tag>`), then `docker compose up -d` (an env var change needs container recreation, not just a restart). Remove an old tag with `docker exec doctus-ollama ollama rm <old-tag>` if you want the disk space back.
+**Enabling or changing tiers on an existing deployment:** update `LLM_MODEL` in `.env`, pull the new tag (`docker exec codena-ollama ollama pull <new-tag>`), then `docker compose up -d` (an env var change needs container recreation, not just a restart). Remove an old tag with `docker exec codena-ollama ollama rm <old-tag>` if you want the disk space back.
 
 ### GPU passthrough (Ollama)
 
@@ -134,7 +134,7 @@ sudo systemctl restart docker
 driver files it was created with. After a driver update on the host (on WSL2: the Windows driver) CUDA fails inside it
 with `CUDA driver version is insufficient for CUDA runtime version`, and Ollama silently falls back to the CPU —
 answers still arrive, roughly ten times slower. Symptom: `curl http://127.0.0.1:11434/api/ps` shows `"size_vram":0`
-for a loaded model, and `docker exec doctus-ollama nvidia-smi` fails. Fix:
+for a loaded model, and `docker exec codena-ollama nvidia-smi` fails. Fix:
 
 ```sh
 docker compose --profile local-ollama up -d --force-recreate --no-deps ollama
@@ -150,8 +150,8 @@ docker compose up -d
 **Verify it actually took:**
 
 ```sh
-docker exec doctus-ollama nvidia-smi        # lists the GPU from inside the container
-docker exec doctus-ollama ollama ps         # PROCESSOR column should show GPU, not "100% CPU", once a model is loaded
+docker exec codena-ollama nvidia-smi        # lists the GPU from inside the container
+docker exec codena-ollama ollama ps         # PROCESSOR column should show GPU, not "100% CPU", once a model is loaded
 ```
 
 **No GPU on this machine, but you still want chat/compliance to work for testing?** Don't chase GPU passthrough for that — use a cloud LLM profile instead: set `ALLOW_CLOUD_LLM=true` in `.env`, then add an OpenAI/Gemini/Anthropic profile with your API key under Settings > AI in the running app (per-browser, opt-in, no local model or GPU involved — see `CLAUDE.md`'s "Cloud nur als Opt-in"). Leave `LLM_MODEL=disabled`; it isn't needed for the cloud path.
@@ -162,7 +162,7 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 
 | Var | Meaning |
 |---|---|
-| `DOCTUS_VERSION` | Tag used for the 3 custom-built images. Must match the version baked into an offline bundle if using Path B. |
+| `CODENA_VERSION` | Tag used for the 3 custom-built images. Must match the version baked into an offline bundle if using Path B. |
 | `COMPOSE_FILE` | Which compose files `docker compose` layers together. Empty on a CPU-only/dev host; set by the installers to include `docker-compose.gpu.yml` when a GPU is detected — see "GPU passthrough (Ollama)" above. |
 | `LLM_MODEL` | `disabled` for the current embedding-only pilot (default) or for a CPU-only/dev host using a cloud LLM profile instead (see above), or an explicit Ollama tag for local chat + Code Compliance Checker on a suitably sized GPU delivery host. |
 | `OLLAMA_NUM_CTX` | Context window (tokens) Ollama is told to use for chat, the agent tool loop and the Code Compliance Checker. Default `8192` (O-168). Without this, Ollama silently falls back to its own small built-in default and truncates from the front once it's full — the model can lose the system prompt, retrieved knowledge or early agent tool-loop results without any error. Raise it on a delivery host with RAM/VRAM to spare, especially if agent-mode answers (multi-step tool use across up to 8 turns) seem to "forget" earlier steps; a bigger context window costs more memory per request, so don't raise it past what the host in "Hardware sizing" above actually has headroom for. |
@@ -172,7 +172,7 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 | `MASTER_ENCRYPTION_KEY` | Fernet key encrypting `KnowledgeSource.token` **and** document/chat content (`DocumentChunk.content`, `ChatMessage.content`, `ComplianceAlert.source_passage`/`discrepancy_description` — every connector's parsed content: Git, Confluence, Jira, Notion, IFC, DWG, GAEB, uploads) at rest, see `backend/models/crypto_types.py`. Generate: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **Rotating this key requires re-encrypting all existing tokens and content first** — there's no automatic migration for that; treat it as fixed once you have real customer data. Losing this key makes the entire database's stored content permanently unreadable, not just connector credentials — back it up accordingly (see Backup section below). |
 | `SESSION_SECRET_KEY` | Signs the app's own session cookie, issued after either login path (local password or OIDC). Generate: `openssl rand -base64 32`. |
 | `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | **Optional** — SSO is a *second* login path next to the local password login (E-12), and it stays off until all three are set (`backend/core/config.py::oidc_enabled()`). From the customer's IdP; the issuer URL must serve `/.well-known/openid-configuration`. Note the name: `OIDC_ISSUER`, not `OIDC_ISSUER_URL`. |
-| `OIDC_DEFAULT_TEAM` / `OIDC_TEAM_MAPPING` / `OIDC_ADMIN_ROLES` / `OIDC_ROLES_CLAIM` / `OIDC_GROUPS_CLAIM` | **Optional (O-164)** — Automatic team assignment and superuser role mapping for SSO logins. `OIDC_DEFAULT_TEAM` assigns every SSO user to a team (e.g. `Default Team`). `OIDC_ADMIN_ROLES` is a comma-separated list of IdP roles mapped to `superuser` (e.g. `doctus-admin`). `OIDC_TEAM_MAPPING` maps IdP groups/roles to Codena teams as JSON (`'{"dev": "Entwicklung"}'`) or comma list. |
+| `OIDC_DEFAULT_TEAM` / `OIDC_TEAM_MAPPING` / `OIDC_ADMIN_ROLES` / `OIDC_ROLES_CLAIM` / `OIDC_GROUPS_CLAIM` | **Optional (O-164)** — Automatic team assignment and superuser role mapping for SSO logins. `OIDC_DEFAULT_TEAM` assigns every SSO user to a team (e.g. `Default Team`). `OIDC_ADMIN_ROLES` is a comma-separated list of IdP roles mapped to `superuser` (e.g. `codena-admin`). `OIDC_TEAM_MAPPING` maps IdP groups/roles to Codena teams as JSON (`'{"dev": "Entwicklung"}'`) or comma list. |
 | *(no redirect-URI variable)* | The redirect URI is **derived**, not configured: `<API_URL>/auth/oidc/callback` (`backend/core/oidc.py::redirect_uri()`). Register exactly that string on the IdP client. Getting `API_URL` right is therefore what gets the redirect right. |
 | `FRONTEND_URL` | Used for CORS (`allow_origins`) — must be the exact origin the browser loads the frontend from. |
 | `LOG_LEVEL` | Backend log verbosity (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO`. The parser worker's verbosity is set separately via `--loglevel` on its `celery` command (`parser/Dockerfile`), not by this var. |
@@ -187,7 +187,7 @@ Codena itself doesn't terminate TLS — `backend-api`/`frontend` listen on plain
 Put a reverse proxy the customer already trusts (or already runs) in front of both ports and terminate TLS there. Example with Caddy, picked for its automatic cert handling — substitute whatever the customer's infra team standardizes on (nginx, Traefik, an existing load balancer):
 
 ```
-your-doctus-domain.example.com {
+your-codena-domain.example.com {
     reverse_proxy /auth/* localhost:8000
     reverse_proxy /mcp localhost:8000
     reverse_proxy /mcp-tokens* localhost:8000
@@ -195,7 +195,7 @@ your-doctus-domain.example.com {
 }
 ```
 
-Then set `FRONTEND_URL=https://your-doctus-domain.example.com` and `API_URL` to the `https://` address the browser reaches the backend on — and, if SSO is in use, register `<API_URL>/auth/oidc/callback` with that same `https://` address on the IdP client.
+Then set `FRONTEND_URL=https://your-codena-domain.example.com` and `API_URL` to the `https://` address the browser reaches the backend on — and, if SSO is in use, register `<API_URL>/auth/oidc/callback` with that same `https://` address on the IdP client.
 
 ## Read-only MCP access for IDEs
 
@@ -231,7 +231,7 @@ Compose files and by the air-gap bundle.
 
 You don't need an IdP at all to get a fresh install running: the **local password login is the primary path**, and the first start creates a superuser for you (see `BOOTSTRAP_SUPERUSER*` above). Set up the throwaway Keycloak below only when the point is to demo or smoke-test the *SSO* path itself.
 
-`.github/keycloak/doctus-realm.json` ships a `doctus` realm with a `doctus-backend` client and a `testuser`/`testpass` user. **Test-only — never point this at real customer data; the client secret and user password are public in this repo.**
+`.github/keycloak/codena-realm.json` ships a `codena` realm with a `codena-backend` client and a `testuser`/`testpass` user. **Test-only — never point this at real customer data; the client secret and user password are public in this repo.**
 
 The login page keeps stock Keycloak branding — this is a throwaway IdP, not part of the product surface. Mount the realm and import it on start:
 
@@ -245,7 +245,7 @@ docker run -d --name test-keycloak -p 8080:8080 \
 Wait for it to be ready before touching `.env` (first boot takes a few seconds):
 
 ```sh
-until curl -sf http://localhost:8080/realms/doctus/.well-known/openid-configuration >/dev/null; do sleep 2; done
+until curl -sf http://localhost:8080/realms/codena/.well-known/openid-configuration >/dev/null; do sleep 2; done
 ```
 
 ### Picking `<server-address>`
@@ -259,19 +259,19 @@ This is where `localhost` quietly breaks even when the browser *is* on the Docke
 
 | Case | `<server-address>` | Why it works for both sides |
 |---|---|---|
-| Testing from a browser on a **different machine** than the Docker host (the common case) | The server's real LAN/public IP, e.g. `192.168.1.50` or `82.165.216.180` | The browser reaches it normally; the container reaches it too via hairpin NAT back through the host's own interface (verify with `docker exec doctus-backend python3 -c "import httpx; print(httpx.get('http://<server-address>:8080/realms/doctus/.well-known/openid-configuration').status_code)"` — expect `200`) |
-| Testing from a browser on the **same machine** as the Docker host | The Compose network's gateway IP, **not** `localhost` — find it with `docker network inspect doctus_default --format '{{(index .IPAM.Config 0).Gateway}}'` (typically `172.18.0.1`; project prefix may differ if you cloned into a differently-named folder) | That gateway IP is reachable both from the container (it's the container's default route to the host) and from the host itself (it's one of the host's own bridge interfaces) |
+| Testing from a browser on a **different machine** than the Docker host (the common case) | The server's real LAN/public IP, e.g. `192.168.1.50` or `82.165.216.180` | The browser reaches it normally; the container reaches it too via hairpin NAT back through the host's own interface (verify with `docker exec codena-backend python3 -c "import httpx; print(httpx.get('http://<server-address>:8080/realms/codena/.well-known/openid-configuration').status_code)"` — expect `200`) |
+| Testing from a browser on the **same machine** as the Docker host | The Compose network's gateway IP, **not** `localhost` — find it with `docker network inspect codena_default --format '{{(index .IPAM.Config 0).Gateway}}'` (typically `172.18.0.1`; project prefix may differ if you cloned into a differently-named folder) | That gateway IP is reachable both from the container (it's the container's default route to the host) and from the host itself (it's one of the host's own bridge interfaces) |
 
-Once you have it, register it on the Keycloak client — the realm file only ships `http://localhost:8000/auth/oidc/callback` and `http://127.0.0.1:8000/auth/oidc/callback` by default, and Keycloak does **not** accept a wildcard in the host part, so a different address has to be added explicitly. Either click through the admin console (`http://<server-address>:8080`, admin/admin → Clients → `doctus-backend` → Settings → add to *Valid redirect URIs* / *Web origins*), or patch it in one shot via the admin API:
+Once you have it, register it on the Keycloak client — the realm file only ships `http://localhost:8000/auth/oidc/callback` and `http://127.0.0.1:8000/auth/oidc/callback` by default, and Keycloak does **not** accept a wildcard in the host part, so a different address has to be added explicitly. Either click through the admin console (`http://<server-address>:8080`, admin/admin → Clients → `codena-backend` → Settings → add to *Valid redirect URIs* / *Web origins*), or patch it in one shot via the admin API:
 
 ```sh
 TOKEN=$(curl -s -X POST "http://localhost:8080/realms/master/protocol/openid-connect/token" \
   -d "client_id=admin-cli" -d "username=admin" -d "password=admin" -d "grant_type=password" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
 CLIENT_UUID=$(curl -s -H "Authorization: Bearer $TOKEN" \
-  "http://localhost:8080/admin/realms/doctus/clients?clientId=doctus-backend" \
+  "http://localhost:8080/admin/realms/codena/clients?clientId=codena-backend" \
   | python3 -c "import sys,json; print(json.load(sys.stdin)[0]['id'])")
-curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8080/admin/realms/doctus/clients/$CLIENT_UUID" \
+curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8080/admin/realms/codena/clients/$CLIENT_UUID" \
   | python3 -c "
 import json, sys
 c = json.load(sys.stdin)
@@ -280,14 +280,14 @@ c['webOrigins'] = list(set(c['webOrigins'] + ['http://<server-address>:3000']))
 json.dump(c, open('/tmp/kc-client.json', 'w'))
 "
 curl -s -o /dev/null -w "%{http_code}\n" -X PUT -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -d @/tmp/kc-client.json "http://localhost:8080/admin/realms/doctus/clients/$CLIENT_UUID"   # expect 204
+  -d @/tmp/kc-client.json "http://localhost:8080/admin/realms/codena/clients/$CLIENT_UUID"   # expect 204
 ```
 
 Then set, using that same `<server-address>` consistently:
 
 ```
-OIDC_ISSUER=http://<server-address>:8080/realms/doctus
-OIDC_CLIENT_ID=doctus-backend
+OIDC_ISSUER=http://<server-address>:8080/realms/codena
+OIDC_CLIENT_ID=codena-backend
 OIDC_CLIENT_SECRET=ci-only-keycloak-client-secret
 API_URL=http://<server-address>:8000
 FRONTEND_URL=http://<server-address>:3000
@@ -310,7 +310,7 @@ git clone --branch main --single-branch <repo> Codena && cd Codena
 
 Updates later: `git pull && docker compose build backend-api && docker compose build parser-worker && docker compose build frontend && docker compose up -d`. Keeping the builds serial avoids the shared parser-worker/parser-beat image export race seen with Docker 29. An install carrying data from before the content-at-rest encryption fix (see `.env` field reference above) runs a one-time Alembic data migration on this restart that re-encrypts any plaintext still sitting in `document_chunks`/`chat_messages`/`compliance_alerts` — batched, so it's safe on a large table, but a very large existing install may take noticeably longer to come up on that first restart.
 
-Before running this, set `DOCTUS_VERSION` in `.env` to a real, unique value (e.g. the git short SHA you're upgrading to) instead of leaving the `.env.example` default `latest` — a `latest`-tagged build silently overwrites the previous image with nothing kept to roll back to. See **Rollback** below.
+Before running this, set `CODENA_VERSION` in `.env` to a real, unique value (e.g. the git short SHA you're upgrading to) instead of leaving the `.env.example` default `latest` — a `latest`-tagged build silently overwrites the previous image with nothing kept to roll back to. See **Rollback** below.
 
 ## Optional demo/test projects
 
@@ -319,12 +319,12 @@ These synthetic fixtures are for evaluation and demos only. Do not seed them int
 The parser image intentionally contains parser runtime code, not root-level maintenance scripts, so copy the current scripts in and run them explicitly:
 
 ```sh
-docker cp scripts/demo_project_data.py doctus-parser:/app/demo_project_data.py
-docker cp scripts/seed_demo_architektur.py doctus-parser:/app/seed_demo_architektur.py
-docker cp scripts/compute_embeddings_and_ifc_chunks.py doctus-parser:/app/compute_embeddings_and_ifc_chunks.py
+docker cp scripts/demo_project_data.py codena-parser:/app/demo_project_data.py
+docker cp scripts/seed_demo_architektur.py codena-parser:/app/seed_demo_architektur.py
+docker cp scripts/compute_embeddings_and_ifc_chunks.py codena-parser:/app/compute_embeddings_and_ifc_chunks.py
 
-docker exec doctus-parser python /app/seed_demo_architektur.py
-docker exec doctus-parser python /app/compute_embeddings_and_ifc_chunks.py
+docker exec codena-parser python /app/seed_demo_architektur.py
+docker exec codena-parser python /app/compute_embeddings_and_ifc_chunks.py
 ```
 
 The first script is idempotent. The embedding script rebuilds the three synthetic IFC compliance chunks and embeds all demo chunks through `bge-m3`; it does not invoke a chat LLM. On the verified run, expected data was:
@@ -338,7 +338,7 @@ Verify instead of trusting the script's exit code:
 ```sh
 docker compose ps
 curl -fsS http://localhost:8000/health
-docker exec doctus-ollama ollama list       # pilot: bge-m3 only
+docker exec codena-ollama ollama list       # pilot: bge-m3 only
 docker compose exec -T db psql -U "$POSTGRES_USER" "$POSTGRES_DB" -c \
   "SELECT count(*) projects FROM projects; \
    SELECT count(*) chunks, count(*) FILTER (WHERE embedding IS NULL) missing_embeddings \
@@ -395,11 +395,11 @@ Use this when the customer's server has **no internet/registry egress at all** �
 ./scripts/build-offline-bundle.sh [version]
 ```
 
-`version` defaults to the current short git SHA. Output: `dist/doctus-offline-bundle-<version>/`, containing:
+`version` defaults to the current short git SHA. Output: `dist/codena-offline-bundle-<version>/`, containing:
 
-- `images.tar.gz` — `docker save` of all 6 images: the 3 custom-built ones (`doctus-backend-api`, `doctus-parser-worker`, `doctus-frontend`) plus the pinned-by-digest base images (`ankane/pgvector`, `valkey/valkey:8-alpine`, `ollama/ollama`) — Redis was replaced by its permissively-licensed fork Valkey, see `docker-compose.yml`. Pinning by digest means a bundle rebuilt later reproduces the exact same base images rather than silently drifting with upstream `:latest`.
+- `images.tar.gz` — `docker save` of all 6 images: the 3 custom-built ones (`codena-backend-api`, `codena-parser-worker`, `codena-frontend`) plus the pinned-by-digest base images (`ankane/pgvector`, `valkey/valkey:8-alpine`, `ollama/ollama`) — Redis was replaced by its permissively-licensed fork Valkey, see `docker-compose.yml`. Pinning by digest means a bundle rebuilt later reproduces the exact same base images rather than silently drifting with upstream `:latest`.
 - `ollama-models.tar.gz` — a **clean** pull of `bge-m3` plus the explicitly configured `LLM_MODEL`, if enabled (not a copy of any existing `./data/ollama`, which may carry stale/unused models from prior local testing).
-- `docker-compose.offline.yml`, `docker-compose.gpu.yml` (GPU overlay, see "GPU passthrough (Ollama)" above), `.env.example` (pre-filled with the matching `DOCTUS_VERSION`), `install-offline.sh`, this doc.
+- `docker-compose.offline.yml`, `docker-compose.gpu.yml` (GPU overlay, see "GPU passthrough (Ollama)" above), `.env.example` (pre-filled with the matching `CODENA_VERSION`), `install-offline.sh`, this doc.
 - the AP-9 license/provenance artifact generated from the shipped lockfiles,
   images, and model manifest; it must travel with the air-gapped bundle.
 - `MODEL_MANIFEST.txt` — the actual pulled model names/digests/sizes for this specific build (captured via `ollama list` at build time), plus the quantization-provenance note for the LLM tag. Lets a customer verify exactly which model artifact they received against the upstream Hugging Face repo, independent of `SHA256SUMS` (which only proves the bundle's own internal integrity, not where the weights originally came from).
@@ -423,7 +423,7 @@ This verifies `SHA256SUMS`, `docker load`s the images, restores the Ollama model
 
 There's no `git pull` on an air-gapped box. Updates mean repeating the full cycle: bump the code, re-run `build-offline-bundle.sh` with a new version, transfer the new bundle, run `install-offline.sh` again on the customer side (it's safe to re-run — it skips `.env` bootstrap if one already exists, and `docker load`/`docker compose up -d` simply replace the running containers with the new image tags).
 
-Unlike Path A, each bundle already tags its images with its own `DOCTUS_VERSION` (never `latest`), and `docker load` adds images without deleting differently-tagged ones already on the host — so the previous version's images normally stay available locally for rollback even without keeping the old bundle around. See **Rollback** below.
+Unlike Path A, each bundle already tags its images with its own `CODENA_VERSION` (never `latest`), and `docker load` adds images without deleting differently-tagged ones already on the host — so the previous version's images normally stay available locally for rollback even without keeping the old bundle around. See **Rollback** below.
 
 If a `MASTER_ENCRYPTION_KEY` rotation is ever needed on an already-deployed customer instance, existing encrypted tokens must be re-encrypted first — same trap as on the online path, just harder to fix remotely. Avoid rotating it casually once real data exists.
 
@@ -449,7 +449,7 @@ Run all commands of this step in the same shell; the variables are lost in a new
 then silently produce `latest` without a commit id.
 
 ```sh
-export DOCTUS_VERSION=pilot-20261116 GIT_SHA=$(git rev-parse HEAD) BUILD_TIME=$(date -u +%FT%TZ)
+export CODENA_VERSION=pilot-20261116 GIT_SHA=$(git rev-parse HEAD) BUILD_TIME=$(date -u +%FT%TZ)
 docker compose build backend-api && docker compose build parser-worker && docker compose build frontend
 ```
 
@@ -461,10 +461,10 @@ backend later reports `GIT_SHA` and `BUILD_TIME`.
 When the build machine can reach the target host:
 
 ```sh
-ssh root@<server> 'apt-get update && apt-get install -y docker.io docker-compose-v2 && mkdir -p /root/doctus'
-docker save doctus-backend-api:$DOCTUS_VERSION doctus-parser-worker:$DOCTUS_VERSION doctus-frontend:$DOCTUS_VERSION \
+ssh root@<server> 'apt-get update && apt-get install -y docker.io docker-compose-v2 && mkdir -p /root/codena'
+docker save codena-backend-api:$CODENA_VERSION codena-parser-worker:$CODENA_VERSION codena-frontend:$CODENA_VERSION \
   | gzip | ssh root@<server> 'gunzip | docker load'
-scp -r docker-compose.yml docker-compose.gpu.yml .env.example config scripts/generate_diagnostics.py root@<server>:/root/doctus/
+scp -r docker-compose.yml docker-compose.gpu.yml .env.example config scripts/generate_diagnostics.py root@<server>:/root/codena/
 ```
 
 Do not pipe `docker save` through Windows PowerShell 5.1 (it corrupts binary streams); run it from WSL/Linux or
@@ -485,8 +485,8 @@ Build machine (`<owner>` is the GitHub account or organisation in lower case):
 ```sh
 docker login ghcr.io -u <owner>          # password: the write token
 for i in backend-api parser-worker frontend; do
-  docker tag doctus-$i:$DOCTUS_VERSION ghcr.io/<owner>/doctus-$i:$DOCTUS_VERSION
-  docker push ghcr.io/<owner>/doctus-$i:$DOCTUS_VERSION
+  docker tag codena-$i:$CODENA_VERSION ghcr.io/<owner>/codena-$i:$CODENA_VERSION
+  docker push ghcr.io/<owner>/codena-$i:$CODENA_VERSION
 done
 ```
 
@@ -496,17 +496,17 @@ Target host:
 
 ```sh
 apt-get update && apt-get install -y docker.io docker-compose-v2 git   # skip docker.io/compose if Docker is already installed
-git clone https://github.com/<owner>/<companion-repo>.git /root/doctus
+git clone https://github.com/<owner>/<companion-repo>.git /root/codena
 docker login ghcr.io -u <owner>          # password: the read token
 V=pilot-20261116
 for i in backend-api parser-worker frontend; do
-  docker pull ghcr.io/<owner>/doctus-$i:$V
-  docker tag ghcr.io/<owner>/doctus-$i:$V doctus-$i:$V
+  docker pull ghcr.io/<owner>/codena-$i:$V
+  docker tag ghcr.io/<owner>/codena-$i:$V codena-$i:$V
 done
 docker logout ghcr.io
 ```
 
-The re-tag is required: the Compose files reference the local names `doctus-<service>:<version>` without a
+The re-tag is required: the Compose files reference the local names `codena-<service>:<version>` without a
 registry prefix. Afterwards delete the packages (GitHub > profile > Packages > package settings), the companion
 repository and both tokens.
 
@@ -516,12 +516,12 @@ digest, which a re-tag from another registry does not satisfy. Use the offline b
 ### 3. Configure (target host, once)
 
 ```sh
-cd /root/doctus && cp --update=none .env.example .env && chmod 600 .env
+cd /root/codena && cp --update=none .env.example .env && chmod 600 .env
 V=pilot-20261116
-MK=$(docker run --rm --network none --entrypoint python doctus-backend-api:$V -c \
+MK=$(docker run --rm --network none --entrypoint python codena-backend-api:$V -c \
   'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
 sed -i \
-  -e "s|^DOCTUS_VERSION=.*|DOCTUS_VERSION=$V|" \
+  -e "s|^CODENA_VERSION=.*|CODENA_VERSION=$V|" \
   -e "s|^COMPOSE_FILE=.*|COMPOSE_FILE=docker-compose.yml|" \
   -e "s|^POSTGRES_PASSWORD=.*|POSTGRES_PASSWORD=$(openssl rand -hex 24)|" \
   -e "s|^MASTER_ENCRYPTION_KEY=.*|MASTER_ENCRYPTION_KEY=$MK|" \
@@ -534,7 +534,7 @@ sed -i \
 - **Run this block once.** A second run generates a new `MASTER_ENCRYPTION_KEY` and database password; after the
   first start the password no longer matches the database and encrypted content becomes unreadable.
 - `COMPOSE_FILE` must not stay empty. `.env.example` ships `COMPOSE_FILE=` for the installers to fill in; left
-  empty, every `docker compose` call fails with `read /root/doctus: is a directory`.
+  empty, every `docker compose` call fails with `read /root/codena: is a directory`.
 - The database password is hex on purpose: it is embedded in `DATABASE_URL`, where `/`, `+` or `@` would break
   the URL.
 - For the bundled Ollama (embeddings with `bge-m3`), additionally:
@@ -564,14 +564,14 @@ sed -i \
   40 GB); `docs/PILOT_DEPLOYMENT.md` has the calculation. On smaller GPUs lower context and parallelism together.
 
   Without the GPU file Ollama runs on the CPU, which is unusable for a 30B model. Pull the model after the start
-  (`docker exec doctus-ollama ollama pull qwen3-coder:30b`, about 19 GB) and check in `docker logs doctus-ollama`
+  (`docker exec codena-ollama ollama pull qwen3-coder:30b`, about 19 GB) and check in `docker logs codena-ollama`
   that the inference compute lines list the GPUs.
 
 ### 4. Start and verify
 
 ```sh
 docker compose up -d --no-build
-docker exec doctus-ollama ollama pull bge-m3          # only with the bundled Ollama
+docker exec codena-ollama ollama pull bge-m3          # only with the bundled Ollama
 docker compose logs backend-api | grep -A3 "Erster Start"   # generated admin password, shown once
 docker compose ps
 curl -fsS http://localhost:8000/health && curl -fsS http://localhost:8000/version
@@ -585,7 +585,7 @@ a firewall and a reverse proxy in front before real data is introduced (see **TL
 
 ### 5. Updating later
 
-Build with a new `DOCTUS_VERSION`, transfer the three images again (2a or 2b), set `DOCTUS_VERSION` in `.env` to
+Build with a new `CODENA_VERSION`, transfer the three images again (2a or 2b), set `CODENA_VERSION` in `.env` to
 the new value and run `docker compose up -d --no-build`. Copy `docker-compose.yml`, `.env.example` and `config/`
 again only when they changed; compare new keys in `.env.example` against the existing `.env`. Back up database
 and `.env` first; **Rollback** applies as for Path B, since older image tags stay on the host.
@@ -604,18 +604,18 @@ Single-tenant self-host means there's no managed backup behind the scenes — it
 
 **Back up** (Postgres can be dumped live, no need to stop the stack):
 ```sh
-docker compose exec -T db pg_dump -U ${POSTGRES_USER} ${POSTGRES_DB} | gzip > doctus-db-$(date +%F).sql.gz
-tar czf doctus-repos-$(date +%F).tar.gz ./repos
-cp .env doctus-env-$(date +%F).bak
+docker compose exec -T db pg_dump -U ${POSTGRES_USER} ${POSTGRES_DB} | gzip > codena-db-$(date +%F).sql.gz
+tar czf codena-repos-$(date +%F).tar.gz ./repos
+cp .env codena-env-$(date +%F).bak
 ```
 
 **Restore** (fresh host, or after wiping a broken one):
 ```sh
 git clone <repo> && cd Codena
-cp doctus-env-<date>.bak .env
-docker compose up -d db          # creates the empty doctus DB/role from .env
-gunzip -c doctus-db-<date>.sql.gz | docker compose exec -T db psql -U ${POSTGRES_USER} ${POSTGRES_DB}
-tar xzf doctus-repos-<date>.tar.gz
+cp codena-env-<date>.bak .env
+docker compose up -d db          # creates the empty codena DB/role from .env
+gunzip -c codena-db-<date>.sql.gz | docker compose exec -T db psql -U ${POSTGRES_USER} ${POSTGRES_DB}
+tar xzf codena-repos-<date>.tar.gz
 docker compose up -d
 ```
 
@@ -625,15 +625,15 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 **Prerequisite:** a `.env` + Postgres dump backup taken *before* the upgrade (see **Backup** above — this is why "back up before every version upgrade" is not optional). Without it, rollback below is code-only and will not undo any data an already-migrated schema wrote.
 
-**Path A (online):** rolling back means pointing `DOCTUS_VERSION` in `.env` at the previous value and running `docker compose up -d` — no rebuild, so this only works if that previous image is still present locally (`docker images | grep doctus-`). This is why the "Updates later" step above says to set `DOCTUS_VERSION` to a real, unique value before building: a build left on the `latest` default overwrites the only copy of the prior image, and by the time a problem surfaces there is nothing left to roll back to.
+**Path A (online):** rolling back means pointing `CODENA_VERSION` in `.env` at the previous value and running `docker compose up -d` — no rebuild, so this only works if that previous image is still present locally (`docker images | grep codena-`). This is why the "Updates later" step above says to set `CODENA_VERSION` to a real, unique value before building: a build left on the `latest` default overwrites the only copy of the prior image, and by the time a problem surfaces there is nothing left to roll back to.
 
-**Path B (offline):** same idea, but each bundle already carries its own `DOCTUS_VERSION` tag and `docker load` doesn't delete older tags — so `DOCTUS_VERSION=<previous-version>` in `.env` + `docker compose -f docker-compose.offline.yml up -d` is normally enough, without needing the old bundle directory again — as long as no one has since run `docker image prune`.
+**Path B (offline):** same idea, but each bundle already carries its own `CODENA_VERSION` tag and `docker load` doesn't delete older tags — so `CODENA_VERSION=<previous-version>` in `.env` + `docker compose -f docker-compose.offline.yml up -d` is normally enough, without needing the old bundle directory again — as long as no one has since run `docker image prune`.
 
 **The part image rollback does not cover: the database.** Alembic migrations run automatically on every container start and are forward-only — there is no shipped `alembic downgrade` path, and manually downgrading against real customer data is not something to improvise under pressure. If the version you're rolling back from already ran a migration (check `docker compose logs backend-api` for Alembic output on that start), the old code image will not match the new schema. In that case, code rollback alone is not sufficient:
 
 1. Stop the stack: `docker compose down` (keeps volumes).
 2. Restore the pre-upgrade Postgres dump and `.env` from the **Backup** section above (this discards any data written between the upgrade and the rollback — there is no way around that without the dump).
-3. Roll back `DOCTUS_VERSION` as described for Path A/B.
+3. Roll back `CODENA_VERSION` as described for Path A/B.
 4. `docker compose up -d` and re-verify with the same health checks used after a fresh install (`docker compose ps`, `curl -fsS http://localhost:8000/health`).
 
 **Before the pilot:** rehearse one full upgrade → rollback cycle on disposable data (e.g. the demo project, not real Dömges data) so this isn't the first time it's attempted under a real incident.
@@ -646,7 +646,7 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 **Changed `.env` but nothing changed.** `docker compose restart` does not re-read `.env` — Compose only injects environment variables when a container is *created*. Use `docker compose up -d`, which recreates only the containers whose config actually changed.
 
-**Build fails with `image "doctus-parser-worker:<tag>" already exists`.** This is the Docker 29 parallel-export race from older checkouts where `parser-worker` and `parser-beat` both build the same tag. Pull the installer fix or build distinct images serially: `docker compose build backend-api`, `docker compose build parser-worker`, `docker compose build frontend`, then `docker compose up -d --no-build`.
+**Build fails with `image "codena-parser-worker:<tag>" already exists`.** This is the Docker 29 parallel-export race from older checkouts where `parser-worker` and `parser-beat` both build the same tag. Pull the installer fix or build distinct images serially: `docker compose build backend-api`, `docker compose build parser-worker`, `docker compose build frontend`, then `docker compose up -d --no-build`.
 
 **Chat/compliance says the local Ollama LLM is disabled.** This is expected on the current 4-vCPU/8GB CPU-only pilot. `bge-m3` still supports ingestion and vector search. Do not point chat at `bge-m3`; it is an embedding model, not a generator. Enable an explicit `LLM_MODEL` only after moving to appropriately sized hardware, pull that tag, and recreate the affected containers with `docker compose up -d`.
 
@@ -679,7 +679,7 @@ script there, in the repository it is `scripts/generate_diagnostics.py`):
 python3 generate_diagnostics.py
 ```
 
-It needs only Python 3 and Docker and writes `doctus-diagnostics-<timestamp>.tar.gz` with:
+It needs only Python 3 and Docker and writes `codena-diagnostics-<timestamp>.tar.gz` with:
 - host: OS, CPU, memory, disk of the data directories, `nvidia-smi`, Docker and Compose versions, `docker info`;
 - containers: status, **restart count, OOM kill, exit code**, health, image and memory limit per container, `docker
   stats`, `docker compose images` and the pinned image references;

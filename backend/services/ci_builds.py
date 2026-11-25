@@ -10,8 +10,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy import select
 from sqlalchemy.orm import aliased
 
-from doctus_models.database import CIBuildRun, KnowledgeSource
-from doctus_models.insight_versions import _digest
+from codena_models.database import CIBuildRun, KnowledgeSource
+from codena_models.insight_versions import _digest
 from services.build_evidence import BuildEvidence, summarize_artifacts
 
 

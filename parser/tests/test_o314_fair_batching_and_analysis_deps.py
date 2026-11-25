@@ -11,11 +11,11 @@ from connectors.git import (
     GitConnector,
     _analysis_dependency_paths,
 )
-from doctus_models.inference_admission import (
+from codena_models.inference_admission import (
     admission_wait_tracker,
     track_admission_wait,
 )
-from doctus_models.database import Base, CodeEdge, CodeEntity
+from codena_models.database import Base, CodeEdge, CodeEntity
 
 
 def test_analysis_dependency_paths_targeted_sql_join():
@@ -212,7 +212,7 @@ def test_embed_concurrency_clamps_to_admission_batch_reserve(monkeypatch):
 def test_embedding_slots_follow_the_limit_the_profile_published_for_the_endpoint(monkeypatch):
     """Ein vLLM-Profil mit 8 Slots gibt dem Parser 7 Batch-Slots, nicht den globalen Standard."""
     import ollama_client
-    from doctus_models import inference_admission as admission
+    from codena_models import inference_admission as admission
 
     seen = []
 

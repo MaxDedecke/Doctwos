@@ -12,7 +12,7 @@ from __future__ import annotations
 import re
 from typing import Any
 
-from doctus_models.source_text import codec_name
+from codena_models.source_text import codec_name
 
 SOURCE_FORMATS = ("fixed", "free", "variable", "extended")
 LITERAL_DELIMITERS = ("both", "apostrophe", "quote")

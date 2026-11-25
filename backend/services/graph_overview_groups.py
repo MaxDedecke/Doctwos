@@ -1,4 +1,4 @@
-"""Graph-Übersicht mit Gruppen-Knoten (vorberechnet in doctus_models.code_file_groups).
+"""Graph-Übersicht mit Gruppen-Knoten (vorberechnet in codena_models.code_file_groups).
 
 Ab der Grundgerüst-Schwelle zeigt die Übersicht eines Projekts statt einzelner Dateien die
 Gruppen. Der Browser schickt mit, welche Gruppen aufgeklappt sind; der Server bleibt zustandslos
@@ -20,12 +20,12 @@ from typing import Callable, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from doctus_models.code_file_edges import (
+from codena_models.code_file_edges import (
     BACKBONE_MIN_FILE_EDGES,
     file_edges_params,
     file_edges_query,
 )
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     CodeFileGroup,

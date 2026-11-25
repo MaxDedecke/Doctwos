@@ -1,7 +1,7 @@
 """Umfang eines Entity-Link-Laufs: welche Code-Entitäten gegen welche Dokumentation geprüft werden.
 
 Ein Lauf ohne Einschränkung folgt der Dirty-Queue (einmaliger Backfill, danach nur Geändertes). Ein
-eingeschränkter Lauf (``scope_json["sets"]``, siehe ``doctus_models.link_sets``) prüft dagegen zwei feste
+eingeschränkter Lauf (``scope_json["sets"]``, siehe ``codena_models.link_sets``) prüft dagegen zwei feste
 Mengen gegeneinander: Menge A (Code) gegen Menge B (Dokumentation). Er lässt die Dirty-Queue unberührt und
 zählt nicht als Backfill, denn er hat nur einen Ausschnitt geprüft.
 """
@@ -15,8 +15,8 @@ from dataclasses import dataclass, field
 from sqlalchemy import or_
 
 from core import config
-from doctus_models.database import CodeEntity, DocumentChunk, LinkBuilderDirtyItem, LinkBuilderRun
-from doctus_models.link_sets import DOCS, LinkSet, RunSets, code_scope, docs_scope
+from codena_models.database import CodeEntity, DocumentChunk, LinkBuilderDirtyItem, LinkBuilderRun
+from codena_models.link_sets import DOCS, LinkSet, RunSets, code_scope, docs_scope
 
 logger = logging.getLogger(__name__)
 

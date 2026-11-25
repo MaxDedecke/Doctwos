@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from doctus_models.database import (
+from codena_models.database import (
     Insight,
     InsightEmbedding,
     InsightNotification,
@@ -14,7 +14,7 @@ from doctus_models.database import (
     TeamMembership,
     User,
 )
-from doctus_models.insight_workflow import content_hash, embedding_profile_key
+from codena_models.insight_workflow import content_hash, embedding_profile_key
 from services.insight_context import current_insights
 from test_insight_versions import version_repo as _version_repo
 
@@ -324,7 +324,7 @@ def test_revision_of_referenced_claim_creates_a_targeted_task(
     version_repo, people, client, db_session, test_project
 ):
     row = db_session.get(Insight, version_repo["insight"]["id"])
-    from doctus_models.insight_versions import capture_versions
+    from codena_models.insight_versions import capture_versions
 
     parent = Insight(
         project_id=test_project,
@@ -409,7 +409,7 @@ def test_owner_requests_a_reviewer_without_assignment_privileges(
 def test_document_evidence_uses_source_scope_and_checks_lines(
     version_repo, client, db_session, test_project
 ):
-    from doctus_models.database import DocumentChunk
+    from codena_models.database import DocumentChunk
 
     source = version_repo["source"]
     legacy = DocumentChunk(

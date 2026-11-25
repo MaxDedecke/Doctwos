@@ -27,7 +27,7 @@ from core.db_setup import SessionLocal
 from core.projects import (
     get_visible_projects_page,
 )
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,
@@ -113,7 +113,7 @@ def _capture_mcp_result(ctx: Context, db: Session, project_id: int | None, resul
             revision = (
                 f"{len(variants)}:{hashlib.sha256('|'.join(variants).encode()).hexdigest()[:16]}"
             )
-        request.scope.setdefault("state", {})["doctus_mcp_result_metrics"] = {
+        request.scope.setdefault("state", {})["codena_mcp_result_metrics"] = {
             "result_payload_bytes": payload_bytes,
             "result_truncated": has_truncation(result),
             "index_revision": revision,
@@ -158,7 +158,7 @@ def _lexical_project_chunks(
 def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: dict):
     request = ctx.request_context.request
     state = request.scope.setdefault("state", {}) if request else {}
-    state.pop("doctus_mcp_result_metrics", None)
+    state.pop("codena_mcp_result_metrics", None)
     user_id = request.scope.get("state", {}).get("mcp_user_id") if request else None
     if user_id is None:
         raise ValueError("MCP authentication required")
@@ -203,7 +203,7 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
             raise ValueError(detail) from None
         raise ValueError("MCP request failed or access denied") from None
     finally:
-        result_metrics = state.pop("doctus_mcp_result_metrics", {})
+        result_metrics = state.pop("codena_mcp_result_metrics", {})
         record_mcp_tool_call(
             db,
             user_id=user_id,
@@ -211,7 +211,7 @@ def _tool_context(ctx: Context, name: str, project_id: int | None, audit_args: d
             chat_message_id=None,
             project_id=project_id if success else None,
             knowledge_source_id=None,
-            server_name="doctus-inbound",
+            server_name="codena-inbound",
             tool_name=name,
             arguments={**audit_args, "requested_project_id": project_id},
             success=success,
@@ -226,7 +226,7 @@ _api_host = urlsplit(cfg.API_URL).netloc
 _hosts = sorted({"localhost:*", "127.0.0.1:*", "[::1]:*", _api_host, *cfg.MCP_ALLOWED_HOSTS})
 _origins = sorted({cfg.API_URL, cfg.FRONTEND_URL, *cfg.MCP_ALLOWED_ORIGINS})
 mcp = FastMCP(
-    "doctus",
+    "codena",
     instructions=(
         "Codena indexes source code. For a question about code call answer_context first with the question text: "
         "it resolves the named classes, methods, programs and copybooks and returns source with line numbers, "

@@ -80,7 +80,7 @@ nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 n
 
 ### Tag 3 · Do 29.10. – Ehrliche Messbasis
 
-1. **Hold-out-Fragensatz v1 anlegen**, und zwar **außerhalb des Repos** unter `~/doctus-holdout/v1/`, damit
+1. **Hold-out-Fragensatz v1 anlegen**, und zwar **außerhalb des Repos** unter `~/codena-holdout/v1/`, damit
    Coding-Agenten ihn beim Entwickeln nicht sehen und Codena nicht auf ihn hin optimiert wird.
    - 40 Fragen: 20 zu AWS CardDemo (COBOL), 20 zu Apache Syncope (Java).
    - Keine Frage darf einer Frage aus `backend/tests/fixtures/eval_*` oder den bisherigen Benchmark-Kapiteln ähneln.
@@ -102,7 +102,7 @@ nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 n
    immer `0.7` mitschickte; es sendet jetzt nur noch eine im Browserprofil gesetzte Temperatur.
    Offen: Hold-out-Vergleich `qwen3:8b` bei 0.2 und 0.6 (je 3 Läufe: nutzbare und leere Antworten, Streuung).
 
-**Fertig, wenn:** `~/doctus-holdout/v1/` mit 40 Fragen und notiertem Hash existiert; ein Probelauf mit
+**Fertig, wenn:** `~/codena-holdout/v1/` mit 40 Fragen und notiertem Hash existiert; ein Probelauf mit
 `qwen3:8b` über 5 Fragen beide Bewertungen erzeugt; nur noch eine Temperaturkonstante in `agent.py` steht.
 
 ### Tag 4 · Fr 30.10. – Mindestmodell entscheiden
@@ -149,7 +149,7 @@ In dieser Reihenfolge, jeweils mit Messung am Hold-out-Satz vorher und nachher:
 | 3 | **Ein Antwortpfad:** immer Beweispaket vorab, Agent recherchiert nur bei gemeldeten Lücken nach. | KI: zwei Betriebsarten |
 | 4 | **`POST /chat` zerlegen** in Kontext → Agent → Belegprüfung → Persistenz. **Umgesetzt 28.10.2026** (`services/chat_turn.py`, `chat_sources.py`, `chat_sessions.py`, `chat_feedback.py`, `chat_view_actions.py`). | Architektur: God-Handler |
 | 5 | **UI-Kernfluss** Frage → Antwort → Originalstelle → Aufrufer; Nebenansichten (Tropfen, 3D-Graph, Topics) hinter „Erweitert“; Schrift ≥ 12 px; Kontrast ≥ 4,5:1 per axe-Test in CI; kontextbezogene Chat-Vorschläge statt rotierender Überschrift. | UI: Konzeptvielfalt, Typografie |
-| 6 | **Gemeinsames Modellpaket** statt zweier ORM-Kopien. **Umgesetzt 28.10.2026** (`packages/doctus-models`, von beiden Images installiert; CI-Gleichheitsprüfung entfällt). | Architektur: Duplikat |
+| 6 | **Gemeinsames Modellpaket** statt zweier ORM-Kopien. **Umgesetzt 28.10.2026** (`packages/codena-models`, von beiden Images installiert; CI-Gleichheitsprüfung entfällt). | Architektur: Duplikat |
 | 7 | **Nischenentscheidung BS2000/openUTM** (O-131 bis O-133, O-144) als E-18 treffen – Ausbau nur mit Pilotbezug. | Zukunft: Nische liegt brach |
 | 8 | **Zweite Person** mit Reviewrechten gewinnen; ab dann Merge auf `develop` nur mit Review. | Zukunft: Busfaktor 1 |
 

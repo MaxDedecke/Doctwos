@@ -5,7 +5,7 @@ import re
 from xml.sax.saxutils import escape
 
 from core.projects import assert_project_visible, assert_knowledge_source_visible
-from doctus_models.database import CodeEntity, KnowledgeSource
+from codena_models.database import CodeEntity, KnowledgeSource
 from services.ci_builds import matching_builds
 from services.insight_context import current_insights
 from services.reviewed_evidence import (
@@ -133,7 +133,7 @@ def project_evidence_prompt(
     query_embedding=None,
     embedding_settings=None,
 ):
-    from doctus_models.insight_workflow import embedding_profile_key
+    from codena_models.insight_workflow import embedding_profile_key
 
     result = project_evidence(
         db,

@@ -1,4 +1,4 @@
-// Mengen eines Link-Laufs (Menge A gegen Menge B). Spiegelt `doctus_models/link_sets.py` und die Antworten von
+// Mengen eines Link-Laufs (Menge A gegen Menge B). Spiegelt `codena_models/link_sets.py` und die Antworten von
 // `/projects/{id}/link-runs/*`. Mengenarten, Facetten, Objektarten und Analysearten kommen vom Server; hier steht
 // nichts Sprach- oder Quellenspezifisches, damit neue Sprachen und Quelltypen ohne Frontend-Änderung erscheinen.
 

@@ -48,7 +48,7 @@ import core.config as cfg
 from core.config import celery_app
 from core.db_setup import get_db
 from services.source_tree import scan_summary
-from doctus_models.database import (
+from codena_models.database import (
     DocumentChunk,
     EntityDocLink,
     JobCenterDismissal,

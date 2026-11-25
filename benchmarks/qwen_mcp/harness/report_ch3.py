@@ -106,7 +106,7 @@ def build():
     # Serverzeiten aus dem MCP-Audit (alle Aufrufe seit Einfuehrung von explain_symbol)
     sql = ("select tool_name, count(*), round(avg(duration_ms)), round((percentile_cont(0.95) within group (order by duration_ms))::numeric), "
            "round(avg(result_payload_bytes)) from mcp_tool_audit_logs where status='success' and created_at >= '2026-10-02 14:20:00+00' group by 1 order by 2 desc")
-    res = subprocess.run(["docker", "exec", "doctus-db", "psql", "-U", "admin", "-d", "doctus", "-At", "-F", "|", "-c", sql], capture_output=True, text=True).stdout
+    res = subprocess.run(["docker", "exec", "codena-db", "psql", "-U", "admin", "-d", "codena", "-At", "-F", "|", "-c", sql], capture_output=True, text=True).stdout
     out["audit"] = [dict(zip(("tool", "n", "avg_ms", "p95_ms", "avg_bytes"), line.split("|"))) for line in res.strip().splitlines()]
     return out
 

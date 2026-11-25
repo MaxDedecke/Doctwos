@@ -11,7 +11,7 @@ from sqlalchemy import text
 
 from cobol.parse import parse_program
 from db import SessionLocal
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource
 from structure_persist import persist_parse_result
 
 SIBLINGS = """IDENTIFICATION DIVISION.

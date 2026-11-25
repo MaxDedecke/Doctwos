@@ -8,7 +8,7 @@ import pytest
 import respx
 from fastapi import HTTPException
 
-from doctus_models.database import DocumentChunk, KnowledgeSource, Project, Team
+from codena_models.database import DocumentChunk, KnowledgeSource, Project, Team
 from services import web_documents
 from services.web_documents import resolve as web
 from services.web_documents import mentions as web_mentions
@@ -134,8 +134,8 @@ def test_ticket_uses_rendered_html_all_facts_and_marks_known_links(db_session, s
     # Gerendertes HTML statt Wiki-Text.
     assert "sauber" in doc["body_html"] and "{code}" not in doc["body_html"]
     assert doc["comments"][0]["body_html"] == "<b>fett</b>"
-    # Bekanntes Ticket derselben Quelle: öffnet in Doctus. Unbekanntes und Fremdes bleibt ein Link.
-    assert f'data-doctus-source="{sources.jira.id}"' in doc["body_html"]
+    # Bekanntes Ticket derselben Quelle: öffnet in Codena. Unbekanntes und Fremdes bleibt ein Link.
+    assert f'data-codena-source="{sources.jira.id}"' in doc["body_html"]
     assert 'href="https://example.org/x">' in doc["body_html"]
     related = {item["identifier"]: item for item in doc["related"]}
     assert related["ABC-2"]["source_id"] == sources.jira.id and related["ABC-2"]["status"] == "Done"
@@ -241,8 +241,8 @@ def test_page_has_title_path_comments_attachments_and_links_across_sources(db_se
     assert doc["comments"][0]["author"] == "Eve" and doc["comments_total"] == 1
     # Sprungmarken bleiben, relative Links werden absolut, auch Links zu einer anderen Quelle sind bekannt.
     assert '<a href="#a">' in doc["body_html"]
-    assert f'data-doctus-source="{sources.wiki.id}"' in doc["body_html"]
-    assert f'data-doctus-source="{sources.jira.id}"' in doc["body_html"]
+    assert f'data-codena-source="{sources.wiki.id}"' in doc["body_html"]
+    assert f'data-codena-source="{sources.jira.id}"' in doc["body_html"]
     assert "web-asset?token=" in doc["body_html"] and doc["body_html"].endswith("/>")
     crumbs = {crumb["title"]: crumb["source_id"] for crumb in doc["breadcrumbs"]}
     assert crumbs == {"Notfall": sources.wiki.id, "Gesperrt": None}
@@ -436,7 +436,7 @@ def test_gitlab_issue_is_rendered_live_with_the_same_exclusions_as_the_import(db
     assert len(bodies) == 99 and doc["comments_total"] == 99
     assert bodies[-1] == "<p><strong>letzter</strong></p>"
     assert not any("closed" in b or "geheim" in b or ">x<" in b for b in bodies)
-    # Das verknüpfte Issue liegt im Index und öffnet in Doctus; das vertrauliche erscheint gar nicht.
+    # Das verknüpfte Issue liegt im Index und öffnet in Codena; das vertrauliche erscheint gar nicht.
     assert [
         (r["identifier"], r["relation"], r["status"], r["source_id"]) for r in doc["related"]
     ] == [("team/app#2", "blocks", "Closed", row.id)]
@@ -554,7 +554,7 @@ def test_asset_route_needs_no_session_but_a_genuine_token(db_session, sources):
 
 
 def test_names_in_the_text_become_code_refs_only_when_distinctive(db_session, sources):
-    from doctus_models.database import CodeEntity
+    from codena_models.database import CodeEntity
     from services.web_documents import mentions
     from services.web_documents.mentions import scan_names
 
@@ -620,7 +620,7 @@ def test_names_in_the_text_become_code_refs_only_when_distinctive(db_session, so
 
 @respx.mock
 def test_document_lists_mentioned_code_also_when_falling_back(db_session, sources):
-    from doctus_models.database import CodeEntity
+    from codena_models.database import CodeEntity
 
     db_session.add(
         CodeEntity(

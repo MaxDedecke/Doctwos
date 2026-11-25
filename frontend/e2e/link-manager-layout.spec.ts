@@ -172,8 +172,8 @@ test('workspace builds an own set from search and filters, survives a resize and
 
 test('dialog remains usable with enlarged desktop text, light theme, English and keyboard navigation', async ({ page, baseURL }) => {
   await page.addInitScript(() => {
-    localStorage.setItem('doctus-language', 'en');
-    localStorage.setItem('doctus-theme', 'light');
+    localStorage.setItem('codena-language', 'en');
+    localStorage.setItem('codena-theme', 'light');
   });
   await page.setViewportSize({ width: 1280, height: 800 });
   const { view, posts } = await openManager(page, baseURL!, 4);

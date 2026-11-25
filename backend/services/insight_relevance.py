@@ -7,8 +7,8 @@ import re
 
 from sqlalchemy.orm import defer
 from sqlalchemy import func, literal_column
-from doctus_models.database import Insight, InsightEmbedding
-from doctus_models.insight_workflow import embedding_profile_key
+from codena_models.database import Insight, InsightEmbedding
+from codena_models.insight_workflow import embedding_profile_key
 from services.insight_queue import search_vector
 import core.config as cfg
 

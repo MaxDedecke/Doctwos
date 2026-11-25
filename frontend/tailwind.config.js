@@ -104,7 +104,7 @@ module.exports = {
           to: { height: "0" },
         },
         // Lässt die kleinen Richtungspfeile im Quellen-Netzwerk-Graph nacheinander
-        // aufblitzen und dabei minimal Richtung Doctus rutschen — mehrere Pfeile
+        // aufblitzen und dabei minimal Richtung Codena rutschen — mehrere Pfeile
         // mit versetztem animationDelay ergeben so einen "fließenden" Eindruck.
         "ds-arrow-pulse": {
           "0%, 100%": { opacity: "0", transform: "translate(-50%, -50%) translateX(3px)" },

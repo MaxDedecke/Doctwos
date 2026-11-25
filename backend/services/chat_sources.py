@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 
 from core.analysis_status import load_analysis_status
 from core.projects import resolve_repository_id
-from doctus_models.database import DocumentChunk, KnowledgeSource
+from codena_models.database import DocumentChunk, KnowledgeSource
 from services.commit_diff import diff_source_ranges
 from services.provenance import build_provenance
 

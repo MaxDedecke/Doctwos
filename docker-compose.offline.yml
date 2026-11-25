@@ -1,5 +1,5 @@
 # Generated service parity with docker-compose.yml; prebuilt images only.
-name: doctus
+name: codena
 x-logging: &id001
   driver: json-file
   options:
@@ -7,8 +7,8 @@ x-logging: &id001
     max-file: '3'
 services:
   db:
-    image: doctus-db:${DOCTUS_VERSION:-latest}
-    container_name: doctus-db
+    image: codena-db:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-db
     restart: always
     logging: *id001
     environment:
@@ -27,8 +27,8 @@ services:
       timeout: 5s
       retries: 5
   redis:
-    image: doctus-redis:${DOCTUS_VERSION:-latest}
-    container_name: doctus-redis
+    image: codena-redis:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-redis
     restart: always
     logging: *id001
     ports:
@@ -42,8 +42,8 @@ services:
       timeout: 5s
       retries: 5
   ollama:
-    image: doctus-ollama:${DOCTUS_VERSION:-latest}
-    container_name: doctus-ollama
+    image: codena-ollama:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-ollama
     restart: always
     logging: *id001
     ports:
@@ -65,9 +65,9 @@ services:
       timeout: 5s
       retries: 5
   backend-api:
-    image: doctus-backend-api:${DOCTUS_VERSION:-latest}
+    image: codena-backend-api:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
     mem_limit: ${BACKEND_MEM_LIMIT:-3g}
-    container_name: doctus-backend
+    container_name: codena-backend
     extra_hosts:
     - host.docker.internal:host-gateway
     restart: always
@@ -118,13 +118,13 @@ services:
       FRONTEND_URL: ${FRONTEND_URL}
       API_URL: ${API_URL:-http://localhost:8000}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DOCTUS_VERSION: ${DOCTUS_VERSION:-latest}
+      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
       MCP_AUDIT_RETENTION_DAYS: ${MCP_AUDIT_RETENTION_DAYS:-90}
       MCP_ALLOWED_HOSTS: ${MCP_ALLOWED_HOSTS:-}
       MCP_ALLOWED_ORIGINS: ${MCP_ALLOWED_ORIGINS:-}
       FEATURES_CONFIG_PATH: ${FEATURES_CONFIG_PATH:-/config/features.json}
       LLM_MODEL: ${LLM_MODEL:-disabled}
-      LOG_FILE_PATH: /var/log/doctus/backend-api/backend-api.log
+      LOG_FILE_PATH: /var/log/codena/backend-api/backend-api.log
       ALLOW_CLOUD_LLM: ${ALLOW_CLOUD_LLM:-}
       OIDC_ISSUER: ${OIDC_ISSUER:-}
       OIDC_CLIENT_ID: ${OIDC_CLIENT_ID:-}
@@ -139,7 +139,7 @@ services:
     - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
     - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
     - ./config:/config:ro
-    - ./data/logs/backend-api:/var/log/doctus/backend-api
+    - ./data/logs/backend-api:/var/log/codena/backend-api
     healthcheck:
       test:
       - CMD
@@ -151,8 +151,8 @@ services:
       retries: 5
       start_period: 15s
   parser-worker:
-    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
-    container_name: doctus-parser
+    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-parser
     extra_hosts:
     - host.docker.internal:host-gateway
     restart: always
@@ -201,9 +201,9 @@ services:
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       LLM_MODEL: ${LLM_MODEL:-disabled}
       COMPLIANCE_LLM_TIMEOUT: ${COMPLIANCE_LLM_TIMEOUT:-180}
-      LOG_FILE_PATH: /var/log/doctus/parser-worker/parser-worker.log
+      LOG_FILE_PATH: /var/log/codena/parser-worker/parser-worker.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DOCTUS_VERSION: ${DOCTUS_VERSION:-latest}
+      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
       # Logdateien unter data/logs: stündlich ab dieser Größe gekürzt, ältere Stände als .1 … .N behalten.
       LOG_FILE_MAX_MB: ${LOG_FILE_MAX_MB:-100}
       LOG_FILE_KEEP: ${LOG_FILE_KEEP:-3}
@@ -213,7 +213,7 @@ services:
     - ./repos:/repos
     - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
     - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
-    - ./data/logs:/var/log/doctus
+    - ./data/logs:/var/log/codena
     mem_limit: ${PARSER_MEM_LIMIT:-5g}
     command:
     - celery
@@ -234,7 +234,7 @@ services:
   link-worker:
     extends:
       service: parser-worker
-    container_name: doctus-link-worker
+    container_name: codena-link-worker
     command:
     - celery
     - -A
@@ -244,7 +244,7 @@ services:
     - --queues=global_link_runs
     - --concurrency=1
     environment:
-      LOG_FILE_PATH: /var/log/doctus/link-worker/link-worker.log
+      LOG_FILE_PATH: /var/log/codena/link-worker/link-worker.log
     healthcheck:
       test:
       - CMD-SHELL
@@ -254,8 +254,8 @@ services:
       retries: 5
       start_period: 20s
   parser-beat:
-    image: doctus-parser-worker:${DOCTUS_VERSION:-latest}
-    container_name: doctus-beat
+    image: codena-parser-worker:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-beat
     restart: always
     logging: *id001
     depends_on:
@@ -289,15 +289,15 @@ services:
       DOC_CONCURRENCY: ${DOC_CONCURRENCY:-0}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-100}
       LLM_MODEL: ${LLM_MODEL:-disabled}
-      LOG_FILE_PATH: /var/log/doctus/parser-beat/parser-beat.log
+      LOG_FILE_PATH: /var/log/codena/parser-beat/parser-beat.log
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      DOCTUS_VERSION: ${DOCTUS_VERSION:-latest}
+      CODENA_VERSION: ${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
       LEGACY_OLLAMA_SERVICE: ${LEGACY_OLLAMA_SERVICE:-true}
       EMBEDDING_BASE_URL: ${EMBEDDING_BASE_URL:-${OLLAMA_BASE_URL:-http://ollama:11434}}
     volumes:
     - ${WATCHED_FOLDER:-/tmp/doctus-watched}:/watched:ro
     - ${CUSTOM_CA_FILE:-/dev/null}:/certs/custom-ca.pem:ro
-    - ./data/logs/parser-beat:/var/log/doctus/parser-beat
+    - ./data/logs/parser-beat:/var/log/codena/parser-beat
     healthcheck:
       test:
       - CMD
@@ -308,8 +308,8 @@ services:
       retries: 5
       start_period: 15s
   frontend:
-    image: doctus-frontend:${DOCTUS_VERSION:-latest}
-    container_name: doctus-frontend
+    image: codena-frontend:${CODENA_VERSION:-${DOCTUS_VERSION:-latest}}
+    container_name: codena-frontend
     restart: always
     logging: *id001
     depends_on:
@@ -323,11 +323,11 @@ services:
       NEXT_TELEMETRY_DISABLED: '1'
       HOSTNAME: 0.0.0.0
     volumes:
-    - ./data/logs/frontend:/var/log/doctus/frontend
+    - ./data/logs/frontend:/var/log/codena/frontend
     command:
     - sh
     - -c
-    - npm run start 2>&1 | tee -a /var/log/doctus/frontend/frontend.log
+    - npm run start 2>&1 | tee -a /var/log/codena/frontend/frontend.log
     healthcheck:
       test:
       - CMD

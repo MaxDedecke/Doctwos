@@ -8,7 +8,7 @@ import {
 
 // Mirrors parser/tasks/link_builder.py + cross_link_builder.py LLM_MIN_CONFIDENCE (35); der zuletzt benutzte Wert
 // gilt je Browser, weil er den nächsten Lauf konfiguriert, nicht eine Projekteinstellung.
-const MIN_CONFIDENCE_STORAGE_KEY = 'doctus-link-min-confidence';
+const MIN_CONFIDENCE_STORAGE_KEY = 'codena-link-min-confidence';
 const MIN_CONFIDENCE_DEFAULT = 35;
 const DEBOUNCE_MS = 300;
 

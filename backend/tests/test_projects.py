@@ -15,9 +15,9 @@ from unittest.mock import patch
 import pytest
 
 import api.projects as projects_api
-from doctus_models.repo_stats import compute_worktree_stats
+from codena_models.repo_stats import compute_worktree_stats
 from core.auth_dependency import SESSION_COOKIE_NAME, create_session_cookie_value
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,
@@ -818,7 +818,7 @@ def test_get_project_references_requires_project_membership(
 def test_get_file_references_returns_resolved_usages_of_this_file_only(
     client, db_session, test_project
 ):
-    from doctus_models.database import CodeEdge
+    from codena_models.database import CodeEdge
 
     caller = None
     callee = None

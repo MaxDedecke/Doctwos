@@ -83,9 +83,9 @@ The IT team then mounts each share as a subdirectory of that parent. On Linux th
 
 ```sh
 # /etc/fstab entries — example with CIFS
-//nas.firma.local/Ausschreibungen  /mnt/doctus-watched/ausschreibungen  cifs  credentials=/etc/doctus-nas.creds,ro,uid=1000  0  0
-//nas.firma.local/Projektarchiv    /mnt/doctus-watched/projekte          cifs  credentials=/etc/doctus-nas.creds,ro,uid=1000  0  0
-//nas.firma.local/Normen           /mnt/doctus-watched/normen            cifs  credentials=/etc/doctus-nas.creds,ro,uid=1000  0  0
+//nas.firma.local/Ausschreibungen  /mnt/doctus-watched/ausschreibungen  cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
+//nas.firma.local/Projektarchiv    /mnt/doctus-watched/projekte          cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
+//nas.firma.local/Normen           /mnt/doctus-watched/normen            cifs  credentials=/etc/codena-nas.creds,ro,uid=1000  0  0
 ```
 
 After mounting, the directory structure looks like:

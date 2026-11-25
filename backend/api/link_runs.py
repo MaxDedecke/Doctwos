@@ -6,7 +6,7 @@
     POST /projects/{id}/link-runs/estimate  — Aufwand eines Laufs
     POST /projects/{id}/link-runs           — Lauf starten
 
-Das Mengenformat steht in ``doctus_models.link_sets``; dieselben Mengen liest der Parser aus ``scope_json["sets"]``.
+Das Mengenformat steht in ``codena_models.link_sets``; dieselben Mengen liest der Parser aus ``scope_json["sets"]``.
 """
 
 from __future__ import annotations
@@ -22,8 +22,8 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible
 from core.teams import assert_team_visible, is_admin
-from doctus_models.database import LinkBuilderRun, Project, User
-from doctus_models.link_sets import (
+from codena_models.database import LinkBuilderRun, Project, User
+from codena_models.link_sets import (
     KINDS,
     PAIRINGS,
     LinkSet,

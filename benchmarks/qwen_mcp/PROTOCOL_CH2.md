@@ -25,7 +25,7 @@ Kapitel-übergreifende Vergleiche sind **beschreibend**; es gibt keinen Test zwi
 |---|---|
 | `none` | Shell-Werkzeug und alle Plugins abgeschaltet, kein MCP, leeres Arbeitsverzeichnis |
 | `local` | Shell-Werkzeug aktiv, Sandbox `read-only`, Arbeitsverzeichnis = gepinnter Checkout, kein MCP |
-| `mcp` | Doctus-MCP (`http://localhost:8000/mcp`, Bearer-Token), Shell-Werkzeug abgeschaltet, leeres Arbeitsverzeichnis |
+| `mcp` | Codena-MCP (`http://localhost:8000/mcp`, Bearer-Token), Shell-Werkzeug abgeschaltet, leeres Arbeitsverzeichnis |
 
 In allen Armen: `web_search` aus; Apps, Plugins, Browser, Computer-Use, Bildgenerierung, Memories, Goals,
 Skill-Suche, Tool-Vorschläge abgeschaltet; isoliertes `CODEX_HOME` mit leerer Konfiguration; kein

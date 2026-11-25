@@ -1,7 +1,7 @@
 """
 parser/worker.py
 ================
-Celery-Worker-Einstiegspunkt für den Doctus-Parser.
+Celery-Worker-Einstiegspunkt für den Codena-Parser.
 
 Aufgaben (Tasks):
     process_local_document    — Hochgeladenes Dokument parsen und einbetten
@@ -31,7 +31,7 @@ from celery import Celery
 from celery.schedules import crontab
 from celery.signals import worker_process_init, worker_ready
 from db import REDIS_URL, SessionLocal
-from doctus_models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun
+from codena_models.database import DiagnosticsRun, KnowledgeSource, LinkBuilderRun
 
 from core import sync_lock
 from core.tracing import TraceIdFilter, trace_id_scope
@@ -453,7 +453,7 @@ def scan_pull_sources():
     dieser Datei.
     """
     from connectors.registry import REGISTRY
-    from doctus_models.database import KnowledgeSource
+    from codena_models.database import KnowledgeSource
 
     # Erst abgebrochene Läufe beenden: Ihr hängender „syncing“-Status würde sonst als laufender Sync gelten.
     recover_interrupted_syncs()

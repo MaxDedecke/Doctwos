@@ -133,7 +133,7 @@ describe('DropView', () => {
   });
 
   it('switches between layers below and beside each other and remembers it, without loading again', async () => {
-    window.localStorage.removeItem('doctus-drop-orientation');
+    window.localStorage.removeItem('codena-drop-orientation');
     const spy = vi.spyOn(api, 'getEntityDrop').mockResolvedValue({ data: RESULT } as never);
     renderView();
     const pyramid = await screen.findByTestId('drop-pyramid');
@@ -142,7 +142,7 @@ describe('DropView', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ebenen nebeneinander anzeigen' }));
     expect(screen.getByTestId('drop-pyramid').getAttribute('data-orientation')).toBe('horizontal');
-    expect(window.localStorage.getItem('doctus-drop-orientation')).toBe('horizontal');
+    expect(window.localStorage.getItem('codena-drop-orientation')).toBe('horizontal');
     expect(spy.mock.calls.length).toBe(calls);
 
     fireEvent.click(screen.getByRole('button', { name: 'Ebenen untereinander anzeigen' }));

@@ -15,7 +15,7 @@ def prepared(tmp_path, files, attributes=None):
 
 def test_attributes_from_includes_compose_chapters_with_original_source_positions(tmp_path):
     files = {
-        "docs/attrs.adoc": ":product: Doctus\n:chapters: chapters\n",
+        "docs/attrs.adoc": ":product: Codena\n:chapters: chapters\n",
         "docs/chapters/api.adoc": "= {product} API\n\n== Überweisung\nUTF-8 Größe / English text.\n",
     }
     state = prepared(tmp_path, files)
@@ -24,7 +24,7 @@ def test_attributes_from_includes_compose_chapters_with_original_source_position
     assert not result.diagnostics
     outline = result.entities[0].meta["composition_outline"]
     assert {
-        "title": "Doctus API",
+        "title": "Codena API",
         "level": 1,
         "file_path": "docs/chapters/api.adoc",
         "line": 1,
@@ -116,7 +116,7 @@ def test_explicit_attributes_override_document_defaults_and_change_fingerprint(
     assert any(e.name == "Größe" for e in result.entities)
     assert not result.diagnostics
     before = configuration_fingerprint()
-    monkeypatch.setenv("DOCTUS_ASCIIDOC_ATTRIBUTES", '{"de":""}')
+    monkeypatch.setenv("CODENA_ASCIIDOC_ATTRIBUTES", '{"de":""}')
     assert configuration_fingerprint() != before
 
 

@@ -8,7 +8,7 @@ from services.attachment_text import html_to_text, readable
 from services.chat_attachments import prompt_block
 
 PAGE = """<!doctype html><html><head><title>Benchmark</title><style>body{color:red}</style></head>
-<body><h1>Ergebnis</h1><p>Doctus hilft &amp; misst, etwa bei COSGN00C.cbl.</p>
+<body><h1>Ergebnis</h1><p>Codena hilft &amp; misst, etwa bei COSGN00C.cbl.</p>
 <table><tr><th>Modell</th><th>Rubrik</th></tr><tr><td>qwen3:8b</td><td>0,61</td></tr></table>
 <script>const DATA = {"runs": [{"model": "qwen3:8b", "score": 0.61}]}; render(DATA);</script>
 <script>function render(d) { document.body.append(d); }</script>
@@ -19,7 +19,7 @@ def test_html_becomes_readable_text_with_the_page_data():
     text = html_to_text(PAGE)
 
     assert "color:red" not in text and "function render" not in text
-    assert "## Ergebnis" in text and "Doctus hilft & misst, etwa bei COSGN00C.cbl." in text
+    assert "## Ergebnis" in text and "Codena hilft & misst, etwa bei COSGN00C.cbl." in text
     assert "Modell | Rubrik" in text and "qwen3:8b | 0,61" in text
     data = text.split("## Eingebettete Daten der Seite (aus Skripten)\n", 1)[1].splitlines()
     assert data[0] == 'DATA = {"runs":[{"model":"qwen3:8b","score":0.61}]}'

@@ -242,7 +242,7 @@ def main() -> None:
         subprocess.run(["git", "init", "-q"], cwd=out, check=True)
         subprocess.run(["git", "-C", str(out), "add", "-A"], check=True)
         subprocess.run(
-            ["git", "-C", str(out), "-c", "user.email=loadtest@doctus.local", "-c", "user.name=AP-9 Lasttest",
+            ["git", "-C", str(out), "-c", "user.email=loadtest@codena.local", "-c", "user.name=AP-9 Lasttest",
              "commit", "-q", "-m", "Synthetischer AP-9-Lasttestkorpus"],
             check=True,
         )

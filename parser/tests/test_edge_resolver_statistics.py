@@ -4,7 +4,7 @@ import pytest
 from sqlalchemy import event
 
 from db import SessionLocal
-from doctus_models.database import KnowledgeSource, Project, Team
+from codena_models.database import KnowledgeSource, Project, Team
 from tasks.edge_resolver import resolve_global_edges
 
 

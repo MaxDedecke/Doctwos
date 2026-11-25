@@ -12,7 +12,7 @@ from typing import Optional
 
 from sqlalchemy.orm import Session
 
-from doctus_models.database import ChatMessage, ChatSession
+from codena_models.database import ChatMessage, ChatSession
 
 
 def _source_line(source: dict) -> Optional[str]:
@@ -63,4 +63,4 @@ def export_markdown(db: Session, session: ChatSession) -> str:
 
 def export_filename(session: ChatSession) -> str:
     slug = re.sub(r"[^A-Za-z0-9ÄÖÜäöüß_-]+", "-", session.title or "chat").strip("-")[:60] or "chat"
-    return f"doctus-{slug}.md"
+    return f"codena-{slug}.md"

@@ -19,8 +19,11 @@ NAME_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}$")
 # Modellkennungen: Ollama (name:tag), Hugging Face (org/repo[:quant]), GGUF-Dateien unter /models.
 MODEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,199}$")
 
-CONTAINER_PREFIX = "doctus-llm-"
-LABEL = "doctus.deployment"
+CONTAINER_PREFIX = "codena-llm-"
+LABEL = "codena.deployment"
+# Übergang doctus→codena (docs/UMBENENNUNG_CODENA.md): vor der Umbenennung gestartete Container laufen weiter.
+LEGACY_CONTAINER_PREFIX = "doctus-llm-"
+LEGACY_LABEL = "doctus.deployment"
 
 # Images lassen sich je Kunde per Umgebungsvariable festschreiben (Digest/Tag), sonst gelten diese Standardwerte.
 DEFAULT_IMAGES = {
@@ -88,7 +91,7 @@ def plan(spec: DeploymentSpec) -> ContainerPlan:
     validate(spec)
     port = PORTS[spec.engine]
     image = image_for(spec.engine, spec.gpu)
-    labels = {LABEL: spec.name, "doctus.engine": spec.engine, "doctus.role": spec.role}
+    labels = {LABEL: spec.name, "codena.engine": spec.engine, "codena.role": spec.role}
 
     if spec.engine == "ollama":
         return ContainerPlan(

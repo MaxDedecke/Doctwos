@@ -1,7 +1,7 @@
 """Code-Beziehungen der Graph-Übersicht als Grundgerüst aus Dateikanten.
 
 Das Grundgerüst berechnet der Parser am Ende jedes Syncs je Projekt vor (`code_file_edges`, siehe
-`doctus_models.code_file_edges`); damit hängt die Ladezeit der Übersicht nicht mehr von der Zahl
+`codena_models.code_file_edges`); damit hängt die Ladezeit der Übersicht nicht mehr von der Zahl
 der Parser-Beziehungen ab. Ist für den Bereich noch nichts
 berechnet (vor dem ersten Sync nach dem Update), fasst sie die Beziehungen wie früher direkt zusammen.
 """
@@ -12,7 +12,7 @@ from typing import Callable, Optional
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
-from doctus_models.code_file_edges import file_edges_params, file_edges_query
+from codena_models.code_file_edges import file_edges_params, file_edges_query
 
 FileKey = tuple[Optional[int], Optional[int], str]
 

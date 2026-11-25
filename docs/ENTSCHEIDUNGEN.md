@@ -43,7 +43,7 @@ zweigeteilt:
 Programmlokale Kanten sind damit schon beim Parsen auflösbar und brauchen den
 Nachlauf-Pass gar nicht — der bleibt für die echten Cross-Program-Kanten.
 
-**Fundstelle.** `doctus_models/database.py::CodeEdge.scope_entity_id`,
+**Fundstelle.** `codena_models/database.py::CodeEdge.scope_entity_id`,
 Index `ix_code_edges_scope_name`.
 
 ---
@@ -89,9 +89,9 @@ Worktree-Operationen ohne offensichtlichen Zusammenhang zur Ursache.
 
 **Entscheidung.** Der Filter wird konfigurierbar statt fest verdrahtet:
 
-- `DOCTUS_GIT_PARTIAL_CLONE=1` (Default): `--filter=blob:none`, spart bei der
+- `CODENA_GIT_PARTIAL_CLONE=1` (Default): `--filter=blob:none`, spart bei der
   Erstindexierung eines Monorepos den Großteil des Transfers.
-- `DOCTUS_GIT_PARTIAL_CLONE=0`: vollständiger Blob-Transfer beim Klonen, danach
+- `CODENA_GIT_PARTIAL_CLONE=0`: vollständiger Blob-Transfer beim Klonen, danach
   ist der Bare-Store autark. Das ist die Einstellung für Deployments, in denen der
   Git-Server nach der Erstindexierung nicht mehr erreichbar ist.
 
@@ -100,7 +100,7 @@ Zusätzlich bleibt nach Abschluss der Erstindexierung optional `git repack -a -d
 Messung ist unter O-006 in `TODO.md` dokumentiert, aber
 aktuell kein offener Implementierungsauftrag.
 
-**Stand 02.09.2026.** Der Schalter ist umgesetzt: `DOCTUS_GIT_PARTIAL_CLONE`
+**Stand 02.09.2026.** Der Schalter ist umgesetzt: `CODENA_GIT_PARTIAL_CLONE`
 (Default `1`) steuert `--filter=blob:none` in `parser/git_utils.py`
 (`ensure_bare_mirror`/`fetch_branch`). Falls der Server den Filter nicht
 unterstützt, fällt der Import automatisch auf einen vollständigen Clone/Fetch
@@ -490,7 +490,7 @@ Prinzip 3 bleibt/wird wieder uneingeschränkt formuliert.
 
 **Nachtrag Phase 3 (11.08.2026): umgesetzt, ohne Engine-Flag.** Der
 ursprünglich skizzierte Parallelbetrieb mit Feature-Flag
-(`DOCTUS_COBOL_PARSER_ENGINE=legacy|antlr`) wurde bewusst **nicht** gebaut:
+(`CODENA_COBOL_PARSER_ENGINE=legacy|antlr`) wurde bewusst **nicht** gebaut:
 das Produkt läuft noch nicht produktiv (siehe „Anlass" oben), es gibt keinen
 Blast-Radius auf echte Kundendaten, den ein schrittweiser Rollout schützen
 müsste. Ein dauerhafter Flag, der mangels Produktivbetrieb nie umgelegt
@@ -665,7 +665,7 @@ O-296 setzt die angegebenen sichtbaren Umbenennungen um.
 
 **Entscheidung vom 05.10.2026.** Das Beweispaket des MCP-Servers (`answer_context`) soll typische Agentenfragen in einem
 Aufruf beantworten. Seine Bausteine (`services/evidence.py`: Einbindungen, Kontrollfluss, Datenherkunft) sind
-sprachneutral; sie lesen nur Rollen aus `doctus_models/language_profile.py` und die Angaben, die der Parser liefert. **Fehlt dem
+sprachneutral; sie lesen nur Rollen aus `codena_models/language_profile.py` und die Angaben, die der Parser liefert. **Fehlt dem
 Server eine Angabe, wird der Parser erweitert** – nicht im Server geraten und nicht mit Zeilennähe überbrückt.
 
 **Was ein Sprachparser liefern muss**
@@ -725,12 +725,12 @@ llama.cpp betreiben wollte, musste Compose-Dateien selbst ändern.
    (`deployer/engines.py`): feste Images (per Umgebungsvariable je Kunde festschreibbar), strukturierte
    Parameter statt freier Kommandozeilen (Modellkennung per Regex geprüft, Tool-Parser aus einer
    Liste), nur das Modellvolume `doctus_llm_models` als Mount, kein Privileged-Modus, kein Host-Netzwerk,
-   GPU nur über `device_requests`, Log-Rotation. Verwaltet wird nur, was das Label `doctus.deployment`
+   GPU nur über `device_requests`, Log-Rotation. Verwaltet wird nur, was das Label `codena.deployment`
    trägt.
 3. **Profil und Container gehören zusammen.** `POST /llm-deployments` startet den Container und legt das
    Profil an (`kind=local`, Spalte `deployment_name`); schlägt das Profil fehl, wird der Container wieder
    entfernt, und das Löschen eines Profils entfernt den Container. Lokale Profile dürfen nur auf
-   Deployer-Container (`http://doctus-llm-…`) oder den Legacy-Dienst zeigen, nie auf beliebige URLs.
+   Deployer-Container (`http://codena-llm-…`) oder den Legacy-Dienst zeigen, nie auf beliebige URLs.
 4. **Embeddings genauso.** Embedding-Profile bekommen dieselbe Funktion (llama.cpp mit `--embedding`,
    vLLM mit `--task embed`, Ollama). Die Datenbank erwartet weiter 1024 Dimensionen.
 5. **Remote bleibt gleichwertig.** Ollama, OpenAI-kompatibel, vLLM und llama.cpp lassen sich auch auf
@@ -1021,7 +1021,7 @@ Endpunkt eingebettet. Modell und Dimension eines Profils mit eingebetteten Inhal
 eines Projekts läuft als Blue-Green über einen Schattenvektor (`document_chunks.embedding_next`, Tabelle
 `embedding_migrations`): einbetten (fortsetzbar), prüfen, in einer Transaktion umschalten (Syncs gesperrt,
 Neues nachgezogen), bei Bedarf zurücknehmen, danach aufräumen. Neue Dimensionen bekommen beim Umschalten ihren
-HNSW-Teilindex (`doctus_models/vector_index.py`). Altbestände ohne Modelleintrag erhielten mit Migration 0049 das Modell
+HNSW-Teilindex (`codena_models/vector_index.py`). Altbestände ohne Modelleintrag erhielten mit Migration 0049 das Modell
 ihrer Quelle. Migration 0049 und Modellpaket 1.11.0 sind erforderlich.
 
 ## E-21 — Produktname Codena (25.11.2026)
@@ -1031,10 +1031,10 @@ die Kette). Das Logo zeigt zwei ineinandergreifende Kettenglieder (`frontend/com
 „codena“ in Manrope ExtraBold. Das übrige Design (Farben, Schriften, Markenverlauf) bleibt unverändert; die Marke
 nimmt Vordergrund- und Akzentfarbe aus den Theme-Tokens.
 
-Umgestellt sind alle sichtbaren Texte (Oberfläche, Chat- und Onboarding-Prompts, MCP-Hinweise, IDE-Erweiterung) und
-die laufende Doku. **Noch nicht umbenannt** sind technische Bezeichner: Paket `doctus_models`, Container und Images
-`doctus-*`, Datenbank `doctus`, Umgebungsvariablen `DOCTUS_*`, MCP-Servername `doctus`, Cookie `doctus_session`,
-localStorage-Schlüssel `doctus-*`, CSS-Klassen, Befehls- und Einstellungs-IDs `doctus.*` der IDE-Erweiterung und die
-Grammatikmarker `// Doctus:`. Ihre Umbenennung bricht gespeicherte Einstellungen, Sitzungen, Client-Konfigurationen
-und Deployments und braucht deshalb einen eigenen Schritt mit Übergangsregel. Historische Belege (Pitch-Unterlagen,
-Eval- und Benchmark-Ergebnisse, Namensvorschläge) bleiben unter dem alten Namen.
+Umgestellt sind alle sichtbaren Texte (Oberfläche, Chat- und Onboarding-Prompts, MCP-Hinweise, IDE-Erweiterung), die
+laufende Doku und die technischen Bezeichner (Modellpaket `codena_models`, Compose-Projekt, Container und Images
+`codena-*`, `CODENA_*`, Cookies, Browser-Speicher, Deployer-Labels). Bestehende Installationen gehen ohne Datenverlust
+über: alte Namen werden während einer Übergangszeit weiter gelesen. Bewusst beim alten Namen bleiben Signatur-Salts
+(sonst wären alle Sitzungen ungültig), Alembic-Revisionen, das Modellvolume `doctus_llm_models` und bestehende
+Datenbanknamen. Plan, Update-Schritte und Ende der Übergangszeit: `docs/UMBENENNUNG_CODENA.md`. Historische Belege
+(Pitch-Unterlagen, Eval- und Benchmark-Ergebnisse, Namensvorschläge) bleiben unter dem alten Namen.

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Stellt die Chat-Fragen aus eval_chat_cases.json und prüft Antwort und Quellen gegen die Checkliste (O-354).
 
-    DOCTUS_USER=admin DOCTUS_PASSWORD=... python3 scripts/eval_chat.py --profile 21 [--only Q1,Q3] [--out ergebnis.json]
+    CODENA_USER=admin CODENA_PASSWORD=... python3 scripts/eval_chat.py --profile 21 [--only Q1,Q3] [--out ergebnis.json]
         [--temperature 0.6]
 
 Das Profil wird nur für diese Anfragen übergeben (`llm_profile_id`); das aktive Profil bleibt unverändert.
@@ -71,15 +71,15 @@ def score(case, result):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--url", default=os.environ.get("DOCTUS_URL", "http://localhost:8000"))
+    parser.add_argument("--url", default=os.environ.get("CODENA_URL", "http://localhost:8000"))
     parser.add_argument("--profile", type=int, required=True)
     parser.add_argument("--only", default="")
     parser.add_argument("--out")
     parser.add_argument("--temperature", type=float, help="überschreibt die Temperatur des Profils")
     args = parser.parse_args()
-    user, password = os.environ.get("DOCTUS_USER"), os.environ.get("DOCTUS_PASSWORD")
+    user, password = os.environ.get("CODENA_USER"), os.environ.get("CODENA_PASSWORD")
     if not user or not password:
-        sys.exit("DOCTUS_USER und DOCTUS_PASSWORD fehlen")
+        sys.exit("CODENA_USER und CODENA_PASSWORD fehlen")
     session = requests.Session()
     session.post(f"{args.url}/auth/login", json={"username": user, "password": password}, timeout=30).raise_for_status()
     projects = {item["name"]: item["id"] for item in session.get(f"{args.url}/projects", timeout=30).json()}

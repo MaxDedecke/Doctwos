@@ -1,4 +1,4 @@
-from doctus_models.database import CodeEntity, KnowledgeSource, User
+from codena_models.database import CodeEntity, KnowledgeSource, User
 from services.evidence import data_origin
 
 

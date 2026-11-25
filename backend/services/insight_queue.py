@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from sqlalchemy import func, literal_column, text, case
-from doctus_models.database import Insight, ProjectMembership, TeamMembership, Project, User
+from codena_models.database import Insight, ProjectMembership, TeamMembership, Project, User
 
 REVIEW_REQUIRED = text("""
 (insights.status IN ('draft','outdated') OR

@@ -173,7 +173,7 @@ export function Sidebar({
                   }
                 }}
                 id="sidebar-new-chat-btn"
-                className="w-full justify-start gap-2.5 h-11 rounded-md doctus-brand-gradient hover:brightness-105 text-ds-white border-0 transition-all duration-150"
+                className="w-full justify-start gap-2.5 h-11 rounded-md codena-brand-gradient hover:brightness-105 text-ds-white border-0 transition-all duration-150"
               >
                 <Plus className="w-4 h-4" />
                   <span className="text-[0.625rem] font-mono font-semibold uppercase tracking-[0.14em]">{t('sidebar.newChat')}</span>

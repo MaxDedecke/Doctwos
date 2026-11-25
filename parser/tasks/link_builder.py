@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from db import SessionLocal, REDIS_URL
-from doctus_models.database import (
+from codena_models.database import (
     AIProfile,
     AISettings,
     CodeEntity,
@@ -46,12 +46,12 @@ from doctus_models.database import (
     LinkBuilderDirtyItem,
     LinkBuilderRun,
 )
-from doctus_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
+from codena_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
 from ollama_client import get_embedding, get_embeddings_batch, get_chat_json, ensure_model_pulled
 from core import config
 from core.doc_resolution import DOC_ENTITY_TYPES
 from chunk_reindex import content_fingerprint
-from doctus_models.link_sets import LinkSet, RunSets
+from codena_models.link_sets import LinkSet, RunSets
 from tasks.link_run_scope import KeywordCorpus, doc_chunk_conditions, select_run_entities
 import httpx
 import redis

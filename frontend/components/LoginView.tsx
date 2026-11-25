@@ -124,11 +124,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
 
   return (
     <div className={cn(
-      "relative min-h-screen w-screen flex items-center justify-center p-6 sm:p-12 font-sans overflow-hidden doctus-canvas",
+      "relative min-h-screen w-screen flex items-center justify-center p-6 sm:p-12 font-sans overflow-hidden codena-canvas",
       isDark ? "bg-ds-zinc-950 text-ds-zinc-200" : "bg-ds-zinc-50 text-ds-zinc-900",
     )}>
       <NetworkLoopCanvas isDark={isDark} className="absolute inset-0 h-full w-full pointer-events-none" />
-      <div className="absolute inset-x-0 top-0 h-1 doctus-brand-gradient" />
+      <div className="absolute inset-x-0 top-0 h-1 codena-brand-gradient" />
       <div className="relative z-10 w-full max-w-[420px] space-y-10">
 
         <div className="flex items-center justify-center gap-4 select-none">
@@ -190,7 +190,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 type="submit"
                 disabled={isSubmitting}
                 className={cn(
-                  "w-full h-11 rounded-md doctus-brand-gradient text-ds-white font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-md codena-brand-gradient text-ds-white font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >
@@ -253,7 +253,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
                 type="submit"
                 disabled={isSubmitting || !username || !password}
                 className={cn(
-                  "w-full h-11 rounded-md doctus-brand-gradient text-ds-white font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
+                  "w-full h-11 rounded-md codena-brand-gradient text-ds-white font-bold border-0 transition-colors duration-150 flex items-center justify-center gap-2 cursor-pointer",
                   "active:scale-[0.98] disabled:opacity-60 disabled:cursor-not-allowed"
                 )}
               >

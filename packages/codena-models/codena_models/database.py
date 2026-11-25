@@ -20,7 +20,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
-from doctus_models.crypto_types import EncryptedCredential, EncryptedString
+from codena_models.crypto_types import EncryptedCredential, EncryptedString
 from .ci_models import CIBuildRun as CIBuildRun, CIBuildToken as CIBuildToken
 
 from .model_base import Base
@@ -175,7 +175,7 @@ class KnowledgeSource(Base):
     # last_synced_at wird auch nach Fehlern gesetzt. Bei Git gehört dazu
     # sync_cursor["last_commit"]; beide werden im selben Commit geschrieben.
     indexed_at = Column(DateTime(timezone=True), nullable=True)
-    # Dateien und Zeilen je Sprache, berechnet am Sync-Ende (doctus_models/repo_stats.py).
+    # Dateien und Zeilen je Sprache, berechnet am Sync-Ende (codena_models/repo_stats.py).
     repo_stats = Column(JSON, nullable=True)
     celery_task_id = Column(String(255), nullable=True)
     progress = Column(Integer, default=0)
@@ -714,7 +714,7 @@ class CodeFileEdge(Base):
     Grundgerüst der Graph-Übersicht: die gewichtigsten Dateikanten eines Projekts.
 
     Abgeleitete Daten: am Ende jedes Syncs je Projekt aus code_edges neu berechnet
-    (doctus_models.code_file_edges.rebuild_code_file_edges), nie einzeln gepflegt.
+    (codena_models.code_file_edges.rebuild_code_file_edges), nie einzeln gepflegt.
     Gespeichert wird nur das Grundgerüst; Grad und Gesamtzahl tragen die Zeilen mit,
     die übrigen Kanten lädt das Frontend bei Bedarf aus code_edges nach.
     """
@@ -748,7 +748,7 @@ class CodeFileEdge(Base):
 
 class CodeFileGroup(Base):
     """
-    Gruppen-Knoten der Graph-Übersicht (doctus_models.code_file_groups).
+    Gruppen-Knoten der Graph-Übersicht (codena_models.code_file_groups).
 
     Abgeleitete Daten wie code_file_edges, je Projekt neu berechnet. `group_key` ist nur innerhalb
     einer Berechnung stabil ("t<topic>", "c3", "c3.1"); `parent_key` bildet die Stufen.

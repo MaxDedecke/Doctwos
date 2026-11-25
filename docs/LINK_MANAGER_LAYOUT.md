@@ -86,7 +86,7 @@ Facetten mit Anzahlen, letzte Auswahl), `GET …/search?kind=code|docs&q=`, `POS
 
 ### Erweitern
 
-Das Mengenformat ist sprach- und quellenneutral (`packages/doctus-models/doctus_models/link_sets.py`).
+Das Mengenformat ist sprach- und quellenneutral (`packages/codena-models/codena_models/link_sets.py`).
 Neue Sprachen und Quelltypen erscheinen ohne Codeänderung als neue Gruppe; bekannte Namen
 bekommen nur einen Übersetzungseintrag (`linkManagerView.workspace.languages|sourceTypes`).
 - Neue Facette: Bedingung in `link_sets.FACETS`, Werte in `services/link_set_options.py::_FACET_VALUES`,

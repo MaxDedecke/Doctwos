@@ -7,7 +7,7 @@ import uuid
 import pytest
 
 from conftest import TEST_USERNAME
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,

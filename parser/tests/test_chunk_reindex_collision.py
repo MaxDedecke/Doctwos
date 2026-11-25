@@ -10,7 +10,7 @@ die falsche Passage umgehängt wird (Dict last-wins). Mehrdeutigkeit muss auf
 import pytest
 
 from db import SessionLocal
-from doctus_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
+from codena_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 from chunk_reindex import reindex_chunks_preserving_links
 from sqlalchemy import text
 

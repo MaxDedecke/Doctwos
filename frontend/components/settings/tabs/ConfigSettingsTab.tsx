@@ -458,17 +458,17 @@ export const ConfigSettingsTab: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-ds-zinc-200/60 dark:divide-ds-zinc-800/60 font-mono">
-                  {Object.entries(sso?.team_mapping || {}).map(([idpItem, doctusTeam]) => {
-                    const exists = config?.existing_teams?.includes(doctusTeam);
+                  {Object.entries(sso?.team_mapping || {}).map(([idpItem, codenaTeam]) => {
+                    const exists = config?.existing_teams?.includes(codenaTeam);
                     return (
                       <tr key={idpItem} className="py-2">
                         <td className="py-2 text-ds-zinc-900 dark:text-ds-zinc-100 font-semibold">{idpItem}</td>
                         <td className="py-2 text-center text-ds-zinc-400">➔</td>
-                        <td className="py-2 text-ds-indigo-600 dark:text-ds-indigo-400 font-semibold">{doctusTeam}</td>
+                        <td className="py-2 text-ds-indigo-600 dark:text-ds-indigo-400 font-semibold">{codenaTeam}</td>
                         <td className="py-2 text-right">
                           {exists ? (
                             <span className={cn(badgeClass('success'), "font-sans")}>
-                              {t('settings.configTab.existsInDoctus')}
+                              {t('settings.configTab.existsInCodena')}
                             </span>
                           ) : (
                             <span className={cn(badgeClass('warning'), "font-sans")}>

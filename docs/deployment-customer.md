@@ -121,7 +121,7 @@ curl -4 https://api.ipify.org
 
 Beide geben nur die öffentliche IP aus, z. B. `82.165.216.180`. **Wichtig:** Diese Adresse funktioniert nur, wenn der Kunde-Router/die Firewall die Ports 3000 und 8000 (und ggf. 8080 für Test-Keycloak, siehe Abschnitt 8) auch tatsächlich zum Server durchleitet (Port-Forwarding). Das mit der Netzwerk-/IT-Abteilung des Kunden vorher klären — das kann man von der Konsole aus nicht selbst einrichten.
 
-### Fall C: Server hat einen festen Domainnamen (z. B. `doctus.kundenfirma.de`)
+### Fall C: Server hat einen festen Domainnamen (z. B. `codena.kundenfirma.de`)
 
 Dann diesen Domainnamen anstelle einer IP-Adresse verwenden — funktioniert genauso, ist aber stabiler (IP-Adressen können sich ändern, ein DNS-Name bleibt). Für eine echte Produktivumgebung beim Kunden ist das ohnehin empfehlenswert, siehe Abschnitt 9 (TLS).
 
@@ -253,7 +253,7 @@ anschauen (z. B. `docker compose logs backend-api`), um die Fehlermeldung zu seh
 Im aktuellen Pilotmodus lädt der Installer ausschließlich `bge-m3`. Prüfen:
 
 ```sh
-docker exec doctus-ollama ollama list
+docker exec codena-ollama ollama list
 ```
 
 Auf dem 8-GB-/4-vCPU-Host darf hier nur `bge-m3` erscheinen. Ein lokales Chat-/Compliance-LLM erst auf geeigneter Auslieferungshardware über `LLM_MODEL` aktivieren; Details stehen in `DEPLOYMENT.md`.
@@ -278,16 +278,16 @@ docker run -d --name test-keycloak -p 8080:8080 \
 Ca. 30 Sekunden warten, dann prüfen ob Keycloak bereit ist:
 
 ```sh
-curl -sf http://192.168.1.50:8080/realms/doctus/.well-known/openid-configuration && echo "Keycloak bereit"
+curl -sf http://192.168.1.50:8080/realms/codena/.well-known/openid-configuration && echo "Keycloak bereit"
 ```
 
-Im Keycloak-Adminbereich (`http://192.168.1.50:8080`, Login `admin`/`admin`) unter *Clients → doctus-backend → Settings → Valid redirect URIs* die eigene Callback-Adresse `http://192.168.1.50:8000/auth/oidc/callback` ergänzen. Die mitgelieferte Realm-Datei kennt nur `http://localhost:8000/auth/oidc/callback` und `http://127.0.0.1:8000/auth/oidc/callback`; Keycloak erlaubt keinen Platzhalter im Hostnamen, die eigene Adresse muss also von Hand dazu.
+Im Keycloak-Adminbereich (`http://192.168.1.50:8080`, Login `admin`/`admin`) unter *Clients → codena-backend → Settings → Valid redirect URIs* die eigene Callback-Adresse `http://192.168.1.50:8000/auth/oidc/callback` ergänzen. Die mitgelieferte Realm-Datei kennt nur `http://localhost:8000/auth/oidc/callback` und `http://127.0.0.1:8000/auth/oidc/callback`; Keycloak erlaubt keinen Platzhalter im Hostnamen, die eigene Adresse muss also von Hand dazu.
 
 In `.env` eintragen:
 
 ```
-OIDC_ISSUER=http://192.168.1.50:8080/realms/doctus
-OIDC_CLIENT_ID=doctus-backend
+OIDC_ISSUER=http://192.168.1.50:8080/realms/codena
+OIDC_CLIENT_ID=codena-backend
 OIDC_CLIENT_SECRET=ci-only-keycloak-client-secret
 ```
 

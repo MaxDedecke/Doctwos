@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from api.schemas import ChatFeedbackDiagnosticSettingsUpdate
 from core.db_setup import get_db
 from core.teams import require_admin
-from doctus_models.database import ChatFeedbackDiagnosticCase, User
+from codena_models.database import ChatFeedbackDiagnosticCase, User
 from services.chat_feedback_diagnostics import get_settings, purge_expired_cases
 
 router = APIRouter(prefix="/feedback-diagnostics", tags=["feedback-diagnostics"])
@@ -107,6 +107,6 @@ def export_cases(db: Session = Depends(get_db), user: User = Depends(require_adm
     return JSONResponse(
         content={"generated_locally": True, "entries": [_serialize_case(case) for case in cases]},
         headers={
-            "Content-Disposition": 'attachment; filename="doctus-chat-feedback-diagnostics.json"'
+            "Content-Disposition": 'attachment; filename="codena-chat-feedback-diagnostics.json"'
         },
     )

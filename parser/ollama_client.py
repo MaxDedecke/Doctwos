@@ -7,13 +7,13 @@ import asyncio
 from typing import Dict, Optional
 
 from db import SessionLocal
-from doctus_models.inference_admission import (
+from codena_models.inference_admission import (
     MAX_CONCURRENCY,
     CHAT_RESERVE,
     admitted_post,
     batch_slots,
 )
-from doctus_models.database import AIProfile, AISettings, EmbeddingProfile
+from codena_models.database import AIProfile, AISettings, EmbeddingProfile
 
 logger = logging.getLogger(__name__)
 

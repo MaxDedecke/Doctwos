@@ -1,7 +1,7 @@
 """
 backend/main.py
 ================
-App-Factory für den Doctus AI Backend Service.
+App-Factory für den Codena AI Backend Service.
 
 Diese Datei hat nur eine Aufgabe: FastAPI konfigurieren und die Router einbinden.
 Alle Endpoint-Logik liegt in backend/api/ — je eine Datei pro Ressource:
@@ -17,7 +17,7 @@ Konfiguration (URLs, Modellnamen, Redis):
     backend/core/config.py
 
 Datenbank-Schemata (ORM):
-    packages/doctus-models/doctus_models/database.py (gemeinsam mit dem Parser)
+    packages/codena-models/codena_models/database.py (gemeinsam mit dem Parser)
 
 Schema-Migrationen (Alembic, alembic upgrade head läuft vor App-Start im
 Docker-Entrypoint — siehe backend/docker-entrypoint.sh):
@@ -42,7 +42,7 @@ from core.tracing import TraceIdFilter, trace_id_middleware
 _log_format = "%(asctime)s %(levelname)s %(name)s [%(trace_id)s]: %(message)s"
 _handlers: list[logging.Handler] = [logging.StreamHandler()]
 
-# Additive file handler onto the shared /var/log/doctus mount (see
+# Additive file handler onto the shared /var/log/codena mount (see
 # docker-compose.yml) — lets the diagnostics-bundle Celery task read this
 # service's logs directly, no Docker socket needed. Falls back to stdout-only
 # when the path isn't writable (e.g. local dev outside Docker).

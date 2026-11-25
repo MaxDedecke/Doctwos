@@ -15,7 +15,7 @@ from typing import Any
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource, SourceScanFile
 
 STRUCTURED_LANGUAGES = ("cobol", "copybook", "jcl", "bms")
 # Codecs, die parser/core/source_decoder.py bei erkannten EBCDIC-Quellen speichert.

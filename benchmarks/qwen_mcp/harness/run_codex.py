@@ -40,7 +40,7 @@ ARM_HINTS = {
         "Lies den relevanten Code, bevor du antwortest."
     ),
     "mcp": (
-        "Du hast die Doctus-MCP-Werkzeuge fuer ein indexiertes Projekt (Suche, Entitaeten, Call-Flow, Datenzugriff). "
+        "Du hast die Codena-MCP-Werkzeuge fuer ein indexiertes Projekt (Suche, Entitaeten, Call-Flow, Datenzugriff). "
         "Die project_id der Frage ist {project_id}. Nutze die Werkzeuge, bevor du antwortest."
     ),
 }
@@ -130,7 +130,7 @@ def run_session(task: dict, arm: str, rep: int, project: dict, empty_dir: Path) 
     else:
         cmd += ["--disable", "shell_tool", "--disable", "unified_exec"]
     if arm == "mcp":
-        cmd += ["-c", f'mcp_servers.doctus.url="{MCP_URL}"', "-c", 'mcp_servers.doctus.bearer_token_env_var="MCP_TOKEN"']
+        cmd += ["-c", f'mcp_servers.codena.url="{MCP_URL}"', "-c", 'mcp_servers.codena.bearer_token_env_var="MCP_TOKEN"']
     else:
         env.pop("MCP_TOKEN", None)
     cmd.append(prompt)

@@ -6,19 +6,19 @@ describe('ProjectEdgeBar', () => {
   it('uses the brand gradient without a project color', () => {
     render(<ProjectEdgeBar />);
     const bar = screen.getByTestId('project-edge-bar');
-    expect(bar.className).toContain('doctus-brand-gradient');
+    expect(bar.className).toContain('codena-brand-gradient');
     expect(bar.getAttribute('style') ?? '').not.toContain('background-color');
   });
 
   it('treats an empty color like no color', () => {
     render(<ProjectEdgeBar color="" />);
-    expect(screen.getByTestId('project-edge-bar').className).toContain('doctus-brand-gradient');
+    expect(screen.getByTestId('project-edge-bar').className).toContain('codena-brand-gradient');
   });
 
   it('is filled with the project color instead of the gradient when a color is set', () => {
     render(<ProjectEdgeBar color="#2f9e6b" />);
     const bar = screen.getByTestId('project-edge-bar');
-    expect(bar.className).not.toContain('doctus-brand-gradient');
+    expect(bar.className).not.toContain('codena-brand-gradient');
     expect(bar.style.backgroundColor).toBe('rgb(47, 158, 107)');
   });
 

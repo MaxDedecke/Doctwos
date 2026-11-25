@@ -14,7 +14,7 @@ from typing import Optional
 from sqlalchemy.orm import Session
 
 import core.config as cfg
-from doctus_models.database import ChatMessage
+from codena_models.database import ChatMessage
 from services.profile_capabilities import requests_reasoning_summary
 from services.standard_chat import stream_standard_rag_events
 

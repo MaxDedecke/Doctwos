@@ -15,7 +15,7 @@ from collections.abc import Iterable
 from sys import intern
 from typing import Any
 
-from doctus_models.database import CodeEdge, CodeEntity
+from codena_models.database import CodeEdge, CodeEntity
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 

@@ -14,14 +14,14 @@ Logic:
 import logging
 from datetime import datetime, timezone
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     DocumentChunk,
     KnowledgeLink,
     CodeEntity,
     KnowledgeSource,
     LinkBuilderRun,
 )
-from doctus_models.link_sets import LinkSet, RunSets, docs_scope
+from codena_models.link_sets import LinkSet, RunSets, docs_scope
 from ollama_client import get_chat_json
 from core import config
 from sqlalchemy import or_, and_

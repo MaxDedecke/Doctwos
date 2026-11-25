@@ -8,7 +8,7 @@ und braucht für reine Attributzugriffe keine Session.
 from cobol.copybook import CopybookIndex, dependency_state, resolve_path
 from cobol.model import ParsedEdge, ParseResult
 from connectors.git import _discover_copybook_dependencies, _fingerprint_libraries
-from doctus_models.database import SourceScanFile
+from codena_models.database import SourceScanFile
 
 
 def _copy_edge(

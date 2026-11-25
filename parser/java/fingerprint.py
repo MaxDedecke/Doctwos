@@ -16,6 +16,6 @@ def grammar_fingerprint() -> str:
         digest.update(grammar.read_bytes())
         digest.update(b"\0")
     digest.update(
-        str(os.getenv("DOCTUS_INCLUDE_GENERATED_JAVA", "").lower() in {"1", "true", "yes"}).encode()
+        str(os.getenv("CODENA_INCLUDE_GENERATED_JAVA", "").lower() in {"1", "true", "yes"}).encode()
     )
     return digest.hexdigest()

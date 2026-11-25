@@ -1,6 +1,6 @@
 """Einträge der Web-Quellen eines Projekts sind eigene Knoten der Übersicht, auch ohne Verknüpfung."""
 
-from doctus_models.database import DocumentChunk, KnowledgeSource
+from codena_models.database import DocumentChunk, KnowledgeSource
 
 
 def _source(db_session, project, team, kind, url):

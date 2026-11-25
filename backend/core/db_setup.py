@@ -4,7 +4,7 @@ import os
 from sqlalchemy import create_engine, inspect
 from sqlalchemy.orm import sessionmaker
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/doctus")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://admin:password@db:5432/codena")
 
 engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -41,7 +41,7 @@ def bootstrap_superuser() -> None:
     from core import config as cfg
     from core.teams import DEFAULT_TEAM_NAME
     from core.users import create_local_user
-    from doctus_models.database import Team, TeamMembership, User
+    from codena_models.database import Team, TeamMembership, User
 
     # Vor der ersten Migration existiert die Tabelle noch nicht — dann still zurück,
     # der nächste Start nach `alembic upgrade head` legt den Nutzer an.

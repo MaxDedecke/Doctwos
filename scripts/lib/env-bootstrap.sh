@@ -116,10 +116,12 @@ bootstrap_env() {
         echo "Existing database without encryption key: restore the original .env; refusing to generate a replacement." >&2
         exit 1
     fi
-    image_version=${2:-$(sed -n 's/^DOCTUS_VERSION=//p' "$repo_root/.env" | head -n 1)}
+    image_version=${2:-$(sed -n 's/^CODENA_VERSION=//p' "$repo_root/.env" | head -n 1)}
+    # Übergang doctus→codena: ältere .env-Dateien kennen nur DOCTUS_VERSION.
+    [ -n "$image_version" ] || image_version=$(sed -n 's/^DOCTUS_VERSION=//p' "$repo_root/.env" | head -n 1)
     if [ -z "$master_key" ]; then
         master_key=$(docker run --rm --pull=never --network none --entrypoint python \
-            "doctus-backend-api:${image_version:-latest}" -c \
+            "codena-backend-api:${image_version:-latest}" -c \
             'from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())')
     fi
     [ -n "$session_key" ] || session_key=$(openssl rand -base64 32)
@@ -147,7 +149,7 @@ bootstrap_env() {
 # erreichbarer und unerreichbarer Oberfläche ist, ob jemand das hier liest.
 # Siehe docs/DEPLOYMENT.md#troubleshooting.
 #
-# Die frühere OIDC-Prüfung ist mit AP-0 entfallen: Doctus meldet lokal an und
+# Die frühere OIDC-Prüfung ist mit AP-0 entfallen: Codena meldet lokal an und
 # legt den ersten Superuser beim Start selbst an (BOOTSTRAP_SUPERUSER*).
 check_env_ready() {
     repo_root="$1"
@@ -162,7 +164,7 @@ check_env_ready() {
         *localhost*|*127.0.0.1*)
             echo
             echo "!! FRONTEND_URL/API_URL still reference localhost/127.0.0.1."
-            echo "!! That only works if the browser opening Doctus runs on THIS machine. If you're deploying"
+            echo "!! That only works if the browser opening Codena runs on THIS machine. If you're deploying"
             echo "!! to a server you'll reach from another machine, replace localhost in both with this"
             echo "!! host's actual reachable address (e.g. its IP or hostname), then: docker compose up -d"
             warned=1

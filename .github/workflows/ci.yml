@@ -41,11 +41,11 @@ jobs:
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
-          POSTGRES_DB: doctus
+          POSTGRES_DB: codena
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin -d doctus"
+          --health-cmd "pg_isready -U admin -d codena"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -54,7 +54,7 @@ jobs:
         ports:
           - 6379:6379
     env:
-      DATABASE_URL: postgresql://admin:password@localhost:5432/doctus
+      DATABASE_URL: postgresql://admin:password@localhost:5432/codena
       REDIS_URL: redis://localhost:6379/0
       MASTER_ENCRYPTION_KEY: x5-ultuv9RrV04e76WyYNYktgr56SIOWAvSwCuR0M1o=
       SESSION_SECRET_KEY: ci-only-session-secret-not-used-in-prod
@@ -69,7 +69,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-          pip install ../packages/doctus-models
+          pip install ../packages/codena-models
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
@@ -93,11 +93,11 @@ jobs:
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
-          POSTGRES_DB: doctus
+          POSTGRES_DB: codena
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin -d doctus"
+          --health-cmd "pg_isready -U admin -d codena"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -107,7 +107,7 @@ jobs:
           - 6379:6379
     env:
       REDIS_URL: redis://localhost:6379/0
-      DATABASE_URL: postgresql://admin:password@localhost:5432/doctus
+      DATABASE_URL: postgresql://admin:password@localhost:5432/codena
       MASTER_ENCRYPTION_KEY: x5-ultuv9RrV04e76WyYNYktgr56SIOWAvSwCuR0M1o=
     steps:
       - uses: actions/checkout@v5
@@ -122,7 +122,7 @@ jobs:
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
           pip install alembic
-          pip install ../packages/doctus-models
+          pip install ../packages/codena-models
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
@@ -146,7 +146,7 @@ jobs:
         run: |
           pip install -r requirements.txt
           pip install -r requirements-dev.txt
-          pip install ../packages/doctus-models
+          pip install ../packages/codena-models
       - name: Run COBOL parser tests (golden files + unit tests)
         working-directory: parser
         run: python -m pytest tests/test_cobol_*.py -v
@@ -235,11 +235,11 @@ jobs:
         env:
           POSTGRES_USER: admin
           POSTGRES_PASSWORD: password
-          POSTGRES_DB: doctus
+          POSTGRES_DB: codena
         ports:
           - 5432:5432
         options: >-
-          --health-cmd "pg_isready -U admin -d doctus"
+          --health-cmd "pg_isready -U admin -d codena"
           --health-interval 5s
           --health-timeout 5s
           --health-retries 10
@@ -248,7 +248,7 @@ jobs:
         ports:
           - 6379:6379
     env:
-      DATABASE_URL: postgresql://admin:password@localhost:5432/doctus
+      DATABASE_URL: postgresql://admin:password@localhost:5432/codena
       REDIS_URL: redis://localhost:6379/0
       MASTER_ENCRYPTION_KEY: x5-ultuv9RrV04e76WyYNYktgr56SIOWAvSwCuR0M1o=
       SESSION_SECRET_KEY: ci-only-session-secret-not-used-in-prod
@@ -270,7 +270,7 @@ jobs:
         working-directory: backend
         run: |
           pip install -r requirements.txt
-          pip install ../packages/doctus-models
+          pip install ../packages/codena-models
       - name: Run Alembic migrations
         working-directory: backend
         run: alembic upgrade head
@@ -367,7 +367,7 @@ jobs:
                  | grep -v "^backend/core/passwords.py:" \
                  | grep -v "^backend/api/auth.py:" \
                  | grep -v "^backend/core/users.py:" \
-                 | grep -v "^packages/doctus-models/doctus_models/database.py:" \
+                 | grep -v "^packages/codena-models/codena_models/database.py:" \
                  | grep -v "^backend/alembic/versions/" \
                  | grep -v "^backend/tests/" || true)
           if [ -n "$hits" ]; then

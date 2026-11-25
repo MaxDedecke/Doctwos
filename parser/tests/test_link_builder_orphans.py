@@ -8,7 +8,7 @@ from sqlalchemy import text
 import tasks.link_builder as link_builder
 from chunk_reindex import STALE_NOTE
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,

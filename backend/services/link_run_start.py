@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 import core.config as cfg
 from core.tracing import get_trace_id
-from doctus_models.database import LinkBuilderRun, Project, User
+from codena_models.database import LinkBuilderRun, Project, User
 from services.job_control import send_tracked_task
 from services.link_builder_runs import find_active_knowledge_link_run, reconcile_knowledge_link_runs
 

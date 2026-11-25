@@ -10,7 +10,7 @@ import httpx
 PROBE_TOOL = {
     "type": "function",
     "function": {
-        "name": "doctus_profile_probe",
+        "name": "codena_profile_probe",
         "description": "Connection test. Do not perform external actions.",
         "parameters": {"type": "object", "properties": {}, "required": []},
     },
@@ -46,7 +46,7 @@ def check_tool_call(client, chat_url, chat_model, headers):
             for choice in chunk.get("choices") or []:
                 for part in (choice.get("delta") or {}).get("tool_calls") or []:
                     names.add((part.get("function") or {}).get("name"))
-    if "doctus_profile_probe" not in names:
+    if "codena_profile_probe" not in names:
         raise ValueError("Chat answered without a tool call. Enable tool calling on the model server "
                          "(vLLM: --enable-auto-tool-choice --tool-call-parser qwen3_coder for Qwen3-Coder; "
                          "llama.cpp: --jinja) and let a bridge pass tools and tool_calls through")
@@ -68,7 +68,7 @@ def check(client, *, chat_url, chat_model, chat_provider, embedding_url, embeddi
         check_tool_call(client, chat_url, chat_model, chat_headers)
     native = embedding_provider == "ollama"
     response = client.post(embedding_url.rstrip("/") + ("/api/embed" if native else "/embeddings"),
-        headers=embed_headers, json={"model": embedding_model, "input": "Doctus connectivity test"})
+        headers=embed_headers, json={"model": embedding_model, "input": "Codena connectivity test"})
     response.raise_for_status()
     data = response.json()
     vectors = data.get("embeddings") if native else [row["embedding"] for row in data.get("data", [])]

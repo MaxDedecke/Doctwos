@@ -2,8 +2,8 @@
 
 import json
 from pydantic import BaseModel, Field, field_validator
-from doctus_models.database import KnowledgeSource
-from doctus_models.ci_artifacts import xml_root as _xml
+from codena_models.database import KnowledgeSource
+from codena_models.ci_artifacts import xml_root as _xml
 
 
 class BuildEvidence(BaseModel):

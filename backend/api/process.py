@@ -18,8 +18,8 @@ from api.process_schemas import (
 )
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
-from doctus_models.language_profile import JAVA, REALIZATION_EDGES, role_of
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource, User
+from codena_models.language_profile import JAVA, REALIZATION_EDGES, role_of
 from services.call_flow import TEST_PATH_PATTERN, cobol_entry_paragraph
 from services.provenance import build_provenance
 from services.shared_data import shared_data

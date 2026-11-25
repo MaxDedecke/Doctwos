@@ -90,10 +90,10 @@ test.beforeAll(() => {
   }
   execFileSync("git", ["init", "--bare", "--initial-branch=main", barePath], { stdio: "pipe" });
 
-  workTree = fs.mkdtempSync(path.join(os.tmpdir(), "doctus-e2e-"));
+  workTree = fs.mkdtempSync(path.join(os.tmpdir(), "codena-e2e-"));
   git(workTree, "init", "--initial-branch=main");
-  git(workTree, "config", "user.email", "e2e@doctus.local");
-  git(workTree, "config", "user.name", "Doctus E2E");
+  git(workTree, "config", "user.email", "e2e@codena.local");
+  git(workTree, "config", "user.name", "Codena E2E");
   fs.mkdirSync(path.join(workTree, "src"), { recursive: true });
   fs.writeFileSync(path.join(workTree, FIXTURE_FILE), FIXTURE_PROGRAM);
   git(workTree, "add", "-A");

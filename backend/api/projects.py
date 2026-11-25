@@ -19,7 +19,7 @@ from core.db_setup import get_db
 from core.auth_dependency import get_current_user
 from core.teams import get_visible_team_ids, assert_team_visible, is_admin
 from core.projects import assert_project_visible, get_visible_project_ids, ALLOWED_PROJECT_ROLES
-from doctus_models.database import (
+from codena_models.database import (
     Project,
     ProjectMembership,
     ProjectAccessRequest,
@@ -42,7 +42,7 @@ from api.schemas import (
     ProjectCompleteRequest,
 )
 from api.serializers import serialize_project, serialize_source
-from doctus_models.repo_stats import compute_worktree_stats
+from codena_models.repo_stats import compute_worktree_stats
 from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
 
@@ -53,7 +53,7 @@ REPOS_ROOT = "/repos"  # Oder config-wert falls definiert
 
 
 def _default_team_id(db: Session) -> int:
-    from doctus_models.database import Team
+    from codena_models.database import Team
 
     return db.query(Team.id).filter(Team.name == "Default Team").scalar()
 
@@ -318,7 +318,7 @@ def complete_project(
             source.project_id = None
 
         # DocumentChunk/CodeEntity carry their own denormalized project_id
-        # (see doctus_models/database.py) — retrieval filters on that column
+        # (see codena_models/database.py) — retrieval filters on that column
         # directly, not via a join to knowledge_sources, so it must be
         # cleared too or promoted docs would stay invisible outside the project.
         db.query(DocumentChunk).filter(DocumentChunk.source_id.in_(found_ids)).update(

@@ -31,7 +31,7 @@
     /* Fujitsu Blue statt Fujitsu Rot als Akzent — Rot ist an hunderten Stellen
        (ds-indigo-*) für Fokus/aktive Zustände im Einsatz und wurde dort mit
        --ds-danger (echte Fehlerzustände) verwechselt. Gleicher Ton wie
-       --ds-info-* und der rechte Anschlag von .doctus-brand-gradient. */
+       --ds-info-* und der rechte Anschlag von .codena-brand-gradient. */
     --ds-accent: 0 100 210;
     --ds-on-accent: 245 255 251;
     --ds-focus: 0 100 210;
@@ -158,14 +158,14 @@ html {
   color: rgb(var(--ds-foreground));
 }
 
-.doctus-canvas {
+.codena-canvas {
   background-image:
     linear-gradient(rgb(var(--ds-border) / 0.12) 1px, transparent 1px),
     linear-gradient(90deg, rgb(var(--ds-border) / 0.12) 1px, transparent 1px);
   background-size: 40px 40px;
 }
 
-.doctus-kicker {
+.codena-kicker {
   font-family: var(--font-ibm-plex-mono), monospace;
   font-size: 0.625rem;
   font-weight: 600;
@@ -173,12 +173,12 @@ html {
   text-transform: uppercase;
 }
 
-.doctus-brand-gradient {
+.codena-brand-gradient {
   background-color: rgb(var(--ds-accent));
   background-image: linear-gradient(112deg, #e4002b 0%, #d60055 38%, #7047eb 68%, #0064d2 100%);
 }
 
-.doctus-brand-gradient:hover {
+.codena-brand-gradient:hover {
   background-image: linear-gradient(112deg, #ff174d 0%, #e50063 38%, #8058f2 68%, #1677df 100%);
 }
 
@@ -235,7 +235,7 @@ html {
   display: block !important;
 }
 
-.doctus-ask-glyph-margin {
+.codena-ask-glyph-margin {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2310b981' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275Z'/%3E%3C/svg%3E");
   background-size: 14px 14px;
   background-repeat: no-repeat;
@@ -245,36 +245,36 @@ html {
   transition: opacity 0.15s, transform 0.15s;
 }
 
-.doctus-ask-glyph-margin:hover {
+.codena-ask-glyph-margin:hover {
   opacity: 1;
   transform: scale(1.15);
 }
 
-.doctus-usage-reference {
+.codena-usage-reference {
   text-decoration: underline dotted;
   text-decoration-color: rgb(var(--ds-accent) / 0.5);
   text-underline-offset: 3px;
   cursor: pointer !important;
 }
 
-.doctus-usage-reference:hover {
+.codena-usage-reference:hover {
   background-color: rgb(var(--ds-accent) / 0.14);
   border-radius: 2px;
 }
 
-.doctus-statement-keyword {
+.codena-statement-keyword {
   text-decoration: underline dotted;
   text-decoration-color: rgb(var(--ds-accent) / 0.55);
   text-underline-offset: 3px;
   cursor: pointer !important;
 }
 
-.doctus-statement-keyword:hover {
+.codena-statement-keyword:hover {
   background-color: rgb(var(--ds-accent) / 0.14);
   border-radius: 2px;
 }
 
-.doctus-clickable-entity {
+.codena-clickable-entity {
   text-decoration: underline;
   text-decoration-style: dashed;
   text-decoration-color: rgb(var(--ds-accent));
@@ -288,16 +288,16 @@ html {
   transition: all 0.2s;
 }
 
-.doctus-clickable-entity:hover {
+.codena-clickable-entity:hover {
   text-decoration-style: solid;
   background-color: rgb(var(--ds-accent) / 0.18);
   color: rgb(var(--ds-accent)) !important;
 }
 
 /* The currently focused (clicked) knowledge object — a solid fill instead of
-   .doctus-clickable-entity's faint underline, so it stays recognizable at a
+   .codena-clickable-entity's faint underline, so it stays recognizable at a
    glance even after the temporary scroll-highlight on the line has faded. */
-.doctus-selected-entity {
+.codena-selected-entity {
   text-decoration: none !important;
   color: rgb(var(--ds-on-accent)) !important;
   font-weight: 600;
@@ -307,35 +307,35 @@ html {
   cursor: pointer !important;
 }
 
-.doctus-selected-entity-line {
+.codena-selected-entity-line {
   background-color: rgb(var(--ds-accent) / 0.08);
   border-left: 2px solid rgb(var(--ds-accent) / 0.6);
 }
 
 /* Der Fokus steht weit weg vom Inhalt: Ein Wechsel leuchtet kurz auf, damit er auffällt. */
-@keyframes doctus-focus-flash {
+@keyframes codena-focus-flash {
   from { box-shadow: 0 0 0 2px rgb(var(--ds-accent) / 0.55); }
   to { box-shadow: 0 0 0 2px rgb(var(--ds-accent) / 0); }
 }
 
-.doctus-focus-flash {
-  animation: doctus-focus-flash 1.2s ease-out;
+.codena-focus-flash {
+  animation: codena-focus-flash 1.2s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .doctus-focus-flash {
+  .codena-focus-flash {
     animation: none;
   }
 }
 
 /* Kurzes Hervorheben der angesprungenen Zeile. --ds-accent ist im Dark Mode hell; die Basisfarbe
    wäre dort ein dunkles Blau, in dem farbiger Code absäuft. */
-.doctus-line-flash {
+.codena-line-flash {
   background-color: rgb(var(--ds-accent) / 0.1);
   border-left: 2px solid rgb(var(--ds-accent) / 0.6);
 }
 
-.doctus-entity-glyph-margin {
+.codena-entity-glyph-margin {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%234d7fff' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E%3Cpolyline points='2 17 12 22 22 17'/%3E%3Cpolyline points='2 12 12 17 22 12'/%3E%3C/svg%3E");
   background-size: 14px 14px;
   background-repeat: no-repeat;
@@ -345,7 +345,7 @@ html {
   transition: opacity 0.15s, transform 0.15s;
 }
 
-.doctus-entity-glyph-margin:hover {
+.codena-entity-glyph-margin:hover {
   opacity: 1;
   transform: scale(1.15);
 }

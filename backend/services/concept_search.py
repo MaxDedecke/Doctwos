@@ -21,8 +21,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from core.projects import assert_knowledge_source_visible
-from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource, User
-from doctus_models.language_profile import CONTAINER_TYPES, ROUTINE_TYPES
+from codena_models.database import CodeEntity, DocumentChunk, KnowledgeSource, User
+from codena_models.language_profile import CONTAINER_TYPES, ROUTINE_TYPES
 from services.call_flow import TEST_PATH_PATTERN
 from services.ollama_client import embed_text, nearest_project_chunks
 

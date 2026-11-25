@@ -15,7 +15,7 @@ from core.dataset_assignment import (
     assignment_key,
     derive_assignments,
 )
-from doctus_models.database import CodeEdge, CodeEntity
+from codena_models.database import CodeEdge, CodeEntity
 
 
 def resolve_map_edges(db: Session, source_id: int) -> int:

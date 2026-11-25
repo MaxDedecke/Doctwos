@@ -3,7 +3,7 @@
 from fastapi import HTTPException
 from api.serializers import serialize_source
 from core.tracing import get_trace_id
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 
 
 def create_web_source(source, db, user):

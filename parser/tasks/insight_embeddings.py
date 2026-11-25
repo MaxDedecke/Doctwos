@@ -9,8 +9,8 @@ from sqlalchemy import func, or_
 from sqlalchemy.dialects.postgresql import insert
 
 from db import SessionLocal
-from doctus_models.database import Insight, InsightEmbedding
-from doctus_models.insight_workflow import embedding_profile_key, embedding_text, content_hash
+from codena_models.database import Insight, InsightEmbedding
+from codena_models.insight_workflow import embedding_profile_key, embedding_text, content_hash
 from ollama_client import _effective_embedding_settings, _get_embeddings_sub_batch
 
 logger = logging.getLogger(__name__)

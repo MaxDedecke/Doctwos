@@ -30,7 +30,7 @@ from api.schemas import (
     ModelUpdateRequest,
 )
 from core.auth_dependency import get_current_user
-from doctus_models.inference_admission import InferenceAdmissionTimeout, admitted_post
+from codena_models.inference_admission import InferenceAdmissionTimeout, admitted_post
 from core.inference_errors import VllmCapacityError, raise_for_inference_status
 from core.llm_providers import (
     DEFAULT_BASE_URLS,
@@ -41,7 +41,7 @@ from core.llm_providers import (
 )
 from core.teams import require_admin
 from core.db_setup import SessionLocal, engine, get_db
-from doctus_models.database import (
+from codena_models.database import (
     AIProfile,
     DocumentChunk,
     EmbeddingProfile,
@@ -67,7 +67,8 @@ logger = logging.getLogger(__name__)
 router = APIRouter(tags=["system"])
 
 _PROFILE_KINDS = {"local", "remote", "cloud"}
-MANAGED_URL_PREFIX = "http://doctus-llm-"
+# Übergang doctus→codena: Profile von vor der Umbenennung zeigen noch auf doctus-llm-* (docs/UMBENENNUNG_CODENA.md).
+MANAGED_URL_PREFIX = ("http://codena-llm-", "http://doctus-llm-")
 _PROFILE_PROTOCOLS = {"ollama", "openai_chat", "openai_responses", "anthropic", "gemini"}
 
 
@@ -303,7 +304,7 @@ async def health(response: Response):
         response.status_code = 503
     body = {"status": "healthy" if healthy else "degraded", "checks": checks}
     # Für das Monitoring des Kunden: nur Zahlen, keine Namen (der Endpunkt ist ohne Anmeldung erreichbar).
-    # Eine kaputte Wissensquelle macht Doctus nicht unbenutzbar und ändert den Status deshalb nicht.
+    # Eine kaputte Wissensquelle macht Codena nicht unbenutzbar und ändert den Status deshalb nicht.
     summary = _source_health_summary()
     if summary is not None:
         body["sources"] = summary
@@ -337,7 +338,7 @@ async def version():
     at image build time (see backend/Dockerfile), not read from a .git dir
     that doesn't exist in the deployed container.
     """
-    import doctus_models
+    import codena_models
 
     try:
         with engine.connect() as conn:
@@ -345,10 +346,10 @@ async def version():
     except Exception:  # noqa: BLE001 - /health meldet die Datenbank
         schema = None
     return {
-        "doctus_version": os.environ.get("DOCTUS_VERSION", "unknown"),
+        "codena_version": os.environ.get("CODENA_VERSION", "unknown"),
         "git_sha": os.environ.get("GIT_SHA", "unknown"),
         "build_time": os.environ.get("BUILD_TIME", "unknown"),
-        "doctus_models": getattr(doctus_models, "__version__", "unknown"),
+        "codena_models": getattr(codena_models, "__version__", "unknown"),
         "schema": schema,
     }
 
@@ -737,7 +738,7 @@ async def test_ai_profile(
                             {
                                 "type": "function",
                                 "function": {
-                                    "name": "doctus_profile_probe",
+                                    "name": "codena_profile_probe",
                                     "description": "Connection test. Do not perform external actions.",
                                     "parameters": {
                                         "type": "object",
@@ -769,7 +770,7 @@ async def test_ai_profile(
                 tool_calls = message.get("tool_calls", []) if isinstance(message, dict) else []
                 if not any(
                     isinstance(call.get("function"), dict)
-                    and call["function"].get("name") == "doctus_profile_probe"
+                    and call["function"].get("name") == "codena_profile_probe"
                     for call in tool_calls
                     if isinstance(call, dict)
                 ):

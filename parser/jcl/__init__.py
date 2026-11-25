@@ -1,1 +1,1 @@
-"""Static JCL structure extraction for Doctus."""
+"""Static JCL structure extraction for Codena."""

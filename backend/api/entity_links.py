@@ -25,7 +25,7 @@ import core.config as cfg
 from api.schemas import LinkStatusUpdate, LlmReviewRequest, ManualLinkCreate
 from api.serializers import serialize_link
 from core.db_setup import get_db
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,
@@ -38,7 +38,7 @@ from doctus_models.database import (
 from core.auth_dependency import get_current_user
 from core.teams import assert_team_visible
 from core.projects import assert_project_visible
-from doctus_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
+from codena_models.link_evidence import REASON_FIELDS_PROMPT, REASON_RULE_PROMPT, compose_reason
 from services.ollama_client import ask_llm_json_for_profile
 from services.ai_settings import get_profile
 from services.link_run_start import had_full_run, queue_entity_link_run

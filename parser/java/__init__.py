@@ -1,1 +1,1 @@
-"""Java source parsing for Doctus."""
+"""Java source parsing for Codena."""

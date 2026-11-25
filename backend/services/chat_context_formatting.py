@@ -1,6 +1,6 @@
 """Formatting of indexed source excerpts in chat context."""
 
-from doctus_models.database import DocumentChunk
+from codena_models.database import DocumentChunk
 
 
 def chunk_header(chunk: DocumentChunk) -> str:

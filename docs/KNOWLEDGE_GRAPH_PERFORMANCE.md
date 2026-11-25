@@ -155,7 +155,7 @@ statt aus einer Stichprobe von Roh-Beziehungen. Ab 1.000 Dateikanten zeigt die
 Übersicht nur das Grundgerüst (je Datei die 3 gewichtigsten Kanten, je
 Beziehungsart mindestens 3); die übrigen Kanten sind über `degree` als nicht
 geladen erkennbar und im Frontend nachladbar. Das Grundgerüst berechnet der Parser
-am Ende jedes Syncs je Projekt vor (`doctus_models/code_file_edges.py`, Tabelle
+am Ende jedes Syncs je Projekt vor (`codena_models/code_file_edges.py`, Tabelle
 `code_file_edges`); die Übersicht liest nur diese Tabelle und rechnet nur dann direkt,
 wenn für ein Projekt noch nichts berechnet ist. Die Abschnitte unten beschreiben den
 Stand davor.

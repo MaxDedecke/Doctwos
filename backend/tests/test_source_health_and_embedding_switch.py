@@ -5,7 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 from api import knowledge_sources as sources_api
-from doctus_models.database import (
+from codena_models.database import (
     DocumentChunk,
     EmbeddingMigration,
     EmbeddingProfile,

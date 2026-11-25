@@ -356,7 +356,7 @@ export function GlobalSearch({
       ref={containerRef}
       className={cn(
         // Transparent und ohne Kante: die Header-Bar geht optisch im Canvas
-        // dahinter (doctus-canvas) auf, in Dark- wie Light-Mode.
+        // dahinter (codena-canvas) auf, in Dark- wie Light-Mode.
         "h-14 shrink-0 w-full flex items-center gap-3 px-4 relative z-40 bg-transparent"
       )}
     >

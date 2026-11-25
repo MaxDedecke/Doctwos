@@ -6,8 +6,8 @@ import subprocess
 from pathlib import Path, PurePosixPath
 
 import core.config as cfg
-from doctus_models.database import CodeEntity, KnowledgeSource
-from doctus_models.language_profile import ROUTINE_TYPES
+from codena_models.database import CodeEntity, KnowledgeSource
+from codena_models.language_profile import ROUTINE_TYPES
 from sqlalchemy.orm import Session
 from services.change_impact import inspect_change_impact, MAX_IMPACT_NODES
 

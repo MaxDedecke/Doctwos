@@ -217,4 +217,4 @@ def effective_models(models, *, active_profiles=(), properties=None):
 
 
 def configured_profiles():
-    return tuple(filter(None, re.split(r"[,\s]+", os.getenv("DOCTUS_MAVEN_PROFILES", ""))))
+    return tuple(filter(None, re.split(r"[,\s]+", os.getenv("CODENA_MAVEN_PROFILES", ""))))

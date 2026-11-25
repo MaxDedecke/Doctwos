@@ -338,7 +338,7 @@ describe('useChatController', () => {
   it('loads a session, restores its workspace and normalizes its first message', async () => {
     vi.spyOn(api, 'getChatMessagesPage').mockResolvedValue(axiosResponse({ messages: [
         { id: 1, role: 'user', content: '0 Wer bist du ?', metadata_json: { refs: [] } },
-        { id: 2, role: 'assistant', content: 'Ich bin Doctus.', sources_json: [] },
+        { id: 2, role: 'assistant', content: 'Ich bin Codena.', sources_json: [] },
       ], has_more: false }));
     const handleProjectSelect = vi.fn();
     const restoreWorkspaceSnapshot = vi.fn();
@@ -361,7 +361,7 @@ describe('useChatController', () => {
 
     expect(result.current.activeSessionId).toBe(7);
     expect(result.current.chatMessages[0].content).toBe('Wer bist du ?');
-    expect(result.current.chatMessages[1].content).toBe('Ich bin Doctus.');
+    expect(result.current.chatMessages[1].content).toBe('Ich bin Codena.');
     expect(result.current.selectedSource).toMatchObject({ id: 8, name: 'Docs' });
     expect(restoreWorkspaceSnapshot).toHaveBeenCalledWith(session.snapshot_json);
     expect(routerPush).toHaveBeenCalledWith('/workspace?chat=chat-7');
@@ -558,7 +558,7 @@ describe('useChatController', () => {
       ], has_more: true }) as never)
       .mockResolvedValueOnce(axiosResponse({ messages: [
         { id: 1, role: 'user', content: '0 Wer bist du ?', metadata_json: {} },
-        { id: 2, role: 'assistant', content: 'Doctus', sources_json: [] },
+        { id: 2, role: 'assistant', content: 'Codena', sources_json: [] },
       ], has_more: false }) as never);
     const { result } = renderHook(() => useControllerHarness());
 
@@ -569,7 +569,7 @@ describe('useChatController', () => {
     await act(async () => { await result.current.controller.chatControls.olderMessages.load(); });
 
     expect(page).toHaveBeenLastCalledWith(4, { limit: 40, before_id: 30 });
-    expect(result.current.chatMessages.map(message => message.content)).toEqual(['Wer bist du ?', 'Doctus', 'Neu', 'Antwort neu']);
+    expect(result.current.chatMessages.map(message => message.content)).toEqual(['Wer bist du ?', 'Codena', 'Neu', 'Antwort neu']);
     expect(result.current.controller.chatControls.olderMessages.hasMore).toBe(false);
   });
 

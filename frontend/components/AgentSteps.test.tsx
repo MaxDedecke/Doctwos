@@ -11,7 +11,7 @@ vi.mock('@/lib/i18n/LanguageContext', () => ({
 }));
 
 describe('AgentSteps', () => {
-  it('uses the Doctus sans font for a thought instead of the browser serif fallback', () => {
+  it('uses the Codena sans font for a thought instead of the browser serif fallback', () => {
     render(<AgentSteps steps={[{ type: 'thought', content: 'Ich prüfe den Ablauf.' }]} theme="dark" />);
 
     fireEvent.click(screen.getByRole('button', { name: /agentSteps\.showThoughts/ }));

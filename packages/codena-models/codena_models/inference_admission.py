@@ -190,7 +190,7 @@ def _pool_id(endpoint: str) -> str:
 
 
 def _keys(pool_id: str) -> tuple[str, str, str]:
-    prefix = f"doctus:inference:v1:{{{pool_id}}}"
+    prefix = f"codena:inference:v1:{{{pool_id}}}"
     return f"{prefix}:active:chat", f"{prefix}:active:batch", f"{prefix}:metrics"
 
 
@@ -199,7 +199,7 @@ async def _eval(script: str, keys: tuple[str, ...], *args: Any) -> Any:
 
 
 def _limit_key(pool_id: str) -> str:
-    return f"doctus:inference:v1:{{{pool_id}}}:limit"
+    return f"codena:inference:v1:{{{pool_id}}}:limit"
 
 
 def set_endpoint_limit(endpoint: str, limit: int | None) -> None:

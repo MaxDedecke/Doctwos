@@ -5,10 +5,10 @@ from typing import Any
 from sqlalchemy import cast, or_
 from sqlalchemy.dialects.postgresql import JSONB
 
-from doctus_models.database import Insight, KnowledgeSource
-from doctus_models.insight_evidence import file_fingerprint
-from doctus_models.insight_workflow import notify_insight, touched
-from doctus_models.insight_versions import capture_versions, versions_match
+from codena_models.database import Insight, KnowledgeSource
+from codena_models.insight_evidence import file_fingerprint
+from codena_models.insight_workflow import notify_insight, touched
+from codena_models.insight_versions import capture_versions, versions_match
 
 
 def _references_source(value: Any, source_id: int) -> bool:

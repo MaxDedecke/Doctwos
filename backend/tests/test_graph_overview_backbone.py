@@ -9,11 +9,11 @@ from sqlalchemy import text
 import pytest
 
 from api.graph import _code_file_id
-from doctus_models.database import CodeEdge, CodeEntity, KnowledgeSource
-from doctus_models.code_file_edges import rebuild_code_file_edges
+from codena_models.database import CodeEdge, CodeEntity, KnowledgeSource
+from codena_models.code_file_edges import rebuild_code_file_edges
 from services.graph_overview_backbone import load_code_file_graph
 
-BACKBONE = "doctus_models.code_file_edges"
+BACKBONE = "codena_models.code_file_edges"
 
 
 @pytest.fixture

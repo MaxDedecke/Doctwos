@@ -14,7 +14,7 @@ Bildern, Quellcodeverweisen, Markdown und Javadoc) ist ausdrücklich ausgeschlos
 - Der globale Java-Auflöser verwendet ein statisches Maven-Reaktormodell:
   eingecheckte Parents und BOMs, Properties, Dependency-Management, direkte und
   transitive interne Dependencies, Scopes und Exclusions.
-- `DOCTUS_MAVEN_PROFILES=soap,integration` aktiviert benannte Profile.
+- `CODENA_MAVEN_PROFILES=soap,integration` aktiviert benannte Profile.
   Ohne explizite Auswahl werden `activeByDefault`-Profile verwendet.
 - POM-Änderungen werden auch gegen unveränderte Java-Entities neu ausgewertet;
   Produktionsquellen dürfen keine Testklassen verwenden, Abhängigkeiten dürfen
@@ -51,7 +51,7 @@ inkrementelle Neuverarbeitung erhöht.
   folgen `DISPATCHES_TO` (09.11.2026; vorher endete jede Kette an der Interface-Deklaration, Katalogtest
   J3). Syncope: 1.263 solcher Kanten, darunter `UserServiceImpl.create → UserLogic.create` und
   `AbstractUserLogic.doCreate → DefaultUserProvisioningManager.create`.
-- `DOCTUS_SPRING_PROFILES=prod,soap` bestimmt die expliziten Spring-Profile.
+- `CODENA_SPRING_PROFILES=prod,soap` bestimmt die expliziten Spring-Profile.
   Unausgewählte CDI-Alternatives und unbekannte Boot-Conditions werden nicht als
   aktive Beans behauptet. Laufzeit-Beanregistrierung und komplexe Profil-/SpEL-Ausdrücke
   erfordern zusätzliche Belege und sind nicht als vollständig aufgelöst zugesagt.
@@ -80,7 +80,7 @@ Abnahme: `test_java_frameworks.py`, `test_enterprise_configuration.py` und
 - JAX-WS-Endpunkte werden mit WSDL-Operationen, Spring-WS-Endpunkte mit ihren
   Request-Elementen verbunden. JAXB-Annotationen verbinden Java-Typen und Felder
   mit XSDs; `package-info.java` liefert modulbezogene Namespace-Defaults.
-- `DOCTUS_INCLUDE_GENERATED_JAVA=true` erlaubt vorhandene Java-Dateien unter
+- `CODENA_INCLUDE_GENERATED_JAVA=true` erlaubt vorhandene Java-Dateien unter
   `target/generated-sources`. Andere Build-Artefakte bleiben ausgeschlossen.
   Die Einstellung geht in den Analyse-Fingerprint ein. Codena startet weder
   Maven-Plugins noch `wsimport`/`xjc`; fehlende generierte Quellen sind eine Lücke.
@@ -99,7 +99,7 @@ Nachricht → XSD einschließlich JAXB, Namespaces, Wiederholung und Zieländeru
   Dateien, `ifdef`/`ifndef`/`ifeval`, verschachtelte lokale Includes sowie
   `leveloffset`, `lines` und Tag-Auswahl. Includes in Quellcodeblöcken werden
   ebenfalls erkannt; deren Inhalt wird nicht als Kapitel interpretiert.
-- `DOCTUS_ASCIIDOC_ATTRIBUTES='{"lang-de":"","product":"Doctus"}'` setzt
+- `CODENA_ASCIIDOC_ATTRIBUTES='{"lang-de":"","product":"Codena"}'` setzt
   explizite Buildattribute. Diese haben Vorrang vor Dokumentdefinitionen;
   Änderungen invalidieren den Analyse-Fingerprint.
 - Das Dateiwurzelobjekt enthält unter `composition_outline` die logische

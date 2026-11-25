@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
-from doctus_models.database import AIProfile
+from codena_models.database import AIProfile
 from services import profile_capabilities
 from services.profile_capabilities import (
     probe_capabilities,
@@ -82,7 +82,7 @@ def _serve_ollama(monkeypatch, turns: list[list[dict]]) -> list[dict]:
 
 
 def _call(arguments: dict) -> list[dict]:
-    call = {"id": "c1", "function": {"name": "doctus_probe", "arguments": arguments}}
+    call = {"id": "c1", "function": {"name": "codena_probe", "arguments": arguments}}
     return [{"message": {"content": "", "tool_calls": [call]}, "done": True}]
 
 
@@ -91,7 +91,7 @@ async def test_the_check_runs_a_tool_round_trip_through_the_chat_adapter(monkeyp
     requests = _serve_ollama(
         monkeypatch,
         [
-            _call({"word": "Doctus"}),
+            _call({"word": "Codena"}),
             [
                 {"message": {"thinking": "Kennwort suchen", "content": ""}, "done": False},
                 {"message": {"content": "KIWI-"}, "done": False},
@@ -105,7 +105,7 @@ async def test_the_check_runs_a_tool_round_trip_through_the_chat_adapter(monkeyp
     assert result["tools"] and result["tool_arguments"] and result["tool_roundtrip"]
     assert result["streaming"] is True and result["reasoning"] is True
     assert result["error"] is None and result["model"] == "qwen3:8b"
-    assert requests[0]["tools"][0]["function"]["name"] == "doctus_probe"
+    assert requests[0]["tools"][0]["function"]["name"] == "codena_probe"
     assert "tools" not in requests[1]  # zweiter Zug ohne Werkzeuge (tool_choice "none")
 
 

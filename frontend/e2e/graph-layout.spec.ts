@@ -136,7 +136,7 @@ test('keeps the canvas and explicit inspector state when resizing and using Engl
   await graph.getByRole('button', { name: 'Bereich schließen' }).click();
   await page.setViewportSize({ width: 1440, height: 900 });
   await expect(graph.getByTestId('graph-tool-panel')).toHaveCount(0);
-  await page.evaluate(() => localStorage.setItem('doctus-language', 'en'));
+  await page.evaluate(() => localStorage.setItem('codena-language', 'en'));
   await page.reload();
   await expect(page.getByTestId('knowledge-graph-view')).toBeVisible();
   await page.evaluate(() => document.documentElement.style.setProperty('--ds-ui-scale', '1.5'));

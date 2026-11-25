@@ -13,7 +13,7 @@ class OfflineDeliveryTest(unittest.TestCase):
     def test_keys_use_loaded_backend_without_network_or_host_python(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
-            (root/'.env.example').write_text('DOCTUS_VERSION=pilot-test\nMASTER_ENCRYPTION_KEY=\nSESSION_SECRET_KEY=\nDEPLOYER_TOKEN=\n')
+            (root/'.env.example').write_text('CODENA_VERSION=pilot-test\nMASTER_ENCRYPTION_KEY=\nSESSION_SECRET_KEY=\nDEPLOYER_TOKEN=\n')
             script = '\n'.join([
                 '. "$HELPER"',
                 'docker() { printf "%s\\n" "$*" > "$CALLS"; echo test-fernet-key; }',
@@ -26,7 +26,7 @@ class OfflineDeliveryTest(unittest.TestCase):
             self.assertEqual(result.returncode,0,result.stderr)
             command=calls.read_text()
             self.assertIn('--pull=never --network none',command)
-            self.assertIn('doctus-backend-api:pilot-test',command)
+            self.assertIn('codena-backend-api:pilot-test',command)
             self.assertNotIn('pip install',command)
             self.assertIn('MASTER_ENCRYPTION_KEY=test-fernet-key',(root/'.env').read_text())
 
@@ -39,13 +39,13 @@ class OfflineDeliveryTest(unittest.TestCase):
             docker.chmod(0o755)
             result=subprocess.run(['sh',str(root/'scripts/build-offline-bundle.sh'),'test','--remote-inference'],env={**os.environ,'PATH':str(root/'bin')+os.pathsep+os.environ['PATH']},capture_output=True,text=True)
             self.assertNotEqual(result.returncode,0)
-            self.assertFalse((root/'dist/doctus-offline-bundle-test/SHA256SUMS').exists())
+            self.assertFalse((root/'dist/codena-offline-bundle-test/SHA256SUMS').exists())
 
 
     def test_existing_master_key_is_never_rotated_for_a_missing_optional_key(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
-            (root/'.env').write_text('DOCTUS_VERSION=old\nMASTER_ENCRYPTION_KEY=existing-key\nSESSION_SECRET_KEY=existing-session\nDEPLOYER_TOKEN=\n')
+            (root/'.env').write_text('CODENA_VERSION=old\nMASTER_ENCRYPTION_KEY=existing-key\nSESSION_SECRET_KEY=existing-session\nDEPLOYER_TOKEN=\n')
             script='\n'.join(['. "$HELPER"','docker() { echo "unexpected Docker call" >&2; return 99; }','openssl() { echo new-deployer-token; }','bootstrap_env "$TEST_ROOT" delivered-version'])
             result=subprocess.run(['sh','-c',script],env={**os.environ,'HELPER':str(ROOT/'scripts/lib/env-bootstrap.sh'),'TEST_ROOT':temp},capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr)

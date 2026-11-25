@@ -51,7 +51,7 @@ def test_remote_probe_exercises_chat_and_separate_embeddings(provider, monkeypat
     assert paths == [*chat, ("embed", "/v1/embeddings")]
 
 
-def tool_stream(name="doctus_profile_probe"):
+def tool_stream(name="codena_profile_probe"):
     delta = {"tool_calls": [{"index": 0, "function": {"name": name, "arguments": "{}"}}]}
     body = f"data: {json.dumps({'choices': [{'delta': delta}]})}\n\ndata: [DONE]\n\n"
     return httpx.Response(200, headers={"content-type": "text/event-stream"}, content=body.encode())

@@ -3,7 +3,7 @@
 import asyncio
 import json
 
-from doctus_models.database import KnowledgeSource, SourceScanFile
+from codena_models.database import KnowledgeSource, SourceScanFile
 from services.agent_tool_executor import AgentToolExecutor
 
 

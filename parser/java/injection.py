@@ -49,7 +49,7 @@ def _bean(entity, result):
             bean_names.extend(strings(values.get("name", values.get("value"))))
     default = entity.name if entity.type == "method" else entity.name[:1].lower() + entity.name[1:]
     profiles = strings(ann.get("org.springframework.context.annotation.Profile", {}).get("value"))
-    active_profiles = set(filter(None, os.getenv("DOCTUS_SPRING_PROFILES", "").split(","))) or {
+    active_profiles = set(filter(None, os.getenv("CODENA_SPRING_PROFILES", "").split(","))) or {
         "default"
     }
     active = not profiles or any(

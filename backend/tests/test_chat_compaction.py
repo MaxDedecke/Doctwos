@@ -5,7 +5,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from doctus_models.database import ChatMessage, ChatSession, User
+from codena_models.database import ChatMessage, ChatSession, User
 from services import chat_compaction
 from services.chat_compaction import prepare_conversation
 from services.chat_sessions import page_messages

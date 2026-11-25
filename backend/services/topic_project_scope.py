@@ -1,6 +1,6 @@
 from fastapi import HTTPException
 
-from doctus_models.database import CodeEntity, DocumentChunk, KnowledgeSource, Topic
+from codena_models.database import CodeEntity, DocumentChunk, KnowledgeSource, Topic
 from services.link_project_scope import assert_link_project
 
 

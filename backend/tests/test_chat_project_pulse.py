@@ -1,6 +1,6 @@
 import pytest
 
-from doctus_models.database import CodeEntity, Project, Team
+from codena_models.database import CodeEntity, Project, Team
 
 
 @pytest.fixture

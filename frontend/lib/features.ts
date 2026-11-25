@@ -23,7 +23,7 @@ export interface FeaturesConfig {
     layout: boolean;
   };
   llm: {
-    // Doctus's core pitch is on-prem, local-only inference.
+    // Codena's core pitch is on-prem, local-only inference.
     // Cloud LLM profiles (OpenAI/Gemini/Anthropic) are opt-in per deployment, not default —
     // flipping this on breaks the "no data leaves the network" guarantee for that customer.
     allowCloudProviders: boolean;
@@ -69,12 +69,12 @@ export const DEFAULT_FEATURES: FeaturesConfig = {
 
 declare global {
   interface Window {
-    __DOCTUS_FEATURES__?: Partial<FeaturesConfig> | null;
+    __CODENA_FEATURES__?: Partial<FeaturesConfig> | null;
   }
 }
 
 export function getFeatures(): FeaturesConfig {
-  const injected = typeof window !== 'undefined' ? window.__DOCTUS_FEATURES__ : null;
+  const injected = typeof window !== 'undefined' ? window.__CODENA_FEATURES__ : null;
   if (!injected) return DEFAULT_FEATURES;
 
   return {

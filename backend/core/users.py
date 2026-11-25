@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from core.login_throttle import clear_user
 from core.passwords import generate_password, hash_password
-from doctus_models.database import User
+from codena_models.database import User
 
 
 def create_local_user(

@@ -2,7 +2,7 @@
 
 import pytest
 
-from doctus_models.database import DocumentChunk, KnowledgeSource, SourceScanFile
+from codena_models.database import DocumentChunk, KnowledgeSource, SourceScanFile
 
 
 @pytest.fixture

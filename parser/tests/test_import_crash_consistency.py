@@ -30,7 +30,7 @@ import connectors.git as git_connector
 import tasks.edge_resolver as edge_resolver
 from connectors.git import GitConnector
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,
@@ -138,8 +138,8 @@ def db_session():
 def remote(tmp_path):
     path = str(tmp_path / "crash-remote.git")
     subprocess.run(["git", "init", "--initial-branch=main", path], check=True, capture_output=True)
-    _git(path, "config", "user.email", "test@doctus.local")
-    _git(path, "config", "user.name", "Doctus Test")
+    _git(path, "config", "user.email", "test@codena.local")
+    _git(path, "config", "user.name", "Codena Test")
     for rel_path, content in V1_FILES.items():
         _write(path, rel_path, content)
     _commit(path, "v1")

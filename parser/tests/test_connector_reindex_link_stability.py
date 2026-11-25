@@ -17,7 +17,7 @@ from sqlalchemy import text
 from unittest.mock import patch, AsyncMock
 
 from db import SessionLocal
-from doctus_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
+from codena_models.database import CodeEntity, DocumentChunk, EntityDocLink, KnowledgeSource
 from connectors.webdav import WebdavConnector
 
 

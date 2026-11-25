@@ -1,6 +1,6 @@
 import pytest
 
-from doctus_models import inference_admission as admission
+from codena_models import inference_admission as admission
 
 
 @pytest.fixture

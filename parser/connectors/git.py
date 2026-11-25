@@ -44,7 +44,7 @@ import parse_pool
 from git_utils import MAX_READ_BYTES, SIZE_SKIP_REASON
 from core.model import ParseResult, classify_completeness
 from core.dependency_fingerprints import DependencyFingerprints, analysis_is_current
-from doctus_models.inference_admission import track_admission_wait
+from codena_models.inference_admission import track_admission_wait
 from core.language_detection import DEFAULT_LANGUAGE_EXTENSIONS, detect_language
 from core.failure_location import describe_failure
 from core.source_decoder import (
@@ -66,7 +66,7 @@ from connectors.finalize import finalize_source
 from db import REPOS_ROOT
 from java.modules import is_build_excluded as _is_java_build_excluded
 from java.modules import module_from_path
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,
@@ -87,7 +87,7 @@ from ollama_client import (
 from code_parser import CodeParser, fit_chunks_to_utf8_budget
 from chunk_reindex import reindex_chunks_preserving_links
 from tasks.edge_resolver import resolve_global_edges
-from doctus_models.repo_stats import compute_worktree_stats
+from codena_models.repo_stats import compute_worktree_stats
 from tasks.file_edges import refresh_code_file_edges
 from tasks.shared import get_authenticated_url
 from core import config
@@ -346,7 +346,7 @@ def _classify_paths(
 
 
 def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
-    """Konfigurierbar über DOCTUS_LANGUAGE_EXTENSIONS (Worker-weiter Default)
+    """Konfigurierbar über CODENA_LANGUAGE_EXTENSIONS (Worker-weiter Default)
     und optional spaces.language_extensions (überschreibt pro Wissensquelle).
     Beide erwarten ein Mapping aus Sprachlabeln auf Dateiendungen. Die
     eingebauten Standard-Endungen decken gängige Programmiersprachen ab;
@@ -360,14 +360,14 @@ def _resolve_extension_config(spaces: dict) -> dict[str, set[str]]:
     gespeicherter Alt-Konfiguration nicht brechen."""
     cfg = dict(_DEFAULT_EXTENSIONS)
 
-    raw_env = os.environ.get("DOCTUS_LANGUAGE_EXTENSIONS") or os.environ.get(
-        "DOCTUS_COBOL_EXTENSIONS"
+    raw_env = os.environ.get("CODENA_LANGUAGE_EXTENSIONS") or os.environ.get(
+        "CODENA_COBOL_EXTENSIONS"
     )
     if raw_env:
         try:
             cfg.update({k: set(v) for k, v in json.loads(raw_env).items()})
         except Exception:
-            logger.warning("DOCTUS_LANGUAGE_EXTENSIONS ist kein gültiges JSON, ignoriere.")
+            logger.warning("CODENA_LANGUAGE_EXTENSIONS ist kein gültiges JSON, ignoriere.")
 
     override = None
     if isinstance(spaces, dict):
@@ -536,7 +536,7 @@ def _java_module_metadata_paths(
 ) -> set[str]:
     """Find checked-in build/module descriptors affecting a Java source file.
 
-    This is intentionally path-based and conservative: Doctus does not run a
+    This is intentionally path-based and conservative: Codena does not run a
     Maven/Gradle build or resolve external dependencies. A module descriptor
     or build file changing is nevertheless enough reason to reparse the Java
     sources in that module.

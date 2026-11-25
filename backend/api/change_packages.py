@@ -7,7 +7,7 @@ from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_project_visible
 from core.teams import assert_team_visible
-from doctus_models.database import Project, User
+from codena_models.database import Project, User
 from services.build_evidence import BuildEvidence, summarize_build_evidence
 from services.change_package import inspect_change_package
 

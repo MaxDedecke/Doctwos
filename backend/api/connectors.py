@@ -32,7 +32,7 @@ from api.gitlab import gitlab_base, gitlab_pages
 
 router = APIRouter(prefix="/connectors", tags=["connectors"])
 
-_USER_AGENT = "Doctus-AI-Backend"
+_USER_AGENT = "Codena-AI-Backend"
 
 # Reihenfolge: Server/Data Center zuerst, dann Cloud (dort liegt die API unter /wiki).
 _CONFLUENCE_API_ROOTS = (("/rest/api", "Server/Data Center"), ("/wiki/rest/api", "Cloud"))

@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 
 from core import sync_lock
 from db import SessionLocal
-from doctus_models.database import KnowledgeSource
+from codena_models.database import KnowledgeSource
 
 logger = logging.getLogger(__name__)
 

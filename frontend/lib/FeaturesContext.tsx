@@ -7,7 +7,7 @@ const FeaturesContext = createContext<FeaturesConfig>(DEFAULT_FEATURES);
 
 const noopSubscribe = () => () => {};
 
-// window.__DOCTUS_FEATURES__ is injected once (inline script in layout.tsx,
+// window.__CODENA_FEATURES__ is injected once (inline script in layout.tsx,
 // before hydration) and never mutated afterwards, so this only needs to run
 // once per session rather than on every getSnapshot() call — otherwise
 // useSyncExternalStore would see a new object reference each render and

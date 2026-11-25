@@ -14,8 +14,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from doctus_models.database import CodeEdge, CodeEntity
-from doctus_models.language_profile import CONTAINER_TYPES, role_of
+from codena_models.database import CodeEdge, CodeEntity
+from codena_models.language_profile import CONTAINER_TYPES, role_of
 
 MAX_RESOURCES = 200
 _CICS_READS = frozenset({"READ", "READNEXT", "READPREV", "STARTBR", "RESETBR", "ENDBR"})

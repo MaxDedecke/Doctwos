@@ -3,7 +3,7 @@
 import json
 import pytest
 
-from doctus_models.database import CodeEdge, CodeEntity, CodeFileEdge, DocumentChunk, User
+from codena_models.database import CodeEdge, CodeEntity, CodeFileEdge, DocumentChunk, User
 from services import answer_context
 from services.chat_sources import extract_tool_sources
 from services.evidence_overview import OVERVIEW_INTENT, project_overview

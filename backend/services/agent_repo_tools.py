@@ -4,7 +4,7 @@ import logging
 import os
 from sqlalchemy import func
 from typing import Optional
-from doctus_models.database import CodeEntity
+from codena_models.database import CodeEntity
 
 
 logger = logging.getLogger(__name__)

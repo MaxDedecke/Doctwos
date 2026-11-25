@@ -1,4 +1,4 @@
-"""Eingeschränkte Link-Läufe: Menge A gegen Menge B (``doctus_models.link_sets``)."""
+"""Eingeschränkte Link-Läufe: Menge A gegen Menge B (``codena_models.link_sets``)."""
 
 import uuid
 
@@ -7,7 +7,7 @@ from sqlalchemy import text
 
 import tasks.link_builder as link_builder
 from db import SessionLocal
-from doctus_models.database import (
+from codena_models.database import (
     CodeEntity,
     DocumentChunk,
     EntityDocLink,
@@ -16,7 +16,7 @@ from doctus_models.database import (
     LinkBuilderDirtyItem,
     LinkBuilderRun,
 )
-from doctus_models.link_sets import RunSets
+from codena_models.link_sets import RunSets
 from tasks import cross_link_builder
 from tasks.link_run_scope import select_run_entities
 

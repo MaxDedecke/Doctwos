@@ -20,7 +20,7 @@ vi.mock('@/lib/i18n/LanguageContext', () => ({
 import { MCP_AUDIT_PAGE_SIZE, McpAuditLog } from './McpAuditLog';
 
 const entry = (id: number, overrides: Record<string, unknown> = {}) => ({
-  id, tool_name: `tool_${id}`, server_name: 'doctus', status: 'success', user_name: 'max',
+  id, tool_name: `tool_${id}`, server_name: 'codena', status: 'success', user_name: 'max',
   duration_ms: 12, arguments: { q: id }, created_at: null, ...overrides,
 });
 const page = (ids: number[], total: number, offset = 0) => ({
@@ -91,7 +91,7 @@ describe('McpAuditLog', () => {
 
   it('expands a row on click to show arguments, trace id and error, collapsed by default', async () => {
     apiMocks.getMcpToolAuditLogs.mockResolvedValue({
-      data: { entries: [entry(1, { status: 'error', trace_id: 'trace-abc', error_message: 'timeout', project_name: 'Doctus' })], total: 1, offset: 0, limit: 20, retention_days: 30 },
+      data: { entries: [entry(1, { status: 'error', trace_id: 'trace-abc', error_message: 'timeout', project_name: 'Codena' })], total: 1, offset: 0, limit: 20, retention_days: 30 },
     });
     render(<McpAuditLog />);
     const row = await screen.findByText('tool_1');

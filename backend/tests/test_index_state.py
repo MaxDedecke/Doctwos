@@ -8,7 +8,7 @@ import pytest
 
 from services import answer_context
 from api import jobs as jobs_api
-from doctus_models.database import ChatSession, KnowledgeSource
+from codena_models.database import ChatSession, KnowledgeSource
 from services import index_state
 
 INDEXED = datetime(2026, 10, 1, 8, 30, tzinfo=timezone.utc)

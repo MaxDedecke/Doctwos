@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from core.auth_dependency import get_current_user
 from core.db_setup import get_db
 from core.projects import assert_knowledge_source_visible
-from doctus_models.database import KnowledgeSource, User
+from codena_models.database import KnowledgeSource, User
 from services.source_tree import MAX_PAGE, list_directory, scan_summary
 
 router = APIRouter(prefix="/knowledge-sources", tags=["knowledge_sources"])

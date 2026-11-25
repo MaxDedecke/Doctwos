@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
-from doctus_models.database import LinkBuilderRun, Project
+from codena_models.database import LinkBuilderRun, Project
 from services.job_control import revoke_tracked_task
 
 

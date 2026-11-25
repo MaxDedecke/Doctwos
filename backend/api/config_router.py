@@ -23,7 +23,7 @@ import core.oidc as oidc
 from core.db_setup import get_db
 from core.oidc import redirect_uri
 from core.teams import require_admin
-from doctus_models.database import Team
+from codena_models.database import Team
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/config", tags=["config"])
@@ -127,7 +127,7 @@ def get_system_config(db: Session = Depends(get_db)):
     }
 
     system_info = {
-        "version": os.environ.get("DOCTUS_VERSION", "latest"),
+        "version": os.environ.get("CODENA_VERSION", "latest"),
         "api_url": cfg.API_URL,
         "frontend_url": cfg.FRONTEND_URL,
         "log_level": cfg.LOG_LEVEL,
@@ -190,7 +190,7 @@ def simulate_oidc_mapping(
     req: OidcMappingSimulationRequest,
     db: Session = Depends(get_db),
 ):
-    """Simuliert für gegebene Rollen und Gruppen die resultierende Doctus-Rolle
+    """Simuliert für gegebene Rollen und Gruppen die resultierende Codena-Rolle
     und die zugeordneten Teams gemäß aktueller OIDC-Konfiguration.
     """
     claims = {

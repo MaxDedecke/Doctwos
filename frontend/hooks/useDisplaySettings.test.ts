@@ -5,14 +5,14 @@ import { useDisplaySettings } from './useDisplaySettings';
 describe('useDisplaySettings', () => {
   beforeEach(() => {
     localStorage.clear();
-    document.cookie = 'doctus-theme=; Max-Age=0; Path=/';
+    document.cookie = 'codena-theme=; Max-Age=0; Path=/';
   });
 
   it('restores and persists the visual editor preferences', async () => {
-    localStorage.setItem('doctus-theme', 'light');
-    localStorage.setItem('doctus-editor-font-size', '16');
-    localStorage.setItem('doctus-editor-minimap', 'false');
-    localStorage.setItem('doctus-editor-font-family', 'monospace');
+    localStorage.setItem('codena-theme', 'light');
+    localStorage.setItem('codena-editor-font-size', '16');
+    localStorage.setItem('codena-editor-minimap', 'false');
+    localStorage.setItem('codena-editor-font-family', 'monospace');
 
     const { result } = renderHook(() => useDisplaySettings());
 
@@ -28,16 +28,16 @@ describe('useDisplaySettings', () => {
       result.current.setEditorFontFamily("'Fira Code', monospace");
     });
 
-    expect(localStorage.getItem('doctus-theme')).toBe('dark');
-    expect(document.cookie).toContain('doctus-theme=dark');
-    expect(localStorage.getItem('doctus-editor-font-size')).toBe('18');
-    expect(localStorage.getItem('doctus-editor-minimap')).toBe('true');
-    expect(localStorage.getItem('doctus-editor-font-family')).toBe("'Fira Code', monospace");
+    expect(localStorage.getItem('codena-theme')).toBe('dark');
+    expect(document.cookie).toContain('codena-theme=dark');
+    expect(localStorage.getItem('codena-editor-font-size')).toBe('18');
+    expect(localStorage.getItem('codena-editor-minimap')).toBe('true');
+    expect(localStorage.getItem('codena-editor-font-family')).toBe("'Fira Code', monospace");
   });
 
   it('prefers the theme cookie so the unauthenticated page can use it', async () => {
-    localStorage.setItem('doctus-theme', 'light');
-    document.cookie = 'doctus-theme=dark; Path=/';
+    localStorage.setItem('codena-theme', 'light');
+    document.cookie = 'codena-theme=dark; Path=/';
 
     const { result } = renderHook(() => useDisplaySettings());
 

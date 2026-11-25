@@ -19,18 +19,18 @@ COPY requirements.txt .
 # Runtime-Stage.
 COPY vendor/ vendor/
 RUN pip install --no-cache-dir --user -r requirements.txt
-# Gemeinsames Datenmodell (packages/doctus-models) kommt als zweiter Build-Kontext
+# Gemeinsames Datenmodell (packages/codena-models) kommt als zweiter Build-Kontext
 # `models` (docker-compose.yml: additional_contexts) und wird wie jede andere
 # Abhängigkeit nach /root/.local installiert.
-COPY --from=models . /tmp/doctus-models
-RUN pip install --no-cache-dir --user /tmp/doctus-models
+COPY --from=models . /tmp/codena-models
+RUN pip install --no-cache-dir --user /tmp/codena-models
 
 FROM python:3.11-slim@sha256:db3ff2e1800a8581e2c48a27c3995339d47bdf046da21c7627accd3d51053a93
 
 WORKDIR /app
 
 # Keine Node.js-Runtime im Backend-Image (F-049): der einzige Node-Bedarf war der
-# Notion-MCP-Server, und Notion ist mit dem Doctus-Fork entfallen. mcp-atlassian
+# Notion-MCP-Server, und Notion ist mit dem Codena-Fork entfallen. mcp-atlassian
 # (Jira/Confluence) ist reines Python über requirements.txt.
 
 # git wird zur Laufzeit per Subprozess gebraucht: die Änderungsfolgenanalyse im Git-Diff-Modus

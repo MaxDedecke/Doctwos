@@ -84,7 +84,7 @@ def is_build_excluded(path, extensions):
     if detect_language(path, extensions) != "java":
         return False
     parts = path.replace("\\", "/").split("/")
-    enabled = os.getenv("DOCTUS_INCLUDE_GENERATED_JAVA", "").lower() in {"1", "true", "yes"}
+    enabled = os.getenv("CODENA_INCLUDE_GENERATED_JAVA", "").lower() in {"1", "true", "yes"}
     generated = any(
         parts[i : i + 2] == ["target", "generated-sources"] for i in range(len(parts) - 2)
     )

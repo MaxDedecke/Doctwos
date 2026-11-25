@@ -5,14 +5,14 @@ from pathlib import Path
 import subprocess
 
 import pytest
-from doctus_models.database import (
+from codena_models.database import (
     CodeEdge,
     CodeEntity,
     DocumentChunk,
     KnowledgeSource,
     SourceScanFile,
 )
-from doctus_models.insight_versions import version_state
+from codena_models.insight_versions import version_state
 from services.insight_context import retrieve_insight_context
 
 
@@ -129,7 +129,7 @@ def version_repo(client, db_session, test_project, test_team, tmp_path, monkeypa
 def test_new_commit_dependency_diff_and_explicit_reapproval(
     version_repo, client, db_session, test_project
 ):
-    from doctus_models.database import Insight, User
+    from codena_models.database import Insight, User
 
     f = version_repo
     source = f["source"]
@@ -195,7 +195,7 @@ def test_new_commit_dependency_diff_and_explicit_reapproval(
 def test_branch_profile_and_legacy_isolation(
     version_repo, client, db_session, test_project, test_team
 ):
-    from doctus_models.database import Insight, User
+    from codena_models.database import Insight, User
 
     f = version_repo
     insight = db_session.get(Insight, f["insight"]["id"])
@@ -313,7 +313,7 @@ def test_insight_evidence_inherits_and_rechecks_version_binding(
         ).status_code
         == 200
     )
-    from doctus_models.database import Insight
+    from codena_models.database import Insight
 
     derived = db_session.get(Insight, child["id"])
     assert version_state(db_session, derived) == "different_version"
@@ -322,7 +322,7 @@ def test_insight_evidence_inherits_and_rechecks_version_binding(
 def test_commit_pagination_does_not_include_other_branch(
     version_repo, client, db_session, test_project, test_team
 ):
-    from doctus_models.database import Insight
+    from codena_models.database import Insight
 
     f = version_repo
     first = db_session.get(Insight, f["insight"]["id"])
@@ -369,7 +369,7 @@ def test_empty_commit_invalidates_a_bound_approval(version_repo, db_session):
 
     sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "parser"))
     from insight_review import mark_source_insights_outdated
-    from doctus_models.database import Insight
+    from codena_models.database import Insight
 
     f = version_repo
     f["git"]("commit", "--allow-empty", "-m", "new revision")
