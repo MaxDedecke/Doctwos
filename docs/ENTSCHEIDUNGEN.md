@@ -1029,7 +1029,7 @@ ihrer Quelle. Migration 0049 und Modellpaket 1.11.0 sind erforderlich.
 Das Produkt heißt **Codena** (Kunstwort aus „Code“ und lateinisch *catena*, die Kette: Aufrufketten,
 Herkunftsketten von Daten und die Kette von der Antwort bis zur Originalzeile). Das Logo ist eine Blüte
 (`frontend/components/Logo.tsx`): sechs Ringe für die angebundenen Systeme, je Nachbarpaar verhakt, und ein kräftiger
-Kernring in Akzentfarbe, der mit jedem von ihnen eine Schnittmenge bildet – Codena in der Mitte. Schriftzug „codena“ in Manrope ExtraBold. Farben, Schriften und
+Kernring in Akzentfarbe, der mit jedem von ihnen eine Schnittmenge bildet – Codena in der Mitte. Schriftzug „Codena“ in Manrope ExtraBold. Farben, Schriften und
 Markenverlauf der Oberfläche bleiben; die Marke nimmt Vordergrund- und Akzentfarbe aus den Theme-Tokens.
 
 Der Name gilt durchgängig: sichtbare Texte, Doku, Modellpaket `codena_models`, Compose-Projekt, Container und Images

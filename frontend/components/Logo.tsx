@@ -10,8 +10,8 @@ type Gap = { d: string; w: number };
 
 // Blüte (E-21): sechs Blätter, je Nachbarpaar verhakt, und ein kräftiger Kernring, der über allen Blättern liegt.
 // app/icon.svg und docs/assets/codena-icon.svg sind aus derselben Geometrie erzeugt.
-const PETAL = { count: 6, distance: 26, radius: 14, stroke: 4.5 };
-const CORE: Ring = { x: 50, y: 50, r: 15, w: 6.5 };
+const PETAL = { count: 6, distance: 26, radius: 14, stroke: 8 };
+const CORE: Ring = { x: 50, y: 50, r: 15, w: 11 };
 
 const PETALS: Ring[] = Array.from({ length: PETAL.count }, (_, i) => {
   const angle = ((-90 + (360 / PETAL.count) * i) * Math.PI) / 180;
@@ -93,22 +93,22 @@ interface CodenaLogoProps {
 }
 
 /**
- * CodenaLogo – Marke + Schriftzug „codena“. Die Größe kommt aus der Schriftgröße
+ * CodenaLogo – Marke + Schriftzug „Codena“. Die Größe kommt aus der Schriftgröße
  * (z. B. `text-5xl`), Marke und Abstand skalieren mit.
  */
 export const CodenaLogo: React.FC<CodenaLogoProps> = ({ className }) => (
   <span
-    className={cn("inline-flex items-center gap-[0.32em] leading-none whitespace-nowrap text-foreground", className)}
+    className={cn("inline-flex items-center gap-[0.22em] leading-none whitespace-nowrap text-foreground", className)}
     role="img"
     aria-label="Codena"
   >
-    <CodenaMark className="h-[1.05em] w-[1.05em] shrink-0" />
+    <CodenaMark className="h-[1.45em] w-[1.45em] shrink-0" />
     <span
       aria-hidden="true"
       className="font-extrabold tracking-[-0.035em]"
       style={{ fontFamily: "var(--font-manrope), system-ui, sans-serif" }}
     >
-      codena
+      Codena
     </span>
   </span>
 );
