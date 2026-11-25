@@ -5,8 +5,8 @@ import { cn, copyToClipboard } from "@/lib/utils";
 import { MermaidDiagram } from '@/components/MermaidDiagram';
 import { HighlightedCode } from '@/components/HighlightedCode';
 import { highlightLanguage } from '@/lib/codeHighlight';
-import { Check, Layers } from 'lucide-react';
-import React, { useState } from 'react';
+import { Check, Image as ImageIcon, Layers } from 'lucide-react';
+import React, { createContext, useContext, useState } from 'react';
 
 interface CodeBlockProps {
   language: string;
@@ -150,6 +150,105 @@ const renderPlainKnownSources = (
   return nodes.length > 0 ? nodes : [segment];
 };
 
+/** Wohin relative Links eines Dokuments zeigen: Pfad des Dokuments und seine Wissensquelle. */
+interface MarkdownLinkBase {
+  basePath?: string;
+  sourceId?: string;
+  onFileClick?: (filePath: string, line?: number, sourceId?: string) => void;
+}
+const MarkdownLinkContext = createContext<MarkdownLinkBase>({});
+
+const SAFE_URL_RE = /^(https?:|mailto:)/i;
+
+/** Löst einen relativen Link gegen den Ordner des Dokuments auf (`../a/b.md` → `docs/a/b.md`). */
+export const resolveRelativePath = (basePath: string | undefined, target: string): string => {
+  const clean = target.replace(/^\.\//, '');
+  if (clean.startsWith('/')) return clean.replace(/^\/+/, '');
+  const parts = (basePath || '').split('/').slice(0, -1);
+  for (const segment of clean.split('/')) {
+    if (segment === '..') parts.pop();
+    else if (segment && segment !== '.') parts.push(segment);
+  }
+  return parts.join('/');
+};
+
+const MarkdownLink: React.FC<{ href: string; title?: string; theme: string; children: React.ReactNode }> = ({ href, title, theme, children }) => {
+  const { basePath, sourceId, onFileClick } = useContext(MarkdownLinkContext);
+  const linkClass = cn(
+    "underline underline-offset-2 transition-colors duration-200",
+    theme === 'dark' ? "text-ds-blue-400 decoration-ds-blue-400/40 hover:text-ds-blue-300" : "text-ds-blue-650 decoration-ds-blue-650/40 hover:text-ds-blue-700"
+  );
+  if (SAFE_URL_RE.test(href)) {
+    return <a href={href} title={title || href} target="_blank" rel="noopener noreferrer" className={linkClass}>{children}</a>;
+  }
+  if (href.startsWith('#')) {
+    // Sprungmarken wie GitHub-Inhaltsverzeichnisse zielen auf die Überschriften-IDs desselben Dokuments.
+    const anchor = decodeURIComponent(href.slice(1));
+    return (
+      <a
+        href={href}
+        title={title}
+        className={linkClass}
+        onClick={(event) => {
+          event.preventDefault();
+          const root = (event.currentTarget as HTMLElement).closest('[data-markdown-root]');
+          const target = root?.querySelector(`[id="${slugifyDocumentHeading(anchor).replace(/"/g, '')}"]`)
+            ?? root?.querySelector(`[id="${anchor.replace(/"/g, '')}"]`);
+          target?.scrollIntoView({ block: 'start' });
+        }}
+      >
+        {children}
+      </a>
+    );
+  }
+  const [pathPart, linePart] = href.split('#');
+  if (onFileClick && pathPart && !/^[a-z][a-z0-9+.-]*:/i.test(pathPart)) {
+    const resolved = resolveRelativePath(basePath, decodeURIComponent(pathPart));
+    const line = linePart?.match(/^L(\d+)/)?.[1];
+    return (
+      <button
+        type="button"
+        title={title || resolved}
+        className={cn(linkClass, "cursor-pointer")}
+        onClick={() => onFileClick(resolved, line ? parseInt(line, 10) : undefined, sourceId)}
+      >
+        {children}
+      </button>
+    );
+  }
+  // Unbekanntes Schema (etwa javascript:) wird nicht verlinkt.
+  return <span title={title}>{children}</span>;
+};
+
+/**
+ * Bilder werden nicht geladen: externe Adressen verließen das eigene Netz (On-Premise),
+ * relative Pfade kennt der Viewer nicht als abrufbare Datei. Stattdessen ein beschrifteter Platzhalter.
+ */
+const MarkdownImage: React.FC<{ alt: string; src: string; theme: string }> = ({ alt, src, theme }) => {
+  const label = alt || src.split('/').pop() || src;
+  return (
+    <span
+      role="img"
+      aria-label={label}
+      title={src}
+      className={cn(
+        "inline-flex items-center gap-1 px-1.5 py-0.5 mx-0.5 rounded border align-middle text-xs",
+        theme === 'dark' ? "border-ds-zinc-700 bg-ds-zinc-900 text-ds-zinc-300" : "border-ds-zinc-200 bg-ds-zinc-100 text-ds-zinc-650"
+      )}
+    >
+      <ImageIcon aria-hidden="true" className="w-3 h-3 shrink-0" />
+      {label}
+    </span>
+  );
+};
+
+// Bild oder Link (eine Klammerebene im Linktext, damit [![Badge](bild)](ziel) passt), <Autolink> oder nackte URL.
+const INLINE_LINK_SPLIT_RE = /(!?\[(?:[^[\]]|\[[^[\]]*\])*\]\(\s*<?[^\s)>]+>?(?:\s+"[^"]*")?\s*\)|<https?:\/\/[^>\s]+>|https?:\/\/[^\s<>()[\]`]*[^\s<>()[\].,;:!?'"`])/g;
+const INLINE_LINK_RE = /^(!?)\[((?:[^[\]]|\[[^[\]]*\])*)\]\(\s*<?([^\s)>]+)>?(?:\s+"([^"]*)")?\s*\)$/;
+// **fett**, ~~durchgestrichen~~, *kursiv* und _kursiv_ (Unterstriche nur an Wortgrenzen, damit snake_case unberührt bleibt).
+const EMPHASIS_SPLIT_RE = /(\*\*[^*]+\*\*|~~[^~\n]+~~|(?<![*\w])\*(?![\s*])[^*\n]+?(?<!\s)\*(?![*\w])|(?<![\w])_(?![\s_])[^_\n]+?(?<!\s)_(?![\w]))/g;
+const ITALIC_RE = /^(?:\*(?![\s*])[^*\n]+?(?<!\s)\*|_(?![\s_])[^_\n]+?(?<!\s)_)$/;
+
 const parseTextSegment = (
   text: string,
   keyPrefix: string,
@@ -236,20 +335,42 @@ const parseTextSegment = (
       );
     }
 
-    const boldParts = bp.split(/(\*\*[^*]+\*\*)/g);
-    return boldParts.map((bp2, j) => {
-      const partKey = `${keyPrefix}-${i}-${j}`;
-      if (bp2.startsWith('**') && bp2.endsWith('**')) {
+    return bp.split(INLINE_LINK_SPLIT_RE).map((lp, l) => {
+      const linkKey = `${keyPrefix}-${i}-l${l}`;
+      const link = lp.match(INLINE_LINK_RE);
+      if (link) {
+        const [, bang, label, target, title] = link;
+        if (bang) return <MarkdownImage key={linkKey} alt={label} src={target} theme={theme} />;
         return (
-          <strong key={partKey} className={cn("font-bold transition-colors duration-200", theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950")}>
-            {bp2.slice(2, -2)}
-          </strong>
+          <MarkdownLink key={linkKey} href={target} title={title} theme={theme}>
+            {parseTextSegment(label, linkKey, onFileClick, theme, knownSources)}
+          </MarkdownLink>
         );
       }
-      // Citations that lack backticks altogether (a common gap for local models,
-      // especially inside table cells) still get a chance to resolve against
-      // knownSources here, instead of only ever rendering as inert plain text.
-      return renderPlainKnownSources(bp2, partKey, onFileClick, theme, knownSources ?? []);
+      if (/^<https?:\/\/[^>\s]+>$/.test(lp) || /^https?:\/\//.test(lp)) {
+        const href = lp.replace(/^<|>$/g, '');
+        return <MarkdownLink key={linkKey} href={href} theme={theme}>{href}</MarkdownLink>;
+      }
+      return lp.split(EMPHASIS_SPLIT_RE).map((bp2, j) => {
+        const partKey = `${linkKey}-${j}`;
+        if (bp2.startsWith('**') && bp2.endsWith('**') && bp2.length > 4) {
+          return (
+            <strong key={partKey} className={cn("font-bold transition-colors duration-200", theme === 'dark' ? "text-ds-white" : "text-ds-zinc-950")}>
+              {bp2.slice(2, -2)}
+            </strong>
+          );
+        }
+        if (bp2.startsWith('~~') && bp2.endsWith('~~') && bp2.length > 4) {
+          return <del key={partKey}>{bp2.slice(2, -2)}</del>;
+        }
+        if (ITALIC_RE.test(bp2)) {
+          return <em key={partKey}>{bp2.slice(1, -1)}</em>;
+        }
+        // Citations that lack backticks altogether (a common gap for local models,
+        // especially inside table cells) still get a chance to resolve against
+        // knownSources here, instead of only ever rendering as inert plain text.
+        return renderPlainKnownSources(bp2, partKey, onFileClick, theme, knownSources ?? []);
+      });
     });
   });
 };
@@ -286,6 +407,10 @@ interface MarkdownContentProps {
   showLineNumbers?: boolean;
   /** Dateizitate im Text als Dateiname, voller Pfad beim Überfahren (Chat). */
   compactCitations?: boolean;
+  /** Pfad des angezeigten Dokuments; relative Links werden dagegen aufgelöst. */
+  basePath?: string;
+  /** Wissensquelle des Dokuments, in der relative Links geöffnet werden. */
+  baseSourceId?: string;
 }
 
 const HEADING_SIZE_CLASSES: Record<number, string> = {
@@ -409,11 +534,145 @@ const MarkdownTable: React.FC<MarkdownTableProps> = ({ header, align, rows, them
   );
 };
 
+const LIST_ITEM_RE = /^(\s*)([-*+]|\d{1,9}[.)])[ \t]+(.*)$/;
+const TASK_RE = /^\[([ xX])\]\s+(.*)$/;
+
+interface MarkdownListItem {
+  lines: string[];
+  startLine: number;
+  endLine: number;
+  checked: boolean | null;
+  children: MarkdownListNode[];
+}
+
+interface MarkdownListNode {
+  ordered: boolean;
+  start: number;
+  items: MarkdownListItem[];
+}
+
+const indentWidth = (whitespace: string) => whitespace.replace(/\t/g, '    ').length;
+
+/** Zeilen, die eine Liste beenden statt in ihren letzten Punkt einzufließen. */
+const startsOtherBlock = (line: string) =>
+  /^(#{1,6})\s/.test(line) || /^>/.test(line) || /^ {0,3}(-{3,}|\*{3,}|_{3,})\s*$/.test(line) || line.trim().startsWith('|');
+
+/**
+ * Liest eine Liste ab `start`. Tiefere Einrückung (ab zwei Zeichen mehr) öffnet eine Unterliste,
+ * eingerückte oder direkt folgende Zeilen gehören zum letzten Punkt, eine Leerzeile beendet die
+ * Liste nur, wenn danach kein weiterer Punkt kommt.
+ */
+export const parseMarkdownList = (lines: string[], start: number): { list: MarkdownListNode; end: number } => {
+  const first = lines[start].match(LIST_ITEM_RE)!;
+  const root: MarkdownListNode = { ordered: /\d/.test(first[2]), start: parseInt(first[2], 10) || 1, items: [] };
+  const stack: Array<{ node: MarkdownListNode; indent: number }> = [{ node: root, indent: indentWidth(first[1]) }];
+  let lastItem: MarkdownListItem | null = null;
+  let previousBlank = false;
+  let i = start;
+  while (i < lines.length) {
+    const line = lines[i];
+    if (!line.trim()) {
+      let next = i + 1;
+      while (next < lines.length && !lines[next].trim()) next++;
+      const following = lines[next];
+      const continues = following !== undefined && (LIST_ITEM_RE.test(following)
+        ? indentWidth(following.match(LIST_ITEM_RE)![1]) >= stack[0].indent
+        : indentWidth(following.match(/^\s*/)![0]) > stack[0].indent);
+      if (!continues) {
+        // Leerzeilen nach der Liste gehören weder zu ihr noch an den Anfang des nächsten Absatzes.
+        i = next;
+        break;
+      }
+      previousBlank = true;
+      i = next;
+      continue;
+    }
+    const match = line.match(LIST_ITEM_RE);
+    if (match) {
+      const indent = indentWidth(match[1]);
+      if (indent < stack[0].indent) break;
+      while (stack.length > 1 && indent < stack[stack.length - 1].indent) stack.pop();
+      let top = stack[stack.length - 1];
+      if (lastItem && indent >= top.indent + 2) {
+        const child: MarkdownListNode = { ordered: /\d/.test(match[2]), start: parseInt(match[2], 10) || 1, items: [] };
+        lastItem.children.push(child);
+        stack.push({ node: child, indent });
+        top = stack[stack.length - 1];
+      }
+      const task = match[3].match(TASK_RE);
+      lastItem = {
+        lines: [task ? task[2] : match[3]],
+        startLine: i,
+        endLine: i,
+        checked: task ? task[1].toLowerCase() === 'x' : null,
+        children: [],
+      };
+      top.node.items.push(lastItem);
+      previousBlank = false;
+      i++;
+      continue;
+    }
+    const indented = indentWidth(line.match(/^\s*/)![0]) > stack[0].indent;
+    if (lastItem && (indented || (!previousBlank && !startsOtherBlock(line)))) {
+      // Fortsetzung des zuletzt geöffneten (tiefsten) Punkts.
+      let deepest = lastItem;
+      while (deepest.children.length) {
+        const items = deepest.children[deepest.children.length - 1].items;
+        deepest = items[items.length - 1];
+      }
+      deepest.lines.push(line.trim());
+      deepest.endLine = i;
+      previousBlank = false;
+      i++;
+      continue;
+    }
+    break;
+  }
+  return { list: root, end: i };
+};
+
+const MarkdownList: React.FC<{
+  node: MarkdownListNode;
+  depth: number;
+  baseLine: number;
+  theme: string;
+  showLineNumbers: boolean;
+  onFileClick: (filePath: string, line?: number, sourceId?: string) => void;
+  knownSources?: KnownSource[];
+}> = ({ node, depth, baseLine, theme, showLineNumbers, onFileClick, knownSources }) => {
+  const ListTag = node.ordered ? 'ol' : 'ul';
+  const bullet = node.ordered ? 'list-decimal' : depth === 0 ? 'list-disc' : depth === 1 ? 'list-[circle]' : 'list-[square]';
+  return (
+    <ListTag
+      start={node.ordered && node.start !== 1 ? node.start : undefined}
+      className={cn(bullet, "pl-6 space-y-1 text-[0.9375rem] leading-relaxed", depth === 0 ? "my-2" : "mt-1", theme === 'dark' ? "marker:text-ds-zinc-500" : "marker:text-ds-zinc-400")}
+    >
+      {node.items.map((item, index) => (
+        <li
+          key={index}
+          data-document-line-start={baseLine + item.startLine}
+          data-document-line-end={baseLine + item.endLine}
+          className={cn("whitespace-pre-wrap scroll-mt-4", item.checked !== null && "list-none -ml-5")}
+        >
+          {showLineNumbers && <span aria-hidden="true" className="mr-2 inline-block w-7 select-none text-right text-xs text-ds-zinc-500/70">{baseLine + item.startLine}</span>}
+          {item.checked !== null && (
+            <input type="checkbox" checked={item.checked} readOnly disabled className="mr-2 align-middle" aria-label={item.checked ? 'erledigt' : 'offen'} />
+          )}
+          {parseText(item.lines.join('\n'), onFileClick, theme, knownSources)}
+          {item.children.map((child, childIndex) => (
+            <MarkdownList key={childIndex} node={child} depth={depth + 1} baseLine={baseLine} theme={theme} showLineNumbers={showLineNumbers} onFileClick={onFileClick} knownSources={knownSources} />
+          ))}
+        </li>
+      ))}
+    </ListTag>
+  );
+};
+
 /**
  * Renders a non-code chunk of text, splitting out ATX-style heading lines
- * (`#` .. `######`) into real heading elements and GFM-style pipe tables
- * into real `<table>` elements, instead of leaving the literal `#`/`|`
- * characters in a plain paragraph.
+ * (`#` .. `######`) into real heading elements, lists into `<ul>`/`<ol>` and
+ * GFM-style pipe tables into real `<table>` elements, instead of leaving the
+ * literal `#`/`-`/`|` characters in a plain paragraph.
  */
 const renderTextBlock = (
   block: string,
@@ -517,6 +776,25 @@ const renderTextBlock = (
       continue;
     }
 
+    if (LIST_ITEM_RE.test(line)) {
+      flushParagraph(i);
+      const { list, end } = parseMarkdownList(lines, i);
+      elements.push(
+        <MarkdownList
+          key={`${blockKey}-list-${i}`}
+          node={list}
+          depth={0}
+          baseLine={baseLine}
+          theme={theme}
+          showLineNumbers={showLineNumbers}
+          onFileClick={onFileClick}
+          knownSources={knownSources}
+        />
+      );
+      i = end;
+      continue;
+    }
+
     const nextLine = lines[i + 1];
     if (line.trim().includes('|') && nextLine !== undefined && isTableSeparatorLine(nextLine)) {
       flushParagraph(i);
@@ -571,12 +849,13 @@ function slugifyDocumentHeading(heading: string) {
  * Main MarkdownContent component that parses blocks of code and normal paragraphs,
  * transforming them into HTML elements with syntax highlights and link badges.
  */
-export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources, showLineNumbers = false, compactCitations = false }) => {
+export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFileClick, theme, knownSources, showLineNumbers = false, compactCitations = false, basePath, baseSourceId }) => {
   if (!content) return null;
   const parts = content.split(/(```[\s\S]*?```)/g);
   return (
     <CompactCitationsContext.Provider value={compactCitations}>
-    <div className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
+    <MarkdownLinkContext.Provider value={{ basePath, sourceId: baseSourceId, onFileClick }}>
+    <div data-markdown-root="" className={cn("space-y-3 transition-colors duration-200", theme === 'dark' ? "text-ds-zinc-200" : "text-ds-zinc-800")}>
       {parts.map((part, index) => {
         // Compute offsets from immutable preceding parts. Mutating a render-
         // scoped counter inside `map` violates React's render purity and can
@@ -603,6 +882,7 @@ export const MarkdownContent: React.FC<MarkdownContentProps> = ({ content, onFil
         }
       })}
     </div>
+    </MarkdownLinkContext.Provider>
     </CompactCitationsContext.Provider>
   );
 };

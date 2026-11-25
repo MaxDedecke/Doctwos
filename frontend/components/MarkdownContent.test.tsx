@@ -392,3 +392,128 @@ describe('MarkdownContent — gekürzte Dateizitate im Chat', () => {
     expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 });
+
+describe('MarkdownContent — Listen', () => {
+  const noop = () => {};
+
+  it('renders dash and asterisk bullets as one unordered list instead of literal markers', () => {
+    const { container } = render(<MarkdownContent content={'Intro\n- eins\n* zwei\n+ drei'} onFileClick={noop} theme="dark" />);
+    const items = container.querySelectorAll('ul > li');
+    expect(items).toHaveLength(3);
+    expect(items[0].textContent).toBe('eins');
+    expect(container.textContent).not.toContain('- eins');
+  });
+
+  it('renders an ordered list and keeps its start number', () => {
+    const { container } = render(<MarkdownContent content={'3. drei\n4. vier'} onFileClick={noop} theme="dark" />);
+    const list = container.querySelector('ol')!;
+    expect(list.getAttribute('start')).toBe('3');
+    expect(list.querySelectorAll('li')).toHaveLength(2);
+  });
+
+  it('nests deeper-indented items under the previous item', () => {
+    const { container } = render(<MarkdownContent content={'- [Installation](#installation)\n  - [Prerequisites](#prerequisites)\n  - [IMS](#ims)\n- [License](#license)'} onFileClick={noop} theme="dark" />);
+    const top = container.querySelectorAll(':scope [data-markdown-root] > ul > li');
+    expect(top).toHaveLength(2);
+    expect(top[0].querySelectorAll('ul > li')).toHaveLength(2);
+    expect(container.textContent).not.toContain('](#');
+  });
+
+  it('joins a continuation line into its item and ends the list at a blank line before prose', () => {
+    const { container } = render(<MarkdownContent content={'- erster Punkt\n  geht weiter\n\nNeuer Absatz'} onFileClick={noop} theme="dark" />);
+    expect(container.querySelector('li')!.textContent).toBe('erster Punkt\ngeht weiter');
+    expect(container.querySelector('p')!.textContent).toBe('Neuer Absatz');
+  });
+
+  it('keeps a loose list together across blank lines between items', () => {
+    const { container } = render(<MarkdownContent content={'- a\n\n- b'} onFileClick={noop} theme="dark" />);
+    expect(container.querySelectorAll('ul')).toHaveLength(1);
+    expect(container.querySelectorAll('li')).toHaveLength(2);
+  });
+
+  it('renders task list items as checkboxes', () => {
+    render(<MarkdownContent content={'- [x] fertig\n- [ ] offen'} onFileClick={noop} theme="dark" />);
+    const boxes = screen.getAllByRole('checkbox') as HTMLInputElement[];
+    expect(boxes.map(b => b.checked)).toEqual([true, false]);
+  });
+
+  it('keeps citations clickable inside list items', () => {
+    const onFileClick = vi.fn();
+    render(<MarkdownContent content={'- `CCPAURQY` – definiert in `CCPAURQY.cpy:30`'} onFileClick={onFileClick} theme="dark" />);
+    fireEvent.click(screen.getByRole('button', { name: /CCPAURQY\.cpy/ }));
+    expect(onFileClick).toHaveBeenCalledWith('CCPAURQY.cpy', 30, undefined);
+  });
+
+  it('does not turn a thematic break or a bold line into a list', () => {
+    const { container } = render(<MarkdownContent content={'**Fett** am Anfang\n\n---'} onFileClick={noop} theme="dark" />);
+    expect(container.querySelector('ul')).toBeNull();
+    expect(container.querySelector('hr')).not.toBeNull();
+  });
+});
+
+describe('parseText — Links, Bilder und Hervorhebungen', () => {
+  const noop = () => {};
+
+  it('renders an external link that opens in a new tab without leaking the opener', () => {
+    renderParsed('Siehe [Doku](https://example.com/doku "Titel").', noop);
+    const link = screen.getByRole('link', { name: 'Doku' });
+    expect(link.getAttribute('href')).toBe('https://example.com/doku');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toBe('noopener noreferrer');
+  });
+
+  it('links a bare URL without swallowing trailing punctuation', () => {
+    renderParsed('Lizenz: http://www.apache.org/licenses/LICENSE-2.0.', noop);
+    expect(screen.getByRole('link').getAttribute('href')).toBe('http://www.apache.org/licenses/LICENSE-2.0');
+  });
+
+  it('never creates a javascript: link', () => {
+    const { container } = renderParsed('[klick](javascript:alert(1))', noop);
+    expect(container.querySelector('a')).toBeNull();
+  });
+
+  it('shows images as a labelled placeholder instead of loading them', () => {
+    const { container } = renderParsed('![Version](https://img.shields.io/badge/v1.svg)', noop);
+    expect(container.querySelector('img')).toBeNull();
+    expect(screen.getByRole('img', { name: 'Version' }).getAttribute('title')).toBe('https://img.shields.io/badge/v1.svg');
+  });
+
+  it('handles a linked badge image', () => {
+    renderParsed('[![Build](https://ci/badge.svg)](https://ci/job)', noop);
+    const link = screen.getByRole('link');
+    expect(link.getAttribute('href')).toBe('https://ci/job');
+    expect(link.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe('Build');
+  });
+
+  it('renders *italic*, _italic_ and ~~strike~~ but leaves snake_case and code alone', () => {
+    const { container } = renderParsed('*eins* _zwei_ ~~drei~~ my_var_name `a_b_c` 2 * 3 * 4', noop);
+    expect([...container.querySelectorAll('em')].map(e => e.textContent)).toEqual(['eins', 'zwei']);
+    expect(container.querySelector('del')!.textContent).toBe('drei');
+    expect(container.textContent).toContain('my_var_name');
+    expect(container.textContent).toContain('2 * 3 * 4');
+  });
+
+  it('leaves a bracketed chat citation without a URL as text', () => {
+    const { container } = renderParsed('Quelle [COPAUA0C.cbl:178] im Text', noop);
+    expect(container.querySelector('a')).toBeNull();
+    expect(container.textContent).toContain('[COPAUA0C.cbl:178]');
+  });
+});
+
+describe('MarkdownContent — Links im Dokument', () => {
+  it('scrolls to the matching heading for an in-document anchor', () => {
+    const scrollIntoView = vi.fn();
+    Element.prototype.scrollIntoView = scrollIntoView;
+    render(<MarkdownContent content={'- [Business Logic](#business-logic)\n\n## Business Logic\nText'} onFileClick={() => {}} theme="dark" />);
+    fireEvent.click(screen.getByRole('link', { name: 'Business Logic' }));
+    expect(scrollIntoView).toHaveBeenCalled();
+    expect((scrollIntoView.mock.contexts[0] as HTMLElement).id).toBe('business-logic');
+  });
+
+  it('opens a relative link resolved against the document folder in its knowledge source', () => {
+    const onFileClick = vi.fn();
+    render(<MarkdownContent content={'[Fluss](../../diagrams/flow.md#L12)'} onFileClick={onFileClick} theme="dark" basePath="app/ext/docs/README.md" baseSourceId="7" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Fluss' }));
+    expect(onFileClick).toHaveBeenCalledWith('app/diagrams/flow.md', 12, '7');
+  });
+});

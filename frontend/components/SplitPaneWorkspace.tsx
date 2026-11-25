@@ -1995,7 +1995,7 @@ export const SplitPaneWorkspace: React.FC<SplitPaneWorkspaceProps> = ({
                     </div>
                     <div className="max-w-3xl mx-auto" ref={documentContentRef}>
                       {formatToUse === 'markdown' ? (
-                        <MarkdownContent content={contentToUse} onFileClick={handleFileSelect} theme={theme} showLineNumbers={showDocumentLineNumbers} />
+                        <MarkdownContent content={contentToUse} onFileClick={handleFileSelect} theme={theme} showLineNumbers={showDocumentLineNumbers} basePath={selectedDoc.name.split('#')[0]} baseSourceId={String(selectedDoc.id)} />
                       ) : formatToUse === 'html' ? (
                         <div
                           className="font-sans text-sm leading-relaxed"
