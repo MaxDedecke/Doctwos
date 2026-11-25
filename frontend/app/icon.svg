@@ -1,16 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
-  <!-- Browser-tab favicon: die Kettenglieder aus components/Logo.tsx (CodenaMark)
-       auf eigener Kachel, damit sie auf hellen wie dunklen Tab-Leisten sichtbar sind.
-       Farben fest aus dem Dark-Theme in globals.css (ds-background, ds-foreground,
-       ds-accent), weil eine statische Datei die CSS-Variablen der Seite nicht kennt.
-       Bei geänderten Pfaden in CodenaMark mitziehen. -->
+  <!-- Browser-tab favicon: CodenaMark aus components/Logo.tsx (Blüte) auf eigener Kachel, damit sie auf hellen wie
+       dunklen Tab-Leisten sichtbar ist. Farben fest aus dem Dark-Theme in globals.css, weil eine statische Datei die
+       CSS-Variablen der Seite nicht kennt. Geometrie identisch zu Logo.tsx; bei Änderungen neu erzeugen. -->
   <defs>
-    <mask id="gap" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100">
-      <rect width="100" height="100" fill="#fff" />
-      <path d="M42.6 30.1A21 21 0 0 1 55.8 38" stroke="#000" stroke-width="15" />
-    </mask>
+    <mask id="g0" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M60.53 29.76A14 14 0 0 1 68.30 23.65" stroke="#000" stroke-width="9.0"/><path d="M38.26 40.66A15 15 0 0 1 50.22 35.00" stroke="#000" stroke-width="11.0"/><path d="M49.78 35.00A15 15 0 0 1 61.74 40.66" stroke="#000" stroke-width="11.0"/><path d="M39.74 30.24A14 14 0 0 1 41.15 40.02" stroke="#000" stroke-width="9.0"/></mask>
+    <mask id="g1" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M61.99 31.24A14 14 0 0 1 54.22 37.35" stroke="#000" stroke-width="9.0"/><path d="M72.79 49.00A14 14 0 0 1 81.97 52.67" stroke="#000" stroke-width="9.0"/><path d="M52.22 35.16A15 15 0 0 1 63.10 42.69" stroke="#000" stroke-width="11.0"/><path d="M62.88 42.31A15 15 0 0 1 63.96 55.50" stroke="#000" stroke-width="11.0"/></mask>
+    <mask id="g2" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M72.24 51.00A14 14 0 0 1 63.07 47.33" stroke="#000" stroke-width="9.0"/><path d="M62.26 69.24A14 14 0 0 1 63.67 79.02" stroke="#000" stroke-width="9.0"/><path d="M63.96 44.50A15 15 0 0 1 62.88 57.69" stroke="#000" stroke-width="11.0"/><path d="M63.10 57.31A15 15 0 0 1 52.22 64.84" stroke="#000" stroke-width="11.0"/></mask>
+    <mask id="g3" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M60.26 69.76A14 14 0 0 1 58.85 59.98" stroke="#000" stroke-width="9.0"/><path d="M39.47 70.24A14 14 0 0 1 31.70 76.35" stroke="#000" stroke-width="9.0"/><path d="M61.74 59.34A15 15 0 0 1 49.78 65.00" stroke="#000" stroke-width="11.0"/><path d="M50.22 65.00A15 15 0 0 1 38.26 59.34" stroke="#000" stroke-width="11.0"/></mask>
+    <mask id="g4" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M38.01 68.76A14 14 0 0 1 45.78 62.65" stroke="#000" stroke-width="9.0"/><path d="M27.21 51.00A14 14 0 0 1 18.03 47.33" stroke="#000" stroke-width="9.0"/><path d="M47.78 64.84A15 15 0 0 1 36.90 57.31" stroke="#000" stroke-width="11.0"/><path d="M37.12 57.69A15 15 0 0 1 36.04 44.50" stroke="#000" stroke-width="11.0"/></mask>
+    <mask id="g5" maskUnits="userSpaceOnUse" x="0" y="0" width="100" height="100"><rect width="100" height="100" fill="#fff"/><path d="M27.76 49.00A14 14 0 0 1 36.93 52.67" stroke="#000" stroke-width="9.0"/><path d="M37.74 30.76A14 14 0 0 1 36.33 20.98" stroke="#000" stroke-width="9.0"/><path d="M36.04 55.50A15 15 0 0 1 37.12 42.31" stroke="#000" stroke-width="11.0"/><path d="M36.90 42.69A15 15 0 0 1 47.78 35.16" stroke="#000" stroke-width="11.0"/></mask>
   </defs>
-  <rect width="100" height="100" rx="22" fill="#0E1E1E" />
-  <circle cx="36" cy="50" r="21" stroke="#ECF7F2" stroke-width="9" />
-  <circle cx="64" cy="50" r="21" stroke="#60A5FA" stroke-width="9" mask="url(#gap)" />
+  <rect width="100" height="100" rx="22" fill="#0E1E1E"/>
+  <circle cx="50.00" cy="24.00" r="14" stroke="#ECF7F2" stroke-width="4.5" mask="url(#g0)"/>
+  <circle cx="72.52" cy="37.00" r="14" stroke="#ECF7F2" stroke-width="4.5" mask="url(#g1)"/>
+  <circle cx="72.52" cy="63.00" r="14" stroke="#ECF7F2" stroke-width="4.5" mask="url(#g2)"/>
+  <circle cx="50.00" cy="76.00" r="14" stroke="#ECF7F2" stroke-width="4.5" mask="url(#g3)"/>
+  <circle cx="27.48" cy="63.00" r="14" stroke="#ECF7F2" stroke-width="4.5" mask="url(#g4)"/>
+  <circle cx="27.48" cy="37.00" r="14" stroke="#ECF7F2" stroke-width="4.5" mask="url(#g5)"/>
+  <circle cx="50" cy="50" r="15" stroke="#60A5FA" stroke-width="6.5"/>
 </svg>
