@@ -12,7 +12,7 @@ Gültigkeit aus. Projekt-Admins können Tokens widerrufen.
 Der CI-Runner benötigt Python 3.11+, Git und das Projekt-JDK. Er verwendet den
 vorhandenen Maven-Wrapper, andernfalls `mvn` aus dem PATH. Das Git-Checkout
 muss dem gemeldeten Commit entsprechen und für versionierte Dateien sauber sein.
-Die Doctus-Instanz muss vom Runner aus erreichbar sein. Für Unternehmens-CAs
+Die Codena-Instanz muss vom Runner aus erreichbar sein. Für Unternehmens-CAs
 kann `DOCTUS_CA_FILE` auf ein PEM-Bundle zeigen.
 
 ## GitHub Actions
@@ -22,13 +22,13 @@ Die Composite Action führt `clean verify` aus, erzeugt anschließend das
 effektive POM und JSON-Abhängigkeitsbäume und veröffentlicht die Ergebnisse.
 Ein fehlgeschlagener Maven-Build liefert nach dem Upload weiterhin seinen
 ursprünglichen Fehlercode. Für mehrere JDKs/Profile erhält jede Kombination
-einen eigenen stabilen `variant`-Wert. Ein freigegebener Doctus-Commit kann
+einen eigenen stabilen `variant`-Wert. Ein freigegebener Codena-Commit kann
 anstelle von `@develop` als Action-Referenz verwendet werden.
 
 Die Beispielpipeline läuft für den konfigurierten Main-Branch. Weitere Branches
-verwenden die entsprechende Doctus-Git-Quelle und deren Token.
+verwenden die entsprechende Codena-Git-Quelle und deren Token.
 Zugriff auf die private Action muss für das aufrufende Repository eingerichtet
-sein. Selbst gehostete Doctus-Instanzen benötigen gegebenenfalls einen
+sein. Selbst gehostete Codena-Instanzen benötigen gegebenenfalls einen
 selbst gehosteten GitHub-Runner im selben Netz.
 
 ## GitLab und andere CI-Systeme
@@ -36,7 +36,7 @@ selbst gehosteten GitHub-Runner im selben Netz.
 Der Offline-Bundle enthält `ci-runner/`. Diesen Ordner auf dem CI-Runner
 bereitstellen und `DOCTUS_CI_RUNNER` auf
 `ci-runner/scripts/publish_maven_ci.py` setzen. Alternativ dieselbe Datei
-aus einem vollständigen Doctus-Checkout verwenden. Die beiden zugehörigen
+aus einem vollständigen Codena-Checkout verwenden. Die beiden zugehörigen
 Python-Helfer werden relativ zum Tool-Verzeichnis geladen. Eine zusätzliche
 Python-Paketinstallation ist dafür nicht nötig.
 
@@ -92,7 +92,7 @@ meldet eine Kürzung. Die gespeicherten Berichte bleiben unveränderlich.
 Aufbewahrung und Bereinigung sind Teil der Projekt-/Quellenverwaltung.
 
 Die Herkunft wird durch den quellengebundenen CI-Zugang belegt. Die Angaben
-stammen aus dessen Pipeline. Doctus führt beim Import keine Maven-Plugins aus
+stammen aus dessen Pipeline. Codena führt beim Import keine Maven-Plugins aus
 und übernimmt die Artefakte nicht automatisch in den Java-Resolver-Klassenpfad.
 
 Maven dokumentiert das aggregierte effektive POM und das JSON-Format des

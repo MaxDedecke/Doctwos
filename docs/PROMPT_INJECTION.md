@@ -5,7 +5,7 @@ between trusted instructions and externally ingested content.
 
 ## Status: Mitigated (XML Framing & System Prompt Hardening)
 
-Doctus indexes content from sources the operator doesn't fully control — a
+Codena indexes content from sources the operator doesn't fully control — a
 PDF/DOCX upload, a Confluence page, a Jira ticket, a git repo's README, a
 Notion page. Any of these can contain text crafted to look like an
 instruction to the LLM rather than data to answer a question about (e.g.

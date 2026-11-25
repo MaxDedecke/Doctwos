@@ -1,4 +1,4 @@
-# Doctus – Arbeitsleitlinie
+# Codena – Arbeitsleitlinie
 
 Stand: 26.10.2026 · gilt ab 27.10.2026 bis zum Start eines Pilotkunden.
 
@@ -81,7 +81,7 @@ nur noch Zeilen mit Digest liefert; der SBOM-Bericht die Funde aus O-389/O-390 n
 ### Tag 3 · Do 29.10. – Ehrliche Messbasis
 
 1. **Hold-out-Fragensatz v1 anlegen**, und zwar **außerhalb des Repos** unter `~/doctus-holdout/v1/`, damit
-   Coding-Agenten ihn beim Entwickeln nicht sehen und Doctus nicht auf ihn hin optimiert wird.
+   Coding-Agenten ihn beim Entwickeln nicht sehen und Codena nicht auf ihn hin optimiert wird.
    - 40 Fragen: 20 zu AWS CardDemo (COBOL), 20 zu Apache Syncope (Java).
    - Keine Frage darf einer Frage aus `backend/tests/fixtures/eval_*` oder den bisherigen Benchmark-Kapiteln ähneln.
    - Je Frage: Fragetext, Typ (Aufrufer, Datenherkunft, Copybook/Import, Ablauf, Fachregel, Negativfall),

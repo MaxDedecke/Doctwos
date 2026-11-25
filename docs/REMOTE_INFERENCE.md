@@ -1,6 +1,6 @@
 # Remote inference endpoint
 
-Doctus can use a remote on-premise service or a cloud provider for chat and
+Codena can use a remote on-premise service or a cloud provider for chat and
 embeddings. The backend and parser containers contact these services; the
 browser never receives API keys.
 
@@ -9,7 +9,7 @@ browser never receives API keys.
 Open **Settings → AI**, add a profile and choose one of the three operating
 modes:
 
-- **Local deployment** runs Ollama, vLLM or llama.cpp in a container started by the Doctus deployer on this host
+- **Local deployment** runs Ollama, vLLM or llama.cpp in a container started by the Codena deployer on this host
   (see `docs/DEPLOYMENT.md`, "Local LLM deployments"). The legacy fixed Ollama service at `http://ollama:11434` is
   only used by profiles that already exist.
 - **Remote On-Premise** accepts a URL (including port and optional base
@@ -55,7 +55,7 @@ OpenAI-compatible endpoint `/embeddings` with the request body
 such as `/v1` if the provider requires it.
 
 The parser sends an `Authorization: Bearer …` header whenever a key is set.
-For managed endpoints set `EMBEDDING_AUTO_PULL=false`; Doctus then never calls
+For managed endpoints set `EMBEDDING_AUTO_PULL=false`; Codena then never calls
 Ollama's privileged `/api/pull` endpoint.
 
 ### vLLM chat profile
@@ -63,7 +63,7 @@ Ollama's privileged `/api/pull` endpoint.
 In **Settings → AI → Remote On-Premise**, choose **vLLM (OpenAI API)**, set the
 served model name from `/v1/models`, and use a base URL such as
 `https://gpu-host.example/v1` with chat path `/chat/completions`. Keep embeddings
-on their independently configured service. Doctus stores the vLLM API key
+on their independently configured service. Codena stores the vLLM API key
 encrypted and sends it only as a Bearer token.
 
 The profile test sends `tool_choice: "required"`; this option requires vLLM
@@ -71,19 +71,19 @@ The profile test sends `tool_choice: "required"`; this option requires vLLM
 tool parser and chat template, commonly enabled using
 `--enable-auto-tool-choice --tool-call-parser <parser>` when starting `vllm
 serve`. The **Test** action reports whether the endpoint actually returned the
-probe tool call. Restrict vLLM network access to Doctus and trusted operators:
+probe tool call. Restrict vLLM network access to Codena and trusted operators:
 vLLM's `--api-key` protects versioned inference paths such as `/v1`, while its
 `/health` endpoint is outside that API-key protection.
 
 ### Context window, thinking and tool calls of the chat model
 
-The profile field **context length** is the contract between Doctus and the model server:
+The profile field **context length** is the contract between Codena and the model server:
 
 - **Ollama** (chat and agent tool loop) is called through the native `/api/chat`, and the profile value is sent
   as `options.num_ctx` with every request. Ollama's OpenAI-compatible `/v1/chat/completions` accepts neither
   `num_ctx` nor `tool_choice`, so it is not used.
 - **OpenAI-compatible servers** (vLLM `--max-model-len`, llama.cpp `-c`, others) fix the window on the server.
-  Enter the same value in the profile. Doctus sizes the prefetched evidence from it and drops older tool results
+  Enter the same value in the profile. Codena sizes the prefetched evidence from it and drops older tool results
   once a conversation would exceed it. A value below the real window discards evidence early; a value above it
   lets the server truncate or reject the request.
 
@@ -91,7 +91,7 @@ For a 32B chat model plan with at least 32768 tokens; 8192 is filled by system p
 Each answer records `model_turns`, `prompt_tokens_max` and `completion_tokens` in its telemetry
 (`scripts/eval_chat.py` prints the largest prompt per question), which shows how full the window gets.
 
-Thinking models (Qwen3): Doctus separates reasoning from the answer. It reads Ollama's `message.thinking`,
+Thinking models (Qwen3): Codena separates reasoning from the answer. It reads Ollama's `message.thinking`,
 `reasoning_content`/`reasoning` in the Chat Completions stream (vLLM with `--reasoning-parser`) and
 `<think>…</think>` in the text when the server does not separate it. The answer never contains the reasoning; the
 chat shows it under "Arbeitsschritte" as "model reasoning (as released by the provider)". This is what the
@@ -123,9 +123,9 @@ recent messages and says so.
 
 ## On-Premise Two-Machine Architecture (Machine A + Machine B)
 
-In typical high-security on-premise enterprise environments, Doctus operates across two machines in the same private LAN without internet access:
+In typical high-security on-premise enterprise environments, Codena operates across two machines in the same private LAN without internet access:
 
-- **Machine A (Doctus Host)**: Runs PostgreSQL (pgvector), Valkey, backend-api, parser-workers, and frontend. It also retains the local Ollama container and model weights as an instant offline fallback.
+- **Machine A (Codena Host)**: Runs PostgreSQL (pgvector), Valkey, backend-api, parser-workers, and frontend. It also retains the local Ollama container and model weights as an instant offline fallback.
 - **Machine B (Inference/GPU Host)**: Runs a dedicated Ollama container or high-throughput **vLLM** service with GPU acceleration (NVIDIA Container Toolkit, PagedAttention, Continuous Batching, see O-338–O-341 in `docs/TODO.md`).
 
 ### 1. Setting up Machine B (Inference Host)
@@ -192,11 +192,11 @@ The offline delivery bundle (`dist/doctus-offline-bundle-...`) is completely sel
   # 1. Bring up the local Ollama container from standby:
   docker compose --profile local-ollama up -d ollama
 
-  # 2. In Doctus UI (Settings → AI):
+  # 2. In Codena UI (Settings → AI):
   #    Click "Aktivieren" on the pre-configured "Lokales Ollama" profile.
   ```
 
 - **Air-Gapped Guarantee (Zero External Network Calls)**:
   - **Fonts**: All UI typography (Archivo, Space Grotesk, IBM Plex Mono, Manrope for the Codena wordmark) is bundled statically inside the frontend image. No requests to Google Fonts or CDNs are made.
   - **Code Viewer**: Monaco Editor is pre-packaged locally (`/monaco/vs/`); it never requests CDN scripts.
-  - **Model Pulling**: `EMBEDDING_AUTO_PULL=false` by default; Doctus never attempts to pull models over the internet.
+  - **Model Pulling**: `EMBEDDING_AUTO_PULL=false` by default; Codena never attempts to pull models over the internet.

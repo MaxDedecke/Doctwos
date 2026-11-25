@@ -58,7 +58,7 @@ async function annotations(document, context) {
   if (settings.variantKey) url.searchParams.set('variant_key', settings.variantKey);
   const response = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
   if (response.status === 404) return { settings, references: [] };
-  if (!response.ok) throw new Error(`Doctus HTTP ${response.status}`);
+  if (!response.ok) throw new Error(`Codena HTTP ${response.status}`);
   const data = await response.json();
   cache.set(key, { time: Date.now(), references: data.references });
   return { settings, references: data.references };
@@ -71,10 +71,10 @@ function statusText(ref) {
 
 function label(ref) {
   if (ref.direction === 'incoming') {
-    return `Doctus: ${ref.type} from ${ref.target?.file_path || ref.name}:${ref.target?.start_line || 1}`;
+    return `Codena: ${ref.type} from ${ref.target?.file_path || ref.name}:${ref.target?.start_line || 1}`;
   }
   const destination = ref.target ? `${ref.target.file_path}:${ref.target.start_line || 1}` : statusText(ref);
-  return `Doctus: ${ref.type} ${ref.name} → ${destination}`;
+  return `Codena: ${ref.type} ${ref.name} → ${destination}`;
 }
 
 function markdownText(value) {
@@ -153,19 +153,19 @@ async function activate(context) {
   const tokenHandoff = path.join(context.globalStorageUri.fsPath, 'doctus-token-once');
   try {
     const token = (await fs.readFile(tokenHandoff, 'utf8')).trim();
-    if (!token.startsWith('dct_mcp_')) throw new Error('Invalid Doctus token handoff');
+    if (!token.startsWith('dct_mcp_')) throw new Error('Invalid Codena token handoff');
     await context.secrets.store('doctus.personalToken', token);
     await fs.unlink(tokenHandoff);
     cache.clear();
   } catch (error) {
-    if (error.code !== 'ENOENT') console.error('Doctus token handoff failed:', error);
+    if (error.code !== 'ENOENT') console.error('Codena token handoff failed:', error);
   }
   context.subscriptions.push(vscode.commands.registerCommand('doctus.setToken', async () => {
-    const token = await vscode.window.showInputBox({ prompt: 'Personal Doctus token (from Settings → IDE / MCP)', password: true, ignoreFocusOut: true });
+    const token = await vscode.window.showInputBox({ prompt: 'Personal Codena token (from Settings → IDE / MCP)', password: true, ignoreFocusOut: true });
     if (token !== undefined) {
       await context.secrets.store('doctus.personalToken', token.trim());
       cache.clear();
-      vscode.window.showInformationMessage('Doctus token saved.');
+      vscode.window.showInformationMessage('Codena token saved.');
     }
   }));
   context.subscriptions.push(vscode.commands.registerCommand('doctus.openGraph', async (settings, line) => {
@@ -176,7 +176,7 @@ async function activate(context) {
       line = editor.selection.active.line + 1;
     }
     if (!settings) {
-      vscode.window.showWarningMessage('Set Doctus projectId and sourceId for this workspace.');
+      vscode.window.showWarningMessage('Set Codena projectId and sourceId for this workspace.');
       return;
     }
     await vscode.env.openExternal(vscode.Uri.parse(graphUrl(settings, line)));
@@ -198,7 +198,7 @@ async function activate(context) {
           });
         }).filter(Boolean);
       } catch (error) {
-        console.error('Doctus CodeLens:', error);
+        console.error('Codena CodeLens:', error);
         return [];
       }
     }
@@ -217,10 +217,10 @@ async function activate(context) {
           (ref.target ? `Target: ${markdownText(ref.target.file_path)}:${ref.target.start_line || 1}\n\n` : '') +
           (ref.resolution_reason ? `Resolution: ${markdownText(ref.resolution_reason)}\n\n` : '') +
           (ref.dispatch_scope ? `Dispatch: ${markdownText(ref.dispatch_scope)}\n\n` : '') +
-          `[Open in Doctus graph](${graphUrlForReference(result.settings, ref)})`);
+          `[Open in Codena graph](${graphUrlForReference(result.settings, ref)})`);
         return new vscode.Hover(body, referenceRange(document, ref));
       } catch (error) {
-        console.error('Doctus hover:', error);
+        console.error('Codena hover:', error);
         return null;
       }
     }

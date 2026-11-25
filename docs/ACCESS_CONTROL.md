@@ -1,8 +1,8 @@
-# Doctus — Zugriffsmodell
+# Codena — Zugriffsmodell
 
 **Stand:** 01.09.2026
 
-Doctus schützt Inhalte in zwei aufeinanderfolgenden Ebenen: Team-Zugehörigkeit
+Codena schützt Inhalte in zwei aufeinanderfolgenden Ebenen: Team-Zugehörigkeit
 grenzt Organisationseinheiten voneinander ab; Projektmitgliedschaft begrenzt
 den Zugriff innerhalb eines Teams weiter. Berechtigungsprüfungen erfolgen im
 Backend bei jeder Ressource und nicht nur durch die Oberfläche.

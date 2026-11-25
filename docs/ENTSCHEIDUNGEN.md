@@ -1,4 +1,4 @@
-# Doctus — Entscheidungslog
+# Codena — Entscheidungslog
 
 Fachliche/technische Festlegungen, die der Implementierungsplan offen gelassen hat.
 Eine Zeile pro Entscheidung, mit Begründung und Fundstelle im Code. Wer eine
@@ -218,7 +218,7 @@ Chunking (chunking)" und „Nächste Schritte" tragen einen Verweis hierher.
 
 **Problem.** Der AP-9-Lizenzbericht (`docs/OSS-CLEARING.md`) hat gezeigt: das
 Paket `mcp-atlassian` (Confluence-/Jira-Konnektor, AP-3/AP-8) zieht
-`Unidecode>=1.3.0` als Pflichtabhängigkeit nach — nicht Doctus-eigener Code,
+`Unidecode>=1.3.0` als Pflichtabhängigkeit nach — nicht Codena-eigener Code,
 aber jedes `pip install -r backend/requirements.txt` installiert es
 automatisch mit. Das PyPI-Paket `Unidecode` steht unter GPL-2.0-or-later
 (bestätigt über `Unidecode-1.4.0.dist-info/METADATA`, `License: GPL`). Das
@@ -565,7 +565,7 @@ Vier Teilentscheidungen dabei:
    unnötige Argon2-Berechnung pro SSO-Login. `POST /auth/login` und
    `/auth/change-password` prüfen explizit auf `None`, bevor sie überhaupt
    `verify_password()` aufrufen (sonst Crash statt sauberem 401/400).
-4. **Rollen kommen weiterhin aus Doctus selbst, nicht aus IdP-Gruppen-Claims.**
+4. **Rollen kommen weiterhin aus Codena selbst, nicht aus IdP-Gruppen-Claims.**
    Gruppen-/Rollenbenennung unterscheidet sich stark zwischen Keycloak/Entra
    ID/Okta — ein generisches Mapping wäre Rätselraten ohne einen konkreten
    Kunden-IdP vor Augen. Ein per SSO neu angelegter Nutzer bekommt die
@@ -598,7 +598,7 @@ Ablauf, Dokumentationsbeziehungen und Auswirkungsanalyse. Das verleitet dazu,
 aus einer statischen Kante eine Laufzeitreihenfolge abzuleiten oder eine
 technische Detailansicht als Wissensübersicht zu verwenden.
 
-**Entscheidung.** Doctus hat für den ersten Produktschnitt vier getrennte
+**Entscheidung.** Codena hat für den ersten Produktschnitt vier getrennte
 Arbeitsansichten. Jede Aktion gehört genau einer dieser Ansichten und beantwortet
 deren Nutzerfrage:
 
@@ -1023,3 +1023,18 @@ eines Projekts läuft als Blue-Green über einen Schattenvektor (`document_chunk
 Neues nachgezogen), bei Bedarf zurücknehmen, danach aufräumen. Neue Dimensionen bekommen beim Umschalten ihren
 HNSW-Teilindex (`doctus_models/vector_index.py`). Altbestände ohne Modelleintrag erhielten mit Migration 0049 das Modell
 ihrer Quelle. Migration 0049 und Modellpaket 1.11.0 sind erforderlich.
+
+## E-21 — Produktname Codena (25.11.2026)
+
+Der Arbeitstitel Doctus ist abgelöst; das Produkt heißt **Codena** (Kunstwort aus „Code“ und lateinisch *catena*,
+die Kette). Das Logo zeigt zwei ineinandergreifende Kettenglieder (`frontend/components/Logo.tsx`), Schriftzug
+„codena“ in Manrope ExtraBold. Das übrige Design (Farben, Schriften, Markenverlauf) bleibt unverändert; die Marke
+nimmt Vordergrund- und Akzentfarbe aus den Theme-Tokens.
+
+Umgestellt sind alle sichtbaren Texte (Oberfläche, Chat- und Onboarding-Prompts, MCP-Hinweise, IDE-Erweiterung) und
+die laufende Doku. **Noch nicht umbenannt** sind technische Bezeichner: Paket `doctus_models`, Container und Images
+`doctus-*`, Datenbank `doctus`, Umgebungsvariablen `DOCTUS_*`, MCP-Servername `doctus`, Cookie `doctus_session`,
+localStorage-Schlüssel `doctus-*`, CSS-Klassen, Befehls- und Einstellungs-IDs `doctus.*` der IDE-Erweiterung und die
+Grammatikmarker `// Doctus:`. Ihre Umbenennung bricht gespeicherte Einstellungen, Sitzungen, Client-Konfigurationen
+und Deployments und braucht deshalb einen eigenen Schritt mit Übergangsregel. Historische Belege (Pitch-Unterlagen,
+Eval- und Benchmark-Ergebnisse, Namensvorschläge) bleiben unter dem alten Namen.

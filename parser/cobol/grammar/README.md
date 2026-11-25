@@ -2,7 +2,7 @@
 
 These are the sources for the production parser in `../_antlr/`.
 They were moved unchanged from the historical ANTLR spike as part of O-065. Since
-06.11.2026 Doctus extends `Cobol85.g4` for further COBOL dialects; every change is marked with a
+06.11.2026 Codena extends `Cobol85.g4` for further COBOL dialects; every change is marked with a
 `// Doctus:` comment (e.g. `EXIT PERFORM [CYCLE]`, `EXIT PARAGRAPH`, `EXIT SECTION`).
 
 - Upstream: `antlr/grammars-v4`, directory `cobol85/`

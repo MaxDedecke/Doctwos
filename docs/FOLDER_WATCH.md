@@ -1,6 +1,6 @@
 # Folder Watch — Local Folder / NAS Indexing
 
-Doctus can index documents from a local folder or network share (NAS/fileshare) and keep them up to date automatically. This is the recommended starting point for customers who already have a shared drive with PDFs, Word documents, and text files they want to query — no API access, no cloud connector, zero IT friction.
+Codena can index documents from a local folder or network share (NAS/fileshare) and keep them up to date automatically. This is the recommended starting point for customers who already have a shared drive with PDFs, Word documents, and text files they want to query — no API access, no cloud connector, zero IT friction.
 
 ## How it works
 
@@ -32,7 +32,7 @@ Edit `.env` and set `WATCHED_FOLDER` to the **absolute path on the host** that s
 WATCHED_FOLDER=/mnt/nas/Wissensbasis
 ```
 
-This path is mounted read-only as `/watched` in the `backend-api`, `parser-worker`, and `parser-beat` containers. Doctus never writes to the customer's folder.
+This path is mounted read-only as `/watched` in the `backend-api`, `parser-worker`, and `parser-beat` containers. Codena never writes to the customer's folder.
 
 Restart the stack after changing `.env`:
 
@@ -97,7 +97,7 @@ After mounting, the directory structure looks like:
   normen/            ← maps to /watched/normen
 ```
 
-In the Doctus UI, create one **"Ordner verbinden"** knowledge source per share, each pointing to its own container path:
+In the Codena UI, create one **"Ordner verbinden"** knowledge source per share, each pointing to its own container path:
 
 | Display name        | Container path              |
 |---------------------|-----------------------------|
@@ -109,7 +109,7 @@ Each source is scanned and indexed independently. Adding a new source doesn't re
 
 ### Option B — All content in one root folder (simplest)
 
-If the customer is comfortable dumping everything under a single shared folder, point `WATCHED_FOLDER` at it and create a single knowledge source at `/watched`. Doctus will walk all subdirectories recursively.
+If the customer is comfortable dumping everything under a single shared folder, point `WATCHED_FOLDER` at it and create a single knowledge source at `/watched`. Codena will walk all subdirectories recursively.
 
 Use this when the customer doesn't need per-folder access control or separate sync visibility in the UI.
 

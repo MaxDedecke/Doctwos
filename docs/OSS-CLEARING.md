@@ -1,4 +1,4 @@
-# Doctus — Lizenz-/Provenienzbericht (NF-003, AP-9)
+# Codena — Lizenz-/Provenienzbericht (NF-003, AP-9)
 
 Release-Voraussetzung für alle Bestandteile, die im Betrieb tatsächlich
 ausgeliefert werden: Python-
@@ -9,16 +9,16 @@ muss vor jedem Release wiederholt werden (siehe Abschnitt „Nicht automatisch
 geprüft" unten).
 
 Wichtig für die Interpretation eines externen Scanners: Die Allowlist und die
-Ausnahmelisten definieren die Doctus-Freigabepolitik, sie behaupten nicht, dass
+Ausnahmelisten definieren die Codena-Freigabepolitik, sie behaupten nicht, dass
 ein Scanner keinerlei Lizenzbefund ausgeben wird. LGPL-, MPL- und CC-BY-Artefakte
 bleiben bei einer strengen „nur MIT/BSD/Apache"-Richtlinie sichtbare Treffer,
 werden hier aber als begründete, nicht blockierende Ausnahmen behandelt. Ein
 Clearing mit dieser Policy kann daher grün sein, obwohl ein Rohscan Treffer
 meldet.
 
-Der Bericht ist außerdem kein Open-Source-Lizenzhinweis für Doctus selbst:
+Der Bericht ist außerdem kein Open-Source-Lizenzhinweis für Codena selbst:
 Das eigene Projekt ist laut `README.md` „All rights reserved". Für eine
-Weitergabe braucht Doctus daher zusätzlich eine eigene Nutzungs-/Lieferlizenz.
+Weitergabe braucht Codena daher zusätzlich eine eigene Nutzungs-/Lieferlizenz.
 
 **Regel (CLAUDE.md):** strikt Open Source, nur MIT/BSD/Apache-2.0. Jede
 Abhängigkeit mit abweichender Lizenz braucht eine benannte, begründete
@@ -52,7 +52,7 @@ E-7-Lösung vom 08.08.2026 unverändert drei statt vorher vier, siehe unten):
 
 | Paket | Lizenz | Status | Begründung |
 |---|---|---|---|
-| `psycopg2-binary` | LGPL-3.0-or-later | akzeptiert | Reiner DB-Treiber, unverändert, dynamisch verlinkt — keine Copyleft-Pflicht für Doctus selbst. Seit AP-0 gesetzt. |
+| `psycopg2-binary` | LGPL-3.0-or-later | akzeptiert | Reiner DB-Treiber, unverändert, dynamisch verlinkt — keine Copyleft-Pflicht für Codena selbst. Seit AP-0 gesetzt. |
 | `certifi` | MPL-2.0 | akzeptiert | Transitiv über `httpx`/`requests` (CA-Bundle). Datei-basierte Weak-Copyleft-Lizenz, unverändert eingebunden, De-facto-Standardabhängigkeit im Python-Ökosystem. |
 | `mcp-atlassian` | von pip-licenses als „UNKNOWN" gemeldet | akzeptiert | PyPI-Metadaten tragen keinen License-Classifier. Tatsächliche Lizenz laut Quell-Repo (`github.com/sooperset/mcp-atlassian/blob/main/LICENSE`, geprüft 31.07.2026): **MIT**. Nur eine Metadatenlücke beim Upstream-Projekt, kein Verstoß. |
 
@@ -93,7 +93,7 @@ simdutf, fast_float); alle mitgelieferten `BUILD_LICENSES` am 06.10.2026 geprüf
 Verwendet nur in `parser/utils.py` (OCR-Fallback für Bild-PDFs); Ende-zu-Ende-Test:
 `parser/tests/test_pdf_ocr_render.py`. Verwendet in `parser/connectors/office.py` (Ordner, WebDAV,
 Upload, Confluence-Anhänge). `olefile==0.47` (BSD-2-Clause) liest den OLE-Container des binären Word-Formats
-(`parser/connectors/msdoc.py`); den RTF-Leser (`rtf.py`) hat Doctus selbst geschrieben, er hat keine Abhängigkeit. Bewusst
+(`parser/connectors/msdoc.py`); den RTF-Leser (`rtf.py`) hat Codena selbst geschrieben, er hat keine Abhängigkeit. Bewusst
 kein antiword/catdoc (GPL) und kein LibreOffice (Größe, MPL/LGPL-Mischlizenz) als Konverter.
 
 ### Python-Entwicklungswerkzeuge (O-064, 06.09.2026)
@@ -218,9 +218,9 @@ Runtime-Abhängigkeiten begrenzt.
 - **Container-Images / SBOM (06.10.2026, erster Lauf):** `scripts/sbom-scan.sh` erzeugt per `syft` ein
   CycloneDX-SBOM und per `grype` einen Schwachstellenbericht je Image (Ergebnisse und Bewertung liegen
   außerhalb des Repos in `~/doctus-berichte/`). Lizenzbefund: Die Debian-/Alpine-Basis der Images enthält
-  erwartungsgemäß GPL-/LGPL-Systempakete (bash, coreutils, glibc, libgmp, busybox …), die Doctus nicht
+  erwartungsgemäß GPL-/LGPL-Systempakete (bash, coreutils, glibc, libgmp, busybox …), die Codena nicht
   linkt; hinzu kommen in den Python-Images `autocommand` (LGPL-3.0, von `setuptools/_vendor` mitgebracht,
-  von `pip-licenses` nicht erfasst, nicht von Doctus genutzt). Im Frontend-Image liegen die
+  von `pip-licenses` nicht erfasst, nicht von Codena genutzt). Im Frontend-Image liegen die
   `devDependencies` (u. a. `@axe-core/playwright`, `axe-core` MPL-2.0), weil die Runner-Stage das komplette
   `node_modules` kopiert — das widerspricht der Aussage in Abschnitt 3, dass sie nicht ausgeliefert werden.
   Schwachstellen mit verfügbarem Fix: `pypdf` 6.16.1 → ≥ 6.19.0, `axios` 1.18.1 → ≥ 1.20.0, `next` 16.3.3 →

@@ -5,7 +5,7 @@ Stand: 14.09.2026. Zugehörige Arbeitspunkte: O-117 bis O-156 in
 
 ## Ziel und Grenzen
 
-Doctus soll einen Kundenbestand anhand seiner tatsächlichen Compiler-, Build-,
+Codena soll einen Kundenbestand anhand seiner tatsächlichen Compiler-, Build-,
 Bibliotheks- und Betriebsumgebung analysieren können. Eine erfolgreich importierte
 Datei ist noch kein Beleg für vollständige Strukturanalyse. Unterstützung wird
 pro Compilerfamilie, Version, Buildprofil und geprüftem Sprachmerkmal ausgewiesen.
@@ -167,7 +167,7 @@ O-117 erfasst mindestens:
   Änderungsrate sowie eine kleine repräsentative und freigegebene Teststichprobe.
 
 Diese Beispiele sind Auswahlfelder für die Bestandsaufnahme, keine Behauptung,
-dass der Kunde sie alle einsetzt oder dass Doctus sie schon unterstützt.
+dass der Kunde sie alle einsetzt oder dass Codena sie schon unterstützt.
 
 ## Reihenfolge
 
@@ -219,7 +219,7 @@ P2 = bedarfsabhängige Erweiterung; Priorität erst nach Kundenprofil festlegen.
 ## Herstellerquellen zur Einordnung
 
 Die folgenden Quellen belegen Umgebungsunterschiede; sie sind kein Nachweis für
-Doctus-Unterstützung. Weitere, versionsgenaue Nachweise gehören in O-118.
+Codena-Unterstützung. Weitere, versionsgenaue Nachweise gehören in O-118.
 
 - [IBM: bedingte Kompilierung](https://www.ibm.com/docs/en/cobol-zos/6.5.0?topic=directives-conditional-compilation)
   erklärt DEFINE/IF/EVALUATE und die Verarbeitung gegenüber COPY/REPLACE.

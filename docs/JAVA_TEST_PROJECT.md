@@ -82,7 +82,7 @@ Abnahme: `test_java_frameworks.py`, `test_enterprise_configuration.py` und
   mit XSDs; `package-info.java` liefert modulbezogene Namespace-Defaults.
 - `DOCTUS_INCLUDE_GENERATED_JAVA=true` erlaubt vorhandene Java-Dateien unter
   `target/generated-sources`. Andere Build-Artefakte bleiben ausgeschlossen.
-  Die Einstellung geht in den Analyse-Fingerprint ein. Doctus startet weder
+  Die Einstellung geht in den Analyse-Fingerprint ein. Codena startet weder
   Maven-Plugins noch `wsimport`/`xjc`; fehlende generierte Quellen sind eine Lücke.
 - Umbenannte/entfernte Zieltypen löschen die ursprüngliche Quellbeziehung nicht;
   sie wird neu aufgelöst oder bleibt mit Begründung unaufgelöst.
@@ -269,7 +269,7 @@ Für Reaktoren kann das effektive POM einen `projects`-Wurzelknoten enthalten.
 Die JSON-Datei bündelt die Textinhalte dieser Artefakte. Quell-ID und vollständiger
 Commit müssen zu einer abgeschlossenen indizierten Quelle des Pakets passen.
 Die Angaben werden als vom Aufrufer gelieferte Build-Belege angezeigt.
-Doctus führt beim Import keine Maven-Plugins aus. Die Artefakte werden je Abfrage
+Codena führt beim Import keine Maven-Plugins aus. Die Artefakte werden je Abfrage
 ausgewertet und verändern weder den statischen Graphen noch das Parser-Profil.
 
 Migrationen `0044_insight_revisions`, `0045_unresolved_reference_index` und gemeinsames Modellpaket 1.7.1 werden für

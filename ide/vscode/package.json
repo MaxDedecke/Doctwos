@@ -1,8 +1,8 @@
 {
   "name": "doctus-ide",
   "publisher": "doctus",
-  "displayName": "Doctus IDE",
-  "description": "Doctus graph links and indexed cross-language references",
+  "displayName": "Codena IDE",
+  "description": "Codena graph links and indexed cross-language references",
   "version": "0.1.3",
   "private": true,
   "engines": { "vscode": "^1.85.0" },
@@ -10,17 +10,17 @@
   "activationEvents": ["onStartupFinished"],
   "contributes": {
     "commands": [
-      { "command": "doctus.setToken", "title": "Doctus: Set personal token" },
-      { "command": "doctus.openGraph", "title": "Doctus: Open source line in graph" },
-      { "command": "doctus.openTarget", "title": "Doctus: Open indexed target" }
+      { "command": "doctus.setToken", "title": "Codena: Set personal token" },
+      { "command": "doctus.openGraph", "title": "Codena: Open source line in graph" },
+      { "command": "doctus.openTarget", "title": "Codena: Open indexed target" }
     ],
     "configuration": {
-      "title": "Doctus",
+      "title": "Codena",
       "properties": {
-        "doctus.apiUrl": { "type": "string", "default": "http://localhost:8000", "description": "Doctus backend URL" },
-        "doctus.webUrl": { "type": "string", "default": "http://localhost:3000", "description": "Doctus browser URL" },
-        "doctus.projectId": { "type": "integer", "default": 0, "description": "Doctus project ID for this workspace" },
-        "doctus.sourceId": { "type": "integer", "default": 0, "description": "Doctus Git source ID for this workspace" },
+        "doctus.apiUrl": { "type": "string", "default": "http://localhost:8000", "description": "Codena backend URL" },
+        "doctus.webUrl": { "type": "string", "default": "http://localhost:3000", "description": "Codena browser URL" },
+        "doctus.projectId": { "type": "integer", "default": 0, "description": "Codena project ID for this workspace" },
+        "doctus.sourceId": { "type": "integer", "default": 0, "description": "Codena Git source ID for this workspace" },
         "doctus.variantKey": { "type": "string", "default": "", "description": "Optional indexed build variant" },
         "doctus.repositoryRoot": { "type": "string", "default": ".", "description": "Repository path relative to the VS Code workspace folder" }
       }

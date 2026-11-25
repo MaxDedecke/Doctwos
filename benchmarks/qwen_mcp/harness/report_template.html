@@ -125,7 +125,7 @@ ul.clean { margin: 0; padding-left: 20px; display: flex; flex-direction: column;
 
   /* ---------- Kopf und Befund ---------- */
   var head = el('header', { class: 'sec' });
-  head.appendChild(el('div', { class: 'eyebrow' }, 'Doctus · Messung ' + (D.meta.run_id || '') + ' · ' + D.n_sessions + ' Sitzungen'));
+  head.appendChild(el('div', { class: 'eyebrow' }, 'Codena · Messung ' + (D.meta.run_id || '') + ' · ' + D.n_sessions + ' Sitzungen'));
   head.appendChild(el('h1', null, 'Wie viel hilft MCP einem lokalen 8B-Modell?'));
   head.appendChild(el('p', { class: 'lead' }, N.lead));
   $root.appendChild(head);

@@ -34,10 +34,10 @@ EMBEDDING_AUTO_PULL=false
 
 ### Modellserver als Container auf demselben Host (OpenAI-Format, API-Key)
 
-`localhost` ist in den Doctus-Containern der jeweilige Container selbst; `http://localhost:<port>/v1` erreicht den Modellserver deshalb nicht. Zwei Wege:
+`localhost` ist in den Codena-Containern der jeweilige Container selbst; `http://localhost:<port>/v1` erreicht den Modellserver deshalb nicht. Zwei Wege:
 
 1. **Port auf allen Schnittstellen veröffentlicht** (`-p 8000:8000`, nicht `-p 127.0.0.1:8000:8000`): `LLM_BASE_URL=http://host.docker.internal:8000/v1`. Die Compose-Dateien tragen `host.docker.internal` für API, Parser und Link-Worker ein, mit und ohne `--remote-inference`. Eine Host-Firewall muss Verbindungen aus dem Docker-Bridge-Netz auf diesen Port zulassen.
-2. **Port nur an 127.0.0.1 gebunden:** Den Modellcontainer ins Doctus-Netz hängen (`docker network connect doctus_default <modellcontainer>`) und `LLM_BASE_URL=http://<modellcontainer>:<interner port>/v1` setzen. Nach einer Neuanlage des Modellcontainers die Verbindung wiederholen.
+2. **Port nur an 127.0.0.1 gebunden:** Den Modellcontainer ins Codena-Netz hängen (`docker network connect doctus_default <modellcontainer>`) und `LLM_BASE_URL=http://<modellcontainer>:<interner port>/v1` setzen. Nach einer Neuanlage des Modellcontainers die Verbindung wiederholen.
 
 ```dotenv
 LLM_PROVIDER=vllm            # jeder selbst betriebene OpenAI-kompatible Server; llamacpp für llama-server
@@ -77,14 +77,14 @@ Mit drei parallelen Anfragen sind das rund 31 GB, es bleiben etwa 9 GB Reserve; 
 
 ```dotenv
 OLLAMA_CONTEXT_LENGTH=65536   # Vorgabe des Ollama-Servers
-OLLAMA_NUM_CTX=65536          # Vorgabe für neue Doctus-Profile
+OLLAMA_NUM_CTX=65536          # Vorgabe für neue Codena-Profile
 OLLAMA_NUM_PARALLEL=3         # jede parallele Anfrage hält einen eigenen Cache
 OLLAMA_FLASH_ATTENTION=1      # Voraussetzung für den 8-Bit-Cache (Standard)
 OLLAMA_KV_CACHE_TYPE=q8_0     # Standard
 ```
 
 Im KI-Profil „Qwen3-Coder 30B“ unter Erweitert **LLM-Context-Länge `65536`** und **Parallele Anfragen `3`**
-eintragen; Doctus lässt dann höchstens drei Anfragen gleichzeitig an den Server und reiht weitere selbst ein.
+eintragen; Codena lässt dann höchstens drei Anfragen gleichzeitig an den Server und reiht weitere selbst ein.
 Der Wert darf nicht über `OLLAMA_NUM_PARALLEL` liegen, sonst warten Anfragen unsichtbar im Ollama. Nach dem Start mit `ollama ps` prüfen, dass `PROCESSOR` „100% GPU“ zeigt (sonst ist etwas auf die CPU
 ausgewichen), und mit `nvidia-smi` die Verteilung auf beide Karten. Die Werte sind aus der Modellarchitektur
 gerechnet; Flash Attention auf den Turing-Karten (RTX 6000/5000) beim ersten Start einmal messen.

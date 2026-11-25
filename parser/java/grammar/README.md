@@ -1,6 +1,6 @@
 # Java grammar provenance and regeneration
 
-Doctus pins the optimized Java grammar from `antlr/grammars-v4/java/java` at
+Codena pins the optimized Java grammar from `antlr/grammars-v4/java/java` at
 upstream commit `20efa537586610f5aebd584429ac1b5993a30381`:
 
 - [JavaLexer.g4](https://github.com/antlr/grammars-v4/blob/20efa537586610f5aebd584429ac1b5993a30381/java/java/JavaLexer.g4)
@@ -9,22 +9,22 @@ upstream commit `20efa537586610f5aebd584429ac1b5993a30381`:
 
 Both grammar files carry the BSD 3-Clause license and their copyright notices
 in their headers. Keep those headers with the source files and include the
-license in Doctus distribution notices. The upstream README identifies Java 24
+license in Codena distribution notices. The upstream README identifies Java 24
 as its current tested language level, so it is a suitable superset candidate
-for the Java 21 MVP. Doctus still validates every in-scope Java 21 feature in
+for the Java 21 MVP. Codena still validates every in-scope Java 21 feature in
 its own golden corpus; preview-only syntax is outside the MVP unless added by
 an explicit fixture and decision.
 
 The grammar directory currently has Java and C# target support only. Its Java
 parser relies on a target-specific superclass and two semantic predicates.
-Doctus implements equivalent Python behavior in
+Codena implements equivalent Python behavior in
 `../_antlr/JavaParserBase.py` and does not copy the upstream Java helper class.
 The generator and runtime are both pinned to ANTLR 4.13.2, matching
 `parser/requirements.txt`; the generator is a development-time tool and is not
 installed in the runtime image. The upstream license is included at
 `../LICENSE-upstream-grammars-v4-java`.
 
-Doctus adds Java 25 module import declarations and compact compilation units
+Codena adds Java 25 module import declarations and compact compilation units
 to this pinned grammar. The additions live in `JavaParser.g4` and the visitors
 in `../modern.py`; `test_java25_maven_workspace.py` covers source ownership,
 physical lines, module exports and calls. Flexible constructor bodies use the

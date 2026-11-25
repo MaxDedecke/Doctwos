@@ -93,7 +93,7 @@ flowchart TD
 - **Spaces:** je gewähltem Space eine Abfrage mit `spaceKey`; "ALL" lädt die ganze Instanz. Im Dialog lassen sich die
   Spaces der Instanz laden und anhaken (`POST /connectors/confluence/spaces`).
 - **Leseeinschränkungen:** Seiten mit direkt gesetzter Leseeinschränkung werden standardmäßig übersprungen (sonst sähen alle
-  Projektmitglieder in Doctus, was in Confluence nur wenigen erlaubt ist); `include_restricted` in der Quellenkonfiguration
+  Projektmitglieder in Codena, was in Confluence nur wenigen erlaubt ist); `include_restricted` in der Quellenkonfiguration
   schaltet das ein. Einschränkungen gelten auch für Unterseiten: ein Vorlauf ohne Seitentext sammelt alle eingeschränkten
   Seiten (`_collect_restricted_ids`), im Hauptlauf zählt eine Seite als eingeschränkt, wenn sie selbst oder eine ihrer
   Elternseiten (`expand=ancestors`) dazugehört.

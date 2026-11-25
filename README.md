@@ -93,7 +93,7 @@ Based on an empirical benchmark of a medium-sized project (**JUnit 5 framework**
 | **Application Logs (`./data/logs`)** | **~119 MB** | Bounded logs (backend, parser worker, beat, frontend) |
 | **Local Embedding Model (`./data/ollama`)** | **~1.1 GB** | `bge-m3` weights (*0 MB if using remote embeddings*) |
 | **Total Project Ingestion Data** | **~2.05 GB** | *(~950 MB when using external/remote embeddings)* |
-| **Docker Images (Doctus Core)** | **~3.7 GB** | Frontend, Backend API, Parser Worker, Valkey, pgvector |
+| **Docker Images (Codena Core)** | **~3.7 GB** | Frontend, Backend API, Parser Worker, Valkey, pgvector |
 | **Docker Image (Ollama runtime)** | **~8.25 GB** | Ollama runtime with CUDA/GPU support (*only if local AI active*) |
 | **Total Runtime Footprint** | **~14.0 GB** | *(~4.7 GB with external LLM/embedding endpoint)* |
 

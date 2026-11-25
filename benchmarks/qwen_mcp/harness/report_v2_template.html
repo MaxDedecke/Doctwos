@@ -1,4 +1,4 @@
-<title>Doctus MCP-Benchmark</title>
+<title>Codena MCP-Benchmark</title>
 <style>
 /* Layout: ein Lesefluss, Befund oben, danach Koordinatensystem, Disziplinen, Effekte, Methodik. */
 :root {
@@ -346,7 +346,7 @@ function renderChapter(D, N, $root, chap) {
 
   /* ---------- Kopf ---------- */
   var head = el('header', { class: 'sec' });
-  head.appendChild(el('div', { class: 'eyebrow' }, 'Doctus · MCP-Benchmark · Stand v2'));
+  head.appendChild(el('div', { class: 'eyebrow' }, 'Codena · MCP-Benchmark · Stand v2'));
   head.appendChild(el('h1', null, V.title));
   head.appendChild(el('p', { class: 'lead' }, V.lead));
   var nav = el('nav', { class: 'nav', 'aria-label': 'Abschnitte' }); nav.innerHTML = '<a href="#qwen">Qwen</a><a href="#luna">Luna</a><a href="#vergleich">Vergleich</a><a href="#ausblick">Ausblick</a><a href="#anhang">Anhang</a>'; head.appendChild(nav);

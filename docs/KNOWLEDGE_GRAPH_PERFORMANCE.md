@@ -41,7 +41,7 @@ committen und pushen. Die bestehende Canvas-Darstellung wird beibehalten.
 
 `frontend/scripts/benchmark-knowledge-graph.cjs` verwendet Playwright und einen
 separaten Frontend-Server. Sämtliche API-Antworten werden im Browser ersetzt;
-es werden keine Daten in eine laufende Doctus-Instanz geschrieben.
+es werden keine Daten in eine laufende Codena-Instanz geschrieben.
 
 ```bash
 cd frontend

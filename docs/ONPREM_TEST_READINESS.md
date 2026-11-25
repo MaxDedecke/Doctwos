@@ -1,4 +1,4 @@
-# Doctus: Checkliste für den ersten On-Prem-Test
+# Codena: Checkliste für den ersten On-Prem-Test
 
 Stand: 18.09.2026. Prüfgrundlage: Commit `e8e07f5`.
 
@@ -11,7 +11,7 @@ Code prüfen, da sich Befunde seit dem Prüfstand geändert haben können.
 
 - Zielplattform ist eine Linux-VM oder Linux-Maschine. Distribution, Architektur
   und konkrete Ressourcen sind noch offen.
-- Ollama wird immer mitgeliefert. Im vorgesehenen Erstbetrieb nutzt Doctus jedoch
+- Ollama wird immer mitgeliefert. Im vorgesehenen Erstbetrieb nutzt Codena jedoch
   einen Modellserver auf einer anderen On-Prem-Maschine im Intranet.
 - Die Remote-Schnittstellen sind laut Betreiber OpenAI-kompatibel.
 - Chat: vorgeschriebenes Qwen-32B-Modell; genaue Modellkennung und URL noch offen.
@@ -79,7 +79,7 @@ Die folgenden Punkte mit IT beziehungsweise Modellserver-Betreiber klären.
 - [ ] **O-200 – Linux:** Distribution, Version und Architektur (`x86_64` oder
   `aarch64`) festhalten.
 - [ ] **O-201 – Ressourcen:** CPU-Kerne, RAM und freien Speicher bestätigen;
-  Speicherorte für Docker, Doctus-Daten, Installationsarchive und Backups festlegen.
+  Speicherorte für Docker, Codena-Daten, Installationsarchive und Backups festlegen.
   Der Platzbedarf umfasst ZIP, entpacktes Paket, importierte Images, Modelle und
   wachsende Betriebsdaten.
 - [ ] **O-202 – Docker:** Installierte Docker-Engine-/Compose-Versionen festhalten;
@@ -88,7 +88,7 @@ Die folgenden Punkte mit IT beziehungsweise Modellserver-Betreiber klären.
 - [ ] **O-203 – Internet und Werkzeuge:** Klären, ob der Host vollständig ohne
   Internet arbeitet und wer fehlende Systempakete beziehungsweise Werkzeuge
   bereitstellt.
-- [ ] **O-204 – Doctus-Adresse:** Feste IP beziehungsweise DNS-Namen für Browserzugriff
+- [ ] **O-204 – Codena-Adresse:** Feste IP beziehungsweise DNS-Namen für Browserzugriff
   und API festlegen.
 - [ ] **O-205 – HTTPS und Ports:** Erlaubte Ports, vorhandenen Reverse-Proxy und
   Zertifikate klären. Festhalten, welche Komponenten gegebenenfalls zusätzlich
@@ -105,7 +105,7 @@ Die folgenden Punkte mit IT beziehungsweise Modellserver-Betreiber klären.
 - [ ] **O-209 – Authentifizierung:** API-Key-Verfahren und gegebenenfalls
   Unternehmens-CA für beide Endpunkte klären. Geheimnisse separat übergeben.
 - [ ] **O-210 – Netzwerk:** DNS, Routing, Firewall und gegebenenfalls Proxy klären.
-  Erreichbarkeit muss auch aus den Doctus-Containern gegeben sein, nicht nur vom
+  Erreichbarkeit muss auch aus den Codena-Containern gegeben sein, nicht nur vom
   Linux-Host.
 - [ ] **O-211 – Beispielanfragen:** Je eine funktionierende `curl`-Anfrage und
   Beispielantwort für Chat und Embeddings ohne echte Zugangsdaten beschaffen.
@@ -120,7 +120,7 @@ Die folgenden Punkte mit IT beziehungsweise Modellserver-Betreiber klären.
   Verwahrung von Verschlüsselungs- und Sitzungsschlüsseln festlegen.
 - [ ] **O-215 – Lokale Option:** Festlegen, welche Modellgewichte neben dem Ollama-
   Image mitgeliefert werden und ob lokaler Ersatzbetrieb Teil der Abnahme ist.
-  Eine GPU auf dem Doctus-Host ist für den geplanten Remote-Betrieb nicht nötig;
+  Eine GPU auf dem Codena-Host ist für den geplanten Remote-Betrieb nicht nötig;
   lokale Inferenz muss separat dimensioniert werden.
 
 ### Zielparameter zum Ausfüllen
@@ -257,7 +257,7 @@ einsatzbereit sind. Zeitlimits berücksichtigen kalte Modellstarts.
 ### O-223 – Pflicht: Remote-Funktionstest für Qwen
 
 - [ ] Vorhandenen Test auf konfigurierbare OpenAI-kompatible Endpunkte umstellen.
-- [ ] Test aus den betroffenen Doctus-Containern ermöglichen.
+- [ ] Test aus den betroffenen Codena-Containern ermöglichen.
 - [ ] Chat, Embeddings, Dimensionen und gegebenenfalls Streaming/Tool-Aufrufe prüfen.
 
 Befund: Das vorhandene Skript erwartet `bge-m3`, `/api/tags` und `/api/embed`,
@@ -1003,7 +1003,7 @@ PYTHONPATH=parser .venv-parser/bin/python parser/scripts/benchmark_mixed_languag
   <checkout> --revision <commit>
 ```
 
-**Abnahme:** Ergebnisprotokoll mit Datensatzrevision, Doctus-Version, Modellkennungen,
+**Abnahme:** Ergebnisprotokoll mit Datensatzrevision, Codena-Version, Modellkennungen,
 Ressourcen und verbleibenden Analysegrenzen liegt vor. Parallel nutzbarer Chat während
 Import und große Graph-/Suchergebnisse bleiben innerhalb vereinbarter Grenzen.
 Zuerst Pilotumfang freigeben, weitergehende statische Analyse nur bei nachgewiesener

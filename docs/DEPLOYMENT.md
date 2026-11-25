@@ -1,6 +1,6 @@
 # Deployment
 
-Doctus is single-tenant, self-hosted: one instance per customer, on their own infrastructure. There are two install paths depending on whether the customer's machine has internet/registry access (Path A, Path B), plus a lean image-only path for hosts that can pull public base images themselves (Path C).
+Codena is single-tenant, self-hosted: one instance per customer, on their own infrastructure. There are two install paths depending on whether the customer's machine has internet/registry access (Path A, Path B), plus a lean image-only path for hosts that can pull public base images themselves (Path C).
 
 ## Verified fresh-host run (develop, 2026-07-16)
 
@@ -23,7 +23,7 @@ Observed lessons:
 - The old demo instructions had drifted behind the schema (`Repository` was migrated to `KnowledgeSource(type="Git")`), referenced a removed `IFC_FILE` constant, and omitted the Lindenhof fixture file. The scripts and fixture are now aligned with the current schema; keep the verification query in the demo section below.
 - On this 8GB CPU-only host, Mistral NeMo 12B is not a viable default. The pilot now uses `LLM_MODEL=disabled`: only `bge-m3` is installed, so ingestion/search embeddings work while local chat and LLM-based compliance intentionally return a configuration error. Do not enable a local LLM here.
 - The frontend polls `/chat/typing-statement` for a decorative start-screen question even when nobody chats. In embedding-only mode the endpoint now returns its static fallback immediately, avoiding hidden background LLM attempts and recurring log warnings.
-- Measured idle memory for the 7-service Compose stack was about **671 MiB** after seeding, with `bge-m3` installed but unloaded. The disposable Keycloak used another ~529 MiB and is not part of the Doctus Compose stack.
+- Measured idle memory for the 7-service Compose stack was about **671 MiB** after seeding, with `bge-m3` installed but unloaded. The disposable Keycloak used another ~529 MiB and is not part of the Codena Compose stack.
 
 ## Prerequisites (both paths)
 
@@ -61,7 +61,7 @@ source dialog). The setting `FOLDER_MAX_FILE_MB` (default 200) limits files inde
 
 ### Local LLM deployments (Ollama, vLLM, llama.cpp)
 
-The default stack contains **no LLM container and no deployer**. Doctus runs without both: models are then
+The default stack contains **no LLM container and no deployer**. Codena runs without both: models are then
 reached through *Remote on-premise* or cloud profiles, or through the legacy `local-ollama` profile below.
 
 To let administrators start local model containers from the UI, switch the deployer on explicitly:
@@ -79,12 +79,12 @@ status nor local deployments, so a stack without the deployer reports no deploye
 > **Security:** the deployer mounts `/var/run/docker.sock`. Access to the Docker socket is root on the host: whoever
 > controls the deployer — or the backend, which holds `DEPLOYER_TOKEN` — can start a privileged container that mounts
 > the host file system. The token limits *who* may call the deployer, not what a compromised caller can do. Enable the
-> profile only on hosts where that is acceptable (typically a dedicated Doctus host), and switch it off again when no
+> profile only on hosts where that is acceptable (typically a dedicated Codena host), and switch it off again when no
 > local deployments are needed (`COMPOSE_PROFILES=` and `docker compose stop deployer && docker compose rm -f deployer`).
 > A socket proxy that only permits the deployer's fixed engine images is planned after OSS review.
 
 With the profile active, an administrator creates a model in **Settings > AI**: *Add profile > Local deployment*
-(LLM) and the same for the embedding profile. Doctus then asks the `deployer` service to start an Ollama, vLLM or
+(LLM) and the same for the embedding profile. Codena then asks the `deployer` service to start an Ollama, vLLM or
 llama.cpp container on this host, creates the matching profile and activates it when it is the first one. Without
 the profile, the dialog states that local deployments are not enabled. Models are downloaded on first start into the shared volume
 `doctus_llm_models` (vLLM and llama.cpp from Hugging Face; set `HF_TOKEN` in `.env` for gated models).
@@ -172,7 +172,7 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 | `MASTER_ENCRYPTION_KEY` | Fernet key encrypting `KnowledgeSource.token` **and** document/chat content (`DocumentChunk.content`, `ChatMessage.content`, `ComplianceAlert.source_passage`/`discrepancy_description` — every connector's parsed content: Git, Confluence, Jira, Notion, IFC, DWG, GAEB, uploads) at rest, see `backend/models/crypto_types.py`. Generate: `python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`. **Rotating this key requires re-encrypting all existing tokens and content first** — there's no automatic migration for that; treat it as fixed once you have real customer data. Losing this key makes the entire database's stored content permanently unreadable, not just connector credentials — back it up accordingly (see Backup section below). |
 | `SESSION_SECRET_KEY` | Signs the app's own session cookie, issued after either login path (local password or OIDC). Generate: `openssl rand -base64 32`. |
 | `OIDC_ISSUER` / `OIDC_CLIENT_ID` / `OIDC_CLIENT_SECRET` | **Optional** — SSO is a *second* login path next to the local password login (E-12), and it stays off until all three are set (`backend/core/config.py::oidc_enabled()`). From the customer's IdP; the issuer URL must serve `/.well-known/openid-configuration`. Note the name: `OIDC_ISSUER`, not `OIDC_ISSUER_URL`. |
-| `OIDC_DEFAULT_TEAM` / `OIDC_TEAM_MAPPING` / `OIDC_ADMIN_ROLES` / `OIDC_ROLES_CLAIM` / `OIDC_GROUPS_CLAIM` | **Optional (O-164)** — Automatic team assignment and superuser role mapping for SSO logins. `OIDC_DEFAULT_TEAM` assigns every SSO user to a team (e.g. `Default Team`). `OIDC_ADMIN_ROLES` is a comma-separated list of IdP roles mapped to `superuser` (e.g. `doctus-admin`). `OIDC_TEAM_MAPPING` maps IdP groups/roles to Doctus teams as JSON (`'{"dev": "Entwicklung"}'`) or comma list. |
+| `OIDC_DEFAULT_TEAM` / `OIDC_TEAM_MAPPING` / `OIDC_ADMIN_ROLES` / `OIDC_ROLES_CLAIM` / `OIDC_GROUPS_CLAIM` | **Optional (O-164)** — Automatic team assignment and superuser role mapping for SSO logins. `OIDC_DEFAULT_TEAM` assigns every SSO user to a team (e.g. `Default Team`). `OIDC_ADMIN_ROLES` is a comma-separated list of IdP roles mapped to `superuser` (e.g. `doctus-admin`). `OIDC_TEAM_MAPPING` maps IdP groups/roles to Codena teams as JSON (`'{"dev": "Entwicklung"}'`) or comma list. |
 | *(no redirect-URI variable)* | The redirect URI is **derived**, not configured: `<API_URL>/auth/oidc/callback` (`backend/core/oidc.py::redirect_uri()`). Register exactly that string on the IdP client. Getting `API_URL` right is therefore what gets the redirect right. |
 | `FRONTEND_URL` | Used for CORS (`allow_origins`) — must be the exact origin the browser loads the frontend from. |
 | `LOG_LEVEL` | Backend log verbosity (`DEBUG`/`INFO`/`WARNING`/`ERROR`), default `INFO`. The parser worker's verbosity is set separately via `--loglevel` on its `celery` command (`parser/Dockerfile`), not by this var. |
@@ -182,7 +182,7 @@ Copy `.env.example` to `.env` (both install scripts do this automatically if `.e
 
 ## TLS
 
-Doctus itself doesn't terminate TLS — `backend-api`/`frontend` listen on plain HTTP (ports 8000/3000), consistent with the project's "no extra infra beyond what's needed" stance (same reasoning as no bundled Kubernetes/Helm). Given the ICP this is built for (regulated/compliance-driven customers), **don't run a real deployment without HTTPS in front of it**: the session cookie set after OIDC login is only marked `Secure` (backend/api/auth.py) when `FRONTEND_URL` starts with `https://` — over plain HTTP, anyone on the network path can read it.
+Codena itself doesn't terminate TLS — `backend-api`/`frontend` listen on plain HTTP (ports 8000/3000), consistent with the project's "no extra infra beyond what's needed" stance (same reasoning as no bundled Kubernetes/Helm). Given the ICP this is built for (regulated/compliance-driven customers), **don't run a real deployment without HTTPS in front of it**: the session cookie set after OIDC login is only marked `Secure` (backend/api/auth.py) when `FRONTEND_URL` starts with `https://` — over plain HTTP, anyone on the network path can read it.
 
 Put a reverse proxy the customer already trusts (or already runs) in front of both ports and terminate TLS there. Example with Caddy, picked for its automatic cert handling — substitute whatever the customer's infra team standardizes on (nginx, Traefik, an existing load balancer):
 
@@ -219,13 +219,13 @@ The SDK validates Host and Origin headers. `API_URL` and loopback hosts are
 accepted by default. For an IDE-facing host that differs from `API_URL`, add
 that `host:port` to `MCP_ALLOWED_HOSTS`. Native IDE clients typically omit
 Origin; browser clients need their exact origin in `MCP_ALLOWED_ORIGINS` and
-the backend CORS configuration. The Doctus `FRONTEND_URL` is allowed by both
+the backend CORS configuration. The Codena `FRONTEND_URL` is allowed by both
 by default.
 Keep TLS enabled at the existing reverse proxy for non-loopback access. The
 same backend image and environment keys are used by the online and offline
 Compose files and by the air-gap bundle.
 
-> **The #1 way a fresh install ends up with broken login:** `FRONTEND_URL` and `API_URL` both default to `localhost` in `.env.example`. That only works if the browser you're testing with runs on the *same machine* as the Docker host. As soon as you (or the customer) open Doctus from another machine against the server's IP/hostname, both break differently but simultaneously: the frontend's API calls get CORS-rejected (`FRONTEND_URL` no longer matches the real browser origin), and — with SSO in use — the post-login redirect from the IdP goes nowhere, because the redirect URI is derived from `API_URL` (`<API_URL>/auth/oidc/callback`) and it is the *browser*, not the backend, that navigates there. Set both to the server's actual reachable address before the first real login attempt, and re-register the derived callback URI on the IdP client — and remember `.env` edits need `docker compose up -d` (not `docker compose restart`) to actually take effect, since Compose only injects env vars at container creation.
+> **The #1 way a fresh install ends up with broken login:** `FRONTEND_URL` and `API_URL` both default to `localhost` in `.env.example`. That only works if the browser you're testing with runs on the *same machine* as the Docker host. As soon as you (or the customer) open Codena from another machine against the server's IP/hostname, both break differently but simultaneously: the frontend's API calls get CORS-rejected (`FRONTEND_URL` no longer matches the real browser origin), and — with SSO in use — the post-login redirect from the IdP goes nowhere, because the redirect URI is derived from `API_URL` (`<API_URL>/auth/oidc/callback`) and it is the *browser*, not the backend, that navigates there. Set both to the server's actual reachable address before the first real login attempt, and re-register the derived callback URI on the IdP client — and remember `.env` edits need `docker compose up -d` (not `docker compose restart`) to actually take effect, since Compose only injects env vars at container creation.
 
 ## No IdP available yet? Throwaway Keycloak for testing
 
@@ -293,7 +293,7 @@ API_URL=http://<server-address>:8000
 FRONTEND_URL=http://<server-address>:3000
 ```
 
-There is no redirect-URI variable: the backend derives it from `API_URL` as `<API_URL>/auth/oidc/callback`, which is why that exact string has to be on the client's *Valid redirect URIs* list. `testuser` arrives as a plain user, not an admin — the realm carries no app-level role, and Doctus creates every SSO account with role `user`. Promote it from the bootstrap superuser account under Settings > Users if the demo needs admin rights. `docker compose up -d` to apply (Compose only injects env vars at container creation, so this step is required even though nothing in the images changed), then log in at `http://<server-address>:3000` — the SSO button appears once `oidc_enabled()` is satisfied — as `testuser` / `testpass`.
+There is no redirect-URI variable: the backend derives it from `API_URL` as `<API_URL>/auth/oidc/callback`, which is why that exact string has to be on the client's *Valid redirect URIs* list. `testuser` arrives as a plain user, not an admin — the realm carries no app-level role, and Codena creates every SSO account with role `user`. Promote it from the bootstrap superuser account under Settings > Users if the demo needs admin rights. `docker compose up -d` to apply (Compose only injects env vars at container creation, so this step is required even though nothing in the images changed), then log in at `http://<server-address>:3000` — the SSO button appears once `oidc_enabled()` is satisfied — as `testuser` / `testpass`.
 
 Firewall note: this throwaway Keycloak has its password and client secret sitting in plain sight in this repo. If `<server-address>` is a real public IP, don't leave port `8080` (or `3000`/`8000`) open to the internet longer than the demo needs — check `ufw status` / `iptables -L INPUT` before walking away from the box. The verified fresh-host run found UFW inactive; that was acceptable only for the short smoke test, not as a hand-off state. Replace this IdP and add TLS/firewall policy before real customer data is introduced.
 
@@ -302,7 +302,7 @@ Firewall note: this throwaway Keycloak has its password and client secret sittin
 Use this when the customer's server has internet access during setup.
 
 ```sh
-git clone --branch main --single-branch <repo> Doctus && cd Doctus
+git clone --branch main --single-branch <repo> Codena && cd Codena
 ./install.sh
 ```
 
@@ -379,7 +379,7 @@ es wurde im Java-Gate bewusst nicht ungeprüft erzwungen.
 
 ## Path B — Air-Gapped / Offline Installation
 
-Use this when the customer's server has **no internet/registry egress at all** — common for the privacy-strict, on-prem customers Doctus is positioned for. Here, the consultant builds and exports everything on a connected machine; the customer machine only loads and runs.
+Use this when the customer's server has **no internet/registry egress at all** — common for the privacy-strict, on-prem customers Codena is positioned for. Here, the consultant builds and exports everything on a connected machine; the customer machine only loads and runs.
 
 ### Who runs what
 
@@ -429,7 +429,7 @@ If a `MASTER_ENCRYPTION_KEY` rotation is ever needed on an already-deployed cust
 
 ## Path C — Image-only delivery
 
-Use this when the target host has internet access for the public base images but should neither build Doctus nor
+Use this when the target host has internet access for the public base images but should neither build Codena nor
 receive a checkout or a full offline bundle. Only the three custom images are delivered; PostgreSQL, Valkey and
 (optionally) Ollama are pulled by the host from Docker Hub using the digests pinned in `docker-compose.yml`.
 
@@ -611,7 +611,7 @@ cp .env doctus-env-$(date +%F).bak
 
 **Restore** (fresh host, or after wiping a broken one):
 ```sh
-git clone <repo> && cd Doctus
+git clone <repo> && cd Codena
 cp doctus-env-<date>.bak .env
 docker compose up -d db          # creates the empty doctus DB/role from .env
 gunzip -c doctus-db-<date>.sql.gz | docker compose exec -T db psql -U ${POSTGRES_USER} ${POSTGRES_DB}
@@ -642,7 +642,7 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 **No SSO button on the login page.** Expected whenever `OIDC_ISSUER`/`OIDC_CLIENT_ID`/`OIDC_CLIENT_SECRET` aren't all three set — the frontend shows the button based on `auth.ssoEnabled` from `GET /config/features`, which mirrors `oidc_enabled()`. The password login works regardless. Check the values with `docker compose exec backend-api env | grep OIDC`, then `docker compose up -d` (not `restart`) to apply changes.
 
-**SSO redirects to the IdP fine, but never makes it back / browser console shows CORS errors / the post-login redirect tries to load `localhost`.** `FRONTEND_URL` and/or `API_URL` are still set to `localhost` while the browser is on a different machine than the Docker host — see the callout under "TLS" above. Set both to the server's real address, register the resulting `<API_URL>/auth/oidc/callback` on the IdP client, then `docker compose up -d`. A rejected redirect URI shows up as the IdP's own error page ("Invalid parameter: redirect_uri"), not as a Doctus error.
+**SSO redirects to the IdP fine, but never makes it back / browser console shows CORS errors / the post-login redirect tries to load `localhost`.** `FRONTEND_URL` and/or `API_URL` are still set to `localhost` while the browser is on a different machine than the Docker host — see the callout under "TLS" above. Set both to the server's real address, register the resulting `<API_URL>/auth/oidc/callback` on the IdP client, then `docker compose up -d`. A rejected redirect URI shows up as the IdP's own error page ("Invalid parameter: redirect_uri"), not as a Codena error.
 
 **Changed `.env` but nothing changed.** `docker compose restart` does not re-read `.env` — Compose only injects environment variables when a container is *created*. Use `docker compose up -d`, which recreates only the containers whose config actually changed.
 
@@ -652,7 +652,7 @@ Store the `.env` backup at least as securely as the live server — combined wit
 
 ## Monitoring
 
-No monitoring stack ships with Doctus — that would be over-engineering for a single-tenant box (see the no-Kubernetes decision above). Point whatever the customer already runs (Nagios, Zabbix, Prometheus blackbox exporter, or just cron + curl) at:
+No monitoring stack ships with Codena — that would be over-engineering for a single-tenant box (see the no-Kubernetes decision above). Point whatever the customer already runs (Nagios, Zabbix, Prometheus blackbox exporter, or just cron + curl) at:
 
 - **Backend liveness:** `GET <API_URL>/health/live` returns HTTP 200 while the API process can serve requests. The container healthcheck uses this route, so an inference-provider discovery error does not mark the running API process unhealthy.
 - **Backend dependency readiness:** `GET <API_URL>/health` checks Postgres, Redis and the active LLM discovery endpoint, returning HTTP 503 with the failing entry named in `checks`. A 404 here means the configured provider does not serve the discovery route selected by the active profile; correct the profile's protocol/base URL before relying on LLM functionality.
@@ -664,7 +664,7 @@ No monitoring stack ships with Doctus — that would be over-engineering for a s
   curl -sf http://localhost:11434/api/tags >/dev/null && echo ollama-ok
   ```
 - **Logs:** `docker compose logs -f <service>` for ad hoc debugging. Every service is capped at 10MB × 3 files via the `x-logging` anchor in `docker-compose.yml`/`docker-compose.offline.yml` — Docker's `json-file` driver has no size cap by default, and these containers run indefinitely on a customer's box.
-- **Disk usage:** `data/postgres` and `./repos` are the two that grow with usage (CAD/BIM models and document repositories can be large). Not Doctus-specific — alert on free disk space the same way you would for any self-hosted service.
+- **Disk usage:** `data/postgres` and `./repos` are the two that grow with usage (CAD/BIM models and document repositories can be large). Not Codena-specific — alert on free disk space the same way you would for any self-hosted service.
 
 ## Diagnostics bundle
 

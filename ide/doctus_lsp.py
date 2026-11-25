@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small stdio Language Server for file-scoped Doctus references (O-325).
+"""Small stdio Language Server for file-scoped Codena references (O-325).
 
 Uses only Python's standard library. Configuration is read from DOCTUS_* env
 variables so any IDE with a stdio LSP client can launch it.
@@ -144,9 +144,9 @@ def code_lenses(uri):
         target = ref.get("target")
         destination = f"{target['file_path']}:{target.get('start_line') or 1}" if target else status_text(ref)
         title = (
-            f"Doctus: {ref['type']} from {destination}"
+            f"Codena: {ref['type']} from {destination}"
             if ref.get("direction") == "incoming"
-            else f"Doctus: {ref['type']} {ref['name']} → {destination}"
+            else f"Codena: {ref['type']} {ref['name']} → {destination}"
         )
         result.append({"range": location, "command": {
             "title": title,
@@ -177,7 +177,7 @@ def hover(uri, position):
         url = graph_url(path, ref["line"])
         return {"contents": {"kind": "markdown", "value":
                 f"**{markdown_text(ref['type'])} {markdown_text(ref['name'])}** · {markdown_text(status_text(ref))}"
-                f"{target_text}\n\n[Open in Doctus graph]({url})"}, "range": location}
+                f"{target_text}\n\n[Open in Codena graph]({url})"}, "range": location}
     return None
 
 
@@ -208,7 +208,7 @@ def handle(message):
             result = {"capabilities": {"textDocumentSync": 1, "hoverProvider": True,
                                        "codeLensProvider": {"resolveProvider": False},
                                        "executeCommandProvider": {"commands": ["doctus.openGraph"]}},
-                      "serverInfo": {"name": "Doctus", "version": "0.1.0"}}
+                      "serverInfo": {"name": "Codena", "version": "0.1.0"}}
         elif method == "textDocument/codeLens":
             result = code_lenses(params["textDocument"]["uri"])
         elif method == "textDocument/hover":
@@ -228,7 +228,7 @@ def handle(message):
         send({"jsonrpc": "2.0", "id": request_id, "result": result})
     except Exception as error:
         send({"jsonrpc": "2.0", "id": request_id,
-              "error": {"code": -32000, "message": f"Doctus: {type(error).__name__}"}})
+              "error": {"code": -32000, "message": f"Codena: {type(error).__name__}"}})
 
 
 def main():

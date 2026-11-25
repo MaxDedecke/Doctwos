@@ -1,7 +1,7 @@
 # Betriebs- und Nutzergrenzen
 
 Stand: 19.09.2026. Dieses Dokument trennt technische Schutzgrenzen von
-Produkt-/Abrechnungsquoten. Doctus ist single-tenant und selbst gehostet;
+Produkt-/Abrechnungsquoten. Codena ist single-tenant und selbst gehostet;
 Docker, PostgreSQL, Valkey und der verfügbare Speicherplatz bleiben deshalb
 zusätzliche Grenzen der jeweiligen Kundenumgebung.
 
@@ -43,10 +43,10 @@ docker compose exec -T redis redis-cli HGETALL 'doctus:inference:v1:{ENDPOINT_HA
 docker compose logs --since=30m backend-api parser-worker | rg inference_admission
 ```
 
-`utilization_percent` beschreibt die belegten Doctus-Slots relativ zum konfigurierten Limit. Für GPU-/CPU-Auslastung des eigentlichen Modellservers gelten weiterhin dessen eigene Telemetriedaten.
+`utilization_percent` beschreibt die belegten Codena-Slots relativ zum konfigurierten Limit. Für GPU-/CPU-Auslastung des eigentlichen Modellservers gelten weiterhin dessen eigene Telemetriedaten.
 
 O-258 ist lokal ohne Modellaufruf abgedeckt. Für die spätere Live-Abnahme werden
-Doctus-Logs und Redis-Zähler im selben Zeitfenster wie die Modellserver-/GPU-
+Codena-Logs und Redis-Zähler im selben Zeitfenster wie die Modellserver-/GPU-
 Telemetrie aufgezeichnet. Bei lokalem NVIDIA-Ollama kann dafür `nvidia-smi dmon`
 auf dem Modellhost mit dem Zeitraum der parallelen Chat- und Importanfragen
 verwendet werden. Bei einem Remote-Endpunkt müssen dessen Betreiber-Metriken für

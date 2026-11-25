@@ -1,12 +1,17 @@
-# Claude Instructions — Doctus
+# Claude Instructions — Codena
 
-Kontext für KI-Agenten, die an Doctus arbeiten.
+Kontext für KI-Agenten, die an Codena arbeiten.
 
-**Was Doctus ist:** ein On-Premise-Wissensassistent für große COBOL-Bestände.
+**Was Codena ist:** ein On-Premise-Wissensassistent für große COBOL-Bestände.
 Nutzer stellen Fragen in natürlicher Sprache, bekommen Antworten mit klickbaren
 Quellen im Originalcode, und navigieren Programm→Section→Paragraph sowie den
 Aufrufgraphen. Das Produkt wurde aus einem früheren Template herausgelöst;
 die heutige Fachlogik und Architektur sind COBOL-zentriert.
+
+**Name:** Seit 25.11.2026 heißt das Produkt **Codena**; „Doctus“ war der Arbeitstitel. Technische Bezeichner
+(`doctus_models`, Container `doctus-*`, DB `doctus`, `DOCTUS_*`, MCP-Server `doctus`, `// Doctus:`-Marker u. a.)
+tragen vorerst noch den alten Namen und werden nicht nebenbei umbenannt (`docs/ENTSCHEIDUNGEN.md` E-21).
+In neuen Texten, Prompts und Oberflächen immer „Codena“ schreiben.
 
 **Vor jeder Arbeit lesen:** zuerst `docs/ARBEITSLEITLINIE.md` (zentrale
 Arbeitsleitlinie mit Wochenplan; der frühere Feature-Stopp ist seit 21.11.2026 aufgehoben und
@@ -187,7 +192,7 @@ noch Maven-Ausführung im Import. Details: `docs/JAVA_TEST_PROJECT.md`.
 ## Auftrag 08.11.2026 — Erkenntnisse im Team pflegen
 
 Explizit beauftragt sind Zuständigkeiten und Prüfer, gezielte Hinweise innerhalb
-von Doctus, priorisierte Aufgaben, Belegbearbeitung, serverseitige Suche und
+von Codena, priorisierte Aufgaben, Belegbearbeitung, serverseitige Suche und
 Paginierung sowie bessere Relevanzauswahl. Eine ausdrückliche Sammelfreigabe
 darf die bestehenden Versions-, Revisions- und Vier-Augen-Prüfungen nicht umgehen.
 Embeddings werden auf dem vorhandenen Parser-Worker gepflegt; zusätzliche

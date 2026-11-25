@@ -1,6 +1,6 @@
-# SSO in Doctus konfigurieren
+# SSO in Codena konfigurieren
 
-Diese Anleitung richtet sich an Doctus-Administratoren und beschreibt die Einrichtung von Single Sign-On über OpenID Connect (OIDC). Unterstützt werden unter anderem Keycloak, Microsoft Entra ID, Okta und Authentik.
+Diese Anleitung richtet sich an Codena-Administratoren und beschreibt die Einrichtung von Single Sign-On über OpenID Connect (OIDC). Unterstützt werden unter anderem Keycloak, Microsoft Entra ID, Okta und Authentik.
 
 SSO ergänzt den lokalen Passwort-Login. Der lokale Login bleibt als Notfall- und Administrationszugang erhalten.
 
@@ -12,7 +12,7 @@ Benötigt werden:
 - die Issuer-URL des IdP,
 - eine Client-ID,
 - ein Client-Secret für einen vertraulichen OIDC-Client,
-- eine von Browser und IdP erreichbare Doctus-Adresse.
+- eine von Browser und IdP erreichbare Codena-Adresse.
 
 `API_URL` muss auf die öffentliche Backend-Adresse zeigen. Die Redirect-URI wird daraus automatisch gebildet:
 
@@ -44,9 +44,9 @@ Die genaue Bezeichnung der Einstellungen hängt vom IdP ab. Für Keycloak ist di
 https://sso.example.com/realms/doctus
 ```
 
-## 3. Doctus konfigurieren
+## 3. Codena konfigurieren
 
-In der `.env` des Doctus-Deployments folgende Werte setzen:
+In der `.env` des Codena-Deployments folgende Werte setzen:
 
 ```dotenv
 API_URL=https://doctus.example.com
@@ -69,17 +69,17 @@ docker compose up -d
 
 ## 4. Rollen und Teams automatisch zuordnen
 
-Ohne zusätzliche Konfiguration wird jeder neue SSO-Nutzer als normaler Doctus-Nutzer (`user`) angelegt. Teams und Administratorrechte werden dann manuell unter **Einstellungen → Nutzer** vergeben.
+Ohne zusätzliche Konfiguration wird jeder neue SSO-Nutzer als normaler Codena-Nutzer (`user`) angelegt. Teams und Administratorrechte werden dann manuell unter **Einstellungen → Nutzer** vergeben.
 
 ### Standard-Team
 
-Alle neuen SSO-Nutzer können automatisch einem vorhandenen Doctus-Team zugeordnet werden:
+Alle neuen SSO-Nutzer können automatisch einem vorhandenen Codena-Team zugeordnet werden:
 
 ```dotenv
 OIDC_DEFAULT_TEAM=Alle Mitarbeiter
 ```
 
-Das Team muss in Doctus bereits existieren. Nicht vorhandene Teams werden nicht automatisch angelegt.
+Das Team muss in Codena bereits existieren. Nicht vorhandene Teams werden nicht automatisch angelegt.
 
 ### IdP-Rollen zu Superusern abbilden
 
@@ -89,9 +89,9 @@ Nur ausdrücklich benannte IdP-Rollen dürfen Administratorrechte erhalten:
 OIDC_ADMIN_ROLES=doctus-admin,doctus-superuser
 ```
 
-Besitzt ein SSO-Nutzer eine dieser Rollen, erhält er in Doctus die Rolle `superuser`. Ist `OIDC_ADMIN_ROLES` gesetzt, wird die Doctus-Rolle bei jedem SSO-Login anhand der IdP-Rollen synchronisiert. Deshalb sollten hier nur vertrauenswürdige, eng gefasste Rollen stehen.
+Besitzt ein SSO-Nutzer eine dieser Rollen, erhält er in Codena die Rolle `superuser`. Ist `OIDC_ADMIN_ROLES` gesetzt, wird die Codena-Rolle bei jedem SSO-Login anhand der IdP-Rollen synchronisiert. Deshalb sollten hier nur vertrauenswürdige, eng gefasste Rollen stehen.
 
-### IdP-Gruppen oder Rollen auf Doctus-Teams abbilden
+### IdP-Gruppen oder Rollen auf Codena-Teams abbilden
 
 Als JSON:
 
@@ -105,11 +105,11 @@ Oder als kurze Kommaliste:
 OIDC_TEAM_MAPPING=developers=Entwicklung,operations=Betrieb
 ```
 
-Die Zielteams müssen vorher in Doctus angelegt werden. Die Synchronisation fügt die passenden Teammitgliedschaften hinzu und entfernt keine manuell vergebenen Mitgliedschaften.
+Die Zielteams müssen vorher in Codena angelegt werden. Die Synchronisation fügt die passenden Teammitgliedschaften hinzu und entfernt keine manuell vergebenen Mitgliedschaften.
 
 ### Abweichende Claim-Namen
 
-Standardmäßig liest Doctus Rollen aus `roles` und Gruppen aus `groups`. Für abweichende Claim-Namen oder verschachtelte Claims können die Pfade angepasst werden:
+Standardmäßig liest Codena Rollen aus `roles` und Gruppen aus `groups`. Für abweichende Claim-Namen oder verschachtelte Claims können die Pfade angepasst werden:
 
 ```dotenv
 OIDC_ROLES_CLAIM=realm_access.roles
@@ -118,9 +118,9 @@ OIDC_GROUPS_CLAIM=groups
 
 Keycloak-Rollen aus `realm_access.roles` und `resource_access.*.roles` werden zusätzlich automatisch berücksichtigt. Für andere IdPs sollten die tatsächlich gelieferten Claims mit deren Token-/Claim-Ansicht geprüft werden.
 
-## 5. Einrichtung in der Doctus-Oberfläche prüfen
+## 5. Einrichtung in der Codena-Oberfläche prüfen
 
-Mit einem lokalen Doctus-Administrator anmelden und **Einstellungen → System & SSO** öffnen.
+Mit einem lokalen Codena-Administrator anmelden und **Einstellungen → System & SSO** öffnen.
 
 Dort stehen zur Verfügung:
 
@@ -129,13 +129,13 @@ Dort stehen zur Verfügung:
 - die kopierbare Redirect-URI,
 - **IdP-Verbindung testen** für die OIDC-Discovery,
 - eine Mapping-Simulation für Rollen und Gruppen,
-- die konfigurierten Zielteams und deren Existenz in Doctus.
+- die konfigurierten Zielteams und deren Existenz in Codena.
 
 Die Oberfläche zeigt die Konfiguration nur an und testet sie. Änderungen an `.env` werden weiterhin auf dem Server vorgenommen und anschließend mit `docker compose up -d` übernommen.
 
 ## 6. Erster Login
 
-1. Prüfen, dass die SSO-Schaltfläche auf der Doctus-Anmeldeseite erscheint.
+1. Prüfen, dass die SSO-Schaltfläche auf der Codena-Anmeldeseite erscheint.
 2. Mit einem Testkonto des IdP anmelden.
 3. Prüfen, ob der Nutzer unter **Einstellungen → Nutzer** angelegt wurde.
 4. Rolle und Teamzuordnung kontrollieren.
@@ -163,7 +163,7 @@ Danach die Container mit `docker compose up -d` neu erzeugen.
 <API_URL>/auth/oidc/callback
 ```
 
-`API_URL` muss die Adresse sein, die der Browser erreicht. `localhost` funktioniert nur, wenn der Browser auf demselben Rechner wie der Doctus-Server läuft.
+`API_URL` muss die Adresse sein, die der Browser erreicht. `localhost` funktioniert nur, wenn der Browser auf demselben Rechner wie der Codena-Server läuft.
 
 ### Verbindungstest schlägt fehl
 
@@ -178,11 +178,11 @@ docker compose logs --tail=100 backend-api
 
 ### Nutzer wird angelegt, sieht aber keine Projekte
 
-Prüfen, ob `OIDC_DEFAULT_TEAM` oder `OIDC_TEAM_MAPPING` auf ein tatsächlich vorhandenes Doctus-Team zeigt. Alternativ den Nutzer unter **Einstellungen → Nutzer** manuell einem Team zuweisen.
+Prüfen, ob `OIDC_DEFAULT_TEAM` oder `OIDC_TEAM_MAPPING` auf ein tatsächlich vorhandenes Codena-Team zeigt. Alternativ den Nutzer unter **Einstellungen → Nutzer** manuell einem Team zuweisen.
 
 ## 8. Sicherheit
 
-- Doctus und den IdP produktiv nur über HTTPS betreiben.
+- Codena und den IdP produktiv nur über HTTPS betreiben.
 - Das Client-Secret niemals in Git, Screenshots oder Support-Tickets veröffentlichen.
 - `OIDC_ADMIN_ROLES` nur mit ausdrücklich freigegebenen Admin-Rollen befüllen.
 - Den lokalen Bootstrap-Administrator als Notfallzugang geschützt aufbewahren.
