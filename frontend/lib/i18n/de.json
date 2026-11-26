@@ -1447,14 +1447,15 @@
     "ssoButton": "Mit Single Sign-On anmelden",
     "ssoDivider": "oder",
     "oidcErrorPrefix": "SSO-Anmeldung fehlgeschlagen: {{message}}",
-    "brandEyebrow": "AI-driven Wissensmanagement",
-    "brandTitle": "Wissen aus dem Bestand\u00a0–",
-    "brandTitleAccent": "belegt bis auf die Zeile.",
-    "brandLead": "Fragen an COBOL- und Java-Code, Confluence und Jira stellen und Antworten mit klickbarer Quelle im Originalcode erhalten.",
-    "brandAnswer": "Antwort · 3 Belege",
-    "brandFactOnPrem": "On-Premise",
-    "brandFactLanguages": "COBOL · Java",
-    "brandFactEvidence": "Quelle bis zur Zeile"
+    "brandQuestions": {
+      "q1": "Wo wird dieses Feld geschrieben?",
+      "q2": "Welche Programme rufen diese Routine auf?",
+      "q3": "Welche Copybooks bindet das Programm ein?",
+      "q4": "Was ist betroffen, wenn sich diese Zeile ändert?",
+      "q5": "Woher stammt der Wert in diesem Feld?",
+      "q6": "Welche Tests decken diese Methode ab?",
+      "q7": "Wo ist diese Fachregel dokumentiert?"
+    }
   },
   "splitPane": {
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",

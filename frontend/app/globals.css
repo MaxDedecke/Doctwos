@@ -186,10 +186,7 @@ html {
    umgestellt, damit CodenaMark und text-foreground darin hell zeichnen. */
 .codena-brand-panel {
   --ds-foreground: 236 238 232;
-  --bp-muted: 155 167 158;
-  --bp-faint: 236 238 232;
   --bp-trace: 92 162 255;
-  --bp-surface: 16 25 23;
   background-color: #0b1210;
   color: rgb(236 238 232);
   background-image:

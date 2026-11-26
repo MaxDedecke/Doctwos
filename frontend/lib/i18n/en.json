@@ -1447,14 +1447,15 @@
     "ssoButton": "Sign in with Single Sign-On",
     "ssoDivider": "or",
     "oidcErrorPrefix": "SSO sign-in failed: {{message}}",
-    "brandEyebrow": "AI-driven knowledge management",
-    "brandTitle": "Knowledge from your codebase,",
-    "brandTitleAccent": "cited down to the line.",
-    "brandLead": "Ask questions about COBOL and Java code, Confluence and Jira, and get answers with clickable sources in the original code.",
-    "brandAnswer": "Answer · 3 sources",
-    "brandFactOnPrem": "On-premises",
-    "brandFactLanguages": "COBOL · Java",
-    "brandFactEvidence": "Source down to the line"
+    "brandQuestions": {
+      "q1": "Where is this field written?",
+      "q2": "Which programs call this routine?",
+      "q3": "Which copybooks does this program include?",
+      "q4": "What is affected if this line changes?",
+      "q5": "Where does the value in this field come from?",
+      "q6": "Which tests cover this method?",
+      "q7": "Where is this business rule documented?"
+    }
   },
   "splitPane": {
     "autoFoundDocs": "Automatically found documentation for {{name}}.",
