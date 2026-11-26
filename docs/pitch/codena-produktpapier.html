@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Codena – Produktinformation</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&family=Manrope:wght@800&display=swap');
+:root{
+  --paper:#FFFFFF;
+  --canvas:#F5F1E7;
+  --surface-2:#EAE3D2;
+  --ink:#171F1B;
+  --ink-muted:#5B6359;
+  --ink-faint:#8A9088;
+  --line:rgba(23,31,27,.14);
+  --line-strong:rgba(23,31,27,.30);
+  --signal:#E4002B;
+  --violet:#7A2E8C;
+  --trace:#0064D2;
+  --old:#8C877A;
+  --gradient:linear-gradient(120deg,var(--signal) 0%,var(--violet) 55%,var(--trace) 100%);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:#D9D4C7;
+  color:var(--ink);
+  font-family:'Archivo',system-ui,sans-serif;
+  font-size:8.6pt;
+  line-height:1.42;
+  -webkit-font-smoothing:antialiased;
+  -webkit-print-color-adjust:exact;print-color-adjust:exact;
+}
+h1,h2,h3{font-family:'Space Grotesk',system-ui,sans-serif;margin:0;letter-spacing:-0.015em;text-wrap:balance;}
+p{margin:0;}
+.mono{font-family:'IBM Plex Mono',ui-monospace,monospace;}
+
+.page{
+  width:210mm;height:297mm;
+  margin:10mm auto;
+  background:var(--paper);
+  padding:13mm 14mm 11mm;
+  display:flex;flex-direction:column;
+  position:relative;overflow:hidden;
+}
+.page::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2.2mm;background:var(--gradient);}
+
+/* Kopf */
+.brand{display:flex;align-items:center;gap:2.2mm;}
+.brand img{width:9mm;height:9mm;}
+.brand .word{font-family:'Manrope',system-ui,sans-serif;font-weight:800;font-size:17pt;letter-spacing:-0.035em;line-height:1;}
+.topline{display:flex;justify-content:space-between;align-items:center;padding-bottom:4mm;border-bottom:1px solid var(--line);}
+.topline .meta{font-family:'IBM Plex Mono';font-size:6.6pt;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-muted);text-align:right;line-height:1.6;}
+.eyebrow{font-family:'IBM Plex Mono';font-size:6.6pt;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-muted);display:flex;align-items:center;gap:1.6mm;}
+.eyebrow::before{content:"";width:1.5mm;height:1.5mm;background:var(--gradient);flex:none;}
+.hero{margin-top:5mm;}
+.hero h1{font-size:22pt;line-height:1.05;margin-top:2mm;max-width:160mm;}
+.hero .lead{font-size:9.4pt;line-height:1.45;color:var(--ink-muted);margin-top:2.5mm;max-width:168mm;}
+.grad{background:var(--gradient);-webkit-background-clip:text;background-clip:text;color:transparent;}
+
+/* Seite 1: Vergleich */
+.compare{margin-top:5mm;display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);flex:1;grid-auto-rows:auto;}
+.col-head{padding:3.2mm 5mm 2.8mm;border-bottom:1px solid var(--line);}
+.col-head.old{background:var(--canvas);border-right:1px solid var(--line);}
+.col-head.new{position:relative;}
+.col-head.new::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--gradient);}
+.col-head .tag{font-family:'IBM Plex Mono';font-size:6.4pt;font-weight:600;letter-spacing:.14em;text-transform:uppercase;}
+.col-head.old .tag{color:var(--old);}
+.col-head.new .tag{color:var(--signal);}
+.col-head h2{font-size:16pt;margin-top:1mm;line-height:1.05;}
+.col-head.old h2{color:#4A4D47;}
+.col-head .sub{font-size:8.2pt;color:var(--ink-muted);margin-top:1mm;}
+.cell{padding:2.3mm 5mm 2.4mm;border-bottom:1px solid var(--line);}
+.cell.old{background:var(--canvas);border-right:1px solid var(--line);color:#3D423C;}
+.cell:nth-last-child(-n+2){border-bottom:none;}
+.cell .k{font-family:'IBM Plex Mono';font-size:6.2pt;font-weight:600;letter-spacing:.13em;text-transform:uppercase;margin-bottom:.7mm;}
+.cell.old .k{color:var(--old);}
+.cell.new .k{color:var(--trace);}
+.cell p{font-size:8.3pt;line-height:1.38;}
+.cell b{font-weight:600;}
+
+/* Ablauf-Ketten */
+.flow{display:flex;align-items:flex-start;margin-top:1.8mm;position:relative;}
+.flow .st{flex:1;text-align:center;position:relative;z-index:1;}
+.flow .dot{width:6mm;height:6mm;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono';font-size:6.4pt;font-weight:600;}
+.flow .lbl{font-size:7pt;line-height:1.25;margin-top:1.3mm;padding:0 .6mm;}
+.flow::before{content:"";position:absolute;top:3mm;left:10%;right:10%;height:0;z-index:0;}
+.flow.old::before{border-top:1.2px dashed var(--old);}
+.flow.old .dot{background:var(--canvas);border:1.2px solid var(--old);color:#5E5A50;}
+.flow.new::before{height:1.6px;background:var(--gradient);top:2.75mm;left:12.5%;right:12.5%;}
+.flow.new .dot{background:#fff;border:1.6px solid var(--trace);color:var(--trace);}
+.flow.new .st:last-child .dot{background:var(--gradient);border:none;color:#fff;}
+.flow-note{font-family:'IBM Plex Mono';font-size:6.4pt;letter-spacing:.06em;margin-top:1.4mm;text-align:center;}
+.cell.old .flow-note{color:var(--old);}
+.cell.new .flow-note{color:var(--trace);}
+
+/* Kernaussagen Seite 1 */
+.shift{margin-top:4mm;display:grid;grid-template-columns:repeat(3,1fr);gap:0;border:1px solid var(--line);}
+.shift > div{padding:2.8mm 4.5mm;}
+.shift > div + div{border-left:1px solid var(--line);}
+.shift .from{font-family:'IBM Plex Mono';font-size:6.6pt;color:var(--old);text-decoration:line-through;text-decoration-color:rgba(140,135,122,.6);}
+.shift .to{font-family:'Space Grotesk';font-weight:700;font-size:11.5pt;line-height:1.15;margin-top:.8mm;}
+.shift p{font-size:7.8pt;color:var(--ink-muted);margin-top:1.2mm;}
+.closing{margin-top:3.5mm;font-size:9pt;line-height:1.5;padding-left:4mm;border-left:2px solid var(--signal);}
+
+/* Seite 2 */
+.p2-head{display:flex;justify-content:space-between;align-items:flex-end;padding-bottom:3.5mm;border-bottom:1px solid var(--line);}
+.p2-head .brand img{width:6.5mm;height:6.5mm;}
+.p2-head .brand .word{font-size:12pt;}
+.p2-title{margin-top:4mm;}
+.p2-title h2{font-size:19pt;line-height:1.08;margin-top:2mm;}
+.p2-title .lead{font-size:9.2pt;color:var(--ink-muted);margin-top:2.5mm;line-height:1.5;}
+
+.how{display:grid;grid-template-columns:96mm 1fr;gap:5mm;margin-top:4mm;}
+.shot{border:1px solid var(--line-strong);border-radius:1.5mm;overflow:hidden;position:relative;aspect-ratio:1030/680;background:#F7F7F5;}
+.shot img{position:absolute;width:186.4%;left:-56.3%;top:-12.6%;}
+.shot-cap{font-size:7pt;color:var(--ink-muted);margin-top:1.6mm;line-height:1.35;}
+.shot-cap b{color:var(--ink);font-weight:600;}
+.steps{display:flex;flex-direction:column;gap:3mm;}
+.step{display:grid;grid-template-columns:7mm 1fr;gap:2mm;}
+.step .n{font-family:'IBM Plex Mono';font-weight:600;font-size:7.4pt;color:var(--signal);padding-top:.6mm;}
+.step h3{font-size:10pt;}
+.step p{font-size:8pt;color:#363B35;margin-top:.6mm;}
+
+.sec-label{margin-top:4mm;}
+.feat{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);margin-top:2.2mm;}
+.feat > div{padding:2.4mm 3.2mm;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+.feat > div:nth-child(4n){border-right:none;}
+.feat > div:nth-last-child(-n+4){border-bottom:none;}
+.feat b{display:block;font-family:'Space Grotesk';font-size:8.8pt;font-weight:600;line-height:1.2;margin-bottom:.9mm;}
+.feat span{display:block;font-size:7.5pt;color:var(--ink-muted);line-height:1.38;}
+
+.uses{display:grid;grid-template-columns:repeat(4,1fr);gap:3mm;margin-top:2.2mm;}
+.uses > div{border-top:2px solid var(--trace);padding-top:1.8mm;}
+.uses b{display:block;font-size:8.4pt;font-weight:600;}
+.uses span{display:block;font-size:7.5pt;color:var(--ink-muted);margin-top:.6mm;line-height:1.38;}
+
+.ops{margin-top:4mm;background:#102220;color:#ECEEE8;display:grid;grid-template-columns:repeat(4,1fr);}
+.ops > div{padding:3.4mm 3.6mm;}
+.ops > div + div{border-left:1px solid rgba(236,238,232,.16);}
+.ops .k{font-family:'IBM Plex Mono';font-size:6.2pt;font-weight:600;letter-spacing:.13em;text-transform:uppercase;color:#5CA2FF;}
+.ops b{display:block;font-family:'Space Grotesk';font-size:9pt;font-weight:600;margin-top:.8mm;}
+.ops span{display:block;font-size:7.4pt;color:#B9C2BB;margin-top:.7mm;line-height:1.38;}
+
+.not{margin-top:3.6mm;font-size:7.8pt;color:var(--ink-muted);line-height:1.45;}
+.not b{color:var(--ink);font-weight:600;}
+
+footer{margin-top:auto;padding-top:3mm;border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:4mm;font-family:'IBM Plex Mono';font-size:6.4pt;letter-spacing:.06em;color:var(--ink-muted);}
+footer .contact{color:var(--ink);}
+
+@media print{
+  @page{size:A4;margin:0;}
+  body{background:#fff;}
+  .page{margin:0;page-break-after:always;break-after:page;}
+  .page:last-child{page-break-after:auto;break-after:auto;}
+}
+</style>
+</head>
+<body>
+
+<!-- ============ SEITE 1 ============ -->
+<section class="page">
+  <div class="topline">
+    <div class="brand"><img src="../assets/codena-icon.svg" alt=""><span class="word">Codena</span></div>
+    <div class="meta">Produktinformation<br>Wissensassistent für COBOL- und Java-Bestände</div>
+  </div>
+
+  <div class="hero">
+    <div class="eyebrow">Von Doctus zu Codena</div>
+    <h1>Vom Fragenkatalog zur <span class="grad">belegten Antwort.</span></h1>
+    <p class="lead">Wer große, über Jahrzehnte gewachsene Systeme betreut, stellt jeden Tag dieselbe Art von Fragen: Wo passiert das? Wer ruft das auf? Was hängt daran? Mit Doctus haben wir diese Fragen erstmals systematisch an einen Datenbestand gestellt. Codena führt die Idee weiter – mit allem, was wir dabei gelernt haben.</p>
+  </div>
+
+  <div class="compare">
+    <div class="col-head old">
+      <div class="tag">Damals · Proof of Concept</div>
+      <h2>Doctus</h2>
+      <p class="sub">Fragen per Datenbankabfrage beantworten</p>
+    </div>
+    <div class="col-head new">
+      <div class="tag">Heute · im Pilotbetrieb</div>
+      <h2>Codena</h2>
+      <p class="sub">Fragen direkt beantworten – mit Beleg im Originalcode</p>
+    </div>
+
+    <div class="cell old">
+      <div class="k">Prinzip</div>
+      <p>Ein <b>Fragenkatalog</b>: Jede Frage wurde mit einer Abfrage beantwortet – einer Beschreibung und einer Cypher-Query auf einen Neo4j-Graphen.</p>
+    </div>
+    <div class="cell new">
+      <div class="k">Prinzip</div>
+      <p>Ein <b>Wissensassistent</b>: Fragen in natürlicher Sprache gehen direkt an Quellcode und Dokumentation. Die Antwort steht in Sekunden bereit.</p>
+    </div>
+
+    <div class="cell old">
+      <div class="k">Ablauf</div>
+      <div class="flow old">
+        <div class="st"><div class="dot">1</div><div class="lbl">Frage im Katalog erfassen</div></div>
+        <div class="st"><div class="dot">2</div><div class="lbl">KI erzeugt Cypher-Query</div></div>
+        <div class="st"><div class="dot">3</div><div class="lbl">Fragesteller wird benachrichtigt</div></div>
+        <div class="st"><div class="dot">4</div><div class="lbl">Query ausführen</div></div>
+        <div class="st"><div class="dot">5</div><div class="lbl">Daten selbst deuten</div></div>
+      </div>
+      <div class="flow-note">Antwort auf Umweg · zeitversetzt</div>
+    </div>
+    <div class="cell new">
+      <div class="k">Ablauf</div>
+      <div class="flow new">
+        <div class="st"><div class="dot">1</div><div class="lbl">Frage stellen</div></div>
+        <div class="st"><div class="dot">2</div><div class="lbl">Codena sammelt Belege im Index</div></div>
+        <div class="st"><div class="dot">3</div><div class="lbl">Antwort mit Quellen</div></div>
+        <div class="st"><div class="dot">✓</div><div class="lbl">Klick bis zur Codezeile</div></div>
+      </div>
+      <div class="flow-note">Antwort im Dialog · in Sekunden</div>
+    </div>
+
+    <div class="cell old">
+      <div class="k">Rolle der KI</div>
+      <p>Übersetzt die Frage in eine Query. Ist die Query fehlerhaft, ist es auch das Ergebnis – und der Ergebnistabelle sieht man das nicht an.</p>
+    </div>
+    <div class="cell new">
+      <div class="k">Rolle der KI</div>
+      <p>Formuliert die Antwort aus Belegen, die Codena vorab aus dem Index zusammenstellt. Struktur und Beziehungen liefern <b>eigene Sprachparser</b>, nicht das Sprachmodell.</p>
+    </div>
+
+    <div class="cell old">
+      <div class="k">Datenbasis</div>
+      <p>Ein vorab modellierter Graph aus Confluence- und Bitbucket-Inhalten. Die Struktur des Codes selbst war nicht Teil des Modells.</p>
+    </div>
+    <div class="cell new">
+      <div class="k">Datenbasis</div>
+      <p>COBOL- und Java-Code mit Aufrufen, Copybooks und Datenzugriffen, dazu Confluence, Jira, GitLab Issues und Dateiablagen – <b>laufend synchronisiert</b>.</p>
+    </div>
+
+    <div class="cell old">
+      <div class="k">Ergebnis</div>
+      <p>Eine Datentabelle. Was sie fachlich bedeutet, blieb beim Fragesteller.</p>
+    </div>
+    <div class="cell new">
+      <div class="k">Ergebnis</div>
+      <p>Eine erklärende Antwort, jede Aussage mit <b>klickbarer Quelle bis zur Zeile</b>. Was sich nicht belegen lässt, wird als Lücke benannt statt ergänzt.</p>
+    </div>
+
+    <div class="cell old">
+      <div class="k">Betrieb</div>
+      <p>Vue.js, Python und Neo4j – eine zusätzliche Graphdatenbank, die mitbetrieben werden musste.</p>
+    </div>
+    <div class="cell new">
+      <div class="k">Betrieb</div>
+      <p>On-Premise, eine PostgreSQL-Datenbank für Text, Vektoren und Graph, austauschbares Sprachmodell, ausschließlich Open-Source-Komponenten.</p>
+    </div>
+  </div>
+
+  <div class="shift">
+    <div>
+      <div class="from">Abfrage</div>
+      <div class="to">Antwort</div>
+      <p>Niemand muss eine Query schreiben, prüfen oder ausführen.</p>
+    </div>
+    <div>
+      <div class="from">Datentabelle</div>
+      <div class="to">Beleg auf der Zeile</div>
+      <p>Jede Aussage ist in Sekunden nachprüfbar statt zu glauben.</p>
+    </div>
+    <div>
+      <div class="from">Ein Graphmodell</div>
+      <div class="to">Code und Doku vereint</div>
+      <p>Der Bestand selbst ist die Quelle – nicht ein Modell davon.</p>
+    </div>
+  </div>
+
+  <p class="closing">Doctus hat gezeigt, dass der Bedarf real ist: Entwicklung, Betrieb und Fachbereich wollen ihren Bestand befragen können. Codena behält dieses Ziel und ändert den Weg dorthin.</p>
+
+  <footer>
+    <span>CODENA · PRODUKTINFORMATION</span>
+    <span>1 / 2</span>
+  </footer>
+</section>
+
+<!-- ============ SEITE 2 ============ -->
+<section class="page">
+  <div class="p2-head">
+    <div class="brand"><img src="../assets/codena-icon.svg" alt=""><span class="word">Codena</span></div>
+    <div class="eyebrow">Codena im Detail</div>
+  </div>
+
+  <div class="p2-title">
+    <h2>Wissen über den Bestand – abrufbar, belegt und im eigenen Rechenzentrum.</h2>
+    <p class="lead">Das Verständnis großer COBOL- und Java-Bestände liegt oft bei wenigen Personen, die Dokumentation verstreut in Confluence, Jira und im Code selbst. Codena führt beides zusammen und macht es befragbar – für Entwicklung, Betrieb, Fachbereich und Revision.</p>
+  </div>
+
+  <div class="how">
+    <div>
+      <div class="shot"><img src="../assets/handbuch/10-frage-antwort.png" alt="Codena-Chat: Antwort mit Fundstellen im Originalcode"></div>
+      <p class="shot-cap"><b>Antwort im Evidenzmodus:</b> Jedes eingebundene Copybook mit Fundstelle im Originalprogramm – ein Klick öffnet die Zeile im Code-Viewer.</p>
+    </div>
+    <div class="steps">
+      <div class="eyebrow">So arbeitet Codena</div>
+      <div class="step"><div class="n">01</div><div>
+        <h3>Anbinden</h3>
+        <p>Git-Repositories (GitHub, GitLab, Bitbucket), Confluence, Jira, GitLab Issues, überwachte Ordner und Upload. Inkrementell und wiederaufsetzbar, auch für große Monorepos.</p>
+      </div></div>
+      <div class="step"><div class="n">02</div><div>
+        <h3>Verstehen</h3>
+        <p>Eigene Parser zerlegen COBOL in Programme, Sections, Paragraphen, Copybooks und Datenfelder, Java in Klassen, Methoden und Maven-Module. Aufrufe, Einbindungen und Datenzugriffe werden zu Verbindungen mit Originalzeile.</p>
+      </div></div>
+      <div class="step"><div class="n">03</div><div>
+        <h3>Antworten</h3>
+        <p>Chat, Code-Viewer, Aufruf- und Wissensgraph arbeiten auf demselben Index. Jede Antwort trägt ihre Quellen; Unbelegtes wird offen als Lücke ausgewiesen.</p>
+      </div></div>
+    </div>
+  </div>
+
+  <div class="eyebrow sec-label">Funktionen</div>
+  <div class="feat">
+    <div><b>Chat mit Zeilenbeleg</b><span>Antworten verweisen auf Datei und Zeile; ein Klick öffnet die Stelle im Code-Viewer.</span></div>
+    <div><b>Aufruf- und Wissensgraph</b><span>CALL, PERFORM, COPY, Methodenaufrufe und Vererbung – ein bis drei Ebenen, exportierbar.</span></div>
+    <div><b>Abhängigkeiten und Datenfluss</b><span>Wer ruft wen auf, welche Felder werden wo gelesen und geschrieben.</span></div>
+    <div><b>Code und Doku verknüpft</b><span>Wikiseiten und Tickets werden mit den Programmen verbunden, über die sie sprechen.</span></div>
+    <div><b>Geprüfte Erkenntnisse</b><span>Teamwissen mit Belegen festhalten und im Vier-Augen-Prinzip freigeben. Ändert sich der Code, wird es erneut vorgelegt.</span></div>
+    <div><b>Änderungspaket</b><span>Ein Commit wird den betroffenen Routinen zugeordnet – mit passenden Erkenntnissen sowie Build- und Testergebnissen aus der CI.</span></div>
+    <div><b>IDE und KI-Agenten</b><span>Erweiterungen für VS Code, JetBrains und Eclipse; Assistenten wie Copilot fragen Codena über MCP.</span></div>
+    <div><b>Rechte und Anmeldung</b><span>Single Sign-on (OIDC), Team- und Projektrechte, verschlüsselte Zugangsdaten zu den Quellsystemen.</span></div>
+  </div>
+
+  <div class="eyebrow sec-label">Typische Einsätze</div>
+  <div class="uses">
+    <div><b>Modernisierung vorbereiten</b><span>Abhängigkeiten, Schnittstellen und Schnittkandidaten belegt erfassen, bevor geschätzt wird.</span></div>
+    <div><b>Wissen sichern</b><span>Systemverständnis festhalten, bevor langjährige Wissensträger gehen.</span></div>
+    <div><b>Audit und Compliance</b><span>„Wo wird dieses Feld verarbeitet?“ – mit Fundstellen statt Handrecherche.</span></div>
+    <div><b>Einarbeitung</b><span>Neue Kolleginnen und Kollegen finden sich in Wochen statt Monaten zurecht.</span></div>
+  </div>
+
+  <div class="ops">
+    <div><div class="k">Betrieb</div><b>On-Premise als Standard</b><span>Der Quellcode verlässt das Haus nicht. Containerisiert, auch offline installierbar.</span></div>
+    <div><div class="k">KI</div><b>Sprachmodell nach Wahl</b><span>Lokal oder über einen internen Endpunkt. Cloud-Modelle nur nach ausdrücklicher Freigabe.</span></div>
+    <div><div class="k">Lizenzen</div><b>Ausschließlich Open Source</b><span>Nur MIT-, BSD- und Apache-2.0-Komponenten – keine Fremdlizenzen.</span></div>
+    <div><div class="k">Architektur</div><b>Schlank und skalierbar</b><span>Eine Datenbank, streamende und wiederaufsetzbare Verarbeitung für große Bestände.</span></div>
+  </div>
+
+  <p class="not"><b>Was Codena bewusst nicht ist:</b> kein Migrationswerkzeug und kein Codegenerator. Codena verändert keinen Bestand und ersetzt keine Fachexperten – es macht ihr Wissen für alle zugänglich und nachprüfbar.</p>
+
+  <footer>
+    <span>CODENA · PRODUKTINFORMATION · STAND NOVEMBER 2026</span>
+    <span class="contact">Kontakt: [Name · E-Mail · Telefon]</span>
+    <span>2 / 2</span>
+  </footer>
+</section>
+
+</body>
+</html>
