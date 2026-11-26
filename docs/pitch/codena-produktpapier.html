@@ -70,6 +70,7 @@ p{margin:0;}
 .col-head.new .tag{color:var(--signal);}
 .col-head h2{font-size:16pt;margin-top:1mm;line-height:1.05;}
 .col-head.old h2{color:#4A4D47;}
+.col-head h2 .ai{display:inline-block;vertical-align:middle;margin-left:2mm;padding:.7mm 2mm;border-radius:1mm;background:var(--gradient);color:#fff;font-family:'IBM Plex Mono';font-size:6.8pt;font-weight:600;letter-spacing:.1em;text-transform:uppercase;position:relative;top:-.6mm;}
 .col-head .sub{font-size:8.2pt;color:var(--ink-muted);margin-top:1mm;}
 .cell{padding:2.3mm 5mm 2.4mm;border-bottom:1px solid var(--line);}
 .cell.old{background:var(--canvas);border-right:1px solid var(--line);color:#3D423C;}
@@ -117,7 +118,7 @@ p{margin:0;}
 .shot img{position:absolute;width:186.4%;left:-56.3%;top:-12.6%;}
 .shot-cap{font-size:7pt;color:var(--ink-muted);margin-top:1.6mm;line-height:1.35;}
 .shot-cap b{color:var(--ink);font-weight:600;}
-.steps{display:flex;flex-direction:column;gap:3mm;}
+.steps{display:flex;flex-direction:column;gap:2.4mm;}
 .step{display:grid;grid-template-columns:7mm 1fr;gap:2mm;}
 .step .n{font-family:'IBM Plex Mono';font-weight:600;font-size:7.4pt;color:var(--signal);padding-top:.6mm;}
 .step h3{font-size:10pt;}
@@ -163,7 +164,7 @@ footer .contact{color:var(--ink);}
 <section class="page">
   <div class="topline">
     <div class="brand"><img src="../assets/codena-icon.svg" alt=""><span class="word">Codena</span></div>
-    <div class="meta">Produktinformation<br>Wissensassistent für COBOL- und Java-Bestände</div>
+    <div class="meta">Produktinformation<br>AI-driven Wissensassistent für COBOL- und Java-Bestände</div>
   </div>
 
   <div class="hero">
@@ -180,7 +181,7 @@ footer .contact{color:var(--ink);}
     </div>
     <div class="col-head new">
       <div class="tag">Heute · im Pilotbetrieb</div>
-      <h2>Codena</h2>
+      <h2>Codena <span class="ai">AI-driven</span></h2>
       <p class="sub">Fragen direkt beantworten – mit Beleg im Originalcode</p>
     </div>
 
@@ -221,7 +222,7 @@ footer .contact{color:var(--ink);}
     </div>
     <div class="cell new">
       <div class="k">Rolle der KI</div>
-      <p>Formuliert die Antwort aus Belegen, die Codena vorab aus dem Index zusammenstellt. Struktur und Beziehungen liefern <b>eigene Sprachparser</b>, nicht das Sprachmodell.</p>
+      <p><b>Das Herzstück.</b> Ein KI-Agent versteht die Frage, recherchiert selbstständig in Code und Dokumentation und erklärt das Ergebnis in eigenen Worten. Eigene Sprachparser liefern ihm die Belege, damit jede Aussage nachprüfbar ist.</p>
     </div>
 
     <div class="cell old">
@@ -307,7 +308,7 @@ footer .contact{color:var(--ink);}
       </div></div>
       <div class="step"><div class="n">03</div><div>
         <h3>Antworten</h3>
-        <p>Chat, Code-Viewer, Aufruf- und Wissensgraph arbeiten auf demselben Index. Jede Antwort trägt ihre Quellen; Unbelegtes wird offen als Lücke ausgewiesen.</p>
+        <p>Ein KI-Agent beantwortet Fragen im Chat – auf demselben Index wie Code-Viewer und Graph. Jede Antwort trägt ihre Quellen, Unbelegtes wird als Lücke ausgewiesen.</p>
       </div></div>
     </div>
   </div>
