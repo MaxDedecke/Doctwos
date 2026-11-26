@@ -99,7 +99,12 @@ def _require_discovered_model(
     response: httpx.Response, model: str, provider: str, label: str
 ) -> None:
     available = _discovered_model_names(response.json(), provider)
-    if model not in available:
+    # Ollama führt ein ohne Tag gezogenes oder kopiertes Modell als `<name>:latest`; beide meinen dasselbe Modell.
+    if provider == "ollama" and ":" not in model:
+        accepted = {model, f"{model}:latest"}
+    else:
+        accepted = {model}
+    if not accepted & set(available):
         logger.warning(
             "profile_readiness_model_mismatch label=%s expected_model=%s available_models=%s",
             label,

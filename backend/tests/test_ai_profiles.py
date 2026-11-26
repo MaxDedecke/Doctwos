@@ -1,3 +1,4 @@
+import pytest
 from codena_models.database import AIProfile, AISettings
 from services.ai_settings import apply_profile
 
@@ -287,3 +288,15 @@ def test_profile_test_skips_chat_profile_embedding_when_an_embedding_profile_is_
         db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
         db_session.delete(embedding)
         db_session.commit()
+
+
+def test_ollama_model_without_tag_matches_its_latest_tag():
+    """`ollama cp … bge-m3` legt `bge-m3:latest` an; der Profiltest darf das nicht als fehlend melden."""
+    import httpx
+
+    from api.system import _require_discovered_model
+
+    tags = httpx.Response(200, json={"models": [{"name": "bge-m3:latest"}, {"name": "qwen3-coder:30b"}]})
+    _require_discovered_model(tags, "bge-m3", "ollama", "embedding")
+    with pytest.raises(ValueError):
+        _require_discovered_model(tags, "qwen3:8b", "ollama", "chat")

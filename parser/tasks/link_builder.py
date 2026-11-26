@@ -667,6 +667,34 @@ async def _llm_review(
     return reviewed
 
 
+def _rating_items(response) -> list:
+    """Kandidatenbewertungen aus der JSON-Antwort, gleich in welcher Form das Modell sie liefert.
+
+    JSON-Modus (Ollama ``format="json"``, OpenAI ``json_object``) erzwingt ein *Objekt*, nie das angeforderte
+    Array. Beobachtet: das Array unter einem beliebigen Schlüssel (``{"valid_json_array": [...]}``), bei einem
+    Kandidaten das Objekt selbst (qwen3:8b) und je Kandidat ein Eintrag unter seiner Nummer
+    (``{"0": {...}, "1": {...}}``, gpt-5.1).
+    """
+    if isinstance(response, list):
+        return response
+    if not isinstance(response, dict):
+        return []
+    wrapped = next((value for value in response.values() if isinstance(value, list)), None)
+    if wrapped:
+        return wrapped
+    if "index" in response:
+        return [response]
+    keyed = []
+    for key, value in response.items():
+        if not isinstance(value, dict):
+            continue
+        if "index" not in value and str(key).strip().isdigit():
+            value = {**value, "index": int(str(key).strip())}
+        if "index" in value:
+            keyed.append(value)
+    return keyed
+
+
 async def _llm_review_once(
     entity: CodeEntity,
     top_pages: list[tuple[DocumentChunk, float, str]],
@@ -729,18 +757,7 @@ async def _llm_review_once(
                 entity.name,
             )
             response = await get_chat_json(prompt, config.LLM_MODEL, timeout=LLM_REVIEW_TIMEOUT)
-        # Ollamas format="json" erzwingt beim Modell ein JSON-*Objekt*, nie ein
-        # rohes Top-Level-Array (beobachtet z.B. {"valid_json_array": [...]}
-        # mit beliebigem, nicht vorhersagbarem Schlüsselnamen) - das angeforderte
-        # Array steckt dann in irgendeinem Wert des Objekts.
-        if isinstance(response, dict):
-            response_arr = next((v for v in response.values() if isinstance(v, list)), [])
-            if not response_arr and "index" in response:
-                # Kleine Modelle liefern bei einem einzelnen Kandidaten das Objekt selbst
-                # statt eines Arrays (beobachtet mit qwen3:8b).
-                response_arr = [response]
-        else:
-            response_arr = response if isinstance(response, list) else []
+        response_arr = _rating_items(response)
         if not response_arr:
             raise ValueError(
                 f"LLM lieferte keine Kandidatenbewertung (Antwort: {json.dumps(response, ensure_ascii=False)[:300]})"

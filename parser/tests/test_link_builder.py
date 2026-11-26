@@ -371,6 +371,17 @@ def test_llm_review_accepts_wrapped_array(monkeypatch):
     assert len(reviewed) == 1
 
 
+def test_llm_review_accepts_candidates_keyed_by_their_number(monkeypatch):
+    """gpt-5.1 im JSON-Modus: je Kandidat ein Eintrag unter seiner Nummer statt eines Arrays."""
+    reviewed = _review_with(monkeypatch, {"0": {"index": 0, "confidence": 75, "reason": _REASON}})
+    assert [(item[1], item[3]) for item in reviewed] == [(0.75, _REASON)]
+
+
+def test_llm_review_takes_the_index_from_the_key_when_the_entry_lacks_it(monkeypatch):
+    reviewed = _review_with(monkeypatch, {"0": {"confidence": 80, "reason": _REASON}})
+    assert [item[1] for item in reviewed] == [0.8]
+
+
 def test_llm_review_still_rejects_answer_without_candidates(monkeypatch):
     with pytest.raises(RuntimeError, match="keine Kandidatenbewertung"):
         _review_with(monkeypatch, {"hinweis": "nichts gefunden"})
