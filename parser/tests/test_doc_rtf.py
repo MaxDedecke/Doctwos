@@ -70,11 +70,11 @@ def test_encrypted_word_6_and_broken_files_get_clear_messages(tmp_path):
     with pytest.raises(UnsupportedFormat, match="passwortgeschützt"):
         extract_doc_text(_patched_copy(tmp_path, encrypt))
 
-    def word6(data):
-        data[2:4] = (0x65).to_bytes(2, "little")
+    def inconsistent_version(data):
+        data[2:4] = (0x65).to_bytes(2, "little")  # Word-6-Versionsnummer im Word-97-Kopf
 
-    with pytest.raises(UnsupportedFormat, match="Word 6/95"):
-        extract_doc_text(_patched_copy(tmp_path, word6))
+    with pytest.raises(UnsupportedFormat, match="Word-Version"):
+        extract_doc_text(_patched_copy(tmp_path, inconsistent_version))
 
     def wrong_magic(data):
         data[0:2] = b"\x00\x00"
@@ -163,3 +163,66 @@ def test_confluence_attachments_read_word_97_and_rtf():
         == EXPECTED
     )
     assert _extract_attachment_text(b"nichts Lesbares", "application/msword") is None
+
+
+# --- Von Word selbst geschriebene .doc (Apache POI, siehe fixtures/README.md) -----------------------
+
+
+def test_doc_saved_by_word_2007_or_later_is_not_mistaken_for_docx():
+    # Ab Word 2007 trägt eine .doc ein gezipptes Design in sich; zipfile.is_zipfile hielt sie für eine .docx.
+    import zipfile
+
+    path = FIXTURES / "poi-word2007-als-doc.doc"
+    assert zipfile.is_zipfile(path)
+    assert extract_legacy_doc(str(path), folder.extract_docx_text) == (
+        "I am a test document\nThis is page 1\nI am Calibri (Body) in font size 11\n\n"
+        "This is page two\nIt’s Arial Black in 16 point\nIt’s also in blue"
+    )
+
+
+def test_word_6_and_95_documents_are_read():
+    assert (
+        folder._extract_text(str(FIXTURES / "poi-word6.doc"))
+        == "The quick brown fox jumps over the lazy dog"
+    )
+
+
+def test_text_boxes_are_read_after_the_body():
+    assert extract_doc_text(str(FIXTURES / "poi-textfeld.doc")) == (
+        "Textfelder\nThis is a line of text.\n\nすれはテキスト行です。"
+    )
+
+
+def test_word_6_codepage_comes_from_the_document_properties():
+    from connectors.msdoc import _ansi_codec
+
+    class _Ole:
+        def __init__(self, codepage):
+            self.codepage = codepage
+
+        def get_metadata(self):
+            return self
+
+    assert _ansi_codec(_Ole(1251)) == "cp1251"
+    assert "Привет".encode("cp1251").decode(_ansi_codec(_Ole(1251))) == "Привет"
+    # Konverter tragen UTF-8 (65001, als Vorzeichenzahl -535) ein; Word-6-Text ist aber nie UTF-8.
+    assert _ansi_codec(_Ole(-535)) == "cp1252"
+    assert _ansi_codec(_Ole(None)) == "cp1252"
+
+
+def test_html_and_mhtml_saved_as_doc_are_read_as_web_pages(tmp_path):
+    html = tmp_path / "webseite.doc"
+    html.write_bytes(
+        "<html><head><style>p{}</style></head><body><h1>Betrieb</h1><p>Größe prüfen</p></body></html>".encode()
+    )
+    assert extract_legacy_doc(str(html), folder.extract_docx_text) == "Betrieb\nGröße prüfen"
+
+    mhtml = tmp_path / "confluence-export.doc"
+    mhtml.write_bytes(
+        b"Date: Mon, 1 Jan 2026 00:00:00 +0000\r\nMIME-Version: 1.0\r\n"
+        b'Content-Type: multipart/related; boundary="B"\r\n\r\n'
+        b"--B\r\nContent-Type: text/html; charset=UTF-8\r\nContent-Transfer-Encoding: quoted-printable\r\n\r\n"
+        b"<html><body><h1>Seite</h1><p>Gr=C3=B6=C3=9Fe</p></body></html>\r\n"
+        b"--B\r\nContent-Type: image/png\r\nContent-Transfer-Encoding: base64\r\n\r\niVBORw0KGgo=\r\n--B--\r\n"
+    )
+    assert extract_legacy_doc(str(mhtml), folder.extract_docx_text) == "Seite\nGröße"

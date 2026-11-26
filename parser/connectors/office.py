@@ -5,8 +5,7 @@ Textextraktion für Office- und Webdokumente, die Ordner-, WebDAV- und Upload-Pf
 Excel (.xlsx), PowerPoint (.pptx), OpenDocument (.odt/.ods/.odp) und HTML.
 
 Alles wird zu Klartext mit schlichten Überschriften (``## Blatt: …``, ``## Folie 3``), damit das generische
-Chunking daran sinnvoll schneiden kann. Binäre Alt-Formate (.doc) werden nicht geraten: Ein echtes
-Word-97-Dokument lässt sich ohne externe Konverter nicht lesen, das sagt die Fehlermeldung ausdrücklich.
+Chunking daran sinnvoll schneiden kann. Binäres Word (.doc, Word 6 bis 2003) liest ``connectors/msdoc.py``.
 """
 
 import zipfile
@@ -137,16 +136,55 @@ def extract_odf_text(file_path: str) -> str:
     return "\n".join(lines)
 
 
-def extract_legacy_doc(file_path: str, extract_docx) -> str:
-    """``.doc`` kann vieles sein: umbenanntes .docx (ZIP), umbenanntes RTF oder echtes Word 97–2003 (OLE)."""
-    if zipfile.is_zipfile(file_path):
-        return extract_docx(file_path)
-    with open(file_path, "rb") as handle:
-        head = handle.read(8)
-    if head.lstrip().startswith(b"{\\rtf"):
-        from connectors.rtf import extract_rtf_text
+_OLE_MAGIC = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"
 
-        return extract_rtf_text(file_path)
+
+def extract_legacy_doc(file_path: str, extract_docx) -> str:
+    """``.doc`` kann vieles sein: echtes Word 6–2003 (OLE), umbenanntes .docx (ZIP), RTF oder HTML/MHTML.
+
+    Erkannt wird am Dateikopf, nicht mit ``zipfile.is_zipfile``: Ab Word 2007 als .doc gespeicherte Dateien tragen
+    ein gezipptes Design (themeData) in sich, das ``is_zipfile`` für ein ZIP-Archiv hält; diese Dateien landeten
+    sonst im .docx-Leser und scheiterten.
+    """
+    with open(file_path, "rb") as handle:
+        head = handle.read(1024)
+    if head.startswith(b"PK\x03\x04"):
+        return extract_docx(file_path)
+    if not head.startswith(_OLE_MAGIC):
+        start = head.lstrip(b"\xef\xbb\xbf \t\r\n")
+        if start.startswith(b"{\\rtf"):
+            from connectors.rtf import extract_rtf_text
+
+            return extract_rtf_text(file_path)
+        if _looks_like_html(start):
+            return _html_export_text(file_path)
     from connectors.msdoc import extract_doc_text
 
     return extract_doc_text(file_path)
+
+
+def _looks_like_html(start: bytes) -> bool:
+    """Word-„Webseite“, Confluence- und Jira-„Export nach Word“: HTML oder MHTML mit Endung .doc."""
+    lower = start[:1024].lower()
+    return lower.startswith((b"<", b"mime-version:")) or b"<html" in lower
+
+
+def _html_export_text(file_path: str) -> str:
+    import email
+    from email import policy
+
+    from connectors.textio import decode_text
+
+    with open(file_path, "rb") as handle:
+        data = handle.read()
+    if not data.lstrip()[:1].startswith(b"<"):
+        message = email.message_from_bytes(data, policy=policy.default)
+        part = next((p for p in message.walk() if p.get_content_type() == "text/html"), None)
+        if part is not None:
+            payload = part.get_payload(decode=True) or b""
+            charset = part.get_content_charset()
+            try:
+                return html_to_text(payload.decode(charset) if charset else decode_text(payload))
+            except (LookupError, UnicodeDecodeError):
+                return html_to_text(decode_text(payload))
+    return html_to_text(decode_text(data))
