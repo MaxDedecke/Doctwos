@@ -73,7 +73,7 @@ from core.projects import (
 )
 from core.tracing import get_trace_id
 from services.job_control import send_tracked_task
-from services.source_file_text import read_source_text
+from services.source_file_text import indexed_text, read_source_text
 from services.web_documents import is_web_source
 from services.web_documents.resolve import (
     ASSET_MAX_AGE_SECONDS,
@@ -578,8 +578,9 @@ def get_knowledge_source_content(
     if not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Datei existiert nicht auf dem Server")
 
+    ext = os.path.splitext(file_path)[1].lower()
+    kind = (db_source.type or "").lower()
     try:
-        ext = os.path.splitext(file_path)[1].lower()
         if ext == ".pdf":
             try:
                 from pypdf import PdfReader
@@ -600,33 +601,84 @@ def get_knowledge_source_content(
                     status_code=500, detail=f"Fehler beim Lesen der PDF-Datei: {str(e)}"
                 )
 
-        elif ext in (".docx", ".doc"):
-            try:
-                import mammoth
+        if ext == ".docx" or (ext == ".doc" and _is_zip(file_path)):
+            document = _docx_content(file_path)
+            if document is not None:
+                return document
 
-                with open(file_path, "rb") as f:
-                    result = mammoth.convert_to_html(f)
-                return {"content": result.value, "format": "html"}
-            except Exception as e:
-                logger.warning(
-                    f"Mammoth HTML-Konvertierung fehlgeschlagen, Fallback auf Textmodus: {e}"
-                )
-                import docx
+        if kind != "git" and (ext in _INDEXED_TEXT_EXTENSIONS or ext == ".docx"):
+            return _indexed_content(db, db_source, path)
 
-                doc = docx.Document(file_path)
-                parts = [p.text for p in doc.paragraphs]
-                for table in doc.tables:
-                    for row in table.rows:
-                        parts.append(" | ".join(c.text for c in row.cells))
-                return {"content": "\n".join(parts), "format": "text"}
+        content = read_source_text(db, db_source, path, file_path)
+        fmt = "markdown" if ext == ".md" else "text"
+        return {"content": content, "format": fmt}
 
-        else:
-            content = read_source_text(db, db_source, path, file_path)
-            fmt = "markdown" if ext == ".md" else "text"
-            return {"content": content, "format": fmt}
-
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Fehler beim Lesen der Datei: {str(e)}")
+
+
+# Formate, die nur der Parser liest (Word 97 und älter, RTF, Office/OpenDocument, HTML- und CSV-Dokumente): Gezeigt
+# wird der beim Import extrahierte Text. In Git-Quellen sind .html/.csv/.rtf Quelltext und bleiben roh.
+_INDEXED_TEXT_EXTENSIONS = {
+    ".doc",
+    ".rtf",
+    ".xlsx",
+    ".pptx",
+    ".odt",
+    ".ods",
+    ".odp",
+    ".html",
+    ".htm",
+    ".csv",
+}
+
+
+def _is_zip(file_path: str) -> bool:
+    """Am Dateikopf, wie der Parser: Word ab 2007 bettet in .doc ein gezipptes Design ein, das ``is_zipfile`` täuscht."""
+    with open(file_path, "rb") as f:
+        return f.read(4) == b"PK\x03\x04"
+
+
+def _docx_content(file_path: str) -> Optional[dict]:
+    try:
+        import mammoth
+
+        with open(file_path, "rb") as f:
+            result = mammoth.convert_to_html(f)
+        return {"content": result.value, "format": "html"}
+    except Exception as e:
+        logger.warning(f"Mammoth HTML-Konvertierung fehlgeschlagen, Fallback auf Textmodus: {e}")
+    try:
+        import docx
+
+        doc = docx.Document(file_path)
+    except Exception as e:
+        logger.warning(f"python-docx kann die Datei nicht lesen, Rückfall auf den Index: {e}")
+        return None
+    parts = [p.text for p in doc.paragraphs]
+    for table in doc.tables:
+        for row in table.rows:
+            parts.append(" | ".join(c.text for c in row.cells))
+    return {"content": "\n".join(parts), "format": "text"}
+
+
+def _indexed_content(db: Session, db_source: KnowledgeSource, path: Optional[str]) -> dict:
+    spaces = db_source.spaces if isinstance(db_source.spaces, dict) else {}
+    if spaces.get("path") or not path:
+        # Hochgeladene Einzeldatei: Der Parser legt ihre Chunks unter dem Quellennamen ab (tasks/document.py).
+        keys = [db_source.name]
+    else:
+        keys = [path, "/" + path.lstrip("/")]
+    content = indexed_text(db, db_source, keys)
+    if content is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Für diese Datei liegt kein indexierter Text vor. Sie wird angezeigt, "
+            "sobald der Import sie gelesen hat; das Synchronisationsprotokoll nennt den Grund, falls er scheiterte.",
+        )
+    return {"content": content, "format": "text", "origin": "index"}
 
 
 @router.get("/{source_id}/raw")
