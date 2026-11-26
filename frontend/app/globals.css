@@ -182,6 +182,22 @@ html {
   background-image: linear-gradient(112deg, #ff174d 0%, #e50063 38%, #8058f2 68%, #1677df 100%);
 }
 
+/* Markenfläche (Login): in beiden Themes Petrolschwarz. --ds-foreground wird
+   umgestellt, damit CodenaMark und text-foreground darin hell zeichnen. */
+.codena-brand-panel {
+  --ds-foreground: 236 238 232;
+  --bp-muted: 155 167 158;
+  --bp-faint: 236 238 232;
+  --bp-trace: 92 162 255;
+  --bp-surface: 16 25 23;
+  background-color: #0b1210;
+  color: rgb(236 238 232);
+  background-image:
+    linear-gradient(rgb(236 238 232 / 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(236 238 232 / 0.045) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
 /* Slim, theme-aware scrollbars. */
 html {
   scrollbar-width: thin;

@@ -1446,7 +1446,15 @@
     "changeSubmit": "Save password",
     "ssoButton": "Sign in with Single Sign-On",
     "ssoDivider": "or",
-    "oidcErrorPrefix": "SSO sign-in failed: {{message}}"
+    "oidcErrorPrefix": "SSO sign-in failed: {{message}}",
+    "brandEyebrow": "AI-driven knowledge management",
+    "brandTitle": "Knowledge from your codebase,",
+    "brandTitleAccent": "cited down to the line.",
+    "brandLead": "Ask questions about COBOL and Java code, Confluence and Jira, and get answers with clickable sources in the original code.",
+    "brandAnswer": "Answer · 3 sources",
+    "brandFactOnPrem": "On-premises",
+    "brandFactLanguages": "COBOL · Java",
+    "brandFactEvidence": "Source down to the line"
   },
   "splitPane": {
     "autoFoundDocs": "Automatically found documentation for {{name}}.",

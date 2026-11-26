@@ -1446,7 +1446,15 @@
     "changeSubmit": "Passwort speichern",
     "ssoButton": "Mit Single Sign-On anmelden",
     "ssoDivider": "oder",
-    "oidcErrorPrefix": "SSO-Anmeldung fehlgeschlagen: {{message}}"
+    "oidcErrorPrefix": "SSO-Anmeldung fehlgeschlagen: {{message}}",
+    "brandEyebrow": "AI-driven Wissensmanagement",
+    "brandTitle": "Wissen aus dem Bestand\u00a0–",
+    "brandTitleAccent": "belegt bis auf die Zeile.",
+    "brandLead": "Fragen an COBOL- und Java-Code, Confluence und Jira stellen und Antworten mit klickbarer Quelle im Originalcode erhalten.",
+    "brandAnswer": "Antwort · 3 Belege",
+    "brandFactOnPrem": "On-Premise",
+    "brandFactLanguages": "COBOL · Java",
+    "brandFactEvidence": "Quelle bis zur Zeile"
   },
   "splitPane": {
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",

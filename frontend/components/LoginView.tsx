@@ -10,7 +10,7 @@ import { motion } from 'framer-motion';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { CodenaLogo } from './Logo';
-import { NetworkLoopCanvas } from './NetworkLoopCanvas';
+import { LoginBrandPanel } from './LoginBrandPanel';
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -124,14 +124,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
 
   return (
     <div className={cn(
-      "relative min-h-screen w-screen flex items-center justify-center p-6 sm:p-12 font-sans overflow-hidden codena-canvas",
+      "relative min-h-screen w-screen flex font-sans overflow-hidden",
       isDark ? "bg-ds-zinc-950 text-ds-zinc-200" : "bg-ds-zinc-50 text-ds-zinc-900",
     )}>
-      <NetworkLoopCanvas isDark={isDark} className="absolute inset-0 h-full w-full pointer-events-none" />
-      <div className="absolute inset-x-0 top-0 h-1 codena-brand-gradient" />
+      <div className="absolute inset-x-0 top-0 h-1 z-20 codena-brand-gradient" />
+      <LoginBrandPanel className="hidden lg:flex lg:w-[54%] xl:w-[56%] shrink-0" />
+      <div className="relative flex-1 flex items-center justify-center p-6 sm:p-12 codena-canvas">
       <div className="relative z-10 w-full max-w-[420px] space-y-10">
 
-        <div className="flex items-center justify-center gap-4 select-none">
+        <div className="flex lg:hidden items-center justify-center gap-4 select-none">
           <CodenaLogo className="text-[3.75rem]" />
         </div>
 
@@ -266,6 +267,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
           )}
         </motion.div>
 
+      </div>
       </div>
     </div>
   );
