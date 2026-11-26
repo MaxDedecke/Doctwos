@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Archivo, Space_Grotesk, IBM_Plex_Mono, Manrope } from "next/font/google";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
+import { BRANDING_STYLE_ID, brandingCss, brandingTitle, normalizeBranding, type Branding } from "@/lib/brandingTheme";
 
 // Codena brand type system (from the Codena Design blueprint mock): Archivo
 // for body/UI text, Space Grotesk for headings, IBM Plex Mono for
@@ -18,10 +19,12 @@ const manrope = Manrope({ subsets: ["latin"], weight: ["800"], variable: "--font
 // statically pre-rendering this layout (and thus the env value) at build.
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Codena – Code Knowledge System",
-  description: "Enterprise Knowledge for Legacy Codebases",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: brandingTitle(normalizeBranding(await fetchBranding())),
+    description: "Enterprise Knowledge for Legacy Codebases",
+  };
+}
 
 // maximumScale/userScalable bewusst NICHT gesetzt: sie unterbinden Pinch-Zoom
 // und verstoßen gegen WCAG 1.4.4 (NF-012) — bei AP-9 per axe-core gefunden.
@@ -39,12 +42,21 @@ async function fetchFeatures(): Promise<object | null> {
   return null;
 }
 
+async function fetchBranding(): Promise<Partial<Branding> | null> {
+  try {
+    const internalUrl = process.env.INTERNAL_API_URL || "http://localhost:8000";
+    const res = await fetch(`${internalUrl}/config/branding`, { cache: "no-store" });
+    if (res.ok) return await res.json();
+  } catch {}
+  return null;
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const features = await fetchFeatures();
+  const [features, branding] = await Promise.all([fetchFeatures(), fetchBranding()]);
 
   // suppressHydrationWarning: das Inline-Script unten setzt die .dark-Klasse
   // vor der Hydration (verhindert den Theme-Flash), wodurch das
@@ -64,9 +76,10 @@ export default async function RootLayout({
         />
         <script
           dangerouslySetInnerHTML={{
-            __html: `window.__CODENA_API_URL__ = ${JSON.stringify(process.env.API_URL || "http://localhost:8000")}; window.__CODENA_FEATURES__ = ${JSON.stringify(features)};`,
+            __html: `window.__CODENA_API_URL__ = ${JSON.stringify(process.env.API_URL || "http://localhost:8000")}; window.__CODENA_FEATURES__ = ${JSON.stringify(features)}; window.__CODENA_BRANDING__ = ${JSON.stringify(branding).replace(/</g, "\\u003c")};`,
           }}
         />
+        <style id={BRANDING_STYLE_ID} dangerouslySetInnerHTML={{ __html: brandingCss(normalizeBranding(branding)) }} />
         <script
           dangerouslySetInnerHTML={{
             __html: `

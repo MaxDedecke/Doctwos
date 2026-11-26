@@ -95,6 +95,7 @@ from api import (
     ai_capabilities,
 )
 from api.config_router import router as config_router
+from api.branding import router as branding_router
 from core.auth_dependency import get_current_user
 from core.db_setup import SessionLocal, bootstrap_superuser
 from services.ai_settings import initialize_runtime_settings
@@ -136,6 +137,7 @@ app.middleware("http")(trace_id_middleware)
 _authenticated = [Depends(get_current_user)]
 
 app.include_router(system.router)
+app.include_router(branding_router)
 app.include_router(config_router)
 app.include_router(auth.router)
 app.include_router(projects.router, dependencies=_authenticated)

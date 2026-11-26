@@ -34,6 +34,8 @@
        --ds-info-* und der rechte Anschlag von .codena-brand-gradient. */
     --ds-accent: 0 100 210;
     --ds-on-accent: 245 255 251;
+    /* Kernring der Codena-Marke: bleibt Codena-Blau, auch wenn Kundenbranding den Akzent ändert. */
+    --ds-brand-core: 0 100 210;
     --ds-focus: 0 100 210;
     --ds-danger: 190 18 60;
     --ds-on-danger: 255 255 255;
@@ -100,6 +102,7 @@
     --ds-input: 70 106 98;
     --ds-accent: 96 165 250;
     --ds-on-accent: 8 18 33;
+    --ds-brand-core: 96 165 250;
     --ds-focus: 96 165 250;
     --ds-danger: 248 113 113;
 

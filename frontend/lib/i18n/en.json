@@ -136,13 +136,15 @@
       "evaluation": "Evaluation",
       "layout": "Layout & Design",
       "users": "Users",
-      "systemConfig": "System & SSO"
+      "systemConfig": "System & SSO",
+      "corporate": "Corporate"
     },
     "header": {
       "projectSetup": "New Project",
       "gitSetupWizard": "Git Setup Wizard",
       "sourcesSetup": "Knowledge Source Setup",
-      "systemConfig": "System & SSO Configuration"
+      "systemConfig": "System & SSO Configuration",
+      "corporate": "Corporate branding"
     },
     "toast": {
       "darkModeEnabled": "Dark mode enabled",
@@ -1102,6 +1104,54 @@
       "pageOf": "Page {{page}} / {{pages}}",
       "previousPage": "Previous page",
       "nextPage": "Next page"
+    },
+    "corporateTab": {
+      "intro": "Customer branding in fixed places: logo and name on the sign-in page and in the sidebar, one accent colour for focus, links and active states, plus a notice and links on the sign-in page. The Codena mark, typography and layout stay unchanged.",
+      "identity": "Identity",
+      "customerName": "Company name",
+      "customerNameHelp": "Shown in the browser title and, if no logo is set, next to the Codena logo.",
+      "logo": {
+        "light": "Logo for light surfaces",
+        "dark": "Logo for dark surfaces",
+        "none": "No logo set",
+        "upload": "Upload PNG",
+        "remove": "Remove",
+        "uploaded": "Logo saved.",
+        "removed": "Logo removed.",
+        "help": "PNG with transparent background, at most 256 KB and 2048 × 2048 pixels. If one variant is missing, Codena shows the other in a single colour."
+      },
+      "accent": "Accent colour",
+      "accentReset": "Use Codena blue",
+      "accentHelp": "Replaces Codena blue for focus, links and active states. Codena checks contrast in both themes automatically.",
+      "accentAdjusted": "This colour is adjusted slightly for sufficient contrast.",
+      "accentConflict": {
+        "danger": "Close to the error colour: error messages and active elements could be confused.",
+        "warning": "Close to the warning colour: warnings and active elements could be confused.",
+        "success": "Close to the success colour: success messages and active elements could be confused."
+      },
+      "loginPage": "Sign-in page",
+      "notice": "Notice",
+      "noticePlaceholder": "e.g. Access for employees only. Questions to the IT service desk.",
+      "links": {
+        "imprint_url": "Legal notice",
+        "privacy_url": "Privacy",
+        "support_url": "Support"
+      },
+      "preview": {
+        "title": "Sign-in page preview",
+        "help": "Logo and name appear like this next to the Codena logo. The sidebar shows the logo small above the user.",
+        "light": "Light",
+        "dark": "Dark",
+        "button": "Action",
+        "link": "Link"
+      },
+      "save": "Save",
+      "saved": "Branding saved.",
+      "saveError": "Branding could not be saved.",
+      "loadError": "Branding could not be loaded.",
+      "resetAll": "Reset to Codena default",
+      "resetConfirm": "Remove all branding settings and both logos?",
+      "resetDone": "Codena default restored."
     }
   },
   "sidebar": {
@@ -1455,7 +1505,10 @@
       "q5": "Where does the value in this field come from?",
       "q6": "Which tests cover this method?",
       "q7": "Where is this business rule documented?"
-    }
+    },
+    "imprint": "Legal notice",
+    "privacy": "Privacy",
+    "support": "Support"
   },
   "splitPane": {
     "autoFoundDocs": "Automatically found documentation for {{name}}.",

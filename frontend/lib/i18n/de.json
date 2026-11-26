@@ -136,13 +136,15 @@
       "evaluation": "Evaluation",
       "layout": "Layout & Design",
       "users": "Nutzer",
-      "systemConfig": "System & SSO"
+      "systemConfig": "System & SSO",
+      "corporate": "Corporate"
     },
     "header": {
       "projectSetup": "Neues Projekt",
       "gitSetupWizard": "Git Setup-Assistent",
       "sourcesSetup": "Setup der Wissensquelle",
-      "systemConfig": "System & SSO-Konfiguration"
+      "systemConfig": "System & SSO-Konfiguration",
+      "corporate": "Corporate Branding"
     },
     "toast": {
       "darkModeEnabled": "Dunkler Modus aktiviert",
@@ -1102,6 +1104,54 @@
       "pageOf": "Seite {{page}} / {{pages}}",
       "previousPage": "Vorherige Seite",
       "nextPage": "Nächste Seite"
+    },
+    "corporateTab": {
+      "intro": "Kundenbranding an festen Plätzen: Logo und Name auf der Anmeldeseite und in der Sidebar, eine Akzentfarbe für Fokus, Links und aktive Zustände sowie Hinweis und Links auf der Anmeldeseite. Codena-Zeichen, Schrift und Layout bleiben unverändert.",
+      "identity": "Identität",
+      "customerName": "Unternehmensname",
+      "customerNameHelp": "Erscheint im Browsertitel und, wenn kein Logo hinterlegt ist, neben dem Codena-Logo.",
+      "logo": {
+        "light": "Logo für helle Flächen",
+        "dark": "Logo für dunkle Flächen",
+        "none": "Kein Logo hinterlegt",
+        "upload": "PNG hochladen",
+        "remove": "Entfernen",
+        "uploaded": "Logo gespeichert.",
+        "removed": "Logo entfernt.",
+        "help": "PNG mit transparentem Hintergrund, höchstens 256 KB und 2048 × 2048 Pixel. Fehlt eine Variante, zeigt Codena die andere einfarbig."
+      },
+      "accent": "Akzentfarbe",
+      "accentReset": "Codena-Blau verwenden",
+      "accentHelp": "Ersetzt das Codena-Blau für Fokus, Links und aktive Zustände. Codena prüft den Kontrast in beiden Themes automatisch.",
+      "accentAdjusted": "Diese Farbe wird für ausreichenden Kontrast leicht angepasst.",
+      "accentConflict": {
+        "danger": "Liegt nah an der Fehlerfarbe: Fehlermeldungen und aktive Elemente könnten verwechselt werden.",
+        "warning": "Liegt nah an der Warnfarbe: Warnungen und aktive Elemente könnten verwechselt werden.",
+        "success": "Liegt nah an der Erfolgsfarbe: Erfolgsmeldungen und aktive Elemente könnten verwechselt werden."
+      },
+      "loginPage": "Anmeldeseite",
+      "notice": "Hinweistext",
+      "noticePlaceholder": "z. B. Zugang nur für Mitarbeitende. Fragen an den IT-Service.",
+      "links": {
+        "imprint_url": "Impressum",
+        "privacy_url": "Datenschutz",
+        "support_url": "Support"
+      },
+      "preview": {
+        "title": "Vorschau Anmeldeseite",
+        "help": "Logo und Name erscheinen so neben dem Codena-Logo. Die Sidebar zeigt das Logo klein über dem Benutzer.",
+        "light": "Hell",
+        "dark": "Dunkel",
+        "button": "Aktion",
+        "link": "Link"
+      },
+      "save": "Speichern",
+      "saved": "Branding gespeichert.",
+      "saveError": "Branding konnte nicht gespeichert werden.",
+      "loadError": "Branding konnte nicht geladen werden.",
+      "resetAll": "Auf Codena-Standard zurücksetzen",
+      "resetConfirm": "Alle Branding-Angaben und beide Logos entfernen?",
+      "resetDone": "Codena-Standard wiederhergestellt."
     }
   },
   "sidebar": {
@@ -1455,7 +1505,10 @@
       "q5": "Woher stammt der Wert in diesem Feld?",
       "q6": "Welche Tests decken diese Methode ab?",
       "q7": "Wo ist diese Fachregel dokumentiert?"
-    }
+    },
+    "imprint": "Impressum",
+    "privacy": "Datenschutz",
+    "support": "Support"
   },
   "splitPane": {
     "autoFoundDocs": "Automatisch gefundene Dokumentation für {{name}}.",

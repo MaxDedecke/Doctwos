@@ -83,7 +83,7 @@ export const CodenaMark: React.FC<LogoProps> = ({ className, ...props }) => {
           mask={`url(#${id}-${i})`}
         />
       ))}
-      <circle cx={CORE.x} cy={CORE.y} r={CORE.r} stroke="rgb(var(--ds-accent))" strokeWidth={CORE.w} />
+      <circle cx={CORE.x} cy={CORE.y} r={CORE.r} stroke="rgb(var(--ds-brand-core))" strokeWidth={CORE.w} />
     </svg>
   );
 };

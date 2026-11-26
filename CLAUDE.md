@@ -126,6 +126,11 @@ Regeln dafür:
   Profil und Chat (`services/profile_capabilities.py`), getrennter Reasoning-Kanal und seitenweises Laden langer
   Chats. Einrichtung und Grenzen: `docs/REMOTE_INFERENCE.md`.
 
+- **Expliziter Auftrag 26.11.2026 (Corporate Branding):** Admins pflegen im Konfigurationsdialog (Tab „Corporate“)
+  Kundenbranding an festen Plätzen: Name, Logo hell/dunkel (nur PNG), eine Akzentfarbe mit automatischer
+  Kontrastanpassung, Hinweis und Links (Impressum, Datenschutz, Support) auf der Anmeldeseite. Codena-Zeichen,
+  Markenverlauf, Schrift und Layout bleiben fest (`services/branding.py`, `frontend/lib/branding*.ts`).
+
 - **Branch:** `develop`. `main` bleibt stabilen Releases vorbehalten.
 - **Lange Läufe** (Klonen, Parsen, Einbetten) gehören in Celery-Tasks im
   `parser`-Service, nie in einen Request-Handler.

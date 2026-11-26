@@ -8,8 +8,11 @@ import type { SourceScanSummaryData } from '@/components/sidebar/SourceScanSumma
 import type { BuildProfileView, PreflightReport, StoredBuildProfile } from '@/lib/buildProfileForm';
 import { rememberTraceIdFromHeaders } from '@/lib/traceId';
 import type { ProjectPulse } from '@/lib/chatStarters';
+import type { Branding } from '@/lib/brandingTheme';
 import type { DropDirection, DropKind, DropResult } from '@/lib/dropView';
 import type { WebDocumentData } from '@/lib/webDocumentHtml';
+
+export type BrandingSettings = Pick<Branding, 'customer_name' | 'accent_color' | 'login_notice' | 'imprint_url' | 'privacy_url' | 'support_url'>;
 
 declare global {
     interface Window {
@@ -358,4 +361,13 @@ export const api = {
     testOidcConnection: () => axios.post<OidcConnectionTestResult>(`${API_URL}/config/oidc/test-connection`),
     simulateOidcMapping: (data: { roles: string[]; groups: string[] }) =>
         axios.post<OidcMappingSimulationResult>(`${API_URL}/config/oidc/simulate-mapping`, data),
+    getBranding: () => axios.get<Branding>(`${API_URL}/config/branding`),
+    saveBranding: (data: BrandingSettings) => axios.put<Branding>(`${API_URL}/config/branding`, data),
+    resetBranding: () => axios.delete<Branding>(`${API_URL}/config/branding`),
+    uploadBrandingLogo: (variant: 'light' | 'dark', file: File) => {
+        const form = new FormData();
+        form.append('file', file);
+        return axios.put<Branding>(`${API_URL}/config/branding/logo/${variant}`, form);
+    },
+    deleteBrandingLogo: (variant: 'light' | 'dark') => axios.delete<Branding>(`${API_URL}/config/branding/logo/${variant}`),
 };

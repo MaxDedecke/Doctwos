@@ -9,6 +9,7 @@ const apiMocks = vi.hoisted(() => ({
   getMcpTokens: vi.fn(),
   getMcpToolAuditLogs: vi.fn(),
   getSystemConfig: vi.fn(),
+  getBranding: vi.fn(),
 }));
 vi.mock('@/app/services/api', () => ({ API_URL: 'http://api.test', api: apiMocks }));
 vi.mock('@/lib/i18n/LanguageContext', () => ({
@@ -20,6 +21,8 @@ vi.mock('@/components/settings/SettingsContext', () => ({ useSettings: () => set
 
 import { AiSettingsTab } from './AiSettingsTab';
 import { ConfigSettingsTab } from './ConfigSettingsTab';
+import { CorporateSettingsTab } from './CorporateSettingsTab';
+import { DEFAULT_BRANDING } from '@/lib/branding';
 import { McpSettingsTab } from './McpSettingsTab';
 
 const config = {
@@ -53,6 +56,7 @@ describe.each(['dark', 'light'] as const)('shared tab design (%s)', (theme) => {
     apiMocks.getMcpTokens.mockResolvedValue(axiosResponse([{ id: 1, name: 'Meine IDE', prefix: 'codena_mcp_ab', created_at: '2026-09-01T00:00:00Z', expires_at: '2099-01-01T00:00:00Z', revoked_at: null }]));
     apiMocks.getMcpToolAuditLogs.mockResolvedValue(axiosResponse({ entries: [], total: 0, offset: 0, limit: 20, retention_days: 30 }));
     apiMocks.getSystemConfig.mockResolvedValue(axiosResponse(config));
+    apiMocks.getBranding.mockResolvedValue(axiosResponse(DEFAULT_BRANDING));
   };
 
   it('IDE / MCP', async () => {
@@ -72,6 +76,13 @@ describe.each(['dark', 'light'] as const)('shared tab design (%s)', (theme) => {
     setup();
     const { container } = render(<ConfigSettingsTab />);
     await waitFor(() => expect(screen.getByText('settings.configTab.systemSection')).toBeTruthy());
+    expectSharedDesign(container, theme);
+  });
+
+  it('Corporate', async () => {
+    setup();
+    const { container } = render(<CorporateSettingsTab />);
+    await screen.findByText('settings.corporateTab.identity');
     expectSharedDesign(container, theme);
   });
 });

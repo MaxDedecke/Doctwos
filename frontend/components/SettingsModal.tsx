@@ -1,11 +1,12 @@
 import { AnimatePresence, motion } from 'framer-motion';
-import { ClipboardList, Cpu, Database, KeyRound, Layers, Server, Sliders, Terminal, UserCog, Users } from 'lucide-react';
+import { Building2, ClipboardList, Cpu, Database, KeyRound, Layers, Server, Sliders, Terminal, UserCog, Users } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 
 import { api } from '@/app/services/api';
 import { useSettings } from '@/components/settings/SettingsContext';
 import { AiSettingsTab } from '@/components/settings/tabs/AiSettingsTab';
 import { ConfigSettingsTab } from '@/components/settings/tabs/ConfigSettingsTab';
+import { CorporateSettingsTab } from '@/components/settings/tabs/CorporateSettingsTab';
 import { EvaluationSettingsTab } from '@/components/settings/tabs/EvaluationSettingsTab';
 import { GitSetupTab } from '@/components/settings/tabs/GitSetupTab';
 import { LayoutSettingsTab } from '@/components/settings/tabs/LayoutSettingsTab';
@@ -50,7 +51,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const { language, t } = useLanguage();
   const features = useFeatures();
-  const [settingsTab, setSettingsTab] = useState<'projects' | 'sources' | 'ai' | 'logs' | 'evaluation' | 'layout' | 'git-setup' | 'sources-setup' | 'project-setup' | 'teams' | 'users' | 'config' | 'mcp'>('sources');
+  const [settingsTab, setSettingsTab] = useState<'projects' | 'sources' | 'ai' | 'logs' | 'evaluation' | 'layout' | 'git-setup' | 'sources-setup' | 'project-setup' | 'teams' | 'users' | 'config' | 'corporate' | 'mcp'>('sources');
 
 
 
@@ -123,6 +124,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     { id: 'teams', label: t('settings.nav.teams'), icon: <Users className="w-3.5 h-3.5 shrink-0" />, enabled: !!currentUser?.is_admin },
                     { id: 'users', label: t('settings.nav.users'), icon: <UserCog className="w-3.5 h-3.5 shrink-0" />, enabled: !!currentUser?.is_admin },
                     { id: 'config', label: t('settings.nav.systemConfig') || 'System & SSO', icon: <Server className="w-3.5 h-3.5 shrink-0" />, enabled: !!currentUser?.is_admin },
+                    { id: 'corporate', label: t('settings.nav.corporate'), icon: <Building2 className="w-3.5 h-3.5 shrink-0" />, enabled: !!currentUser?.is_admin },
                     { id: 'mcp', label: 'IDE / MCP', icon: <KeyRound className="w-3.5 h-3.5 shrink-0" />, enabled: true },
                     { id: 'ai', label: t('settings.nav.ai'), icon: <Cpu className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.ai },
                     { id: 'logs', label: t('settings.nav.logs'), icon: <Terminal className="w-3.5 h-3.5 shrink-0" />, enabled: features.settings.logs },
@@ -170,6 +172,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                    settingsTab === 'teams' ? t('settings.nav.teams') :
                    settingsTab === 'users' ? t('settings.nav.users') :
                    settingsTab === 'config' ? (t('settings.header.systemConfig') || 'System & SSO-Konfiguration') :
+                   settingsTab === 'corporate' ? t('settings.header.corporate') :
                    settingsTab === 'mcp' ? 'IDE / MCP' :
                    settingsTab === 'ai' ? t('settings.nav.ai') :
                    settingsTab === 'logs' ? t('settings.nav.logs') :
@@ -221,6 +224,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
                   {/* Tab: System & SSO-Konfiguration (Admin-only) */}
                   {settingsTab === 'config' && <ConfigSettingsTab />}
+
+                  {settingsTab === 'corporate' && <CorporateSettingsTab />}
 
                   {settingsTab === 'mcp' && <McpSettingsTab />}
 

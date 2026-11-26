@@ -22,6 +22,8 @@ import { KnowledgeNodeIcon } from './KnowledgeNodeIcon';
 import { LazySourceTree } from './sidebar/LazySourceTree';
 import { SessionHistory } from './sidebar/SessionHistory';
 import { UserInfoDialog } from './UserInfoDialog';
+import { CustomerLogo } from './CustomerLogo';
+import { useBranding } from '@/lib/branding';
 
 interface SidebarProps {
   theme: string;
@@ -70,6 +72,7 @@ export function Sidebar({
   currentUser = null
 }: SidebarProps) {
   const { t } = useLanguage();
+  const branding = useBranding();
   const features = useFeatures();
   const [sidebarWidth, setSidebarWidth] = useState(336);
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
@@ -414,6 +417,9 @@ export function Sidebar({
               "px-4 py-3 border-t z-20 transition-colors duration-200",
               theme === 'dark' ? "border-ds-zinc-800" : "border-ds-zinc-300"
             )}>
+              {(branding.logo_light_url || branding.logo_dark_url) && (
+                <CustomerLogo surface={theme === 'dark' ? 'dark' : 'light'} boxClassName="h-6 max-w-[140px]" className="mb-3" />
+              )}
               <div className="flex items-center justify-between">
                 <button
                   type="button"

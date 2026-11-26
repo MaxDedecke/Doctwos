@@ -11,6 +11,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LoginView } from './LoginView';
 import { LanguageProvider } from '@/lib/i18n/LanguageContext';
 import * as featuresModule from '@/lib/features';
+import { setBranding } from '@/lib/branding';
 
 function renderLoginView(theme = 'dark') {
   return render(
@@ -105,5 +106,19 @@ describe('LoginView SSO button', () => {
     renderLoginView();
 
     expect(screen.queryByRole('alert')).toBeNull();
+  });
+});
+
+describe('LoginView corporate branding', () => {
+  afterEach(() => setBranding(null));
+
+  it('shows the notice and only the configured legal links', () => {
+    setBranding({ login_notice: 'Nur für Mitarbeitende.', imprint_url: 'https://intranet.test/impressum', support_url: 'mailto:it@test.example' });
+    renderLoginView('light');
+
+    expect(screen.getByText('Nur für Mitarbeitende.')).toBeTruthy();
+    expect(screen.getByRole('link', { name: 'Impressum' }).getAttribute('href')).toBe('https://intranet.test/impressum');
+    expect(screen.getByRole('link', { name: 'Support' }).getAttribute('href')).toBe('mailto:it@test.example');
+    expect(screen.queryByRole('link', { name: 'Datenschutz' })).toBeNull();
   });
 });

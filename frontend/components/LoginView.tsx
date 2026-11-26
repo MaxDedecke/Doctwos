@@ -11,6 +11,8 @@ import { ArrowRight, Loader2 } from 'lucide-react';
 import React, { useEffect, useState } from 'react';
 import { CodenaLogo } from './Logo';
 import { LoginBrandPanel } from './LoginBrandPanel';
+import { CustomerLogo, hasCustomerIdentity } from './CustomerLogo';
+import { useBranding } from '@/lib/branding';
 
 const MIN_PASSWORD_LENGTH = 12;
 
@@ -35,6 +37,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const ssoEnabled = getFeatures().auth.ssoEnabled;
+  const branding = useBranding();
+  const legalLinks = [
+    { href: branding.imprint_url, label: t('loginView.imprint') },
+    { href: branding.privacy_url, label: t('loginView.privacy') },
+    { href: branding.support_url, label: t('loginView.support') },
+  ].filter((link): link is { href: string; label: string } => Boolean(link.href));
 
   // GET /auth/oidc/callback landet bei einem Fehler hier zurück (siehe
   // backend/api/auth.py::_oidc_error_redirect) statt in einer eigenen Route —
@@ -132,8 +140,9 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
       <div className="relative flex-1 flex items-center justify-center p-6 sm:p-12 codena-canvas">
       <div className="relative z-10 w-full max-w-[420px] space-y-10">
 
-        <div className="flex lg:hidden items-center justify-center gap-4 select-none">
+        <div className="flex lg:hidden flex-col items-center justify-center gap-4 select-none">
           <CodenaLogo className="text-[3.75rem]" />
+          {hasCustomerIdentity(branding) && <CustomerLogo surface={isDark ? 'dark' : 'light'} boxClassName="h-8 max-w-[180px]" />}
         </div>
 
         {/* Login Card */}
@@ -267,7 +276,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onAuthenticated, theme = '
           )}
         </motion.div>
 
+        {branding.login_notice && (
+          <p className={cn("text-xs leading-relaxed whitespace-pre-line", isDark ? "text-ds-zinc-400" : "text-ds-zinc-600")}>
+            {branding.login_notice}
+          </p>
+        )}
       </div>
+      {legalLinks.length > 0 && (
+        <nav className={cn("absolute bottom-5 inset-x-0 flex justify-center gap-5 text-[0.6875rem]", isDark ? "text-ds-zinc-500" : "text-ds-zinc-600")}>
+          {legalLinks.map((link) => (
+            <a key={link.label} href={link.href} target="_blank" rel="noopener noreferrer" className="hover:underline underline-offset-2">
+              {link.label}
+            </a>
+          ))}
+        </nav>
+      )}
       </div>
     </div>
   );

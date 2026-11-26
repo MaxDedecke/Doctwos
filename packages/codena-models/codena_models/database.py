@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     DateTime,
     JSON,
+    LargeBinary,
     UniqueConstraint,
     Index,
     event,
@@ -418,6 +419,29 @@ class AISettings(Base):
     active_embedding_profile = relationship(
         "EmbeddingProfile", foreign_keys=[active_embedding_profile_id]
     )
+
+
+class CorporateBranding(Base):
+    """Kundenbranding an festen Plätzen (Login, Sidebar, Browsertitel) und eine Akzentfarbe.
+
+    Genau eine Zeile (id = 1). Logos liegen als geprüfte PNG-Bytes in der Datenbank, damit
+    Backups und Offline-Installationen sie ohne zusätzliches Volume mitnehmen. `revision`
+    steigt bei jeder Änderung und hängt als Cache-Schlüssel an den Logo-URLs.
+    """
+
+    __tablename__ = "corporate_branding"
+    id = Column(Integer, primary_key=True)
+    customer_name = Column(String(60), nullable=True)
+    accent_color = Column(String(7), nullable=True)
+    login_notice = Column(String(280), nullable=True)
+    imprint_url = Column(String(500), nullable=True)
+    privacy_url = Column(String(500), nullable=True)
+    support_url = Column(String(500), nullable=True)
+    logo_light = Column(LargeBinary, nullable=True)
+    logo_dark = Column(LargeBinary, nullable=True)
+    revision = Column(Integer, nullable=False, default=1, server_default="1")
+    updated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class AIProfile(Base):

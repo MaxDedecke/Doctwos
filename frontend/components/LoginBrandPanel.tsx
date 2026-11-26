@@ -2,7 +2,9 @@
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
 import React, { useEffect, useState } from 'react';
+import { CustomerLogo, hasCustomerIdentity } from './CustomerLogo';
 import { CodenaLogo, CodenaMark } from './Logo';
+import { useBranding } from '@/lib/branding';
 
 const QUESTION_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'];
 // Gleiches Tempo wie die getippte Überschrift im leeren Chat (ChatEmptyState).
@@ -62,6 +64,7 @@ export function LoginBrandPanel({ className }: { className?: string }) {
     [t],
   );
   const { text, isTyping } = useRotatingQuestion(questions);
+  const branding = useBranding();
 
   return (
     <aside
@@ -71,7 +74,15 @@ export function LoginBrandPanel({ className }: { className?: string }) {
       <CodenaMark className="pointer-events-none absolute -right-[18%] -bottom-[22%] !w-[62%] !h-auto opacity-[0.05]" />
 
       <div className="relative">
-      <CodenaLogo className="text-[2.6rem] mb-10" />
+      <div className="flex items-center gap-6 mb-10">
+        <CodenaLogo className="text-[2.6rem]" />
+        {hasCustomerIdentity(branding) && (
+          <>
+            <span className="h-10 w-px bg-[rgb(236_238_232/0.2)]" />
+            <CustomerLogo surface="dark" boxClassName="h-10 max-w-[200px]" className="text-[rgb(236_238_232/0.8)]" />
+          </>
+        )}
+      </div>
       <p className="relative max-w-[36rem] min-h-[3.3em] font-heading font-semibold text-[2.6rem] xl:text-[3rem] leading-[1.1] tracking-[-0.035em]">
         {text}
         <span
