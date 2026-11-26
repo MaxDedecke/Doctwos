@@ -2917,3 +2917,28 @@ def test_chat_sources_take_the_cites_of_shared_files():
         7,
     )
     assert {item["file"] for item in sources} == {"cbl/CBTRN02C.cbl", "cbl/COTRN02C.cbl"}
+
+
+def test_mcp_token_issued_before_the_rename_stays_valid(db_session, mcp_project_context):
+    """Vor E-21 ausgegebene Tokens (Präfix dct_mcp_) bleiben gültig, damit eingerichtete IDEs weiterlaufen."""
+    import hashlib
+
+    from codena_models.database import MCPAccessToken
+
+    user, _outsider, _project_id, _foreign_project_id = mcp_project_context
+    legacy_secret = "dct_mcp_" + "a" * 43
+    row = MCPAccessToken(
+        user_id=user.id,
+        name="Alt-Token",
+        token_hash=hashlib.sha256(legacy_secret.encode("ascii")).hexdigest(),
+        token_prefix=legacy_secret[:16],
+        expires_at=datetime.now(timezone.utc) + __import__("datetime").timedelta(days=1),
+    )
+    db_session.add(row)
+    db_session.commit()
+    try:
+        assert find_token_user(db_session, legacy_secret).id == user.id
+        assert find_token_user(db_session, "xyz_mcp_" + "a" * 43) is None
+    finally:
+        db_session.delete(row)
+        db_session.commit()

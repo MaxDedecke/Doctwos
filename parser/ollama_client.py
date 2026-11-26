@@ -587,9 +587,12 @@ async def is_gpu_accelerated(model: str) -> bool:
 
 
 async def ensure_model_pulled(model: str):
-    """
-    Ensures that the required embedding model is available in Ollama.
-    Reuses a persistent connection pool per event loop.
+    """Stellt sicher, dass das Embedding-Modell in Ollama liegt, ohne vorhandene Modelle neu zu laden.
+
+    Ein ``pull`` fragt immer die Registry im Internet an. Hinter Firmen-Proxys (eigene Zertifikate, kein
+    Internetzugang) scheitert das auch für längst vorhandene Modelle; deshalb wird nur gezogen, was fehlt, und
+    ein gescheiterter Pull bricht weder Sync noch Link-Analyse ab. Fehlt das Modell wirklich, meldet die
+    Einbettung selbst den Fehler.
     """
     settings = _effective_embedding_settings(model)
     configured_model = os.getenv("EMBED_MODEL", "bge-m3")
@@ -599,9 +602,31 @@ async def ensure_model_pulled(model: str):
     if settings["provider"] != "ollama":
         return
     client = _get_client()
-    await client.post(
-        f"{settings['base_url']}/api/pull",
-        json={"name": model},
-        headers=_headers(settings["api_key"]),
-        timeout=300.0,
-    )
+    headers = _headers(settings["api_key"])
+    try:
+        show = await client.post(
+            f"{settings['base_url']}/api/show",
+            json={"model": model, "name": model},
+            headers=headers,
+            timeout=30.0,
+        )
+        if show.status_code == 200:
+            return
+        response = await client.post(
+            f"{settings['base_url']}/api/pull",
+            json={"name": model, "stream": False},
+            headers=headers,
+            timeout=300.0,
+        )
+        error = None
+        if response.status_code >= 400:
+            error = response.text[:300]
+        else:
+            try:
+                error = response.json().get("error")
+            except ValueError:
+                error = None
+        if error:
+            logger.warning("Embedding-Modell %s ließ sich nicht laden: %s", model, error)
+    except httpx.HTTPError as exc:
+        logger.warning("Embedding-Modell %s ließ sich nicht prüfen oder laden: %s", model, exc)

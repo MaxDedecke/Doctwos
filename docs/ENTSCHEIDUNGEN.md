@@ -1034,5 +1034,8 @@ Markenverlauf der Oberfläche bleiben; die Marke nimmt Vordergrund- und Akzentfa
 
 Der Name gilt durchgängig: sichtbare Texte, Doku, Modellpaket `codena_models`, Compose-Projekt, Container und Images
 `codena-*`, Umgebungsvariablen `CODENA_*`, Cookies, Browser-Speicher, Token-Präfixe (`codena_mcp_`, `codena_ci_`),
-Deployer-Labels und IDE-Erweiterung. Es gibt keine Rückfälle auf frühere Bezeichner; es existierte keine
-Produktivumgebung, deren Sitzungen, Tokens oder Einstellungen zu erhalten gewesen wären.
+Deployer-Labels und IDE-Erweiterung. Rückfälle auf frühere Bezeichner gibt es im Code nicht, mit einer Ausnahme:
+MCP- und CI-Tokens mit dem früheren Präfix (`dct_mcp_`, `dct_ci_`) bleiben bis zu ihrem Ablauf gültig, weil die
+laufende Evaluationsinstallation damit eingerichtete IDEs und Pipelines hat. Bestehende Installationen wechseln
+einmalig per Migrationsskript im Begleitrepository des Pilots (Compose-Projekt, `.env`, Altcontainer); Datenbank,
+Schlüssel und alle Einstellungen bleiben dabei erhalten.

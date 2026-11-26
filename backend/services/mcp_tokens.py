@@ -10,6 +10,8 @@ from codena_models.database import MCPAccessToken, User
 
 
 TOKEN_PREFIX = "codena_mcp_"
+# Vor E-21 ausgegebene Tokens tragen noch das frühere Präfix; sie bleiben bis zu ihrem Ablauf gültig.
+ACCEPTED_PREFIXES = (TOKEN_PREFIX, "dct_mcp_")
 
 
 def _now() -> datetime:
@@ -36,7 +38,7 @@ def create_token(db: Session, *, user: User, name: str, days: int) -> tuple[MCPA
 
 
 def find_token_user(db: Session, secret: str) -> User | None:
-    if not secret.startswith(TOKEN_PREFIX) or len(secret) > 128:
+    if not secret.startswith(ACCEPTED_PREFIXES) or len(secret) > 128:
         return None
     digest = hashlib.sha256(secret.encode("utf-8")).hexdigest()
     row = db.query(MCPAccessToken).filter(MCPAccessToken.token_hash == digest).first()

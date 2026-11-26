@@ -150,8 +150,6 @@ def _validate_profile_values(values: dict, existing: AIProfile | None = None) ->
             )
     if kind == "remote" and not llm_base_url:
         raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine URL")
-    if kind == "remote" and not embedding_base_url:
-        raise HTTPException(status_code=400, detail="Remote-Profile benötigen eine Embedding-URL")
     if protocol == "ollama" and provider != "ollama":
         raise HTTPException(status_code=400, detail="Ollama-Protokoll benötigt den Ollama-Provider")
     if protocol == "openai_chat" and provider not in {"openai", *SELF_HOSTED_OPENAI_PROVIDERS}:
@@ -687,7 +685,14 @@ async def test_ai_profile(
                 profile.llm_api_key,
             )
         )
-    if profile.embedding_base_url and profile.embedding_provider in {"ollama", "openai"}:
+    # Die Embedding-Angaben am Chat-Profil sind nur der Rückfall ohne aktives Embedding-Profil; ist eines aktiv,
+    # prüft dessen eigener Test den Embedding-Endpunkt.
+    embedding_fallback_in_use = get_settings(db).active_embedding_profile_id is None
+    if (
+        embedding_fallback_in_use
+        and profile.embedding_base_url
+        and profile.embedding_provider in {"ollama", "openai"}
+    ):
         discovery_path = "/api/tags" if profile.embedding_provider == "ollama" else "/models"
         probes.append(
             (

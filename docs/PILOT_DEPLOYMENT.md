@@ -56,8 +56,8 @@ Unter Einstellungen > KI entstehen dafür zwei KI-Profile und ein Embedding-Prof
 | Profil | Art | Einstellungen |
 |---|---|---|
 | Chat „Qwen3-Coder 30B“ | Lokal, wenn es das mitgelieferte Ollama (`http://ollama:11434`) ist; sonst Remote mit Protokoll Ollama und `http://host.docker.internal:11434` | Modell `qwen3-coder:30b`; unter Erweitert LLM-Kontext `32768` (Vorgabe 8192) |
-| Embedding „bge-m3“ | Embedding-Profil, kein KI-Profil | Ollama, Modell `bge-m3`, 1024 Dimensionen; gilt für neue Projekte, unabhängig vom aktiven Chat-Profil |
-| Chat „Firmen-LLM“ | Remote, Protokoll „OpenAI-kompatibel“ oder „vLLM“ | URL `http://host.docker.internal:<port>/v1`, API-Key, exakte Modellkennung, LLM-Kontext des Servers; unter Erweitert die Embedding-URL des Ollama eintragen (Pflichtfeld, wird beim Profiltest geprüft) |
+| Embedding „bge-m3“ | Embedding-Profil, kein KI-Profil | Ollama, Modell `bge-m3`, 1024 Dimensionen; gilt für neue Projekte, unabhängig vom aktiven Chat-Profil. Ohne Internetzugang das Modell vorab einspielen; Codena lädt es nur nach, wenn es fehlt (`EMBEDDING_AUTO_PULL`) |
+| Chat „Firmen-LLM“ | Remote, Protokoll „OpenAI-kompatibel“ oder „vLLM“ | URL `http://host.docker.internal:<port>/v1`, API-Key, exakte Modellkennung, LLM-Kontext des Servers. Embedding-Angaben gehören nicht ins Chat-Profil, sondern ins Embedding-Profil darüber |
 
 ### GPU-Bemessung: Qwen3-Coder 30B auf 24 GB + 16 GB
 

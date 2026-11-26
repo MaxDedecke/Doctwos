@@ -144,11 +144,20 @@ def test_profile_update_preserves_omitted_secret(client, db_session):
 def test_profile_test_checks_chat_and_embedding_endpoints_separately(
     client, db_session, monkeypatch
 ):
+    from services.ai_settings import get_settings
+
     created = client.post("/ai-profiles", json=_payload()).json()
+    # Ohne aktives Embedding-Profil sind die Embedding-Angaben des Chat-Profils der Rückfall und werden geprüft.
+    settings = get_settings(db_session)
+    previous_embedding_profile = settings.active_embedding_profile_id
+    settings.active_embedding_profile_id = None
+    db_session.commit()
     calls = []
     monkeypatch.setattr("api.system.httpx.AsyncClient", lambda **_kwargs: _ProfileTestClient(calls))
 
     response = client.post(f"/ai-profiles/{created['id']}/test")
+    settings.active_embedding_profile_id = previous_embedding_profile
+    db_session.commit()
 
     assert response.status_code == 200, response.text
     assert response.json() == {
@@ -231,3 +240,50 @@ def test_llamacpp_profile_requires_remote_chat_completions(client):
 def test_serving_limits_are_validated(client):
     assert client.post("/ai-profiles", json=_payload(llm_max_concurrency=1)).status_code == 400
     assert client.post("/ai-profiles", json=_payload(llm_temperature=2.5)).status_code == 400
+
+
+def test_remote_chat_profile_needs_no_embedding_settings(client, db_session):
+    """Embeddings kommen aus eigenen Embedding-Profilen; ein Remote-Chat-Profil braucht nur seinen Chat-Endpunkt."""
+    payload = {
+        key: value
+        for key, value in _payload(llm_base_url="http://host.docker.internal:8082/v1").items()
+        if not key.startswith("embedding_")
+    }
+    response = client.post("/ai-profiles", json=payload)
+    assert response.status_code == 201, response.text
+    profile = db_session.query(AIProfile).filter(AIProfile.id == response.json()["id"]).one()
+    assert profile.embedding_base_url is None
+
+    db_session.delete(profile)
+    db_session.commit()
+
+
+def test_profile_test_skips_chat_profile_embedding_when_an_embedding_profile_is_active(
+    client, db_session, monkeypatch
+):
+    """Bei aktivem Embedding-Profil wirkt die Embedding-URL am Chat-Profil nicht; sie wird nicht mitgeprüft."""
+    from codena_models.database import EmbeddingProfile
+    from services.ai_settings import get_settings
+
+    created = client.post("/ai-profiles", json=_payload()).json()
+    embedding = EmbeddingProfile(
+        name="Embedding", provider="ollama", model="bge-m3", base_url="http://ollama:11434",
+        path="/api/embed", dimension=1024, context_length=8192,
+    )
+    db_session.add(embedding)
+    db_session.flush()
+    settings = get_settings(db_session)
+    previous = settings.active_embedding_profile_id
+    settings.active_embedding_profile_id = embedding.id
+    db_session.commit()
+    calls = []
+    monkeypatch.setattr("api.system.httpx.AsyncClient", lambda **_kwargs: _ProfileTestClient(calls))
+    try:
+        response = client.post(f"/ai-profiles/{created['id']}/test")
+        assert response.status_code == 200, response.text
+        assert [url for url, _headers in calls] == ["https://gpu.internal:11434/v1/models"]
+    finally:
+        settings.active_embedding_profile_id = previous
+        db_session.query(AIProfile).filter(AIProfile.id == created["id"]).delete()
+        db_session.delete(embedding)
+        db_session.commit()

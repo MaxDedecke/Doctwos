@@ -307,8 +307,10 @@ class AIProfileCreate(BaseModel):
     llm_base_url: Optional[str] = None
     llm_path: Optional[str] = None
     llm_api_key: Optional[str] = None
+    # Eingebettet wird über eigene Embedding-Profile; diese Felder sind nur der Rückfall ohne aktives
+    # Embedding-Profil und deshalb optional.
     embedding_provider: str = "ollama"
-    embedding_model: str
+    embedding_model: str = "bge-m3"
     embedding_base_url: Optional[str] = None
     embedding_path: Optional[str] = None
     embedding_api_key: Optional[str] = None

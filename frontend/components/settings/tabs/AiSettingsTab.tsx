@@ -33,13 +33,6 @@ export const AiSettingsTab: React.FC = () => {
   const [baseUrl, setBaseUrl] = useState('http://ollama:11434');
   const [llmPath, setLlmPath] = useState('/api/chat');
   const [apiKey, setApiKey] = useState('');
-  const [embeddingProvider, setEmbeddingProvider] = useState('ollama');
-  const [embeddingModel, setEmbeddingModel] = useState(DEFAULT_EMBEDDING_MODEL);
-  const [embeddingBaseUrl, setEmbeddingBaseUrl] = useState('http://ollama:11434');
-  const [embeddingPath, setEmbeddingPath] = useState('/api/embed');
-  const [embeddingKey, setEmbeddingKey] = useState('');
-  const [dimension, setDimension] = useState(1024);
-  const [embeddingContext, setEmbeddingContext] = useState(8192);
   const [llmContext, setLlmContext] = useState(8192);
   // Leer = globale Vorgabe; sonst 2 bis 256 (Backend prüft dasselbe).
   const [maxConcurrency, setMaxConcurrency] = useState('');
@@ -49,14 +42,11 @@ export const AiSettingsTab: React.FC = () => {
     if (next === 'local') {
       setProvider('ollama'); setProtocol('ollama'); setModel(DEFAULT_LLM_MODEL);
       setBaseUrl('http://ollama:11434'); setLlmPath('/api/chat');
-      setEmbeddingProvider('ollama'); setEmbeddingBaseUrl('http://ollama:11434'); setEmbeddingPath('/api/embed');
     } else if (next === 'remote') {
       setProvider('ollama'); setProtocol('ollama'); setBaseUrl(''); setLlmPath('/api/chat');
-      setEmbeddingProvider('ollama'); setEmbeddingBaseUrl(''); setEmbeddingPath('/api/embed');
     } else {
       setProvider('openai'); setProtocol('openai_responses'); setModel('gpt-6-astra');
       setBaseUrl('https://api.openai.com/v1'); setLlmPath('/responses');
-      setEmbeddingProvider('ollama'); setEmbeddingBaseUrl('http://ollama:11434'); setEmbeddingPath('/api/embed');
     }
   };
 
@@ -76,19 +66,14 @@ export const AiSettingsTab: React.FC = () => {
   };
 
   const startAdd = () => {
-    setEditing(null); setName(''); setApiKey(''); setEmbeddingKey('');
-    setEmbeddingModel(DEFAULT_EMBEDDING_MODEL); setDimension(1024); setEmbeddingContext(8192); setLlmContext(8192); setMaxConcurrency('');
+    setEditing(null); setName(''); setApiKey(''); setLlmContext(8192); setMaxConcurrency('');
     applyKind(deployerAvailable ? 'local' : 'remote'); setShowForm(true);
   };
 
   const startEdit = (profile: LlmProfile) => {
     setEditing(profile); setName(profile.name); setKind(profile.kind || 'local'); setProvider(profile.provider);
     setProtocol(profile.protocol || 'ollama'); setModel(profile.model); setBaseUrl(profile.baseUrl || '');
-    setLlmPath(profile.llmPath || ''); setApiKey(''); setEmbeddingProvider(profile.embeddingProvider || 'ollama');
-    setEmbeddingModel(profile.embeddingModel || DEFAULT_EMBEDDING_MODEL);
-    setEmbeddingBaseUrl(profile.embeddingBaseUrl || ''); setEmbeddingPath(profile.embeddingPath || '');
-    setEmbeddingKey(''); setDimension(profile.embeddingDimension || 1024);
-    setEmbeddingContext(profile.embeddingContextLength || 8192); setLlmContext(profile.llmContextLength || 8192);
+    setLlmPath(profile.llmPath || ''); setApiKey(''); setLlmContext(profile.llmContextLength || 8192);
     setMaxConcurrency(profile.maxConcurrency ? String(profile.maxConcurrency) : '');
     setShowForm(true);
   };
@@ -96,15 +81,13 @@ export const AiSettingsTab: React.FC = () => {
   const profilePayload = () => ({
     name: name.trim(), kind, provider, protocol, llm_model: model.trim(), llm_base_url: baseUrl.trim() || undefined,
     llm_path: llmPath.trim() || undefined, ...(apiKey ? { llm_api_key: apiKey } : {}),
-    embedding_provider: embeddingProvider, embedding_model: embeddingModel.trim(),
-    embedding_base_url: embeddingBaseUrl.trim() || undefined, embedding_path: embeddingPath.trim() || undefined,
-    ...(embeddingKey ? { embedding_api_key: embeddingKey } : {}), embedding_dimension: dimension,
-    embedding_context_length: embeddingContext, llm_context_length: llmContext,
+    // Eingebettet wird über die Embedding-Profile unten; das Chat-Profil trägt keine eigenen Embedding-Angaben mehr.
+    llm_context_length: llmContext,
     llm_max_concurrency: maxConcurrency.trim() ? Number(maxConcurrency) : null,
   });
 
   const save = async () => {
-    if (!name.trim() || !model.trim() || !embeddingModel.trim()) {
+    if (!name.trim() || !model.trim()) {
       showToast(t('settings.toast.profileNameRequired'), 'error'); return;
     }
     const concurrency = Number(maxConcurrency);
@@ -231,14 +214,6 @@ export const AiSettingsTab: React.FC = () => {
             </summary>
             <div className="grid sm:grid-cols-2 gap-3 mt-3">
               <Field label={t('settings.profilesTab.chatPathLabel')} value={llmPath} set={setLlmPath} />
-              <Field label={t('settings.profilesTab.embeddingModelShortLabel')} value={embeddingModel} set={setEmbeddingModel} />
-              {kind === 'remote' && <>
-                <Field label={t('settings.profilesTab.embeddingUrlLabel')} value={embeddingBaseUrl} set={setEmbeddingBaseUrl} />
-                <Field label={t('settings.profilesTab.embeddingPathLabel')} value={embeddingPath} set={setEmbeddingPath} />
-                <Field label={t('settings.profilesTab.embeddingApiKeyLabel')} value={embeddingKey} set={setEmbeddingKey} secret placeholder={editing?.embeddingApiKeySet ? '••••••••' : ''} />
-              </>}
-              <NumberField label={t('settings.profilesTab.embeddingDimensionLabel')} value={dimension} set={setDimension} />
-              <NumberField label={t('settings.profilesTab.embeddingContextLabel')} value={embeddingContext} set={setEmbeddingContext} />
               <NumberField label={t('settings.profilesTab.llmContextLabel')} value={llmContext} set={setLlmContext} />
               <Field label={t('settings.profilesTab.maxConcurrencyLabel')} value={maxConcurrency} set={setMaxConcurrency}
                 placeholder={t('settings.profilesTab.maxConcurrencyPlaceholder')} />

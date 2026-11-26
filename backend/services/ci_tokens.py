@@ -13,6 +13,8 @@ from codena_models.database import CIBuildToken, User
 from services.ci_builds import repository_identity
 
 PREFIX = "codena_ci_"
+# Vor E-21 ausgegebene CI-Tokens tragen noch das frühere Präfix; bestehende Pipelines laufen damit weiter.
+ACCEPTED_PREFIXES = (PREFIX, "dct_ci_")
 
 
 def public_token(row):
@@ -64,7 +66,7 @@ def require_ci_token(request: Request, db: Session = Depends(get_db)):
     if (
         len(parts) != 2
         or parts[0].lower() != "bearer"
-        or not parts[1].startswith(PREFIX)
+        or not parts[1].startswith(ACCEPTED_PREFIXES)
         or len(parts[1]) > 128
     ):
         raise HTTPException(status_code=401, detail="CI bearer token required")

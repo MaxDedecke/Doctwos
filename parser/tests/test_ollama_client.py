@@ -404,3 +404,58 @@ def test_embedding_endpoint_from_the_worker_environment_still_counts_as_configur
         },
     )
     assert ollama_client._effective_embedding_settings()["model"] == "bge-m3"
+
+
+def _ollama_embedding_settings(monkeypatch):
+    monkeypatch.setattr(ollama_client, "EMBEDDING_AUTO_PULL", True)
+    monkeypatch.setattr(
+        ollama_client,
+        "_effective_embedding_settings",
+        lambda model=None: {"provider": "ollama", "base_url": "http://ollama:11434", "api_key": None, "model": "bge-m3"},
+    )
+
+
+@pytest.mark.anyio
+async def test_present_embedding_model_is_not_pulled_again(monkeypatch):
+    """Ein Pull fragt die Registry im Internet an; hinter Firmen-Proxys scheitert das auch für vorhandene Modelle."""
+    _ollama_embedding_settings(monkeypatch)
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(return_value=MagicMock(status_code=200))
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    await ollama_client.ensure_model_pulled("bge-m3")
+
+    assert [call.args[0] for call in fake_client.post.await_args_list] == ["http://ollama:11434/api/show"]
+
+
+@pytest.mark.anyio
+async def test_missing_embedding_model_is_pulled_once(monkeypatch):
+    _ollama_embedding_settings(monkeypatch)
+    pulled = MagicMock(status_code=200)
+    pulled.json = MagicMock(return_value={"status": "success"})
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=[MagicMock(status_code=404), pulled])
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    await ollama_client.ensure_model_pulled("bge-m3")
+
+    pull = fake_client.post.await_args_list[1]
+    assert pull.args[0] == "http://ollama:11434/api/pull"
+    assert pull.kwargs["json"] == {"name": "bge-m3", "stream": False}
+
+
+@pytest.mark.anyio
+async def test_failed_pull_does_not_abort_the_caller(monkeypatch, caplog):
+    """Selbstsigniertes Proxy-Zertifikat oder fehlendes Internet: Warnung statt Abbruch der Link-Analyse."""
+    _ollama_embedding_settings(monkeypatch)
+    failed = MagicMock(status_code=500, text="pull model manifest: tls: failed to verify certificate: x509")
+    fake_client = MagicMock()
+    fake_client.post = AsyncMock(side_effect=[MagicMock(status_code=404), failed])
+    monkeypatch.setattr(ollama_client, "_get_client", lambda: fake_client)
+
+    await ollama_client.ensure_model_pulled("bge-m3")
+
+    assert "x509" in caplog.text
+
+    fake_client.post = AsyncMock(side_effect=ollama_client.httpx.ConnectTimeout("timeout"))
+    await ollama_client.ensure_model_pulled("bge-m3")
