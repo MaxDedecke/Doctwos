@@ -28,7 +28,7 @@ export const LINK_RUN_OPTION_FIELDS: LinkRunOptionField[] = [
   { key: 'maxReviewCandidates', param: 'max_review_candidates', min: 0, max: 100, step: 1, placeholder: '8' },
   { key: 'topKSemantic', param: 'top_k_semantic', min: 1, max: 200, step: 1, placeholder: '20' },
   { key: 'topKKeyword', param: 'top_k_keyword', min: 1, max: 500, step: 1, placeholder: '50' },
-  { key: 'mergeThreshold', param: 'merge_threshold', min: 0, max: 1, step: 0.05, placeholder: '0.9' },
+  { key: 'mergeThreshold', param: 'merge_threshold', min: 0, max: 1, step: 0.05, placeholder: '0.9 / 0.68' },
   { key: 'minScoreSemantic', param: 'min_score_semantic', min: 0, max: 1, step: 0.05, placeholder: '0.45' },
   { key: 'minScoreKeyword', param: 'min_score_keyword', min: 0, max: 1, step: 0.05, placeholder: '0.3' },
 ];

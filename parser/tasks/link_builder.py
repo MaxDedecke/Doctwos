@@ -80,6 +80,12 @@ TOP_CHUNKS_KEYWORD = 50
 # MIN_SCORE_KEYWORD oben). Kandidatenzahl bleibt trotzdem natürlich begrenzt
 # durch TOP_CHUNKS_SEMANTIC/TOP_CHUNKS_KEYWORD.
 MERGE_SCORE_THRESHOLD = 0.90
+# Für Dokument-Abschnitte (alles außer Git-Code: PDF, Confluence, Jira …). Code-Kontext und Fließtext erreichen mit
+# bge-m3 kaum je 0,9; mit 0,90 ging am Syncope-„Getting Started“ kein einziger Kandidat ans Modell (Pilot 26.11.2026).
+# Gemessen (Syncope 2_1_X, bester Abschnitt je Datei): thematisch passende Dateien Median 0,67, Maximum 0,74; zufällige
+# Core-Dateien Median 0,63. Über 0,68 liegen 33 von 83 passenden und 4 von 120 zufälligen Dateien.
+# Das Modell bleibt das eigentliche Tor (LLM_MIN_CONFIDENCE). Ein im Lauf gesetztes merge_threshold gilt für beide.
+DOCUMENT_MERGE_SCORE_THRESHOLD = 0.68
 LLM_MIN_CONFIDENCE = 35
 ENTITY_CONTEXT_MAX_CHARS = 4200
 ENTITY_EXCERPT_MAX_CHARS = 2400
@@ -382,6 +388,7 @@ class LinkRunParams:
     min_score_semantic: float = MIN_SCORE_SEMANTIC
     min_score_keyword: float = MIN_SCORE_KEYWORD
     merge_threshold: float = MERGE_SCORE_THRESHOLD
+    merge_threshold_documents: float = DOCUMENT_MERGE_SCORE_THRESHOLD
     min_confidence: int = LLM_MIN_CONFIDENCE
     dedupe_by_chunk: bool = False
     keyword_selection: str = (
@@ -403,6 +410,7 @@ class LinkRunParams:
         "min_score_semantic": (0.0, 1.0),
         "min_score_keyword": (0.0, 1.0),
         "merge_threshold": (0.0, 1.0),
+        "merge_threshold_documents": (0.0, 1.0),
         "min_confidence": (0, 100),
         "review_batch_size": (0, 50),
         "review_concurrency": (1, 8),
@@ -412,11 +420,15 @@ class LinkRunParams:
 
     # Gemessen nur mit `qwen3:8b` auf einer 8-GB-GPU (CardDemo/Syncope, 05.10.2026): 2 gleichzeitige Bewertungen und
     # 3 Kandidaten je Aufruf; höchstens 8 Kandidaten je Entity (bei „beste 50“ liegen 90 % der Entities bei höchstens 7).
-    # Entfernte und Cloud-Profile behalten die allgemeinen Standardwerte.
     LOCAL_PROFILE_DEFAULTS = {
         "review_concurrency": 2,
         "review_batch_size": 3,
         "max_review_candidates": 8,
+    }
+    # Entfernte Profile: gpt-5.1 antwortete auf 50 Kandidaten in einem Aufruf mit einer Rückfrage statt Bewertungen
+    # (Pilot 26.11.2026); 10 je Aufruf hält die Zahl der Aufrufe klein, ohne das Modell zu überfordern.
+    REMOTE_PROFILE_DEFAULTS = {
+        "review_batch_size": 10,
     }
 
     @classmethod
@@ -447,6 +459,8 @@ class LinkRunParams:
             except (TypeError, ValueError):
                 continue
             values[name] = min(max(value, low), high)
+        if "merge_threshold" in values and raw.get("merge_threshold_documents") is None:
+            values["merge_threshold_documents"] = values["merge_threshold"]
         return cls(**values)
 
     def as_dict(self) -> dict:
@@ -569,8 +583,12 @@ def _pass_keyword(
     return result
 
 
+def _is_document_chunk(chunk: DocumentChunk) -> bool:
+    return (chunk.metadata_json or {}).get("source_type") != "Git"
+
+
 def _merge_passes(
-    *passes, threshold: float | None = None
+    *passes, threshold: float | None = None, document_threshold: float | None = None
 ) -> list[tuple[DocumentChunk, float, str]]:
     merged: dict[str, tuple[DocumentChunk, float, str]] = {}
     for data, name in passes:
@@ -579,8 +597,13 @@ def _merge_passes(
                 merged[title] = (chunk, score, name)
 
     sorted_pages = sorted(merged.values(), key=lambda x: x[1], reverse=True)
-    limit = MERGE_SCORE_THRESHOLD if threshold is None else threshold
-    return [page for page in sorted_pages if page[1] > limit]
+    code_limit = MERGE_SCORE_THRESHOLD if threshold is None else threshold
+    document_limit = code_limit if document_threshold is None else document_threshold
+    return [
+        page
+        for page in sorted_pages
+        if page[1] > (document_limit if _is_document_chunk(page[0]) else code_limit)
+    ]
 
 
 def _exclude_own_source(entity: CodeEntity, pages: list) -> list:
@@ -656,15 +679,51 @@ async def _llm_review(
             if _document_names_field(entity, page[0].content, entity_context)
         ]
     if not batch_size or len(top_pages) <= batch_size:
-        return await _llm_review_once(entity, top_pages, min_confidence, entity_context)
+        return await _review_batch(entity, top_pages, min_confidence, entity_context)
     reviewed: list[tuple[DocumentChunk, float, str, str]] = []
     for start in range(0, len(top_pages), batch_size):
         reviewed.extend(
-            await _llm_review_once(
+            await _review_batch(
                 entity, top_pages[start : start + batch_size], min_confidence, entity_context
             )
         )
     return reviewed
+
+
+async def _review_batch(
+    entity: CodeEntity,
+    pages: list[tuple[DocumentChunk, float, str]],
+    min_confidence: int,
+    entity_context: str | None,
+) -> list[tuple[DocumentChunk, float, str, str]]:
+    """Ein Modellaufruf; liefert das Modell keine Bewertungen (z. B. eine Rückfrage), einmal in kleineren Paketen."""
+    try:
+        return await _llm_review_once(entity, pages, min_confidence, entity_context)
+    except RuntimeError as exc:
+        if not isinstance(exc.__cause__, NoRatingsError) or len(pages) <= RETRY_BATCH_SIZE:
+            raise
+        logger.warning(
+            "[LinkBuilder] LLM-Bewertung für %s: keine Bewertungen für %d Kandidaten, zweiter Versuch in Paketen zu %d",
+            entity.name,
+            len(pages),
+            RETRY_BATCH_SIZE,
+        )
+    reviewed: list[tuple[DocumentChunk, float, str, str]] = []
+    for start in range(0, len(pages), RETRY_BATCH_SIZE):
+        reviewed.extend(
+            await _llm_review_once(
+                entity, pages[start : start + RETRY_BATCH_SIZE], min_confidence, entity_context
+            )
+        )
+    return reviewed
+
+
+class NoRatingsError(ValueError):
+    """Die Modellantwort enthält keine einzige Kandidatenbewertung."""
+
+
+# Paketgröße für den zweiten Versuch, wenn ein Modell auf viele Kandidaten ohne Bewertungen antwortet.
+RETRY_BATCH_SIZE = 5
 
 
 def _rating_items(response) -> list:
@@ -759,7 +818,7 @@ async def _llm_review_once(
             response = await get_chat_json(prompt, config.LLM_MODEL, timeout=LLM_REVIEW_TIMEOUT)
         response_arr = _rating_items(response)
         if not response_arr:
-            raise ValueError(
+            raise NoRatingsError(
                 f"LLM lieferte keine Kandidatenbewertung (Antwort: {json.dumps(response, ensure_ascii=False)[:300]})"
             )
         reviewed = []
@@ -914,7 +973,11 @@ def _profile_run_defaults(db) -> dict:
 
 
 def _defaults_for_profile_kind(kind: str | None) -> dict:
-    return dict(LinkRunParams.LOCAL_PROFILE_DEFAULTS) if kind == "local" else {}
+    if kind == "local":
+        return dict(LinkRunParams.LOCAL_PROFILE_DEFAULTS)
+    if kind:
+        return dict(LinkRunParams.REMOTE_PROFILE_DEFAULTS)
+    return {}
 
 
 async def compute_entity_links_async(
@@ -1170,6 +1233,7 @@ async def compute_entity_links_async(
                         (semantic, "semantic"),
                         (keyword, "keyword"),
                         threshold=params.merge_threshold,
+                        document_threshold=params.merge_threshold_documents,
                     ),
                 )
                 undecided = _undecided_pages(

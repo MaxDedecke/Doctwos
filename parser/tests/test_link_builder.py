@@ -382,6 +382,47 @@ def test_llm_review_takes_the_index_from_the_key_when_the_entry_lacks_it(monkeyp
     assert [item[1] for item in reviewed] == [0.8]
 
 
+def test_llm_review_retries_in_small_batches_when_the_model_answers_with_a_question(monkeypatch):
+    """Pilot 26.11.2026: gpt-5.1 antwortete auf 50 Kandidaten mit einer Rückfrage statt mit Bewertungen."""
+    import asyncio
+    from types import SimpleNamespace
+
+    import tasks.link_builder as link_builder
+
+    calls = []
+
+    async def fake_chat_json(prompt, model, **kwargs):
+        count = prompt.count("Index ")
+        calls.append(count)
+        if count > link_builder.RETRY_BATCH_SIZE:
+            return {"error": "Bitte bestätige, dass du alle Bewertungen willst."}
+        return [{"index": i, "confidence": 80, "reason": _REASON} for i in range(count)]
+
+    monkeypatch.setattr(link_builder, "get_chat_json", fake_chat_json)
+    entity = SimpleNamespace(
+        type="program", name="CBPAUP0C", qualified_name="CBPAUP0C", file_path="CBPAUP0C.cbl"
+    )
+    pages = [
+        (
+            SimpleNamespace(
+                content="CBPAUP0C Text",
+                metadata_json={},
+                file_path=f"doc{i}.md",
+                start_line=0,
+                end_line=0,
+            ),
+            0.95,
+            "semantic",
+        )
+        for i in range(12)
+    ]
+
+    reviewed = asyncio.run(link_builder._llm_review(entity, pages, min_confidence=50))
+
+    assert calls == [12, 5, 5, 2]
+    assert len(reviewed) == 12
+
+
 def test_llm_review_still_rejects_answer_without_candidates(monkeypatch):
     with pytest.raises(RuntimeError, match="keine Kandidatenbewertung"):
         _review_with(monkeypatch, {"hinweis": "nichts gefunden"})
@@ -865,7 +906,8 @@ def test_link_run_params_take_profile_defaults_but_the_run_wins():
 
     local = _defaults_for_profile_kind("local")
     assert local == {"review_concurrency": 2, "review_batch_size": 3, "max_review_candidates": 8}
-    assert _defaults_for_profile_kind("cloud") == {} and _defaults_for_profile_kind(None) == {}
+    assert _defaults_for_profile_kind("remote") == {"review_batch_size": 10}
+    assert _defaults_for_profile_kind(None) == {}
 
     from_profile = LinkRunParams.from_scope(None, None, local)
     assert (from_profile.review_concurrency, from_profile.max_review_candidates) == (2, 8)
@@ -896,3 +938,28 @@ def test_link_run_params_take_profile_defaults_but_the_run_wins():
         LinkRunParams.from_scope({"params": {"max_review_candidates": 999}}).max_review_candidates
         == 100
     )
+
+
+def test_document_passages_use_their_own_merge_threshold():
+    """Pilot 26.11.2026: Code-Datei gegen PDF-Fließtext erreicht kaum je 0,9; mit einer Schwelle ging nichts ans LLM."""
+    from types import SimpleNamespace
+
+    from tasks.link_builder import _merge_passes
+
+    pdf = SimpleNamespace(metadata_json={"source_type": "Local"})
+    code = SimpleNamespace(metadata_json={"source_type": "Git"})
+    semantic = {"handbuch.pdf#1": (pdf, 0.7), "Main.java": (code, 0.7)}
+
+    kept = _merge_passes((semantic, "semantic"), threshold=0.9, document_threshold=0.6)
+
+    assert [page[0] for page in kept] == [pdf]
+
+
+def test_an_explicit_merge_threshold_applies_to_documents_too():
+    from tasks.link_builder import DOCUMENT_MERGE_SCORE_THRESHOLD, LinkRunParams
+
+    assert (
+        LinkRunParams.from_scope(None).merge_threshold_documents == DOCUMENT_MERGE_SCORE_THRESHOLD
+    )
+    chosen = LinkRunParams.from_scope({"params": {"merge_threshold": 0.8}})
+    assert (chosen.merge_threshold, chosen.merge_threshold_documents) == (0.8, 0.8)

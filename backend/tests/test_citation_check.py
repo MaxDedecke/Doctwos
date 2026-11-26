@@ -104,3 +104,38 @@ def test_a_citation_by_file_name_alone_resolves_to_the_one_file_of_that_name(rep
     text, consistent = _evidence().validate(answer, [], "")
 
     assert consistent and "`UserUR.java:104`" in text and "nicht" not in text
+
+
+_PDF = "/repos/uploads/3_getting-started.pdf"
+_PDF_CHUNK = {"chunk_id": 7, "source_id": 3, "file_path": _PDF, "start_line": 110, "end_line": 140}
+
+
+def test_a_retrieved_document_passage_is_accepted_as_evidence():
+    """Pilot 26.11.2026: Antworten aus einer hochgeladenen PDF wurden als „nicht belastbar belegt“ verworfen."""
+    evidence = ToolEvidence(repository_id=None)
+    evidence.accept_retrieved_documents([_PDF_CHUNK])
+
+    text, consistent = evidence.validate(
+        "Syncope startet über Maven (`3_getting-started.pdf:120`).", [], ""
+    )
+
+    assert consistent and "nicht belegt" not in text
+    # Nur Beleg, keine gelesene Werkzeugstelle: die Rückfall-Quellenliste bleibt unberührt.
+    assert evidence.sources == []
+
+
+def test_a_line_outside_the_retrieved_passage_is_still_rejected():
+    evidence = ToolEvidence(repository_id=None)
+    evidence.accept_retrieved_documents([_PDF_CHUNK])
+
+    text, consistent = evidence.validate("Siehe `3_getting-started.pdf:400`.", [], "")
+
+    assert not consistent and "nicht belastbar belegt" in text
+
+
+def test_a_document_that_was_not_retrieved_is_still_rejected():
+    evidence = ToolEvidence(repository_id=None)
+
+    text, consistent = evidence.validate("Siehe `3_getting-started.pdf:120`.", [], "")
+
+    assert not consistent

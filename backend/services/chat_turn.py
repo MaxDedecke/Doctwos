@@ -523,6 +523,7 @@ class ChatTurnRun:
         mcp_status: list = []
         try:
             documents = walkthrough_documents(self.db, context.results)
+            evidence.accept_retrieved_documents(documents)
             from mcp_client import init_mcp_clients_for_sources
 
             mcp_clients = await init_mcp_clients_for_sources(

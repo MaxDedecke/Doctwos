@@ -2056,7 +2056,7 @@
       "maxReviewCandidates": "Kandidaten je Entität (Obergrenze, 0 = keine)",
       "topKSemantic": "Semantische Kandidaten (Top-k)",
       "topKKeyword": "Stichwort-Kandidaten (Top-k)",
-      "mergeThreshold": "Mindest-Score vor der Bewertung",
+      "mergeThreshold": "Mindest-Score vor der Bewertung (leer: Code 0,9 · Dokumente 0,68)",
       "minScoreSemantic": "Mindest-Ähnlichkeit (semantisch)",
       "minScoreKeyword": "Mindest-Trefferanteil (Stichwort)",
       "dedupeByChunk": "Jeden Abschnitt einzeln bewerten (statt einer Seite)",

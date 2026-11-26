@@ -2056,7 +2056,7 @@
       "maxReviewCandidates": "Candidates per entity (cap, 0 = none)",
       "topKSemantic": "Semantic candidates (top-k)",
       "topKKeyword": "Keyword candidates (top-k)",
-      "mergeThreshold": "Minimum score before review",
+      "mergeThreshold": "Minimum score before review (empty: code 0.9 · documents 0.68)",
       "minScoreSemantic": "Minimum similarity (semantic)",
       "minScoreKeyword": "Minimum match share (keyword)",
       "dedupeByChunk": "Review every section on its own (instead of one page)",

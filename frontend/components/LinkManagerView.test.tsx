@@ -362,7 +362,7 @@ describe('LinkManagerView', () => {
       fireEvent.change(await screen.findByLabelText('Mindest-Wahrscheinlichkeit'), { target: { value: '70' } });
       fireEvent.click(screen.getByRole('button', { name: 'Erweitert' }));
       fireEvent.change(screen.getByLabelText('Parallele Bewertungen'), { target: { value: '99' } });
-      fireEvent.change(screen.getByLabelText('Mindest-Score vor der Bewertung'), { target: { value: '0.8' } });
+      fireEvent.change(screen.getByLabelText('Mindest-Score vor der Bewertung (leer: Code 0,9 · Dokumente 0,68)'), { target: { value: '0.8' } });
       fireEvent.click(screen.getByLabelText('Jeden Abschnitt einzeln bewerten (statt einer Seite)'));
       const start = await screen.findByRole('button', { name: 'Lauf starten' });
       await waitFor(() => expect(screen.getByTestId('link-run-estimate').textContent).toContain('Prüft 3'));

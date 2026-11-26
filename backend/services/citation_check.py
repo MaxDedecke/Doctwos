@@ -213,6 +213,24 @@ class ToolEvidence:
         self.repository_id = repository_id
         self.sources: list[dict] = []
         self.edge_pairs: set[tuple[str, str]] = set()
+        # Doku-Abschnitte (PDF, Confluence, Jira …), die die Suche vor dem Agentenlauf in den Prompt gelegt hat.
+        # Sie belegen Zitate wie ein Werkzeugergebnis, gehören aber nicht in die Liste der gelesenen Stellen,
+        # die `append_agent_source_fallback` an Antworten ohne Zitat hängt.
+        self.retrieved: list[dict] = []
+
+    def accept_retrieved_documents(self, documents: list[dict]) -> None:
+        """Für das Modell bereits abgerufene Doku-Abschnitte (``chat_turn.walkthrough_documents``) als Belege zulassen.
+
+        Kein Werkzeug des Agenten liest Dokumentinhalte; ohne diese Zulassung wurde jede Antwort, die eine
+        hochgeladene PDF mit Zeile zitiert, als „nicht belastbar belegt“ verworfen (Pilot 26.11.2026).
+        """
+        for document in documents:
+            path = document.get("file_path")
+            if not path:
+                continue
+            start = document.get("start_line") or 1
+            end = document.get("end_line") or start
+            record_agent_source(self.retrieved, path, start, end, document.get("source_id"))
 
     def observe(self, event: dict) -> None:
         extract_tool_sources(event, self.sources, self.repository_id)
@@ -231,7 +249,7 @@ class ToolEvidence:
 
         return validate_answer_sources(
             answer,
-            self.sources,
+            self.sources + self.retrieved,
             self.edge_pairs,
             evidence_text=tool_evidence_text(agent_steps, question) if agent_steps else None,
             source_supported=source_supported,
