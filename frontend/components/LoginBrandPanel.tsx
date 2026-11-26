@@ -2,7 +2,7 @@
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { cn } from "@/lib/utils";
 import React, { useEffect, useState } from 'react';
-import { CodenaMark } from './Logo';
+import { CodenaLogo, CodenaMark } from './Logo';
 
 const QUESTION_KEYS = ['q1', 'q2', 'q3', 'q4', 'q5', 'q6', 'q7'];
 // Gleiches Tempo wie die getippte Überschrift im leeren Chat (ChatEmptyState).
@@ -70,6 +70,8 @@ export function LoginBrandPanel({ className }: { className?: string }) {
     >
       <CodenaMark className="pointer-events-none absolute -right-[18%] -bottom-[22%] !w-[62%] !h-auto opacity-[0.05]" />
 
+      <div className="relative">
+      <CodenaLogo className="text-[2.6rem] mb-10" />
       <p className="relative max-w-[36rem] min-h-[3.3em] font-heading font-semibold text-[2.6rem] xl:text-[3rem] leading-[1.1] tracking-[-0.035em]">
         {text}
         <span
@@ -79,6 +81,7 @@ export function LoginBrandPanel({ className }: { className?: string }) {
           )}
         />
       </p>
+      </div>
     </aside>
   );
 }
